@@ -1,0 +1,5 @@
+rust_input: rust/src/api/**/*.rs
+dart_output: lib/src/rust
+c_output: windows/runner/bridge_generated.h
+rust_root: rust/
+dart_root: .

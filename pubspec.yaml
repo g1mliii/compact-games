@@ -1,0 +1,58 @@
+name: pressplay
+description: "High-performance game compressor with intelligent automation"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Window management
+  window_manager: ^0.4.3
+
+  # System tray
+  tray_manager: ^0.2.3
+
+  # HTTP client
+  http: ^1.3.0
+
+  # Icons
+  lucide_icons: ^0.257.0
+
+  # Local storage
+  shared_preferences: ^2.5.3
+
+  # Path utilities
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Flutter Rust Bridge
+  flutter_rust_bridge: ^2.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf

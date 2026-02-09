@@ -1,0 +1,65 @@
+[package]
+name = "pressplay_core"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance game compression engine for PressPlay"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+# Flutter Rust Bridge
+flutter_rust_bridge = "=2.9.0"
+
+# Windows API bindings
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Threading",
+    "Win32_Security",
+] }
+
+[dependencies.thiserror]
+version = "2"
+
+[dependencies.anyhow]
+version = "1"
+
+[dependencies.serde]
+version = "1"
+features = ["derive"]
+
+[dependencies.serde_json]
+version = "1"
+
+[dependencies.rayon]
+version = "1.10"
+
+[dependencies.walkdir]
+version = "2"
+
+[dependencies.notify]
+version = "7"
+
+[dependencies.sysinfo]
+version = "0.33"
+
+[dependencies.crossbeam-channel]
+version = "0.5"
+
+[dependencies.log]
+version = "0.4"
+
+[dependencies.env_logger]
+version = "0.11"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

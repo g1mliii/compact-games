@@ -1,0 +1,78 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+flutter_*.log
+*.iml
+.metadata
+
+# Flutter Rust Bridge generated files
+lib/src/rust/
+windows/runner/bridge_generated.h
+ios/Runner/bridge_generated.h
+macos/Runner/bridge_generated.h
+linux/runner/bridge_generated.h
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (as requested)
+*.md
+!README.md
+!LICENSE.md
+!SPEC.md
+!AGENTS.md
+!IMPLEMENTATION_PLAN.md
+!SETUP.md
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test coverage
+coverage/
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+
+# Windows specific
+*.obj
+*.lib
+*.exp
+
+# Font files (will be added when needed)
+assets/fonts/*.ttf
+assets/fonts/*.otf
+!assets/fonts/.gitkeep
+IMPLEMENTATION_PLAN.md
+AGENTS.md
+SPEC.md
