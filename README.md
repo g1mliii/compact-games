@@ -1,4 +1,4 @@
-# PressPlay 🎮
+# PressPlay 
 
 A beautiful, intelligent game compressor that automatically saves disk space without compromising performance.
 
@@ -89,22 +89,22 @@ _Coming soon_
 
 See [SPEC.md](SPEC.md) for the complete development plan.
 
-### Phase 1: Core Engine ✅
+### Phase 1: Core Engine 
 - Compression engine with Windows API integration
 - DirectStorage detection
 - Game discovery for multiple platforms
 
-### Phase 2: Beautiful UI 🚧
+### Phase 2: Beautiful UI 
 - Game grid with cover art
 - Real-time progress tracking
 - Settings and configuration
 
-### Phase 3: Automation 📋
+### Phase 3: Automation 
 - Intelligent idle detection
 - Automatic compression workflow
 - System tray integration
 
-### Phase 4: Polish & Release 📋
+### Phase 4: Polish & Release 
 - Comprehensive testing
 - Performance optimization
 - Installer and distribution
