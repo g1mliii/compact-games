@@ -49,7 +49,7 @@ class _GameCardState extends State<GameCard> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
-            transform: _isHovered ? _hoverTransform : Matrix4.identity(),
+            transform: _isHovered ? _hoverTransform : null,
             child: Container(
               constraints: const BoxConstraints(
                 minWidth: AppConstants.cardMinWidth,
@@ -98,8 +98,8 @@ class _GameCardState extends State<GameCard> {
                 cacheHeight: 600,
                 errorBuilder: (context, error, stackTrace) =>
                     _buildPlaceholderCover(),
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  if (wasSynchronouslyLoaded || frame != null) return child;
                   return _buildPlaceholderCover();
                 },
               )
@@ -150,7 +150,8 @@ class _GameCardState extends State<GameCard> {
 
     if (widget.isCompressed && widget.compressedSizeBytes != null) {
       final savedBytes = widget.totalSizeBytes - widget.compressedSizeBytes!;
-      final savedGB = savedBytes / (1024 * 1024 * 1024);
+      final safeSavedBytes = savedBytes > 0 ? savedBytes : 0;
+      final savedGB = safeSavedBytes / (1024 * 1024 * 1024);
       return StatusBadge.compressed(savedGB);
     }
 
@@ -161,9 +162,13 @@ class _GameCardState extends State<GameCard> {
     final sizeGB = widget.totalSizeBytes / (1024 * 1024 * 1024);
 
     if (widget.isCompressed && widget.compressedSizeBytes != null) {
+      final totalSizeBytes = widget.totalSizeBytes;
+      final compressedSizeBytes = widget.compressedSizeBytes!;
       final compressedGB = widget.compressedSizeBytes! / (1024 * 1024 * 1024);
-      final ratio =
-          ((1 - (widget.compressedSizeBytes! / widget.totalSizeBytes)) * 100);
+      final rawRatio = totalSizeBytes > 0
+          ? 1 - (compressedSizeBytes / totalSizeBytes)
+          : 0.0;
+      final ratio = rawRatio.clamp(0.0, 1.0).toDouble();
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,7 +194,7 @@ class _GameCardState extends State<GameCard> {
             ],
           ),
           const SizedBox(height: 4),
-          _CompressionBar(ratio: ratio / 100),
+          _CompressionBar(ratio: ratio),
         ],
       );
     }

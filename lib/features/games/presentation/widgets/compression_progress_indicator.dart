@@ -26,7 +26,8 @@ class CompressionProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = filesTotal > 0 ? filesProcessed / filesTotal : 0.0;
+    final rawProgress = filesTotal > 0 ? filesProcessed / filesTotal : 0.0;
+    final progress = rawProgress.clamp(0.0, 1.0).toDouble();
     return RepaintBoundary(
       child: Container(
         padding: const EdgeInsets.all(16),

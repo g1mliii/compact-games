@@ -26,7 +26,10 @@ impl PlatformScanner for XboxScanner {
         // 1. Scan C:\XboxGames default path
         // 2. Handle UWP package permissions
         // 3. Calculate folder sizes
-        log::info!("Xbox scan: {} (not yet implemented)", self.xbox_path.display());
+        log::info!(
+            "Xbox scan: {} (not yet implemented)",
+            self.xbox_path.display()
+        );
         Vec::new()
     }
 

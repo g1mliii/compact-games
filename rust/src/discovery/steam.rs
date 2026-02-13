@@ -33,7 +33,10 @@ impl PlatformScanner for SteamScanner {
         // 3. Parse appmanifest_*.acf for game metadata
         // 4. Calculate folder sizes
         // 5. Check compression status
-        log::info!("Steam scan: {} (not yet implemented)", self.steam_path.display());
+        log::info!(
+            "Steam scan: {} (not yet implemented)",
+            self.steam_path.display()
+        );
         Vec::new()
     }
 

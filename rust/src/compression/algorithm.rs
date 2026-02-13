@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 /// `WofSetFileDataLocation`. Unlike basic NTFS compression (LZNT1),
 /// WOF compression is transparent to applications and offers better
 /// ratios with modern algorithms.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CompressionAlgorithm {
     /// Fast compression, moderate ratio. Recommended default for games.
+    #[default]
     Xpress4K,
     /// Balanced compression and speed.
     Xpress8K,
@@ -19,18 +20,12 @@ pub enum CompressionAlgorithm {
     Lzx,
 }
 
-impl Default for CompressionAlgorithm {
-    fn default() -> Self {
-        Self::Xpress4K
-    }
-}
-
 impl CompressionAlgorithm {
     /// Returns the WOF `FILE_PROVIDER_COMPRESSION_*` constant.
     pub fn wof_algorithm_id(&self) -> u32 {
         match self {
             Self::Xpress4K => 0,  // FILE_PROVIDER_COMPRESSION_XPRESS4K
-            Self::Lzx => 1,      // FILE_PROVIDER_COMPRESSION_LZX
+            Self::Lzx => 1,       // FILE_PROVIDER_COMPRESSION_LZX
             Self::Xpress8K => 2,  // FILE_PROVIDER_COMPRESSION_XPRESS8K
             Self::Xpress16K => 3, // FILE_PROVIDER_COMPRESSION_XPRESS16K
         }
@@ -69,7 +64,10 @@ mod tests {
 
     #[test]
     fn default_is_xpress4k() {
-        assert_eq!(CompressionAlgorithm::default(), CompressionAlgorithm::Xpress4K);
+        assert_eq!(
+            CompressionAlgorithm::default(),
+            CompressionAlgorithm::Xpress4K
+        );
     }
 
     #[test]

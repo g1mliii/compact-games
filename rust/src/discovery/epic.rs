@@ -26,7 +26,10 @@ impl PlatformScanner for EpicScanner {
         // 1. Scan default Epic Games path
         // 2. Parse .egstore metadata for game info
         // 3. Calculate folder sizes
-        log::info!("Epic scan: {} (not yet implemented)", self.epic_path.display());
+        log::info!(
+            "Epic scan: {} (not yet implemented)",
+            self.epic_path.display()
+        );
         Vec::new()
     }
 
