@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -29,7 +30,7 @@ class GameCard extends StatefulWidget {
 }
 
 class _GameCardState extends State<GameCard> {
-  bool _isHovered = false;
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
 
   static final Matrix4 _hoverTransform = Matrix4.diagonal3Values(
     1.02,
@@ -38,50 +39,69 @@ class _GameCardState extends State<GameCard> {
   );
 
   @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
+        onEnter: (_) => _setHovered(true),
+        onExit: (_) => _setHovered(false),
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            transform: _isHovered ? _hoverTransform : null,
-            child: Container(
-              constraints: const BoxConstraints(
-                minWidth: AppConstants.cardMinWidth,
-                maxWidth: AppConstants.cardMaxWidth,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _isHovered ? AppColors.accent : AppColors.border,
-                  width: 1,
-                ),
-                boxShadow: _isHovered
-                    ? [
-                        BoxShadow(
-                          color: AppColors.accent.withValues(alpha: 0.1),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [_buildCoverArt(), _buildGameInfo()],
-              ),
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _isHovered,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [_buildCoverArt(), _buildGameInfo()],
             ),
+            builder: (context, isHovered, child) {
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                transform: isHovered ? _hoverTransform : null,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: AppConstants.cardMinWidth,
+                    maxWidth: AppConstants.cardMaxWidth,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isHovered ? AppColors.accent : AppColors.border,
+                      width: 1,
+                    ),
+                    boxShadow: isHovered
+                        ? [
+                            BoxShadow(
+                              color: AppColors.accent.withValues(alpha: 0.1),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: child,
+                ),
+              );
+            },
           ),
         ),
       ),
     );
+  }
+
+  void _setHovered(bool value) {
+    if (_isHovered.value == value) {
+      return;
+    }
+    _isHovered.value = value;
   }
 
   Widget _buildCoverArt() {
@@ -89,21 +109,37 @@ class _GameCardState extends State<GameCard> {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
       child: AspectRatio(
         aspectRatio: AppConstants.coverAspectRatio,
-        child: widget.coverImageUrl != null
-            ? Image.network(
-                widget.coverImageUrl!,
-                fit: BoxFit.cover,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (widget.coverImageUrl == null) {
+              return _buildPlaceholderCover();
+            }
 
-                cacheWidth: 400,
-                cacheHeight: 600,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildPlaceholderCover(),
-                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                  if (wasSynchronouslyLoaded || frame != null) return child;
-                  return _buildPlaceholderCover();
-                },
-              )
-            : _buildPlaceholderCover(),
+            final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+            final logicalWidth = constraints.maxWidth.isFinite
+                ? constraints.maxWidth
+                : AppConstants.cardMaxWidth;
+            final decodeWidth = (logicalWidth * devicePixelRatio)
+                .clamp(240.0, 960.0)
+                .round();
+            final decodeHeight = (decodeWidth / AppConstants.coverAspectRatio)
+                .round();
+
+            return Image.network(
+              widget.coverImageUrl!,
+              fit: BoxFit.cover,
+              cacheWidth: decodeWidth,
+              cacheHeight: decodeHeight,
+              filterQuality: FilterQuality.low,
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildPlaceholderCover(),
+              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                if (wasSynchronouslyLoaded || frame != null) return child;
+                return _buildPlaceholderCover();
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -112,11 +148,7 @@ class _GameCardState extends State<GameCard> {
     return Container(
       color: AppColors.surfaceElevated,
       child: const Center(
-        child: Icon(
-          Icons.videogame_asset_outlined,
-          size: 48,
-          color: AppColors.textMuted,
-        ),
+        child: Icon(LucideIcons.gamepad2, size: 48, color: AppColors.textMuted),
       ),
     );
   }
@@ -187,7 +219,7 @@ class _GameCardState extends State<GameCard> {
               Text(
                 '/ ${sizeGB.toStringAsFixed(1)} GB',
                 style: AppTypography.bodySmall.copyWith(
-                  fontFamily: AppTypography.monoFontFamily,
+                  fontFamilyFallback: AppTypography.monoFontFallback,
                   decoration: TextDecoration.lineThrough,
                 ),
               ),

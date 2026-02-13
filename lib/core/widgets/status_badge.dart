@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
 
 class StatusBadge extends StatelessWidget {
@@ -14,26 +15,26 @@ class StatusBadge extends StatelessWidget {
     return StatusBadge(
       label: 'Saved ${savedGB.toStringAsFixed(1)} GB',
       color: AppColors.compressed,
-      icon: Icons.check_circle_outline,
+      icon: LucideIcons.checkCircle2,
     );
   }
 
   const StatusBadge.notCompressed({super.key})
     : label = 'Not Compressed',
       color = AppColors.notCompressed,
-      icon = Icons.circle_outlined,
+      icon = LucideIcons.circle,
       variant = StatusBadgeVariant.filled;
 
   const StatusBadge.directStorage({super.key})
     : label = 'DirectStorage',
       color = AppColors.directStorage,
-      icon = Icons.warning_amber_rounded,
+      icon = LucideIcons.alertTriangle,
       variant = StatusBadgeVariant.filled;
 
   const StatusBadge.compressing({super.key})
     : label = 'Compressing',
       color = AppColors.compressing,
-      icon = Icons.hourglass_empty,
+      icon = LucideIcons.hourglass,
       variant = StatusBadgeVariant.filled;
 
   final String label;
@@ -73,7 +74,7 @@ class StatusBadge extends StatelessWidget {
   }
 
   static const TextStyle _labelStyle = TextStyle(
-    fontFamily: 'Inter',
+    fontFamilyFallback: <String>['Inter', 'Segoe UI', 'Arial'],
     fontSize: 12,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.5,

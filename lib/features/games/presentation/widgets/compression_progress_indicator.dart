@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
@@ -86,7 +87,7 @@ class CompressionProgressIndicator extends StatelessWidget {
         ),
         if (onCancel != null)
           IconButton(
-            icon: const Icon(Icons.close, size: 20),
+            icon: const Icon(LucideIcons.x, size: 20),
             color: AppColors.textMuted,
             onPressed: onCancel,
             tooltip: 'Cancel compression',
@@ -149,15 +150,16 @@ class CompressionProgressIndicator extends StatelessWidget {
     final savedMB = bytesSaved / (1024 * 1024);
     final savedGB = bytesSaved / (1024 * 1024 * 1024);
 
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 6,
       children: [
         _StatChip(
-          icon: Icons.description_outlined,
+          icon: LucideIcons.file,
           label: '$filesProcessed / $filesTotal files',
         ),
-        const SizedBox(width: 12),
         _StatChip(
-          icon: Icons.storage_outlined,
+          icon: LucideIcons.hardDrive,
           label: savedGB >= 1.0
               ? '${savedGB.toStringAsFixed(1)} GB saved'
               : '${savedMB.toStringAsFixed(0)} MB saved',
