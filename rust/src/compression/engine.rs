@@ -7,10 +7,15 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
+mod engine_safety;
+
 use super::algorithm::CompressionAlgorithm;
 use super::error::CompressionError;
 use crate::progress::reporter::{EngineCounters, ProgressReporter};
 use crate::progress::tracker::CompressionProgress;
+
+pub use self::engine_safety::SafetyConfig;
+use self::engine_safety::{run_safety_checks, DirectStoragePolicy};
 
 #[cfg(windows)]
 use super::wof::{self, CompressFileResult};
@@ -80,6 +85,8 @@ pub struct CompressionEngine {
     files_total: Arc<AtomicU64>,
     bytes_original: Arc<AtomicU64>,
     bytes_compressed: Arc<AtomicU64>,
+    safety: Option<SafetyConfig>,
+    directstorage_policy: DirectStoragePolicy,
 }
 
 impl CompressionEngine {
@@ -92,6 +99,8 @@ impl CompressionEngine {
             files_total: Arc::new(AtomicU64::new(0)),
             bytes_original: Arc::new(AtomicU64::new(0)),
             bytes_compressed: Arc::new(AtomicU64::new(0)),
+            safety: None,
+            directstorage_policy: DirectStoragePolicy::Block,
         }
     }
 
@@ -143,23 +152,19 @@ impl CompressionEngine {
 
     pub fn compress_folder(&self, folder: &Path) -> Result<CompressionStats, CompressionError> {
         self.validate_path(folder)?;
+        run_safety_checks(folder, self.directstorage_policy, self.safety.as_ref())?;
         let _operation_guard = self.operation_guard();
         self.reset_counters();
         self.compress_impl(folder)
     }
 
-    /// Starts compression on a background worker and returns:
-    /// - a live progress stream receiver
-    /// - a final operation result receiver
-    ///
-    /// Dropping the progress receiver does not cancel the operation. Cancellation
-    /// remains explicit via `CancellationToken`.
     pub fn compress_folder_with_progress(
         &self,
         folder: &Path,
         game_name: String,
     ) -> Result<CompressionProgressHandle, CompressionError> {
         self.validate_path(folder)?;
+        run_safety_checks(folder, self.directstorage_policy, self.safety.as_ref())?;
         let folder = folder.to_path_buf();
         let engine = self.clone();
 
@@ -214,13 +219,11 @@ impl CompressionEngine {
     }
 
     fn validate_path(&self, path: &Path) -> Result<(), CompressionError> {
-        if !path.exists() {
-            return Err(CompressionError::PathNotFound(path.to_path_buf()));
+        match std::fs::metadata(path) {
+            Err(_) => Err(CompressionError::PathNotFound(path.to_path_buf())),
+            Ok(m) if !m.is_dir() => Err(CompressionError::NotADirectory(path.to_path_buf())),
+            Ok(_) => Ok(()),
         }
-        if !path.is_dir() {
-            return Err(CompressionError::NotADirectory(path.to_path_buf()));
-        }
-        Ok(())
     }
 
     fn file_iter(folder: &Path) -> impl Iterator<Item = walkdir::DirEntry> + '_ {
@@ -387,47 +390,4 @@ impl CompressionEngine {
 }
 
 #[cfg(test)]
-mod unit_tests {
-    use super::*;
-
-    #[test]
-    fn reset_counters_zeroes_all() {
-        let engine = CompressionEngine::new(CompressionAlgorithm::default());
-        engine.files_processed.store(42, Ordering::Relaxed);
-        engine.files_total.store(100, Ordering::Relaxed);
-        engine.bytes_original.store(999, Ordering::Relaxed);
-        engine.bytes_compressed.store(500, Ordering::Relaxed);
-
-        engine.reset_counters();
-        let (fp, ft, bo, bc) = engine.progress();
-        assert_eq!((fp, ft, bo, bc), (0, 0, 0, 0));
-    }
-
-    #[test]
-    fn operation_guard_prevents_parallel_entry() {
-        let engine = CompressionEngine::new(CompressionAlgorithm::default());
-        let _guard = engine.operation_guard();
-        assert!(
-            engine.operation_lock.try_lock().is_err(),
-            "operation lock should block concurrent operation entry"
-        );
-    }
-
-    #[test]
-    fn recoverable_error_classification_is_strict() {
-        let locked = CompressionError::LockedFile {
-            path: Path::new("C:\\test").to_path_buf(),
-        };
-        let denied = CompressionError::PermissionDenied {
-            path: Path::new("C:\\test").to_path_buf(),
-            source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
-        };
-        let wof = CompressionError::WofApiError {
-            message: "unsupported".into(),
-        };
-
-        assert!(CompressionEngine::is_recoverable_file_error(&locked));
-        assert!(CompressionEngine::is_recoverable_file_error(&denied));
-        assert!(!CompressionEngine::is_recoverable_file_error(&wof));
-    }
-}
+mod unit_tests;

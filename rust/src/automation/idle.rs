@@ -19,11 +19,7 @@ impl Default for IdleConfig {
     }
 }
 
-/// Monitors system resource usage to determine idle state.
-///
-/// The system is considered idle when CPU usage stays below the
-/// configured threshold for the configured duration AND no games
-/// are detected as running.
+/// Monitors system metrics to determine whether the machine is idle.
 pub struct IdleDetector {
     system: System,
     config: IdleConfig,
@@ -33,13 +29,12 @@ pub struct IdleDetector {
 impl IdleDetector {
     pub fn new(config: IdleConfig) -> Self {
         Self {
-            system: System::new_all(),
+            system: System::new(),
             config,
             idle_since: None,
         }
     }
 
-    /// Refresh system metrics and return whether the system is idle.
     pub fn is_idle(&mut self) -> bool {
         self.system.refresh_cpu_all();
 
@@ -55,13 +50,11 @@ impl IdleDetector {
         }
     }
 
-    /// Returns current CPU usage percentage.
     pub fn cpu_usage(&mut self) -> f32 {
         self.system.refresh_cpu_all();
         self.system.global_cpu_usage()
     }
 
-    /// Returns available memory in bytes.
     pub fn available_memory(&mut self) -> u64 {
         self.system.refresh_memory();
         self.system.available_memory()
