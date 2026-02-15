@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 /// ratios with modern algorithms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CompressionAlgorithm {
-
     #[default]
     Xpress4K,
     Xpress8K,

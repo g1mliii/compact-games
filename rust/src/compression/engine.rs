@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{bounded, Receiver};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
@@ -14,7 +14,6 @@ use crate::progress::tracker::CompressionProgress;
 
 #[cfg(windows)]
 use super::wof::{self, CompressFileResult};
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionStats {
@@ -36,6 +35,11 @@ impl CompressionStats {
     pub fn bytes_saved(&self) -> u64 {
         self.original_bytes.saturating_sub(self.compressed_bytes)
     }
+}
+
+pub struct CompressionProgressHandle {
+    pub progress: Receiver<CompressionProgress>,
+    pub result: Receiver<Result<CompressionStats, CompressionError>>,
 }
 
 #[derive(Debug, Clone)]
@@ -67,10 +71,11 @@ impl Default for CancellationToken {
 
 const MIN_COMPRESSIBLE_SIZE: u64 = 4096;
 
+#[derive(Clone)]
 pub struct CompressionEngine {
     algorithm: CompressionAlgorithm,
     cancel_token: CancellationToken,
-    operation_lock: Mutex<()>,
+    operation_lock: Arc<Mutex<()>>,
     files_processed: Arc<AtomicU64>,
     files_total: Arc<AtomicU64>,
     bytes_original: Arc<AtomicU64>,
@@ -82,7 +87,7 @@ impl CompressionEngine {
         Self {
             algorithm,
             cancel_token: CancellationToken::new(),
-            operation_lock: Mutex::new(()),
+            operation_lock: Arc::new(Mutex::new(())),
             files_processed: Arc::new(AtomicU64::new(0)),
             files_total: Arc::new(AtomicU64::new(0)),
             bytes_original: Arc::new(AtomicU64::new(0)),
@@ -129,6 +134,13 @@ impl CompressionEngine {
         }
     }
 
+    fn is_recoverable_file_error(error: &CompressionError) -> bool {
+        matches!(
+            error,
+            CompressionError::LockedFile { .. } | CompressionError::PermissionDenied { .. }
+        )
+    }
+
     pub fn compress_folder(&self, folder: &Path) -> Result<CompressionStats, CompressionError> {
         self.validate_path(folder)?;
         let _operation_guard = self.operation_guard();
@@ -136,22 +148,55 @@ impl CompressionEngine {
         self.compress_impl(folder)
     }
 
+    /// Starts compression on a background worker and returns:
+    /// - a live progress stream receiver
+    /// - a final operation result receiver
+    ///
+    /// Dropping the progress receiver does not cancel the operation. Cancellation
+    /// remains explicit via `CancellationToken`.
     pub fn compress_folder_with_progress(
         &self,
         folder: &Path,
         game_name: String,
-    ) -> Result<(CompressionStats, Receiver<CompressionProgress>), CompressionError> {
+    ) -> Result<CompressionProgressHandle, CompressionError> {
         self.validate_path(folder)?;
-        let _operation_guard = self.operation_guard();
-        self.reset_counters();
+        let folder = folder.to_path_buf();
+        let engine = self.clone();
 
-        let counters = self.engine_counters();
-        let (mut reporter, rx) = ProgressReporter::new(counters, game_name);
+        let (progress_ready_tx, progress_ready_rx) = bounded(1);
+        let (result_tx, result_rx) = bounded(1);
 
-        let result = self.compress_impl(folder);
+        std::thread::spawn(move || {
+            let _operation_guard = engine.operation_guard();
+            engine.reset_counters();
 
-        reporter.stop();
-        result.map(|stats| (stats, rx))
+            let counters = engine.engine_counters();
+            let (mut reporter, progress_rx) = ProgressReporter::new(counters, game_name);
+            if progress_ready_tx.send(progress_rx).is_err() {
+                reporter.mark_done();
+                reporter.stop();
+                return;
+            }
+
+            let result = engine.compress_impl(&folder);
+
+            reporter.mark_done();
+            reporter.stop();
+
+            let _ = result_tx.send(result);
+        });
+
+        let progress_rx = progress_ready_rx.recv().map_err(|_| CompressionError::Io {
+            source: std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "failed to initialize compression progress stream",
+            ),
+        })?;
+
+        Ok(CompressionProgressHandle {
+            progress: progress_rx,
+            result: result_rx,
+        })
     }
 
     pub fn decompress_folder(&self, folder: &Path) -> Result<(), CompressionError> {
@@ -185,25 +230,16 @@ impl CompressionEngine {
             .filter(|e| e.file_type().is_file())
     }
 
-    /// Count regular files in a directory tree.
-    fn count_files(folder: &Path) -> u64 {
-        Self::file_iter(folder).count() as u64
-    }
-
     #[cfg(windows)]
     fn compress_impl(&self, folder: &Path) -> Result<CompressionStats, CompressionError> {
         let start = std::time::Instant::now();
-
-        // Phase 1: Count files for progress totals.
-        self.files_total
-            .store(Self::count_files(folder), Ordering::Relaxed);
-
-        // Phase 2: Compress in parallel without materializing the full path list.
+        // Single pass: discover + process files while incrementing files_total.
         let disk_full = Arc::new(AtomicBool::new(false));
         let skipped = Arc::new(AtomicU64::new(0));
         let algorithm = self.algorithm;
 
         let result = Self::file_iter(folder).par_bridge().try_for_each(|entry| {
+            self.files_total.fetch_add(1, Ordering::Relaxed);
             let path = entry.into_path();
             if self.cancel_token.is_cancelled() {
                 return Err(CompressionError::Cancelled);
@@ -243,9 +279,7 @@ impl CompressionEngine {
                     disk_full.store(true, Ordering::Relaxed);
                     return Err(CompressionError::DiskFull);
                 }
-                Err(
-                    CompressionError::LockedFile { .. } | CompressionError::PermissionDenied { .. },
-                ) => {
+                Err(e) if Self::is_recoverable_file_error(&e) => {
                     log::debug!("Skipping {}: locked or permission denied", path.display());
                     self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
                     self.bytes_compressed
@@ -253,11 +287,8 @@ impl CompressionEngine {
                     skipped.fetch_add(1, Ordering::Relaxed);
                 }
                 Err(e) => {
-                    log::warn!("Error compressing {}: {e}", path.display());
-                    self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
-                    self.bytes_compressed
-                        .fetch_add(file_size, Ordering::Relaxed);
-                    skipped.fetch_add(1, Ordering::Relaxed);
+                    log::warn!("Aborting compression for {}: {e}", path.display());
+                    return Err(e);
                 }
             }
 
@@ -285,10 +316,8 @@ impl CompressionEngine {
 
     #[cfg(windows)]
     fn decompress_impl(&self, folder: &Path) -> Result<(), CompressionError> {
-        self.files_total
-            .store(Self::count_files(folder), Ordering::Relaxed);
-
         let result = Self::file_iter(folder).par_bridge().try_for_each(|entry| {
+            self.files_total.fetch_add(1, Ordering::Relaxed);
             let path = entry.into_path();
             if self.cancel_token.is_cancelled() {
                 return Err(CompressionError::Cancelled);
@@ -296,8 +325,7 @@ impl CompressionEngine {
 
             match wof::wof_decompress_file(&path) {
                 Ok(()) => {}
-                Err(CompressionError::LockedFile { .. })
-                | Err(CompressionError::PermissionDenied { .. }) => {
+                Err(e) if Self::is_recoverable_file_error(&e) => {
                     log::debug!(
                         "Skipping decompression of {}: locked or denied",
                         path.display()
@@ -307,7 +335,8 @@ impl CompressionEngine {
                     return Err(CompressionError::DiskFull);
                 }
                 Err(e) => {
-                    log::warn!("Error decompressing {}: {e}", path.display());
+                    log::warn!("Aborting decompression for {}: {e}", path.display());
+                    return Err(e);
                 }
             }
 
@@ -382,5 +411,23 @@ mod unit_tests {
             engine.operation_lock.try_lock().is_err(),
             "operation lock should block concurrent operation entry"
         );
+    }
+
+    #[test]
+    fn recoverable_error_classification_is_strict() {
+        let locked = CompressionError::LockedFile {
+            path: Path::new("C:\\test").to_path_buf(),
+        };
+        let denied = CompressionError::PermissionDenied {
+            path: Path::new("C:\\test").to_path_buf(),
+            source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+        };
+        let wof = CompressionError::WofApiError {
+            message: "unsupported".into(),
+        };
+
+        assert!(CompressionEngine::is_recoverable_file_error(&locked));
+        assert!(CompressionEngine::is_recoverable_file_error(&denied));
+        assert!(!CompressionEngine::is_recoverable_file_error(&wof));
     }
 }

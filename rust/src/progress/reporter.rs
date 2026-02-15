@@ -6,10 +6,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crossbeam_channel::{bounded, Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, Sender, TryRecvError, TrySendError};
 
 use super::tracker::CompressionProgress;
-
 
 pub struct EngineCounters {
     pub files_processed: Arc<AtomicU64>,
@@ -18,38 +17,47 @@ pub struct EngineCounters {
     pub bytes_compressed: Arc<AtomicU64>,
 }
 
-
 pub struct ProgressReporter {
     stop: Arc<AtomicBool>,
+    done: Arc<AtomicBool>,
     handle: Option<std::thread::JoinHandle<()>>,
 }
 
 impl ProgressReporter {
-
     pub fn new(
         counters: EngineCounters,
         game_name: String,
     ) -> (Self, Receiver<CompressionProgress>) {
-        let (tx, rx) = bounded(4);
+        // Keep memory bounded while preserving the newest progress snapshot.
+        let (tx, rx) = bounded(1);
+        let latest_rx = rx.clone();
         let stop = Arc::new(AtomicBool::new(false));
+        let done = Arc::new(AtomicBool::new(false));
         let stop_clone = stop.clone();
+        let done_clone = done.clone();
 
         let handle = std::thread::spawn(move || {
-            reporter_loop(counters, game_name, tx, stop_clone);
+            reporter_loop(counters, game_name, tx, latest_rx, stop_clone, done_clone);
         });
 
         (
             Self {
                 stop,
+                done,
                 handle: Some(handle),
             },
             rx,
         )
     }
 
+    pub fn mark_done(&self) {
+        self.done.store(true, Ordering::Relaxed);
+    }
+
     pub fn stop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
         if let Some(h) = self.handle.take() {
+            h.thread().unpark();
             let _ = h.join();
         }
     }
@@ -61,20 +69,23 @@ impl Drop for ProgressReporter {
     }
 }
 
-
 fn reporter_loop(
     counters: EngineCounters,
     game_name: String,
     tx: Sender<CompressionProgress>,
+    latest_rx: Receiver<CompressionProgress>,
     stop: Arc<AtomicBool>,
+    done: Arc<AtomicBool>,
 ) {
     let mut speed_samples: VecDeque<f64> = VecDeque::with_capacity(10);
     let mut speed_sum = 0.0;
     let mut last_files: u64 = 0;
     let mut last_tick = Instant::now();
+    let mut last_emitted: Option<(u64, u64, u64, u64, bool)> = None;
 
     loop {
-        std::thread::sleep(Duration::from_millis(100));
+        // park_timeout lets stop() wake this thread immediately via unpark().
+        std::thread::park_timeout(Duration::from_millis(100));
 
         let stopping = stop.load(Ordering::Relaxed);
 
@@ -98,7 +109,6 @@ fn reporter_loop(
         last_files = files_processed;
         last_tick = now;
 
-
         let avg_speed = if speed_samples.is_empty() {
             0.0
         } else {
@@ -111,24 +121,56 @@ fn reporter_loop(
             None
         };
 
-        let is_complete = files_total > 0 && files_processed >= files_total;
-
-        let progress = CompressionProgress {
-            game_name: game_name.clone(),
-            files_total,
+        let completed_by_counters = files_total > 0 && files_processed >= files_total;
+        let is_complete = done.load(Ordering::Relaxed) || completed_by_counters;
+        let emit_key = (
             files_processed,
+            files_total,
             bytes_original,
             bytes_compressed,
-            bytes_saved: bytes_original.saturating_sub(bytes_compressed),
-            estimated_time_remaining: eta,
             is_complete,
-        };
+        );
+        let should_emit = last_emitted != Some(emit_key) || stopping;
 
-        let _ = tx.try_send(progress);
+        if should_emit {
+            let progress = CompressionProgress {
+                game_name: game_name.clone(),
+                files_total,
+                files_processed,
+                bytes_original,
+                bytes_compressed,
+                bytes_saved: bytes_original.saturating_sub(bytes_compressed),
+                estimated_time_remaining: eta,
+                is_complete,
+            };
+
+            if !send_latest(&tx, &latest_rx, progress) {
+                break;
+            }
+            last_emitted = Some(emit_key);
+        }
 
         if is_complete || stopping {
             break;
         }
+    }
+}
+
+fn send_latest(
+    tx: &Sender<CompressionProgress>,
+    latest_rx: &Receiver<CompressionProgress>,
+    progress: CompressionProgress,
+) -> bool {
+    match tx.try_send(progress) {
+        Ok(()) => true,
+        Err(TrySendError::Full(progress)) => {
+            match latest_rx.try_recv() {
+                Ok(_) | Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => return false,
+            }
+            tx.try_send(progress).is_ok()
+        }
+        Err(TrySendError::Disconnected(_)) => false,
     }
 }
 
@@ -146,7 +188,6 @@ mod tests {
         };
         let (mut reporter, _rx) = ProgressReporter::new(counters, "Test".into());
         reporter.stop();
-        
     }
 
     #[test]
@@ -159,7 +200,6 @@ mod tests {
         };
         let fp = counters.files_processed.clone();
         let (mut reporter, rx) = ProgressReporter::new(counters, "Test".into());
-
 
         let progress = rx.recv_timeout(Duration::from_secs(1));
         assert!(progress.is_ok(), "should receive at least one update");
@@ -190,6 +230,22 @@ mod tests {
             }
         }
         assert!(found_complete, "should have sent a completion snapshot");
+        reporter.stop();
+    }
+
+    #[test]
+    fn reporter_marks_complete_for_empty_operation_when_done_signaled() {
+        let counters = EngineCounters {
+            files_processed: Arc::new(AtomicU64::new(0)),
+            files_total: Arc::new(AtomicU64::new(0)),
+            bytes_original: Arc::new(AtomicU64::new(0)),
+            bytes_compressed: Arc::new(AtomicU64::new(0)),
+        };
+        let (mut reporter, rx) = ProgressReporter::new(counters, "Empty".into());
+        reporter.mark_done();
+
+        let progress = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert!(progress.is_complete, "done signal should force completion");
         reporter.stop();
     }
 }

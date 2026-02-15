@@ -20,11 +20,9 @@ use windows::Win32::System::IO::DeviceIoControl;
 use super::algorithm::CompressionAlgorithm;
 use super::error::CompressionError;
 
-
 const WOF_CURRENT_VERSION: u32 = 1;
 const WOF_PROVIDER_FILE: u32 = 2;
 const FILE_PROVIDER_CURRENT_VERSION: u32 = 1;
-
 
 const ERROR_ACCESS_DENIED: u32 = 5;
 const ERROR_SHARING_VIOLATION: u32 = 32;
@@ -53,7 +51,6 @@ struct WofBackingBuffer {
     wof: WofExternalInfo,
     file: FileProviderExternalInfoV1,
 }
-
 
 /// Outcome of a single-file WOF compression attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,7 +86,6 @@ pub fn wof_compress_file(
 
     let mut returned: u32 = 0;
 
-
     let result = unsafe {
         DeviceIoControl(
             handle,
@@ -116,12 +112,10 @@ pub fn wof_compress_file(
     }
 }
 
-
 pub fn wof_decompress_file(path: &Path) -> Result<(), CompressionError> {
     let file = open_for_wof(path)?;
     let handle = file_handle(&file);
     let mut returned: u32 = 0;
-
 
     let result = unsafe {
         DeviceIoControl(
@@ -196,7 +190,6 @@ pub fn wof_get_compression(path: &Path) -> Result<Option<CompressionAlgorithm>, 
     }
 }
 
-
 pub fn get_physical_size(path: &Path) -> Result<u64, CompressionError> {
     let wide: Vec<u16> = path
         .as_os_str()
@@ -204,7 +197,6 @@ pub fn get_physical_size(path: &Path) -> Result<u64, CompressionError> {
         .chain(std::iter::once(0))
         .collect();
     let mut high: u32 = 0;
-
 
     let low = unsafe { GetCompressedFileSizeW(PCWSTR(wide.as_ptr()), Some(&mut high)) };
 
@@ -218,15 +210,13 @@ pub fn get_physical_size(path: &Path) -> Result<u64, CompressionError> {
     Ok(((high as u64) << 32) | (low as u64))
 }
 
-
 fn open_for_wof(path: &Path) -> Result<File, CompressionError> {
     OpenOptions::new()
-        .access_mode(0x0001 | 0x0002) 
-        .share_mode(0x0001 | 0x0004) 
+        .access_mode(0x0001 | 0x0002)
+        .share_mode(0x0001 | 0x0004)
         .open(path)
         .map_err(|e| map_io(e, path))
 }
-
 
 fn file_handle(file: &File) -> HANDLE {
     HANDLE(file.as_raw_handle() as _)
@@ -251,7 +241,6 @@ fn map_win32(code: u32, path: &Path) -> CompressionError {
         },
     }
 }
-
 
 fn map_io(e: std::io::Error, path: &Path) -> CompressionError {
     match e.raw_os_error() {

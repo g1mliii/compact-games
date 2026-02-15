@@ -5,11 +5,14 @@
 
 use std::fs;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 
 use super::algorithm::CompressionAlgorithm;
-use super::engine::{CancellationToken, CompressionEngine, CompressionStats};
+use super::engine::{
+    CancellationToken, CompressionEngine, CompressionProgressHandle, CompressionStats,
+};
 use super::error::CompressionError;
 
 // ── Test helpers ─────────────────────────────────────────────────────
@@ -292,6 +295,7 @@ fn ratio_nonexistent_path_returns_error() {
 mod wof_tests {
     use super::*;
     use crate::compression::wof;
+    use crossbeam_channel::TryRecvError;
 
     #[test]
     fn compress_empty_folder_returns_zero_stats() {
@@ -428,6 +432,86 @@ mod wof_tests {
 
         let result = engine.decompress_folder(dir.path());
         assert!(matches!(result, Err(CompressionError::Cancelled)));
+    }
+
+    #[test]
+    fn compress_with_progress_empty_folder_sends_completion_snapshot() {
+        let dir = TempDir::new().unwrap();
+        let engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+
+        let streams = engine
+            .compress_folder_with_progress(dir.path(), "Empty".into())
+            .unwrap();
+
+        let result = streams.result.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(result.is_ok(), "empty folder compression should succeed");
+
+        let final_snapshot = streams
+            .progress
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap();
+        assert!(
+            final_snapshot.is_complete,
+            "empty-folder operation should still send a completion snapshot"
+        );
+        assert_eq!(final_snapshot.files_total, 0);
+        assert_eq!(final_snapshot.files_processed, 0);
+    }
+
+    #[test]
+    fn compress_with_progress_is_async_for_nontrivial_workload() {
+        let dir = TempDir::new().unwrap();
+        for i in 0..64 {
+            create_compressible_file(dir.path(), &format!("big_{i}.dat"), 1_048_576);
+        }
+
+        let engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+        let started = Instant::now();
+        let streams = engine
+            .compress_folder_with_progress(dir.path(), "Async".into())
+            .unwrap();
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "starting async compression should return quickly"
+        );
+        assert!(
+            matches!(streams.result.try_recv(), Err(TryRecvError::Empty)),
+            "result channel should not be complete immediately for a non-trivial workload"
+        );
+
+        let progress = streams
+            .progress
+            .recv_timeout(Duration::from_secs(3))
+            .unwrap();
+        assert_eq!(progress.game_name, "Async");
+
+        let result = streams
+            .result
+            .recv_timeout(Duration::from_secs(60))
+            .unwrap();
+        let stats = result.expect("compression should succeed");
+        assert!(stats.files_processed > 0);
+    }
+
+    #[test]
+    fn compress_with_progress_can_complete_without_progress_consumer() {
+        let dir = TempDir::new().unwrap();
+        for i in 0..8 {
+            create_compressible_file(dir.path(), &format!("file_{i}.dat"), 131_072);
+        }
+
+        let engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+        let streams = engine
+            .compress_folder_with_progress(dir.path(), "NoProgressConsumer".into())
+            .unwrap();
+        let CompressionProgressHandle { progress, result } = streams;
+        drop(progress);
+
+        let stats = result
+            .recv_timeout(Duration::from_secs(60))
+            .unwrap()
+            .expect("compression should still complete when progress stream is dropped");
+        assert!(stats.files_processed > 0);
     }
 
     #[test]
