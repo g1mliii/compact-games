@@ -26,7 +26,13 @@
       "Bash(cargo doc:*)",
       "Skill(rust-best-practices)",
       "WebFetch(domain:steamdb.info)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(find:*)",
+      "Bash(cargo tree:*)",
+      "Bash(cargo bloat:*)",
+      "Bash(cargo +stable miri test:*)",
+      "Bash(// This would test SystemTime serialization)",
+      "Bash(EOF)"
     ]
   }
 }

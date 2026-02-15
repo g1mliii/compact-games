@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 
 use crossbeam_channel::{bounded, Receiver};
 use rayon::prelude::*;
@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 mod engine_safety;
+mod operation_session;
 
 use super::algorithm::CompressionAlgorithm;
 use super::error::CompressionError;
@@ -16,6 +17,7 @@ use crate::progress::tracker::CompressionProgress;
 
 pub use self::engine_safety::SafetyConfig;
 use self::engine_safety::{run_safety_checks, DirectStoragePolicy};
+use self::operation_session::{OperationGuard, OperationLock, OperationSession};
 
 #[cfg(windows)]
 use super::wof::{self, CompressFileResult};
@@ -66,6 +68,10 @@ impl CancellationToken {
     pub fn is_cancelled(&self) -> bool {
         self.cancelled.load(Ordering::Relaxed)
     }
+
+    fn reset(&self) {
+        self.cancelled.store(false, Ordering::Relaxed);
+    }
 }
 
 impl Default for CancellationToken {
@@ -80,7 +86,7 @@ const MIN_COMPRESSIBLE_SIZE: u64 = 4096;
 pub struct CompressionEngine {
     algorithm: CompressionAlgorithm,
     cancel_token: CancellationToken,
-    operation_lock: Arc<Mutex<()>>,
+    operation_lock: Arc<OperationLock>,
     files_processed: Arc<AtomicU64>,
     files_total: Arc<AtomicU64>,
     bytes_original: Arc<AtomicU64>,
@@ -94,7 +100,7 @@ impl CompressionEngine {
         Self {
             algorithm,
             cancel_token: CancellationToken::new(),
-            operation_lock: Arc::new(Mutex::new(())),
+            operation_lock: Arc::new(OperationLock::new()),
             files_processed: Arc::new(AtomicU64::new(0)),
             files_total: Arc::new(AtomicU64::new(0)),
             bytes_original: Arc::new(AtomicU64::new(0)),
@@ -133,14 +139,17 @@ impl CompressionEngine {
         self.bytes_compressed.store(0, Ordering::Relaxed);
     }
 
-    fn operation_guard(&self) -> MutexGuard<'_, ()> {
-        match self.operation_lock.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => {
-                log::warn!("CompressionEngine operation lock poisoned; continuing");
-                poisoned.into_inner()
-            }
-        }
+    fn operation_guard(&self) -> OperationGuard {
+        OperationGuard::acquire(self.operation_lock.clone())
+    }
+
+    #[cfg(test)]
+    fn try_operation_guard(&self) -> Option<OperationGuard> {
+        OperationGuard::try_acquire(self.operation_lock.clone())
+    }
+
+    fn begin_operation(&self) -> OperationSession {
+        OperationSession::new(self)
     }
 
     fn is_recoverable_file_error(error: &CompressionError) -> bool {
@@ -153,8 +162,7 @@ impl CompressionEngine {
     pub fn compress_folder(&self, folder: &Path) -> Result<CompressionStats, CompressionError> {
         self.validate_path(folder)?;
         run_safety_checks(folder, self.directstorage_policy, self.safety.as_ref())?;
-        let _operation_guard = self.operation_guard();
-        self.reset_counters();
+        let _operation = self.begin_operation();
         self.compress_impl(folder)
     }
 
@@ -167,13 +175,13 @@ impl CompressionEngine {
         run_safety_checks(folder, self.directstorage_policy, self.safety.as_ref())?;
         let folder = folder.to_path_buf();
         let engine = self.clone();
+        let operation = self.begin_operation();
 
         let (progress_ready_tx, progress_ready_rx) = bounded(1);
         let (result_tx, result_rx) = bounded(1);
 
         std::thread::spawn(move || {
-            let _operation_guard = engine.operation_guard();
-            engine.reset_counters();
+            let _operation = operation;
 
             let counters = engine.engine_counters();
             let (mut reporter, progress_rx) = ProgressReporter::new(counters, game_name);
@@ -206,8 +214,7 @@ impl CompressionEngine {
 
     pub fn decompress_folder(&self, folder: &Path) -> Result<(), CompressionError> {
         self.validate_path(folder)?;
-        let _operation_guard = self.operation_guard();
-        self.reset_counters();
+        let _operation = self.begin_operation();
         self.decompress_impl(folder)
     }
 

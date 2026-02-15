@@ -11,10 +11,11 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::{LazyLock, RwLock};
 
 const KNOWN_GAMES_JSON: &str = include_str!("known_directstorage_games.json");
+const MAX_LEARNED_GAMES: usize = 2048;
 
 static EMBEDDED_GAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(KNOWN_GAMES_JSON)
@@ -36,7 +37,7 @@ static LEARNED_GAMES: LazyLock<RwLock<HashSet<String>>> = LazyLock::new(|| {
     RwLock::new(learned)
 });
 
-static SAVE_QUEUE: LazyLock<Option<SyncSender<HashSet<String>>>> = LazyLock::new(|| {
+static SAVE_QUEUE: LazyLock<Option<SyncSender<()>>> = LazyLock::new(|| {
     let (tx, rx) = sync_channel(1);
     match std::thread::Builder::new()
         .name("pressplay-ds-cache-writer".to_string())
@@ -52,16 +53,60 @@ static SAVE_QUEUE: LazyLock<Option<SyncSender<HashSet<String>>>> = LazyLock::new
 
 static CONFIG_DIR_CREATED: AtomicBool = AtomicBool::new(false);
 
-fn recv_latest_snapshot(rx: &Receiver<HashSet<String>>) -> Option<HashSet<String>> {
-    let mut latest = rx.recv().ok()?;
-    while let Ok(newer) = rx.try_recv() {
-        latest = newer;
-    }
-    Some(latest)
+#[derive(Debug, PartialEq, Eq)]
+enum LearnedInsertOutcome {
+    Inserted,
+    Duplicate,
+    InsertedWithEviction(String),
+    CapacityReached,
 }
 
-fn save_worker(rx: Receiver<HashSet<String>>) {
-    while let Some(snapshot) = recv_latest_snapshot(&rx) {
+fn insert_learned_entry(
+    learned: &mut HashSet<String>,
+    folder_name: &str,
+    max_entries: usize,
+) -> LearnedInsertOutcome {
+    if learned.contains(folder_name) {
+        return LearnedInsertOutcome::Duplicate;
+    }
+    if learned.len() >= max_entries {
+        if let Some(evicted) = learned.iter().next().cloned() {
+            learned.remove(&evicted);
+            learned.insert(folder_name.to_owned());
+            return LearnedInsertOutcome::InsertedWithEviction(evicted);
+        }
+        return LearnedInsertOutcome::CapacityReached;
+    }
+    learned.insert(folder_name.to_owned());
+    LearnedInsertOutcome::Inserted
+}
+
+fn recv_save_signal(rx: &Receiver<()>) -> bool {
+    if rx.recv().is_err() {
+        return false;
+    }
+    while rx.try_recv().is_ok() {}
+    true
+}
+
+fn snapshot_learned_games() -> HashSet<String> {
+    match LEARNED_GAMES.read() {
+        Ok(learned) => learned.clone(),
+        Err(poisoned) => {
+            log::warn!("Learned games cache lock poisoned while snapshotting; recovering");
+            poisoned.into_inner().clone()
+        }
+    }
+}
+
+fn persist_learned_snapshot() -> Result<(), Box<dyn std::error::Error>> {
+    let snapshot = snapshot_learned_games();
+    save_learned_games(&snapshot)
+}
+
+fn save_worker(rx: Receiver<()>) {
+    while recv_save_signal(&rx) {
+        let snapshot = snapshot_learned_games();
         if let Err(e) = save_learned_games(&snapshot) {
             log::warn!("Failed to persist learned games cache: {e}");
         }
@@ -102,16 +147,12 @@ pub fn is_known_directstorage_game(game_path: &Path) -> bool {
         Some(name) => name,
         None => return false,
     };
+    let folder_name_lower = folder_name.to_ascii_lowercase();
 
-    if EMBEDDED_GAMES
-        .iter()
-        .any(|g| g.eq_ignore_ascii_case(folder_name))
-    {
+    if EMBEDDED_GAMES.contains(&folder_name_lower) {
         return true;
     }
 
-    // Slow path: check learned list (requires lowercase allocation + read lock)
-    let folder_name_lower = folder_name.to_ascii_lowercase();
     if let Ok(learned) = LEARNED_GAMES.read() {
         learned.contains(&folder_name_lower)
     } else {
@@ -144,27 +185,47 @@ pub fn learn_directstorage_game(game_path: &Path) {
         }
     };
 
-    if learned.contains(&folder_name) {
-        return;
+    match insert_learned_entry(&mut learned, &folder_name, MAX_LEARNED_GAMES) {
+        LearnedInsertOutcome::Duplicate => return,
+        LearnedInsertOutcome::InsertedWithEviction(evicted) => {
+            log::warn!(
+                "Learned games cache reached cap ({}); evicted '{}' to store '{}'",
+                MAX_LEARNED_GAMES,
+                evicted,
+                folder_name
+            );
+            log::info!("Learned DirectStorage game: {}", folder_name);
+        }
+        LearnedInsertOutcome::CapacityReached => {
+            log::warn!(
+                "Learned games cache reached cap ({}); skipping new entry due empty cache invariant: {}",
+                MAX_LEARNED_GAMES,
+                folder_name
+            );
+            return;
+        }
+        LearnedInsertOutcome::Inserted => {
+            log::info!("Learned DirectStorage game: {}", folder_name);
+        }
     }
-
-    learned.insert(folder_name.clone());
-    log::info!("Learned DirectStorage game: {}", folder_name);
-
-    let games_snapshot = learned.clone();
     drop(learned);
 
     if let Some(tx) = SAVE_QUEUE.as_ref() {
-        if let Err(send_err) = tx.send(games_snapshot) {
-            log::warn!(
-                "Learned games writer thread unavailable; persisting synchronously: {}",
-                send_err
-            );
-            if let Err(e) = save_learned_games(&send_err.0) {
-                log::warn!("Failed to persist learned games cache: {e}");
+        match tx.try_send(()) {
+            Ok(()) => {}
+            Err(TrySendError::Full(())) => {
+                // A save is already queued; worker snapshots latest state after dequeue.
+            }
+            Err(TrySendError::Disconnected(())) => {
+                log::warn!(
+                    "Learned games writer thread unavailable; persisting synchronously instead"
+                );
+                if let Err(e) = persist_learned_snapshot() {
+                    log::warn!("Failed to persist learned games cache: {e}");
+                }
             }
         }
-    } else if let Err(e) = save_learned_games(&games_snapshot) {
+    } else if let Err(e) = persist_learned_snapshot() {
         log::warn!("Failed to persist learned games cache: {e}");
     }
 }
@@ -251,41 +312,58 @@ mod tests {
     }
 
     #[test]
-    fn embedded_check_no_allocation() {
-        // This test verifies the hot path uses eq_ignore_ascii_case
-        // (no heap allocation for embedded games)
+    fn embedded_lookup_is_stable_under_repeated_checks() {
         let forspoken = Path::new(r"C:\Games\Forspoken");
 
-        // First check forces LazyLock init
         let _ = is_known_directstorage_game(forspoken);
 
-        // Subsequent checks should be pure stack operations
         for _ in 0..1000 {
             assert!(is_known_directstorage_game(forspoken));
         }
-        // If this test completes quickly, hot path is allocation-free
     }
 
     #[test]
-    fn recv_latest_snapshot_prefers_newest_pending_snapshot() {
+    fn recv_save_signal_coalesces_burst() {
         let (tx, rx) = sync_channel(4);
 
-        tx.send(HashSet::from([String::from("game_a")])).unwrap();
-        tx.send(HashSet::from([
-            String::from("game_a"),
-            String::from("game_b"),
-        ]))
-        .unwrap();
-        tx.send(HashSet::from([
-            String::from("game_a"),
-            String::from("game_b"),
-            String::from("game_c"),
-        ]))
-        .unwrap();
+        tx.send(()).unwrap();
+        tx.send(()).unwrap();
+        tx.send(()).unwrap();
         drop(tx);
 
-        let snapshot = recv_latest_snapshot(&rx).expect("expected a queued snapshot");
-        assert!(snapshot.contains("game_c"));
-        assert_eq!(snapshot.len(), 3);
+        assert!(
+            recv_save_signal(&rx),
+            "first receive should consume queued burst"
+        );
+        assert!(
+            !recv_save_signal(&rx),
+            "channel should be empty/disconnected after burst is drained"
+        );
+    }
+
+    #[test]
+    fn insert_learned_entry_enforces_capacity_and_dedupes() {
+        let mut learned: HashSet<String> = (0..MAX_LEARNED_GAMES)
+            .map(|i| format!("game_{i}"))
+            .collect();
+
+        assert_eq!(
+            insert_learned_entry(&mut learned, "game_0", MAX_LEARNED_GAMES),
+            LearnedInsertOutcome::Duplicate
+        );
+        let result = insert_learned_entry(&mut learned, "brand_new", MAX_LEARNED_GAMES);
+        match result {
+            LearnedInsertOutcome::InsertedWithEviction(evicted) => {
+                assert!(!learned.contains(&evicted));
+            }
+            other => panic!("expected eviction insertion, got {other:?}"),
+        }
+        assert!(learned.contains("brand_new"));
+        assert_eq!(learned.len(), MAX_LEARNED_GAMES);
+
+        assert_eq!(
+            insert_learned_entry(&mut HashSet::new(), "brand_new", 0),
+            LearnedInsertOutcome::CapacityReached
+        );
     }
 }

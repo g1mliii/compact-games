@@ -20,7 +20,7 @@ fn operation_guard_prevents_parallel_entry() {
     let engine = CompressionEngine::new(CompressionAlgorithm::default());
     let _guard = engine.operation_guard();
     assert!(
-        engine.operation_lock.try_lock().is_err(),
+        engine.try_operation_guard().is_none(),
         "operation lock should block concurrent operation entry"
     );
 }
