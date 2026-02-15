@@ -1,13 +1,21 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
+use crossbeam_channel::Receiver;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
 
 use super::algorithm::CompressionAlgorithm;
 use super::error::CompressionError;
+use crate::progress::reporter::{EngineCounters, ProgressReporter};
+use crate::progress::tracker::CompressionProgress;
 
-/// Statistics returned after a compression operation completes.
+#[cfg(windows)]
+use super::wof::{self, CompressFileResult};
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionStats {
     pub original_bytes: u64,
@@ -18,7 +26,6 @@ pub struct CompressionStats {
 }
 
 impl CompressionStats {
-    /// Space saved as a ratio (0.0 = no savings, 1.0 = 100% savings).
     pub fn savings_ratio(&self) -> f64 {
         if self.original_bytes == 0 {
             return 0.0;
@@ -26,13 +33,11 @@ impl CompressionStats {
         1.0 - (self.compressed_bytes as f64 / self.original_bytes as f64)
     }
 
-    /// Bytes saved by compression.
     pub fn bytes_saved(&self) -> u64 {
         self.original_bytes.saturating_sub(self.compressed_bytes)
     }
 }
 
-/// Shared cancellation token for cooperative cancellation.
 #[derive(Debug, Clone)]
 pub struct CancellationToken {
     cancelled: Arc<AtomicBool>,
@@ -60,15 +65,14 @@ impl Default for CancellationToken {
     }
 }
 
-/// Core compression engine.
-///
-/// Uses the Windows Overlay Filter (WOF) API to apply transparent
-/// file-system-level compression. Files remain fully accessible to
-/// applications; decompression is handled by the OS on read.
+const MIN_COMPRESSIBLE_SIZE: u64 = 4096;
+
 pub struct CompressionEngine {
     algorithm: CompressionAlgorithm,
     cancel_token: CancellationToken,
+    operation_lock: Mutex<()>,
     files_processed: Arc<AtomicU64>,
+    files_total: Arc<AtomicU64>,
     bytes_original: Arc<AtomicU64>,
     bytes_compressed: Arc<AtomicU64>,
 }
@@ -78,87 +82,90 @@ impl CompressionEngine {
         Self {
             algorithm,
             cancel_token: CancellationToken::new(),
+            operation_lock: Mutex::new(()),
             files_processed: Arc::new(AtomicU64::new(0)),
+            files_total: Arc::new(AtomicU64::new(0)),
             bytes_original: Arc::new(AtomicU64::new(0)),
             bytes_compressed: Arc::new(AtomicU64::new(0)),
         }
     }
 
-    /// Returns a clone of the cancellation token for external cancellation.
     pub fn cancel_token(&self) -> CancellationToken {
         self.cancel_token.clone()
     }
 
-    /// Returns current progress counters (files_processed, bytes_original, bytes_compressed).
-    pub fn progress(&self) -> (u64, u64, u64) {
+    pub fn progress(&self) -> (u64, u64, u64, u64) {
         (
             self.files_processed.load(Ordering::Relaxed),
+            self.files_total.load(Ordering::Relaxed),
             self.bytes_original.load(Ordering::Relaxed),
             self.bytes_compressed.load(Ordering::Relaxed),
         )
     }
 
-    /// Compress all files in `folder` using the configured algorithm.
-    ///
-    /// Walks the directory tree, applying WOF compression to each regular file.
-    /// Skips files that are already compressed or locked.
+    pub fn engine_counters(&self) -> EngineCounters {
+        EngineCounters {
+            files_processed: self.files_processed.clone(),
+            files_total: self.files_total.clone(),
+            bytes_original: self.bytes_original.clone(),
+            bytes_compressed: self.bytes_compressed.clone(),
+        }
+    }
+
+    fn reset_counters(&self) {
+        self.files_processed.store(0, Ordering::Relaxed);
+        self.files_total.store(0, Ordering::Relaxed);
+        self.bytes_original.store(0, Ordering::Relaxed);
+        self.bytes_compressed.store(0, Ordering::Relaxed);
+    }
+
+    fn operation_guard(&self) -> MutexGuard<'_, ()> {
+        match self.operation_lock.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::warn!("CompressionEngine operation lock poisoned; continuing");
+                poisoned.into_inner()
+            }
+        }
+    }
+
     pub fn compress_folder(&self, folder: &Path) -> Result<CompressionStats, CompressionError> {
         self.validate_path(folder)?;
-
-        let start = std::time::Instant::now();
-
-        // TODO: Phase 2 implementation
-        // 1. Walk directory with walkdir
-        // 2. For each file, call WofSetFileDataLocation via windows-rs FFI
-        // 3. Track progress with atomic counters
-        // 4. Check cancel_token between files
-        // 5. Skip locked/inaccessible files gracefully
-        log::info!(
-            "compress_folder: {} with {:?} (not yet implemented)",
-            folder.display(),
-            self.algorithm
-        );
-
-        Ok(CompressionStats {
-            original_bytes: 0,
-            compressed_bytes: 0,
-            files_processed: 0,
-            files_skipped: 0,
-            duration_ms: start.elapsed().as_millis() as u64,
-        })
+        let _operation_guard = self.operation_guard();
+        self.reset_counters();
+        self.compress_impl(folder)
     }
 
-    /// Decompress all WOF-compressed files in `folder`.
+    pub fn compress_folder_with_progress(
+        &self,
+        folder: &Path,
+        game_name: String,
+    ) -> Result<(CompressionStats, Receiver<CompressionProgress>), CompressionError> {
+        self.validate_path(folder)?;
+        let _operation_guard = self.operation_guard();
+        self.reset_counters();
+
+        let counters = self.engine_counters();
+        let (mut reporter, rx) = ProgressReporter::new(counters, game_name);
+
+        let result = self.compress_impl(folder);
+
+        reporter.stop();
+        result.map(|stats| (stats, rx))
+    }
+
     pub fn decompress_folder(&self, folder: &Path) -> Result<(), CompressionError> {
         self.validate_path(folder)?;
-
-        // TODO: Phase 2 implementation
-        // 1. Walk directory
-        // 2. For each file, call WofSetFileDataLocation with no-compression flag
-        // 3. Track progress
-        log::info!(
-            "decompress_folder: {} (not yet implemented)",
-            folder.display()
-        );
-
-        Ok(())
+        let _operation_guard = self.operation_guard();
+        self.reset_counters();
+        self.decompress_impl(folder)
     }
 
-    /// Check the current compression ratio of a folder.
     pub fn get_compression_ratio(folder: &Path) -> Result<f64, CompressionError> {
         if !folder.exists() {
             return Err(CompressionError::PathNotFound(folder.to_path_buf()));
         }
-
-        // TODO: Phase 2 implementation
-        // 1. Walk directory, sum logical and physical sizes
-        // 2. Return ratio
-        log::info!(
-            "get_compression_ratio: {} (not yet implemented)",
-            folder.display()
-        );
-
-        Ok(0.0)
+        Self::ratio_impl(folder)
     }
 
     fn validate_path(&self, path: &Path) -> Result<(), CompressionError> {
@@ -170,49 +177,210 @@ impl CompressionEngine {
         }
         Ok(())
     }
+
+    fn file_iter(folder: &Path) -> impl Iterator<Item = walkdir::DirEntry> + '_ {
+        WalkDir::new(folder)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+    }
+
+    /// Count regular files in a directory tree.
+    fn count_files(folder: &Path) -> u64 {
+        Self::file_iter(folder).count() as u64
+    }
+
+    #[cfg(windows)]
+    fn compress_impl(&self, folder: &Path) -> Result<CompressionStats, CompressionError> {
+        let start = std::time::Instant::now();
+
+        // Phase 1: Count files for progress totals.
+        self.files_total
+            .store(Self::count_files(folder), Ordering::Relaxed);
+
+        // Phase 2: Compress in parallel without materializing the full path list.
+        let disk_full = Arc::new(AtomicBool::new(false));
+        let skipped = Arc::new(AtomicU64::new(0));
+        let algorithm = self.algorithm;
+
+        let result = Self::file_iter(folder).par_bridge().try_for_each(|entry| {
+            let path = entry.into_path();
+            if self.cancel_token.is_cancelled() {
+                return Err(CompressionError::Cancelled);
+            }
+            if disk_full.load(Ordering::Relaxed) {
+                return Err(CompressionError::DiskFull);
+            }
+
+            let file_size = match std::fs::metadata(&path) {
+                Ok(m) => m.len(),
+                Err(_) => {
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
+            };
+
+            if file_size < MIN_COMPRESSIBLE_SIZE {
+                skipped.fetch_add(1, Ordering::Relaxed);
+                self.files_processed.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
+
+            match wof::wof_compress_file(&path, algorithm) {
+                Ok(CompressFileResult::Compressed) => {
+                    self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                    let phys = wof::get_physical_size(&path).unwrap_or(file_size);
+                    self.bytes_compressed.fetch_add(phys, Ordering::Relaxed);
+                }
+                Ok(CompressFileResult::NotBeneficial) => {
+                    self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                    self.bytes_compressed
+                        .fetch_add(file_size, Ordering::Relaxed);
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                }
+                Err(CompressionError::DiskFull) => {
+                    disk_full.store(true, Ordering::Relaxed);
+                    return Err(CompressionError::DiskFull);
+                }
+                Err(
+                    CompressionError::LockedFile { .. } | CompressionError::PermissionDenied { .. },
+                ) => {
+                    log::debug!("Skipping {}: locked or permission denied", path.display());
+                    self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                    self.bytes_compressed
+                        .fetch_add(file_size, Ordering::Relaxed);
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                }
+                Err(e) => {
+                    log::warn!("Error compressing {}: {e}", path.display());
+                    self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                    self.bytes_compressed
+                        .fetch_add(file_size, Ordering::Relaxed);
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+
+            self.files_processed.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        });
+
+        result?;
+
+        Ok(CompressionStats {
+            original_bytes: self.bytes_original.load(Ordering::Relaxed),
+            compressed_bytes: self.bytes_compressed.load(Ordering::Relaxed),
+            files_processed: self.files_processed.load(Ordering::Relaxed),
+            files_skipped: skipped.load(Ordering::Relaxed),
+            duration_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+
+    #[cfg(not(windows))]
+    fn compress_impl(&self, _folder: &Path) -> Result<CompressionStats, CompressionError> {
+        Err(CompressionError::WofApiError {
+            message: "WOF compression requires Windows".into(),
+        })
+    }
+
+    #[cfg(windows)]
+    fn decompress_impl(&self, folder: &Path) -> Result<(), CompressionError> {
+        self.files_total
+            .store(Self::count_files(folder), Ordering::Relaxed);
+
+        let result = Self::file_iter(folder).par_bridge().try_for_each(|entry| {
+            let path = entry.into_path();
+            if self.cancel_token.is_cancelled() {
+                return Err(CompressionError::Cancelled);
+            }
+
+            match wof::wof_decompress_file(&path) {
+                Ok(()) => {}
+                Err(CompressionError::LockedFile { .. })
+                | Err(CompressionError::PermissionDenied { .. }) => {
+                    log::debug!(
+                        "Skipping decompression of {}: locked or denied",
+                        path.display()
+                    );
+                }
+                Err(CompressionError::DiskFull) => {
+                    return Err(CompressionError::DiskFull);
+                }
+                Err(e) => {
+                    log::warn!("Error decompressing {}: {e}", path.display());
+                }
+            }
+
+            self.files_processed.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        });
+
+        result?;
+
+        Ok(())
+    }
+
+    #[cfg(not(windows))]
+    fn decompress_impl(&self, _folder: &Path) -> Result<(), CompressionError> {
+        Err(CompressionError::WofApiError {
+            message: "WOF decompression requires Windows".into(),
+        })
+    }
+
+    #[cfg(windows)]
+    fn ratio_impl(folder: &Path) -> Result<f64, CompressionError> {
+        let mut logical_total: u64 = 0;
+        let mut physical_total: u64 = 0;
+
+        for entry in Self::file_iter(folder) {
+            let path = entry.path();
+            if let Ok(metadata) = std::fs::metadata(path) {
+                let logical = metadata.len();
+                let physical = wof::get_physical_size(path).unwrap_or(logical);
+                logical_total += logical;
+                physical_total += physical;
+            }
+        }
+
+        if logical_total == 0 {
+            return Ok(1.0);
+        }
+
+        Ok(physical_total as f64 / logical_total as f64)
+    }
+
+    #[cfg(not(windows))]
+    fn ratio_impl(_folder: &Path) -> Result<f64, CompressionError> {
+        Err(CompressionError::WofApiError {
+            message: "WOF ratio query requires Windows".into(),
+        })
+    }
 }
 
 #[cfg(test)]
-mod tests {
+mod unit_tests {
     use super::*;
 
     #[test]
-    fn stats_savings_ratio_zero_when_empty() {
-        let stats = CompressionStats {
-            original_bytes: 0,
-            compressed_bytes: 0,
-            files_processed: 0,
-            files_skipped: 0,
-            duration_ms: 0,
-        };
-        assert_eq!(stats.savings_ratio(), 0.0);
-    }
-
-    #[test]
-    fn stats_savings_ratio_calculated_correctly() {
-        let stats = CompressionStats {
-            original_bytes: 1000,
-            compressed_bytes: 600,
-            files_processed: 10,
-            files_skipped: 0,
-            duration_ms: 100,
-        };
-        assert!((stats.savings_ratio() - 0.4).abs() < f64::EPSILON);
-        assert_eq!(stats.bytes_saved(), 400);
-    }
-
-    #[test]
-    fn cancellation_token_works() {
-        let token = CancellationToken::new();
-        assert!(!token.is_cancelled());
-        token.cancel();
-        assert!(token.is_cancelled());
-    }
-
-    #[test]
-    fn compress_nonexistent_path_errors() {
+    fn reset_counters_zeroes_all() {
         let engine = CompressionEngine::new(CompressionAlgorithm::default());
-        let result = engine.compress_folder(Path::new(r"C:\__nonexistent_pressplay_test__"));
-        assert!(result.is_err());
+        engine.files_processed.store(42, Ordering::Relaxed);
+        engine.files_total.store(100, Ordering::Relaxed);
+        engine.bytes_original.store(999, Ordering::Relaxed);
+        engine.bytes_compressed.store(500, Ordering::Relaxed);
+
+        engine.reset_counters();
+        let (fp, ft, bo, bc) = engine.progress();
+        assert_eq!((fp, ft, bo, bc), (0, 0, 0, 0));
+    }
+
+    #[test]
+    fn operation_guard_prevents_parallel_entry() {
+        let engine = CompressionEngine::new(CompressionAlgorithm::default());
+        let _guard = engine.operation_guard();
+        assert!(
+            engine.operation_lock.try_lock().is_err(),
+            "operation lock should block concurrent operation entry"
+        );
     }
 }

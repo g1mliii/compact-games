@@ -8,7 +8,19 @@
       "Bash(flutter create:*)",
       "Bash(flutter pub get:*)",
       "Bash(flutter analyze:*)",
-      "Bash(npx skills:*)"
+      "Bash(npx skills:*)",
+      "Bash(dir:*)",
+      "Bash(flutter pub:*)",
+      "Bash(test:*)",
+      "Bash(cargo install:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:microsoft.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo test:*)"
     ]
   }
 }

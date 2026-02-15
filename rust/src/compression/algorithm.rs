@@ -8,30 +8,34 @@ use serde::{Deserialize, Serialize};
 /// ratios with modern algorithms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CompressionAlgorithm {
-    /// Fast compression, moderate ratio. Recommended default for games.
+
     #[default]
     Xpress4K,
-    /// Balanced compression and speed.
     Xpress8K,
-    /// Better compression ratio, still reasonably fast.
     Xpress16K,
-    /// Maximum compression, significantly slower decompression.
-    /// Not recommended for games due to load-time impact.
     Lzx,
 }
 
 impl CompressionAlgorithm {
-    /// Returns the WOF `FILE_PROVIDER_COMPRESSION_*` constant.
     pub fn wof_algorithm_id(&self) -> u32 {
         match self {
-            Self::Xpress4K => 0,  // FILE_PROVIDER_COMPRESSION_XPRESS4K
-            Self::Lzx => 1,       // FILE_PROVIDER_COMPRESSION_LZX
-            Self::Xpress8K => 2,  // FILE_PROVIDER_COMPRESSION_XPRESS8K
-            Self::Xpress16K => 3, // FILE_PROVIDER_COMPRESSION_XPRESS16K
+            Self::Xpress4K => 0,
+            Self::Lzx => 1,
+            Self::Xpress8K => 2,
+            Self::Xpress16K => 3,
         }
     }
 
-    /// Returns the equivalent `compact.exe /exe:` flag value.
+    pub fn from_wof_id(id: u32) -> Option<Self> {
+        match id {
+            0 => Some(Self::Xpress4K),
+            1 => Some(Self::Lzx),
+            2 => Some(Self::Xpress8K),
+            3 => Some(Self::Xpress16K),
+            _ => None,
+        }
+    }
+
     pub fn compact_exe_flag(&self) -> &'static str {
         match self {
             Self::Xpress4K => "xpress4k",
@@ -41,7 +45,6 @@ impl CompressionAlgorithm {
         }
     }
 
-    /// Human-readable label for UI display.
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::Xpress4K => "XPRESS 4K (Fast)",
@@ -81,6 +84,30 @@ mod tests {
         let ids: Vec<u32> = algorithms.iter().map(|a| a.wof_algorithm_id()).collect();
         let unique: std::collections::HashSet<u32> = ids.iter().copied().collect();
         assert_eq!(ids.len(), unique.len(), "WOF algorithm IDs must be unique");
+    }
+
+    #[test]
+    fn wof_id_roundtrip() {
+        let algorithms = [
+            CompressionAlgorithm::Xpress4K,
+            CompressionAlgorithm::Xpress8K,
+            CompressionAlgorithm::Xpress16K,
+            CompressionAlgorithm::Lzx,
+        ];
+        for algo in &algorithms {
+            let id = algo.wof_algorithm_id();
+            let back = CompressionAlgorithm::from_wof_id(id);
+            assert_eq!(
+                back,
+                Some(*algo),
+                "round-trip failed for {algo:?} (id={id})"
+            );
+        }
+    }
+
+    #[test]
+    fn from_wof_id_unknown_returns_none() {
+        assert_eq!(CompressionAlgorithm::from_wof_id(99), None);
     }
 
     #[test]
