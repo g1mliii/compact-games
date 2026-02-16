@@ -1,24 +1,14 @@
 # Fonts Directory
 
-This directory should contain the Inter and JetBrains Mono font files.
+This project vendors the required typefaces used by the app theme:
 
-## Required Font Files
+- `Inter-Variable.ttf`
+- `JetBrainsMono-Variable.ttf`
 
-Download these fonts and place them in this directory:
+These are wired in `pubspec.yaml` under `flutter.fonts` and used explicitly by
+`lib/core/theme/app_typography.dart`.
 
-### Inter
-- Download from: https://rsms.me/inter/
-- Files needed:
-  - `Inter-Regular.ttf`
-  - `Inter-Medium.ttf`
-  - `Inter-SemiBold.ttf`
-  - `Inter-Bold.ttf`
+## Sources
 
-### JetBrains Mono
-- Download from: https://www.jetbrains.com/lp/mono/
-- Files needed:
-  - `JetBrainsMono-Regular.ttf`
-
-## Note
-
-The app will run without these fonts (it will use system defaults), but the intended design uses these specific typefaces. Add them before building a release version.
+- Inter: https://github.com/google/fonts/tree/main/ofl/inter
+- JetBrains Mono: https://github.com/google/fonts/tree/main/ofl/jetbrainsmono

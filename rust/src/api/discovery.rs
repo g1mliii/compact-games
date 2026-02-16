@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use flutter_rust_bridge::frb;
+
 use super::types::{FrbDiscoveryError, FrbGameInfo, FrbPlatform};
 use crate::discovery::platform::{DiscoveryScanMode, Platform};
 use crate::discovery::utils;
@@ -22,6 +24,24 @@ pub fn get_all_games_quick() -> Result<Vec<FrbGameInfo>, FrbDiscoveryError> {
     let all_games = utils::scan_all_platforms_with_mode(DiscoveryScanMode::Quick);
     let frb_games: Vec<FrbGameInfo> = all_games.into_iter().map(FrbGameInfo::from).collect();
     Ok(frb_games)
+}
+
+/// Clear persisted and in-memory discovery cache.
+#[frb(sync)]
+pub fn clear_discovery_cache() {
+    crate::discovery::cache::clear_all();
+    log::info!("Discovery cache cleared");
+}
+
+/// Evict discovery cache for a single game path.
+#[frb(sync)]
+pub fn clear_discovery_cache_entry(path: String) {
+    if path.trim().is_empty() {
+        return;
+    }
+    let path = PathBuf::from(path);
+    crate::discovery::cache::remove(&path);
+    crate::discovery::cache::persist_if_dirty();
 }
 
 /// Scan a single custom folder for games.

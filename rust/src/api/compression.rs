@@ -4,18 +4,21 @@
 //! compression job so it can be cancelled from Dart.
 
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use crossbeam_channel::RecvTimeoutError;
 use flutter_rust_bridge::frb;
 
 use super::types::{
-    FrbCompressionAlgorithm, FrbCompressionError, FrbCompressionProgress, FrbCompressionStats,
+    FrbCompressionAlgorithm, FrbCompressionError, FrbCompressionEstimate, FrbCompressionProgress,
+    FrbCompressionStats,
 };
 use crate::compression::algorithm::CompressionAlgorithm;
 use crate::compression::engine::{CancellationToken, CompressionEngine};
+use crate::compression::error::CompressionError;
 use crate::frb_generated::StreamSink;
+use crate::progress::tracker::CompressionProgress;
 use crate::safety::directstorage::is_directstorage_game;
 
 // ── Active compression tracking ───────────────────────────────────────
@@ -25,22 +28,32 @@ struct ActiveCompression {
 }
 
 static ACTIVE: OnceLock<Mutex<Option<ActiveCompression>>> = OnceLock::new();
-static ACTIVE_PROGRESS: OnceLock<Mutex<Option<FrbCompressionProgress>>> = OnceLock::new();
+static ACTIVE_PROGRESS: OnceLock<Mutex<Option<CompressionProgress>>> = OnceLock::new();
 
 fn active_lock() -> &'static Mutex<Option<ActiveCompression>> {
     ACTIVE.get_or_init(|| Mutex::new(None))
 }
 
-fn active_progress_lock() -> &'static Mutex<Option<FrbCompressionProgress>> {
+fn active_progress_lock() -> &'static Mutex<Option<CompressionProgress>> {
     ACTIVE_PROGRESS.get_or_init(|| Mutex::new(None))
 }
 
-fn set_active_progress(progress: Option<FrbCompressionProgress>) {
+fn set_active_progress(progress: Option<CompressionProgress>) {
     let mut guard = active_progress_lock().lock().unwrap_or_else(|e| {
         log::warn!("ACTIVE progress lock was poisoned; recovering");
         e.into_inner()
     });
     *guard = progress;
+}
+
+fn cancelled_stats() -> FrbCompressionStats {
+    FrbCompressionStats {
+        original_bytes: 0,
+        compressed_bytes: 0,
+        files_processed: 0,
+        files_skipped: 0,
+        duration_ms: 0,
+    }
 }
 
 // ── Public API ────────────────────────────────────────────────────────
@@ -79,7 +92,7 @@ pub fn compress_game(
     }
     set_active_progress(None);
 
-    let handle = match engine.compress_folder_with_progress(&path, game_name) {
+    let handle = match engine.compress_folder_with_progress(&path, Arc::from(game_name)) {
         Ok(handle) => handle,
         Err(e) => {
             let mut guard = active_lock().lock().unwrap_or_else(|poisoned| {
@@ -100,8 +113,10 @@ pub fn compress_game(
     loop {
         match handle.progress.recv_timeout(Duration::from_millis(200)) {
             Ok(progress) => {
+                // Clone progress (cheap, Arc<str> for game_name) for storage
+                set_active_progress(Some(progress.clone()));
+                // Convert to FRB type only when sending to Dart
                 let frb_progress: FrbCompressionProgress = progress.into();
-                set_active_progress(Some(frb_progress.clone()));
                 if sink_is_open && sink.add(frb_progress).is_err() {
                     // Dart side closed the stream — cancel compression but keep
                     // draining until the worker thread exits to avoid orphan work.
@@ -129,8 +144,29 @@ pub fn compress_game(
     set_active_progress(None);
 
     match result {
-        Some(Ok(stats)) => Ok(stats.into()),
+        Some(Ok(stats)) => {
+            let saved = stats.original_bytes.saturating_sub(stats.compressed_bytes);
+            let saved_ratio = if stats.original_bytes > 0 {
+                (saved as f64 / stats.original_bytes as f64) * 100.0
+            } else {
+                0.0
+            };
+            log::warn!(
+                "[compression][summary] game=\"{}\" algo={} processed={} skipped={} original={} compressed={} saved={} ({:.2}%)",
+                game_path,
+                algo,
+                stats.files_processed,
+                stats.files_skipped,
+                stats.original_bytes,
+                stats.compressed_bytes,
+                saved,
+                saved_ratio
+            );
+            Ok(stats.into())
+        }
+        Some(Err(CompressionError::Cancelled)) => Ok(cancelled_stats()),
         Some(Err(e)) => Err(e.into()),
+        None if cancel_token.is_cancelled() => Ok(cancelled_stats()),
         None => Err(FrbCompressionError::IoError {
             message: "Compression ended without a result".into(),
         }),
@@ -156,7 +192,8 @@ pub fn get_compression_progress() -> Option<FrbCompressionProgress> {
         log::warn!("ACTIVE progress lock was poisoned during read; recovering");
         e.into_inner()
     });
-    guard.clone()
+    // Convert to FRB type only when requested (cheap Arc<str> clone on CompressionProgress)
+    guard.clone().map(Into::into)
 }
 
 /// Decompress a game folder (no progress streaming needed).
@@ -170,6 +207,18 @@ pub fn decompress_game(game_path: String) -> Result<(), FrbCompressionError> {
 pub fn get_compression_ratio(folder_path: String) -> Result<f64, FrbCompressionError> {
     let path = PathBuf::from(&folder_path);
     CompressionEngine::get_compression_ratio(&path).map_err(Into::into)
+}
+
+/// Estimate potential savings before compression.
+pub fn estimate_compression_savings(
+    game_path: String,
+    algorithm: FrbCompressionAlgorithm,
+) -> Result<FrbCompressionEstimate, FrbCompressionError> {
+    let path = PathBuf::from(&game_path);
+    let algo: CompressionAlgorithm = algorithm.into();
+    let engine = CompressionEngine::new(algo);
+    let estimate = engine.estimate_folder_savings(&path)?;
+    Ok(estimate.into())
 }
 
 /// Check if a game uses DirectStorage.

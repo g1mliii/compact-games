@@ -7,7 +7,7 @@
 use std::time::UNIX_EPOCH;
 
 use crate::compression::algorithm::CompressionAlgorithm;
-use crate::compression::engine::CompressionStats;
+use crate::compression::engine::{CompressionEstimate, CompressionStats};
 use crate::compression::error::CompressionError;
 use crate::discovery::platform::{GameInfo, Platform};
 use crate::progress::tracker::CompressionProgress;
@@ -134,7 +134,7 @@ pub struct FrbCompressionProgress {
 impl From<CompressionProgress> for FrbCompressionProgress {
     fn from(p: CompressionProgress) -> Self {
         Self {
-            game_name: p.game_name,
+            game_name: p.game_name.to_string(),
             files_total: p.files_total,
             files_processed: p.files_processed,
             bytes_original: p.bytes_original,
@@ -166,6 +166,28 @@ impl From<CompressionStats> for FrbCompressionStats {
             files_processed: s.files_processed,
             files_skipped: s.files_skipped,
             duration_ms: s.duration_ms,
+        }
+    }
+}
+
+/// FRB-compatible compression estimate for pre-flight UX.
+#[derive(Debug, Clone)]
+pub struct FrbCompressionEstimate {
+    pub scanned_files: u64,
+    pub sampled_bytes: u64,
+    pub estimated_compressed_bytes: u64,
+    pub estimated_saved_bytes: u64,
+    pub estimated_savings_ratio: f64,
+}
+
+impl From<CompressionEstimate> for FrbCompressionEstimate {
+    fn from(e: CompressionEstimate) -> Self {
+        Self {
+            scanned_files: e.scanned_files,
+            sampled_bytes: e.sampled_bytes,
+            estimated_compressed_bytes: e.estimated_compressed_bytes(),
+            estimated_saved_bytes: e.estimated_saved_bytes,
+            estimated_savings_ratio: e.estimated_savings_ratio(),
         }
     }
 }

@@ -168,6 +168,15 @@ pub fn lookup_stale(path: &Path) -> Option<CachedGameStats> {
     with_cache_read(|cache| cache.entries.get(&key).map(|entry| entry.stats.clone()))
 }
 
+pub fn remove(path: &Path) {
+    let key = normalize_path_key(path);
+    let removed_pending = with_pending_write(|pending| pending.entries.remove(&key).is_some());
+    let removed_cache = with_cache_write(|cache| cache.entries.remove(&key).is_some());
+    if removed_pending || removed_cache {
+        CACHE_DIRTY.store(true, Ordering::Relaxed);
+    }
+}
+
 pub fn upsert(path: &Path, token: ChangeToken, stats: CachedGameStats) {
     let key = normalize_path_key(path);
     let should_flush = with_pending_write(|pending| {
@@ -192,6 +201,20 @@ pub fn persist_if_dirty() {
     if let Err(e) = save_cache_file(&snapshot) {
         log::warn!("Failed to persist discovery stats cache: {e}");
         CACHE_DIRTY.store(true, Ordering::Relaxed);
+    }
+}
+
+pub fn clear_all() {
+    with_pending_write(|pending| pending.entries.clear());
+    with_cache_write(|cache| cache.entries.clear());
+    CACHE_DIRTY.store(false, Ordering::Relaxed);
+
+    if let Ok(path) = cache_path() {
+        match fs::remove_file(path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => log::warn!("Failed to remove discovery cache file: {e}"),
+        }
     }
 }
 

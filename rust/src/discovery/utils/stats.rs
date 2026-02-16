@@ -17,11 +17,6 @@ pub struct DirStats {
 /// dir_size + is_dir_compressed + dir_compressed_size separately.
 #[cfg(windows)]
 pub fn dir_stats(path: &Path) -> DirStats {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Foundation::{GetLastError, NO_ERROR};
-    use windows::Win32::Storage::FileSystem::GetCompressedFileSizeW;
-
     let mut logical_size: u64 = 0;
     let mut physical_size: u64 = 0;
     let mut found_compressed = false;
@@ -30,30 +25,20 @@ pub fn dir_stats(path: &Path) -> DirStats {
         .follow_links(false)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
     {
-        let logical = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        // Query metadata once and reuse (avoids double query: file_type() + metadata())
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+
+        if !metadata.is_file() {
+            continue;
+        }
+
+        let logical = metadata.len();
         logical_size += logical;
 
-        let wide: Vec<u16> = entry
-            .path()
-            .as_os_str()
-            .encode_wide()
-            .chain(Some(0))
-            .collect();
-        let mut high: u32 = 0;
-        // SAFETY: `wide` is a null-terminated UTF-16 path buffer that lives
-        // for the duration of this call, and `high` is a valid out pointer.
-        let low = unsafe { GetCompressedFileSizeW(PCWSTR(wide.as_ptr()), Some(&mut high)) };
-        // SAFETY: Calling GetLastError immediately after the Win32 API call is required
-        // to detect whether `u32::MAX` from GetCompressedFileSizeW is an error.
-        let last_error = unsafe { GetLastError() };
-
-        let physical = if low == u32::MAX && last_error != NO_ERROR {
-            logical
-        } else {
-            u64::from(high) << 32 | u64::from(low)
-        };
+        let physical = crate::compression::wof::get_physical_size(entry.path()).unwrap_or(logical);
 
         physical_size += physical;
 
@@ -62,10 +47,12 @@ pub fn dir_stats(path: &Path) -> DirStats {
         }
     }
 
+    let is_compressed = found_compressed || (logical_size > 0 && physical_size < logical_size);
+
     DirStats {
         logical_size,
         physical_size,
-        is_compressed: found_compressed,
+        is_compressed,
     }
 }
 

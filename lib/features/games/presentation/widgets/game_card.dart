@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/status_badge.dart';
@@ -13,6 +14,7 @@ class GameCard extends StatefulWidget {
     this.coverImageUrl,
     this.isCompressed = false,
     this.isDirectStorage = false,
+    this.estimatedSavedBytes,
     this.onTap,
     super.key,
   });
@@ -23,6 +25,7 @@ class GameCard extends StatefulWidget {
   final String? coverImageUrl;
   final bool isCompressed;
   final bool isDirectStorage;
+  final int? estimatedSavedBytes;
   final VoidCallback? onTap;
 
   @override
@@ -32,12 +35,6 @@ class GameCard extends StatefulWidget {
 class _GameCardState extends State<GameCard> {
   final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
 
-  static final Matrix4 _hoverTransform = Matrix4.diagonal3Values(
-    1.02,
-    1.02,
-    1.0,
-  );
-
   @override
   void dispose() {
     _isHovered.dispose();
@@ -46,6 +43,7 @@ class _GameCardState extends State<GameCard> {
 
   @override
   Widget build(BuildContext context) {
+    final animationsEnabled = AppMotion.animationsEnabled(context);
     return RepaintBoundary(
       child: MouseRegion(
         onEnter: (_) => _setHovered(true),
@@ -61,33 +59,40 @@ class _GameCardState extends State<GameCard> {
               children: [_buildCoverArt(), _buildGameInfo()],
             ),
             builder: (context, isHovered, child) {
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                transform: isHovered ? _hoverTransform : null,
-                child: Container(
-                  constraints: const BoxConstraints(
-                    minWidth: AppConstants.cardMinWidth,
-                    maxWidth: AppConstants.cardMaxWidth,
+              final card = AnimatedContainer(
+                duration: animationsEnabled ? AppMotion.base : Duration.zero,
+                curve: AppMotion.standardCurve,
+                decoration: BoxDecoration(
+                  gradient: AppColors.panelGradient,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isHovered ? AppColors.richGold : AppColors.border,
+                    width: 1,
                   ),
+                ),
+                child: child,
+              );
+
+              return AnimatedScale(
+                scale: animationsEnabled && isHovered ? 1.015 : 1.0,
+                duration: animationsEnabled ? AppMotion.base : Duration.zero,
+                curve: AppMotion.standardCurve,
+                child: AnimatedContainer(
+                  duration: animationsEnabled ? AppMotion.base : Duration.zero,
+                  curve: AppMotion.standardCurve,
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isHovered ? AppColors.accent : AppColors.border,
-                      width: 1,
-                    ),
-                    boxShadow: isHovered
+                    boxShadow: animationsEnabled && isHovered
                         ? [
                             BoxShadow(
-                              color: AppColors.accent.withValues(alpha: 0.1),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
+                              color: AppColors.richGold.withValues(alpha: 0.22),
+                              blurRadius: 22,
+                              offset: const Offset(0, 8),
                             ),
                           ]
                         : null,
                   ),
-                  child: child,
+                  child: card,
                 ),
               );
             },
@@ -146,16 +151,26 @@ class _GameCardState extends State<GameCard> {
 
   Widget _buildPlaceholderCover() {
     return Container(
-      color: AppColors.surfaceElevated,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.surfaceVariant, AppColors.surfaceElevated],
+        ),
+      ),
       child: const Center(
-        child: Icon(LucideIcons.gamepad2, size: 48, color: AppColors.textMuted),
+        child: Icon(
+          LucideIcons.gamepad2,
+          size: 48,
+          color: AppColors.desertSand,
+        ),
       ),
     );
   }
 
   Widget _buildGameInfo() {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -163,12 +178,19 @@ class _GameCardState extends State<GameCard> {
           Text(
             widget.gameName,
             style: AppTypography.headingSmall,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 8),
-          _buildStatusBadge(),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: _buildStatusBadge(),
+            ),
+          ),
+          const SizedBox(height: 6),
           _buildSizeInfo(),
         ],
       ),
@@ -198,7 +220,7 @@ class _GameCardState extends State<GameCard> {
       final compressedSizeBytes = widget.compressedSizeBytes!;
       final compressedGB = widget.compressedSizeBytes! / (1024 * 1024 * 1024);
       final rawRatio = totalSizeBytes > 0
-          ? 1 - (compressedSizeBytes / totalSizeBytes)
+          ? compressedSizeBytes / totalSizeBytes
           : 0.0;
       final ratio = rawRatio.clamp(0.0, 1.0).toDouble();
 
@@ -221,12 +243,37 @@ class _GameCardState extends State<GameCard> {
                 style: AppTypography.bodySmall.copyWith(
                   fontFamilyFallback: AppTypography.monoFontFallback,
                   decoration: TextDecoration.lineThrough,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           _CompressionBar(ratio: ratio),
+        ],
+      );
+    }
+
+    final estimatedSaved = widget.estimatedSavedBytes;
+    if (estimatedSaved != null && estimatedSaved > 0) {
+      final savedGB = estimatedSaved / (1024 * 1024 * 1024);
+      return Row(
+        children: [
+          Text(
+            '${sizeGB.toStringAsFixed(1)} GB',
+            style: AppTypography.mono.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '~${savedGB.toStringAsFixed(1)} GB saveable',
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.success,
+              fontSize: 11,
+            ),
+          ),
         ],
       );
     }
@@ -258,7 +305,11 @@ class _CompressionBar extends StatelessWidget {
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: ratio,
-              child: Container(color: AppColors.compressed),
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: AppColors.progressGradient,
+                ),
+              ),
             ),
           ],
         ),

@@ -75,28 +75,22 @@ List<GameInfo> _applyFiltersAndSort({
   required GameSortField sortField,
   required SortDirection sortDirection,
 }) {
-  var filtered = games.toList();
+  final query = searchQuery.isEmpty ? null : searchQuery.toLowerCase();
+  final hasPlatformFilter = platformFilter.isNotEmpty;
+  final filtered = <GameInfo>[];
 
-  if (searchQuery.isNotEmpty) {
-    final query = searchQuery.toLowerCase();
-    filtered = filtered
-        .where((g) => g.name.toLowerCase().contains(query))
-        .toList();
+  for (final game in games) {
+    if (query != null && !game.name.toLowerCase().contains(query)) {
+      continue;
+    }
+    if (hasPlatformFilter && !platformFilter.contains(game.platform)) {
+      continue;
+    }
+    if (!_matchesCompressionFilter(game, compressionFilter)) {
+      continue;
+    }
+    filtered.add(game);
   }
-
-  if (platformFilter.isNotEmpty) {
-    filtered = filtered
-        .where((g) => platformFilter.contains(g.platform))
-        .toList();
-  }
-
-  filtered = switch (compressionFilter) {
-    CompressionFilter.all => filtered,
-    CompressionFilter.compressed =>
-      filtered.where((g) => g.isCompressed).toList(),
-    CompressionFilter.uncompressed =>
-      filtered.where((g) => !g.isCompressed && !g.isDirectStorage).toList(),
-  };
 
   filtered.sort((a, b) {
     final cmp = switch (sortField) {
@@ -111,4 +105,13 @@ List<GameInfo> _applyFiltersAndSort({
   });
 
   return filtered;
+}
+
+bool _matchesCompressionFilter(GameInfo game, CompressionFilter filter) {
+  return switch (filter) {
+    CompressionFilter.all => true,
+    CompressionFilter.compressed => game.isCompressed,
+    CompressionFilter.uncompressed =>
+      !game.isCompressed && !game.isDirectStorage,
+  };
 }

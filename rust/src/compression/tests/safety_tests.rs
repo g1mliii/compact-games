@@ -36,7 +36,7 @@ fn directstorage_game_rejected_with_progress() {
     create_compressible_file(dir.path(), "data.dat", 8192);
 
     let engine = CompressionEngine::new(CompressionAlgorithm::default());
-    let result = engine.compress_folder_with_progress(dir.path(), "DS Game".into());
+    let result = engine.compress_folder_with_progress(dir.path(), Arc::from("DS Game"));
     assert!(
         result.is_err(),
         "progress variant should reject DirectStorage game"
@@ -66,7 +66,7 @@ fn directstorage_override_allows_progress_start() {
 
     let engine =
         CompressionEngine::new(CompressionAlgorithm::default()).with_directstorage_override(true);
-    let handle = engine.compress_folder_with_progress(dir.path(), "DS Override".into());
+    let handle = engine.compress_folder_with_progress(dir.path(), Arc::from("DS Override"));
     assert!(
         handle.is_ok(),
         "override should allow progress compression to start"

@@ -40,7 +40,8 @@
       "Bash(dart run:*)",
       "Bash(dart pub global:*)",
       "Bash(dart pub add:*)",
-      "Bash(flutter_rust_bridge_codegen:*)"
+      "Bash(flutter_rust_bridge_codegen:*)",
+      "Bash(flutter test:*)"
     ]
   }
 }

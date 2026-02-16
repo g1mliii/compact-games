@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../models/game_info.dart';
 import '../models/compression_algorithm.dart';
+import '../models/compression_estimate.dart';
 import '../models/compression_progress.dart';
 import '../models/compression_stats.dart';
 import '../src/rust/api/automation.dart' as rust_automation;
@@ -28,6 +29,16 @@ class RustBridgeService {
   Future<List<GameInfo>> getAllGamesQuick() async {
     final frbGames = await rust_discovery.getAllGamesQuick();
     return frbGames.map(_mapFrbGameInfo).toList();
+  }
+
+  /// Clear discovery cache (memory + persisted file) before hard refresh.
+  void clearDiscoveryCache() {
+    rust_discovery.clearDiscoveryCache();
+  }
+
+  /// Evict one discovery cache entry so post-compression hydration uses fresh stats.
+  void clearDiscoveryCacheEntry(String path) {
+    rust_discovery.clearDiscoveryCacheEntry(path: path);
   }
 
   Future<List<GameInfo>> scanCustomFolder(String path) async {
@@ -88,6 +99,19 @@ class RustBridgeService {
   /// Get compression ratio for a folder.
   Future<double> getCompressionRatio(String folderPath) {
     return rust_compression.getCompressionRatio(folderPath: folderPath);
+  }
+
+  /// Estimate potential savings before compression.
+  Future<CompressionEstimate> estimateCompressionSavings({
+    required String gamePath,
+    required CompressionAlgorithm algorithm,
+  }) async {
+    final frbAlgorithm = _toFrbAlgorithm(algorithm);
+    final estimate = await rust_compression.estimateCompressionSavings(
+      gamePath: gamePath,
+      algorithm: frbAlgorithm,
+    );
+    return _mapFrbEstimate(estimate);
   }
 
   /// Check if a game uses DirectStorage.
@@ -155,6 +179,16 @@ CompressionProgress _mapFrbProgress(rust_types.FrbCompressionProgress frb) {
         ? Duration(milliseconds: frb.estimatedTimeRemainingMs!.toInt())
         : null,
     isComplete: frb.isComplete,
+  );
+}
+
+CompressionEstimate _mapFrbEstimate(rust_types.FrbCompressionEstimate frb) {
+  return CompressionEstimate(
+    scannedFiles: frb.scannedFiles.toInt(),
+    sampledBytes: frb.sampledBytes.toInt(),
+    estimatedCompressedBytes: frb.estimatedCompressedBytes.toInt(),
+    estimatedSavedBytes: frb.estimatedSavedBytes.toInt(),
+    estimatedSavingsRatio: frb.estimatedSavingsRatio,
   );
 }
 

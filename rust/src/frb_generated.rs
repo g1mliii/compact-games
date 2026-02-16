@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -513338516;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1976742342;
 
 // Section: executor
 
@@ -70,6 +70,69 @@ fn wire__crate__api__compression__cancel_compression_impl(
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok({
                     crate::api::compression::cancel_compression();
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__discovery__clear_discovery_cache_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "clear_discovery_cache",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::discovery::clear_discovery_cache();
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__discovery__clear_discovery_cache_entry_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "clear_discovery_cache_entry",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::discovery::clear_discovery_cache_entry(api_path);
                 })?;
                 Ok(output_ok)
             })())
@@ -149,6 +212,45 @@ fn wire__crate__api__compression__decompress_game_impl(
             move |context| {
                 transform_result_sse::<_, crate::api::types::FrbCompressionError>((move || {
                     let output_ok = crate::api::compression::decompress_game(api_game_path)?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
+        },
+    )
+}
+fn wire__crate__api__compression__estimate_compression_savings_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "estimate_compression_savings",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_game_path = <String>::sse_decode(&mut deserializer);
+            let api_algorithm =
+                <crate::api::types::FrbCompressionAlgorithm>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::FrbCompressionError>((move || {
+                    let output_ok = crate::api::compression::estimate_compression_savings(
+                        api_game_path,
+                        api_algorithm,
+                    )?;
                     Ok(output_ok)
                 })(
                 ))
@@ -652,6 +754,24 @@ impl SseDecode for crate::api::types::FrbCompressionError {
     }
 }
 
+impl SseDecode for crate::api::types::FrbCompressionEstimate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_scannedFiles = <u64>::sse_decode(deserializer);
+        let mut var_sampledBytes = <u64>::sse_decode(deserializer);
+        let mut var_estimatedCompressedBytes = <u64>::sse_decode(deserializer);
+        let mut var_estimatedSavedBytes = <u64>::sse_decode(deserializer);
+        let mut var_estimatedSavingsRatio = <f64>::sse_decode(deserializer);
+        return crate::api::types::FrbCompressionEstimate {
+            scanned_files: var_scannedFiles,
+            sampled_bytes: var_sampledBytes,
+            estimated_compressed_bytes: var_estimatedCompressedBytes,
+            estimated_saved_bytes: var_estimatedSavedBytes,
+            estimated_savings_ratio: var_estimatedSavingsRatio,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::FrbCompressionProgress {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -882,23 +1002,29 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        2 => wire__crate__api__compression__compress_game_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__compression__decompress_game_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
-        5 => {
-            wire__crate__api__discovery__get_all_games_quick_impl(port, ptr, rust_vec_len, data_len)
-        }
-        7 => wire__crate__api__compression__get_compression_ratio_impl(
+        4 => wire__crate__api__compression__compress_game_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__compression__decompress_game_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__compression__estimate_compression_savings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        8 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
-        12 => {
+        7 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
+        8 => {
+            wire__crate__api__discovery__get_all_games_quick_impl(port, ptr, rust_vec_len, data_len)
+        }
+        10 => wire__crate__api__compression__get_compression_ratio_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        11 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
+        15 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        13 => wire__crate__api__automation__start_auto_compression_impl(
+        16 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
@@ -917,19 +1043,25 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__compression__cancel_compression_impl(ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__compression__get_compression_progress_impl(
+        2 => wire__crate__api__discovery__clear_discovery_cache_impl(ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__discovery__clear_discovery_cache_entry_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        9 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__automation__is_auto_compression_running_impl(
+        9 => wire__crate__api__compression__get_compression_progress_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__automation__is_auto_compression_running_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        14 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1030,6 +1162,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbCompressionError>
     for crate::api::types::FrbCompressionError
 {
     fn into_into_dart(self) -> crate::api::types::FrbCompressionError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::types::FrbCompressionEstimate {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.scanned_files.into_into_dart().into_dart(),
+            self.sampled_bytes.into_into_dart().into_dart(),
+            self.estimated_compressed_bytes.into_into_dart().into_dart(),
+            self.estimated_saved_bytes.into_into_dart().into_dart(),
+            self.estimated_savings_ratio.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::types::FrbCompressionEstimate
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbCompressionEstimate>
+    for crate::api::types::FrbCompressionEstimate
+{
+    fn into_into_dart(self) -> crate::api::types::FrbCompressionEstimate {
         self
     }
 }
@@ -1302,6 +1458,17 @@ impl SseEncode for crate::api::types::FrbCompressionError {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseEncode for crate::api::types::FrbCompressionEstimate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.scanned_files, serializer);
+        <u64>::sse_encode(self.sampled_bytes, serializer);
+        <u64>::sse_encode(self.estimated_compressed_bytes, serializer);
+        <u64>::sse_encode(self.estimated_saved_bytes, serializer);
+        <f64>::sse_encode(self.estimated_savings_ratio, serializer);
     }
 }
 

@@ -4,13 +4,13 @@ A beautiful, intelligent game compressor that automatically saves disk space wit
 
 ## What is PressPlay?
 
-PressPlay is a game manager that silently compresses your games in the background when your system is idle. It features a stunning UI inspired by modern game launchers, complete with cover art and real-time compression statistics.
+PressPlay is a game manager that silently compresses your games in the background when your system is idle. It features a cinematic desert UI with real-time compression statistics and responsive game management controls.
 
 ## Key Features
 
 - **Automatic Compression**: Compresses games when your system is idle
 - **Smart Safety**: Detects and protects DirectStorage-enabled games
-- **Beautiful UI**: Game launcher aesthetic with cover art from SteamGridDB
+- **Beautiful UI**: Cinematic desert theme with panoramic layout, subtle grain texture, and restrained motion
 - **Multi-Platform**: Supports Steam, Epic Games, GOG, Xbox Game Pass, and custom paths
 - **Real-time Progress**: Live compression stats with estimated time remaining
 - **Zero Configuration**: Works out of the box with automatic game detection
@@ -86,7 +86,7 @@ PressPlay includes multiple safety mechanisms:
 
 ## Screenshots
 
-_Coming soon_
+_Coming soon (candid captures will be updated after the cinematic UI pass is finalized)._
 
 ## Roadmap
 
@@ -98,9 +98,14 @@ See [SPEC.md](SPEC.md) for the complete development plan.
 - Game discovery for multiple platforms
 
 ### Phase 2: Beautiful UI 
-- Game grid with cover art
-- Real-time progress tracking
-- Settings and configuration
+- Implemented:
+  - Home screen with responsive game grid
+  - Reusable cinematic UI components (cards, badges, progress banner)
+  - Tokenized theme + motion primitives
+- Planned:
+  - Game details screen
+  - Settings screen
+  - Context menu and cover-art service integration
 
 ### Phase 3: Automation 
 - Intelligent idle detection

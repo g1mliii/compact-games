@@ -44,7 +44,7 @@ class StatusBadge extends StatelessWidget {
   final StatusBadgeVariant variant;
 
   static const BorderRadius _borderRadius = BorderRadius.all(
-    Radius.circular(6),
+    Radius.circular(8),
   );
 
   @override
@@ -55,9 +55,17 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: variant == StatusBadgeVariant.filled
-            ? backgroundColor
-            : Colors.transparent,
+        gradient: variant == StatusBadgeVariant.filled
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  backgroundColor,
+                  backgroundColor.withValues(alpha: 0.04),
+                ],
+              )
+            : null,
+        color: variant == StatusBadgeVariant.filled ? null : Colors.transparent,
         borderRadius: _borderRadius,
         border: Border.all(color: borderColor, width: 1),
       ),

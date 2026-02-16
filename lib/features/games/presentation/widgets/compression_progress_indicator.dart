@@ -21,19 +21,23 @@ class CompressionProgressIndicator extends StatelessWidget {
   final int? estimatedTimeRemainingSeconds;
   final VoidCallback? onCancel;
 
-  static const LinearGradient _progressGradient = LinearGradient(
-    colors: [AppColors.compressing, Color(0xFF4A93E6)],
-  );
+  static const LinearGradient _progressGradient = AppColors.progressGradient;
 
   @override
   Widget build(BuildContext context) {
-    final rawProgress = filesTotal > 0 ? filesProcessed / filesTotal : 0.0;
+    final hasKnownFileTotal = filesTotal > 0 || filesProcessed > 0;
+    final effectiveFilesTotal = filesTotal < filesProcessed
+        ? filesProcessed
+        : filesTotal;
+    final rawProgress = hasKnownFileTotal && effectiveFilesTotal > 0
+        ? filesProcessed / effectiveFilesTotal
+        : 0.0;
     final progress = rawProgress.clamp(0.0, 1.0).toDouble();
     return RepaintBoundary(
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          gradient: AppColors.panelGradient,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border),
         ),
@@ -43,9 +47,16 @@ class CompressionProgressIndicator extends StatelessWidget {
           children: [
             _buildHeader(),
             const SizedBox(height: 12),
-            _buildProgressBar(progress),
+            _buildProgressBar(
+              progress: progress,
+              hasKnownFileTotal: hasKnownFileTotal,
+            ),
             const SizedBox(height: 12),
-            _buildStats(),
+            _buildStats(
+              filesProcessed: filesProcessed,
+              filesTotal: effectiveFilesTotal,
+              hasKnownFileTotal: hasKnownFileTotal,
+            ),
           ],
         ),
       ),
@@ -60,7 +71,7 @@ class CompressionProgressIndicator extends StatelessWidget {
           height: 16,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: AppColors.compressing,
+            color: AppColors.richGold,
           ),
         ),
         const SizedBox(width: 12),
@@ -71,9 +82,7 @@ class CompressionProgressIndicator extends StatelessWidget {
             children: [
               Text(
                 'Compressing',
-                style: AppTypography.label.copyWith(
-                  color: AppColors.compressing,
-                ),
+                style: AppTypography.label.copyWith(color: AppColors.richGold),
               ),
               const SizedBox(height: 2),
               Text(
@@ -98,7 +107,10 @@ class CompressionProgressIndicator extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressBar(double progress) {
+  Widget _buildProgressBar({
+    required double progress,
+    required bool hasKnownFileTotal,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -107,14 +119,16 @@ class CompressionProgressIndicator extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${(progress * 100).toStringAsFixed(0)}%',
+              hasKnownFileTotal
+                  ? '${(progress * 100).toStringAsFixed(0)}%'
+                  : 'Preparing...',
               style: AppTypography.mono.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.compressing,
+                color: AppColors.richGold,
               ),
             ),
-            if (estimatedTimeRemainingSeconds != null)
+            if (hasKnownFileTotal && estimatedTimeRemainingSeconds != null)
               Text(
                 _formatTimeRemaining(estimatedTimeRemainingSeconds!),
                 style: AppTypography.bodySmall,
@@ -146,9 +160,23 @@ class CompressionProgressIndicator extends StatelessWidget {
     );
   }
 
-  Widget _buildStats() {
+  Widget _buildStats({
+    required int filesProcessed,
+    required int filesTotal,
+    required bool hasKnownFileTotal,
+  }) {
     final savedMB = bytesSaved / (1024 * 1024);
     final savedGB = bytesSaved / (1024 * 1024 * 1024);
+
+    if (!hasKnownFileTotal) {
+      return const Wrap(
+        spacing: 12,
+        runSpacing: 6,
+        children: [
+          _StatChip(icon: LucideIcons.file, label: 'Scanning files...'),
+        ],
+      );
+    }
 
     return Wrap(
       spacing: 12,

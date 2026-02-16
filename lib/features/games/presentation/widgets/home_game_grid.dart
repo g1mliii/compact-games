@@ -1,57 +1,64 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+import '../../../../models/compression_algorithm.dart';
+import '../../../../models/compression_estimate.dart';
 import '../../../../models/game_info.dart';
 import '../../../../providers/compression/compression_provider.dart';
 import '../../../../providers/games/filtered_games_provider.dart';
 import '../../../../providers/games/game_list_provider.dart';
 import '../../../../providers/games/single_game_provider.dart';
+import '../../../../providers/settings/settings_provider.dart';
 import 'game_card.dart';
+import 'game_grid_placeholders.dart';
 
 class HomeGameGrid extends ConsumerWidget {
   const HomeGameGrid({super.key});
 
-  static const double _cardAspectRatio = 0.58;
+  static const double _defaultCardAspectRatio = 0.5;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Watch gameListProvider for loading/error states
     final asyncState = ref.watch(gameListProvider);
+    // Only watch filteredGamesProvider once (it already depends on gameListProvider)
+    final games = ref.watch(filteredGamesProvider);
 
     return asyncState.when(
       loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.accent),
+        child: CircularProgressIndicator(color: AppColors.richGold),
       ),
-      error: (error, _) => _ErrorView(
+      error: (error, _) => GameGridErrorView(
         message: error.toString(),
         onRetry: () => ref.read(gameListProvider.notifier).refresh(),
       ),
       data: (gameListState) {
         final loadError = gameListState.error;
         if (loadError != null && gameListState.games.isEmpty) {
-          return _ErrorView(
+          return GameGridErrorView(
             message: loadError,
             onRetry: () => ref.read(gameListProvider.notifier).refresh(),
           );
         }
 
-        final games = ref.watch(filteredGamesProvider);
         if (games.isEmpty) {
-          return const _EmptyView();
+          return const GameGridEmptyView();
         }
 
         return LayoutBuilder(
           builder: (context, constraints) {
             final crossAxisCount = _calculateColumns(constraints.maxWidth);
+            final childAspectRatio = _cardAspectRatioFor(crossAxisCount);
             return GridView.builder(
-              padding: const EdgeInsets.all(AppConstants.gridSpacing),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
                 crossAxisSpacing: AppConstants.gridSpacing,
                 mainAxisSpacing: AppConstants.gridSpacing,
-                childAspectRatio: _cardAspectRatio,
+                childAspectRatio: childAspectRatio,
               ),
               itemCount: games.length,
               itemBuilder: (context, index) => _GameCardAdapter(
@@ -70,7 +77,14 @@ class HomeGameGrid extends ConsumerWidget {
         (availableWidth /
                 (AppConstants.cardMinWidth + AppConstants.gridSpacing))
             .floor();
-    return columns.clamp(2, 6);
+    return columns.clamp(1, 6);
+  }
+
+  double _cardAspectRatioFor(int crossAxisCount) {
+    if (crossAxisCount == 1) return 0.47;
+    if (crossAxisCount == 2) return 0.48;
+    if (crossAxisCount == 3) return 0.49;
+    return _defaultCardAspectRatio;
   }
 }
 
@@ -88,26 +102,30 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
 
   DateTime _lastHydrationRequestAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _hydrationRequestScheduled = false;
+  bool _estimateFetchScheduled = false;
+  bool _compressionConfirmOpen = false;
+  CompressionEstimate? _cachedEstimate;
+  CompressionAlgorithm? _cachedEstimateAlgorithm;
 
   @override
   void didUpdateWidget(covariant _GameCardAdapter oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.gamePath == widget.gamePath) {
-      return;
+    if (oldWidget.gamePath != widget.gamePath) {
+      _lastHydrationRequestAt = DateTime.fromMillisecondsSinceEpoch(0);
+      _hydrationRequestScheduled = false;
+      _estimateFetchScheduled = false;
+      _cachedEstimate = null;
+      _cachedEstimateAlgorithm = null;
     }
-
-    _lastHydrationRequestAt = DateTime.fromMillisecondsSinceEpoch(0);
-    _hydrationRequestScheduled = false;
   }
 
   @override
   Widget build(BuildContext context) {
     final game = ref.watch(singleGameProvider(widget.gamePath));
-    if (game == null) {
-      return const SizedBox.shrink();
-    }
+    if (game == null) return const SizedBox.shrink();
 
     _scheduleHydrationRequest();
+    _scheduleEstimateFetch(game);
 
     return GameCard(
       gameName: game.name,
@@ -115,14 +133,41 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
       compressedSizeBytes: game.compressedSize,
       isCompressed: game.isCompressed,
       isDirectStorage: game.isDirectStorage,
-      onTap: () => _onGameTap(game),
+      estimatedSavedBytes: _estimatedSavedBytesFor(game),
+      onTap: () => unawaited(_onGameTap(game)),
     );
   }
 
+  int? _estimatedSavedBytesFor(GameInfo game) {
+    if (game.isCompressed || game.isDirectStorage) return null;
+    return _cachedEstimate?.estimatedSavedBytes;
+  }
+
+  void _scheduleEstimateFetch(GameInfo game) {
+    if (game.isCompressed || game.isDirectStorage) return;
+    if (_cachedEstimate != null) return;
+    if (_estimateFetchScheduled) return;
+
+    final algorithm =
+        ref.read(settingsProvider).valueOrNull?.settings.algorithm ??
+        CompressionAlgorithm.xpress8k;
+
+    if (_cachedEstimateAlgorithm == algorithm) return;
+
+    _estimateFetchScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _estimateFetchScheduled = false;
+      if (!mounted) return;
+      // Fire-and-forget; rebuild will pick up the result via setState.
+      unawaited(_getCompressionEstimate(
+        gamePath: game.path,
+        algorithm: algorithm,
+      ));
+    });
+  }
+
   void _scheduleHydrationRequest() {
-    if (_hydrationRequestScheduled) {
-      return;
-    }
+    if (_hydrationRequestScheduled) return;
 
     final now = DateTime.now();
     if (now.difference(_lastHydrationRequestAt) < _hydrationRequestInterval) {
@@ -132,90 +177,83 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
     _hydrationRequestScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _hydrationRequestScheduled = false;
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       _lastHydrationRequestAt = DateTime.now();
       ref.read(gameListProvider.notifier).requestHydration(widget.gamePath);
     });
   }
 
-  void _onGameTap(GameInfo game) {
-    if (game.isDirectStorage) return;
+  Future<void> _onGameTap(GameInfo game) async {
     if (game.isCompressed) {
-      ref
+      await ref
           .read(compressionProvider.notifier)
           .startDecompression(gamePath: game.path, gameName: game.name);
-    } else {
-      ref
-          .read(compressionProvider.notifier)
-          .startCompression(gamePath: game.path, gameName: game.name);
+      return;
+    }
+
+    if (game.isDirectStorage) return;
+
+    final shouldCompress = await _confirmCompression(gameName: game.name);
+    if (!mounted || !shouldCompress) return;
+
+    await ref
+        .read(compressionProvider.notifier)
+        .startCompression(gamePath: game.path, gameName: game.name);
+  }
+
+  Future<bool> _confirmCompression({required String gameName}) async {
+    if (_compressionConfirmOpen) return false;
+
+    _compressionConfirmOpen = true;
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm Compression'),
+          content: Text(
+            'Compress "$gameName"? This can affect disk usage and performance while running.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Compress'),
+            ),
+          ],
+        ),
+      );
+      return confirmed ?? false;
+    } finally {
+      _compressionConfirmOpen = false;
     }
   }
-}
 
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
+  Future<CompressionEstimate?> _getCompressionEstimate({
+    required String gamePath,
+    required CompressionAlgorithm algorithm,
+  }) async {
+    if (_cachedEstimate != null && _cachedEstimateAlgorithm == algorithm) {
+      return _cachedEstimate;
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            LucideIcons.gamepad2,
-            size: 48,
-            color: AppColors.textMuted,
-          ),
-          const SizedBox(height: 16),
-          const Text('No games found', style: AppTypography.headingSmall),
-          const SizedBox(height: 8),
-          Text(
-            'Games from Steam, Epic, GOG, and other launchers\nwill appear here automatically.',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(LucideIcons.alertCircle, size: 48, color: AppColors.error),
-          const SizedBox(height: 16),
-          const Text('Failed to load games', style: AppTypography.headingSmall),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          TextButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(LucideIcons.refreshCw, size: 16),
-            label: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
+    try {
+      final estimate = await ref
+          .read(rustBridgeServiceProvider)
+          .estimateCompressionSavings(
+            gamePath: gamePath,
+            algorithm: algorithm,
+          );
+      if (!mounted) return estimate;
+      setState(() {
+        _cachedEstimate = estimate;
+        _cachedEstimateAlgorithm = algorithm;
+      });
+      return estimate;
+    } catch (_) {
+      return null;
+    }
   }
 }

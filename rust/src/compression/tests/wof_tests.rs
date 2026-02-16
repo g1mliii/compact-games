@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::*;
 use crate::compression::wof;
 use crossbeam_channel::TryRecvError;
@@ -164,7 +166,7 @@ fn compress_with_progress_empty_folder_sends_completion_snapshot() {
     let engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
 
     let streams = engine
-        .compress_folder_with_progress(dir.path(), "Empty".into())
+        .compress_folder_with_progress(dir.path(), Arc::from("Empty"))
         .unwrap();
 
     let result = streams.result.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -192,7 +194,7 @@ fn compress_with_progress_is_async_for_nontrivial_workload() {
     let engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
     let started = Instant::now();
     let streams = engine
-        .compress_folder_with_progress(dir.path(), "Async".into())
+        .compress_folder_with_progress(dir.path(), Arc::from("Async"))
         .unwrap();
     assert!(
         started.elapsed() < Duration::from_secs(2),
@@ -207,7 +209,7 @@ fn compress_with_progress_is_async_for_nontrivial_workload() {
         .progress
         .recv_timeout(Duration::from_secs(3))
         .unwrap();
-    assert_eq!(progress.game_name, "Async");
+    assert_eq!(&*progress.game_name, "Async");
 
     let result = streams
         .result
@@ -215,6 +217,41 @@ fn compress_with_progress_is_async_for_nontrivial_workload() {
         .unwrap();
     let stats = result.expect("compression should succeed");
     assert!(stats.files_processed > 0);
+}
+
+#[test]
+fn compress_with_progress_reports_stable_total_count() {
+    let dir = TempDir::new().unwrap();
+    const FILE_COUNT: usize = 24;
+    for i in 0..FILE_COUNT {
+        create_compressible_file(dir.path(), &format!("stable_{i}.dat"), 262_144);
+    }
+
+    let engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+    let streams = engine
+        .compress_folder_with_progress(dir.path(), Arc::from("StableCount"))
+        .unwrap();
+
+    let first_progress = streams
+        .progress
+        .recv_timeout(Duration::from_secs(3))
+        .expect("should receive progress snapshot");
+
+    assert_eq!(
+        first_progress.files_total, FILE_COUNT as u64,
+        "progress should publish a stable denominator from operation start",
+    );
+    assert!(
+        first_progress.files_processed <= first_progress.files_total,
+        "reported progress should stay within denominator bounds",
+    );
+
+    let result = streams
+        .result
+        .recv_timeout(Duration::from_secs(60))
+        .unwrap()
+        .expect("compression should succeed");
+    assert_eq!(result.files_processed, FILE_COUNT as u64);
 }
 
 #[test]
@@ -226,7 +263,7 @@ fn compress_with_progress_can_complete_without_progress_consumer() {
 
     let engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
     let streams = engine
-        .compress_folder_with_progress(dir.path(), "NoProgressConsumer".into())
+        .compress_folder_with_progress(dir.path(), Arc::from("NoProgressConsumer"))
         .unwrap();
     let CompressionProgressHandle { progress, result } = streams;
     drop(progress);

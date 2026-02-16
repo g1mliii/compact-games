@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/game_info.dart';
 import '../../services/rust_bridge_service.dart';
+import 'game_list_dedupe.dart';
 import 'game_list_state.dart';
 
 final rustBridgeServiceProvider = Provider<RustBridgeService>((ref) {
@@ -15,9 +17,15 @@ final gameListProvider = AsyncNotifierProvider<GameListNotifier, GameListState>(
   GameListNotifier.new,
 );
 
+const bool _discoveryDebugEnabled = bool.fromEnvironment(
+  'PRESSPLAY_DISCOVERY_DEBUG',
+  defaultValue: false,
+);
+
 class GameListNotifier extends AsyncNotifier<GameListState> {
   static const int _maxConcurrentHydrations = 2;
-  static const Duration _hydrationFlushInterval = Duration(milliseconds: 120);
+  static const int _maxHydrationFailures = 4;
+  static const Duration _hydrationFlushInterval = Duration(milliseconds: 220);
 
   int _requestGeneration = 0;
   bool _disposed = false;
@@ -65,10 +73,12 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
 
     try {
       final bridge = ref.read(rustBridgeServiceProvider);
-      final games = switch (mode) {
+      final fetchedGames = switch (mode) {
         _DiscoveryLoadMode.quick => await bridge.getAllGamesQuick(),
         _DiscoveryLoadMode.full => await bridge.getAllGames(),
       };
+      final games = dedupeDiscoveredGames(fetchedGames);
+      _logDiscoveryBatch(fetchedGames, games, mode);
       if (_isStaleRequest(requestId)) {
         return state.valueOrNull ?? const GameListState();
       }
@@ -79,6 +89,8 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       );
       return _buildLoadedState(games: games);
     } catch (e) {
+      final modeLabel = mode == _DiscoveryLoadMode.quick ? 'quick' : 'full';
+      debugPrint('[discovery][$modeLabel] load failed: $e');
       if (_isStaleRequest(requestId)) {
         return state.valueOrNull ?? const GameListState();
       }
@@ -130,13 +142,26 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
   /// Full reload from Rust backend.
   /// Uses copyWithPrevious to keep the current data visible during reload.
   Future<void> refresh() async {
+    if (state.isLoading) return;
     final requestId = ++_requestGeneration;
+    debugPrint('[discovery][refresh] start request=$requestId');
     state = const AsyncValue<GameListState>.loading().copyWithPrevious(state);
+    final bridge = ref.read(rustBridgeServiceProvider);
+    try {
+      bridge.clearDiscoveryCache();
+      debugPrint('[discovery][refresh] cache cleared');
+    } catch (e) {
+      debugPrint('[discovery][refresh] cache clear failed: $e');
+    }
+
     final next = await _loadGames(requestId, mode: _DiscoveryLoadMode.full);
     if (_isStaleRequest(requestId)) {
       return;
     }
     state = AsyncValue.data(next);
+    debugPrint(
+      '[discovery][refresh] done request=$requestId visible=${next.games.length} error=${next.error ?? 'none'}',
+    );
   }
 
   /// Queue lazy full-metadata hydration for a specific game path.
@@ -205,11 +230,17 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       // Hydration is best-effort; use bounded exponential backoff for retries.
       final failures = (_hydrationFailureCount[gamePath] ?? 0) + 1;
       _hydrationFailureCount[gamePath] = failures;
-      final cappedFailures = failures > 4 ? 4 : failures;
-      final backoffSeconds = 1 << cappedFailures;
-      _nextHydrationRetryAt[gamePath] = DateTime.now().add(
-        Duration(seconds: backoffSeconds),
-      );
+      if (failures >= _maxHydrationFailures) {
+        // Permanently give up on this path to prevent unbounded map growth.
+        _hydrationFailureCount.remove(gamePath);
+        _nextHydrationRetryAt.remove(gamePath);
+        _fullyHydratedPaths.add(gamePath);
+      } else {
+        final backoffSeconds = 1 << failures;
+        _nextHydrationRetryAt[gamePath] = DateTime.now().add(
+          Duration(seconds: backoffSeconds),
+        );
+      }
     } finally {
       _inFlightHydrations.remove(gamePath);
       if (_activeHydrations > 0) {
@@ -323,6 +354,28 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
 
   bool _isStaleRequest(int requestId) =>
       _disposed || requestId != _requestGeneration;
+
+  void _logDiscoveryBatch(
+    List<GameInfo> fetchedGames,
+    List<GameInfo> dedupedGames,
+    _DiscoveryLoadMode mode,
+  ) {
+    if (!_discoveryDebugEnabled) {
+      return;
+    }
+
+    final modeLabel = mode == _DiscoveryLoadMode.quick ? 'quick' : 'full';
+    final staleFiltered = fetchedGames.length - dedupedGames.length;
+    debugPrint(
+      '[discovery][$modeLabel] fetched=${fetchedGames.length} visible=${dedupedGames.length} filtered=$staleFiltered',
+    );
+
+    for (final game in dedupedGames) {
+      debugPrint(
+        '[discovery][$modeLabel] card platform=${game.platform} name="${game.name}" size=${game.sizeBytes} path=${game.path}',
+      );
+    }
+  }
 }
 
 enum _DiscoveryLoadMode { quick, full }

@@ -3,10 +3,13 @@ import 'app_colors.dart';
 
 /// PressPlay typography system using Inter and JetBrains Mono.
 abstract final class AppTypography {
-  static const List<String> bodyFontFallback = <String>['Inter'];
-  static const List<String> monoFontFallback = <String>['JetBrains Mono'];
+  static const String bodyFontFamily = 'Inter';
+  static const String monoFontFamily = 'JetBrainsMono';
+  static const List<String> bodyFontFallback = <String>['sans-serif'];
+  static const List<String> monoFontFallback = <String>['monospace'];
 
   static const TextStyle headingLarge = TextStyle(
+    fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 28,
     fontWeight: FontWeight.w700,
@@ -15,6 +18,7 @@ abstract final class AppTypography {
   );
 
   static const TextStyle headingMedium = TextStyle(
+    fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 20,
     fontWeight: FontWeight.w600,
@@ -23,6 +27,7 @@ abstract final class AppTypography {
   );
 
   static const TextStyle headingSmall = TextStyle(
+    fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 16,
     fontWeight: FontWeight.w600,
@@ -30,6 +35,7 @@ abstract final class AppTypography {
   );
 
   static const TextStyle bodyLarge = TextStyle(
+    fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 16,
     fontWeight: FontWeight.w400,
@@ -37,6 +43,7 @@ abstract final class AppTypography {
   );
 
   static const TextStyle bodyMedium = TextStyle(
+    fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 14,
     fontWeight: FontWeight.w400,
@@ -44,6 +51,7 @@ abstract final class AppTypography {
   );
 
   static const TextStyle bodySmall = TextStyle(
+    fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 12,
     fontWeight: FontWeight.w400,
@@ -51,6 +59,7 @@ abstract final class AppTypography {
   );
 
   static const TextStyle label = TextStyle(
+    fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 12,
     fontWeight: FontWeight.w500,
@@ -59,6 +68,7 @@ abstract final class AppTypography {
   );
 
   static const TextStyle mono = TextStyle(
+    fontFamily: monoFontFamily,
     fontFamilyFallback: monoFontFallback,
     fontSize: 13,
     fontWeight: FontWeight.w400,
@@ -66,6 +76,7 @@ abstract final class AppTypography {
   );
 
   static const TextStyle statValue = TextStyle(
+    fontFamily: monoFontFamily,
     fontFamilyFallback: monoFontFallback,
     fontSize: 24,
     fontWeight: FontWeight.w700,

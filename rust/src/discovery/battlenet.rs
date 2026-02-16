@@ -126,6 +126,14 @@ fn parse_product_install(content: &str, mode: DiscoveryScanMode) -> Vec<GameInfo
             let folder_name = game_path
                 .file_name()
                 .map(|n| n.to_string_lossy().into_owned())?;
+            if is_battlenet_non_game_name(&folder_name) {
+                log::debug!(
+                    "Battle.net skip non-game install entry: {} ({})",
+                    folder_name,
+                    game_path.display()
+                );
+                return None;
+            }
 
             let display_name = resolve_battlenet_name(&folder_name);
             utils::build_game_info_with_mode(display_name, game_path, Platform::BattleNet, mode)
@@ -199,6 +207,14 @@ fn scan_battlenet_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
         let name: String = subkey
             .get_value("DisplayName")
             .unwrap_or_else(|_| key_name.clone());
+        if is_battlenet_non_game_name(&name) {
+            log::debug!(
+                "Battle.net skip non-game registry entry: {} ({})",
+                name,
+                game_path.display()
+            );
+            continue;
+        }
 
         if let Some(game) =
             utils::build_game_info_with_mode(name, game_path, Platform::BattleNet, mode)
@@ -223,15 +239,33 @@ fn scan_battlenet_dir(games_path: &Path, mode: DiscoveryScanMode) -> Vec<GameInf
     let candidates: Vec<(String, PathBuf)> = entries
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_dir())
-        .map(|e| {
+        .filter_map(|e| {
             let game_path = e.path();
             let folder_name = e.file_name().to_string_lossy().into_owned();
+            if is_battlenet_non_game_name(&folder_name) {
+                log::debug!(
+                    "Battle.net skip non-game folder entry: {} ({})",
+                    folder_name,
+                    game_path.display()
+                );
+                return None;
+            }
             let display_name = resolve_battlenet_name(&folder_name);
-            (display_name, game_path)
+            Some((display_name, game_path))
         })
         .collect();
 
     utils::build_games_from_candidates(games_path, candidates, Platform::BattleNet, mode)
+}
+
+fn is_battlenet_non_game_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower == "battle.net"
+        || lower == "blizzard battle.net"
+        || lower == "battle net"
+        || lower.contains("battle.net launcher")
+        || lower.contains("launcher")
+        || lower == "agent"
 }
 
 #[cfg(test)]
@@ -283,5 +317,13 @@ mod tests {
             DiscoveryScanMode::Full,
         );
         assert!(games.is_empty());
+    }
+
+    #[test]
+    fn non_game_name_filter_catches_launcher_entries() {
+        assert!(is_battlenet_non_game_name("Battle.net"));
+        assert!(is_battlenet_non_game_name("Blizzard Battle.net"));
+        assert!(is_battlenet_non_game_name("Battle.net Launcher"));
+        assert!(!is_battlenet_non_game_name("Overwatch"));
     }
 }

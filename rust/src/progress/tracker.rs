@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompressionProgress {
-    pub game_name: String,
+    pub game_name: Arc<str>,
     pub files_total: u64,
     pub files_processed: u64,
     pub bytes_original: u64,
@@ -49,7 +50,7 @@ mod tests {
     #[test]
     fn progress_fraction_zero_when_no_files() {
         let p = CompressionProgress {
-            game_name: String::new(),
+            game_name: Arc::from(""),
             files_total: 0,
             files_processed: 0,
             bytes_original: 0,
@@ -65,7 +66,7 @@ mod tests {
     #[test]
     fn progress_fraction_halfway() {
         let p = CompressionProgress {
-            game_name: "Test".into(),
+            game_name: Arc::from("Test"),
             files_total: 100,
             files_processed: 50,
             bytes_original: 1000,

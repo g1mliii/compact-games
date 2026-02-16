@@ -17,12 +17,14 @@ class CompressionNotifier extends Notifier<CompressionState> {
   StreamSubscription<CompressionProgress>? _progressSubscription;
   Timer? _historyTimer;
   bool _disposed = false;
+  bool _cancelRequested = false;
 
   @override
   CompressionState build() {
     _disposed = false;
     ref.onDispose(() {
       _disposed = true;
+      _cancelRequested = false;
       _historyTimer?.cancel();
       _cancelSubscription();
     });
@@ -35,19 +37,22 @@ class CompressionNotifier extends Notifier<CompressionState> {
     required String gameName,
     CompressionAlgorithm? algorithm,
   }) async {
-    if (state.hasActiveJob) return;
+    if (state.hasActiveJob || _progressSubscription != null) return;
 
     final algo =
         algorithm ??
         ref.read(settingsProvider).valueOrNull?.settings.algorithm ??
         CompressionAlgorithm.xpress8k;
+    _cancelRequested = false;
 
     state = state.copyWith(
       activeJob: () => CompressionJobState(
         gamePath: gamePath,
         gameName: gameName,
+        type: CompressionJobType.compression,
         algorithm: algo,
         status: CompressionJobStatus.running,
+        progress: _initialProgress(gameName),
       ),
     );
 
@@ -61,8 +66,8 @@ class CompressionNotifier extends Notifier<CompressionState> {
 
       _cancelSubscription();
       _progressSubscription = stream.listen(
-        (progress) => _onProgress(progress),
-        onError: (Object error) => _onError(error.toString()),
+        _onProgress,
+        onError: _onError,
         onDone: _onDone,
         cancelOnError: false,
       );
@@ -75,15 +80,15 @@ class CompressionNotifier extends Notifier<CompressionState> {
   void cancelCompression() {
     final job = state.activeJob;
     if (job == null || !job.isActive) return;
-
-    _cancelSubscription();
-    ref.read(rustBridgeServiceProvider).cancelCompression();
-
-    state = state.copyWith(
-      activeJob: () => job.copyWith(status: CompressionJobStatus.cancelled),
-    );
-
-    _moveToHistoryAfterDelay();
+    _cancelRequested = true;
+    try {
+      ref.read(rustBridgeServiceProvider).cancelCompression();
+    } catch (e) {
+      _cancelRequested = false;
+      _failJob('Failed to cancel compression: $e');
+      return;
+    }
+    _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
   }
 
   /// Start decompression (no progress stream).
@@ -91,12 +96,13 @@ class CompressionNotifier extends Notifier<CompressionState> {
     required String gamePath,
     required String gameName,
   }) async {
-    if (state.hasActiveJob) return;
+    if (state.hasActiveJob || _progressSubscription != null) return;
 
     state = state.copyWith(
       activeJob: () => CompressionJobState(
         gamePath: gamePath,
         gameName: gameName,
+        type: CompressionJobType.decompression,
         algorithm: CompressionAlgorithm.xpress4k,
         status: CompressionJobStatus.running,
       ),
@@ -110,26 +116,51 @@ class CompressionNotifier extends Notifier<CompressionState> {
       _completeJob();
     } catch (e) {
       if (_disposed) return;
+      _cancelRequested = false;
       _failJob('Decompression failed: $e');
     }
   }
 
   void _onProgress(CompressionProgress progress) {
     if (_disposed) return;
+    if (_cancelRequested) return;
     final job = state.activeJob;
     if (job == null) return;
 
+    final normalizedProgress = _normalizeProgress(progress);
     state = state.copyWith(
-      activeJob: () => job.copyWith(progress: () => progress),
+      activeJob: () => job.copyWith(progress: () => normalizedProgress),
     );
   }
 
-  void _onError(String message) {
+  void _onError(Object error, [StackTrace? _]) {
     if (_disposed) return;
+    final message = error.toString();
+    if (_cancelRequested) {
+      _cancelRequested = false;
+      _cancelSubscription();
+      final job = state.activeJob;
+      if (job != null && job.isActive) {
+        _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
+      }
+      return;
+    }
+    if (_isCancellationMessage(message)) {
+      _cancelRequested = false;
+      _cancelSubscription();
+      final job = state.activeJob;
+      if (job != null && job.isActive) {
+        _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
+      }
+      return;
+    }
+    _cancelRequested = false;
     _failJob(message);
   }
 
   void _onDone() {
+    _cancelSubscription();
+    _cancelRequested = false;
     if (_disposed) return;
     final job = state.activeJob;
     if (job == null || !job.isActive) return;
@@ -137,21 +168,19 @@ class CompressionNotifier extends Notifier<CompressionState> {
   }
 
   void _completeJob() {
+    _cancelRequested = false;
     _cancelSubscription();
     final job = state.activeJob;
     if (job == null) return;
 
     final completedJob = job.copyWith(status: CompressionJobStatus.completed);
-
-    state = CompressionState(
-      activeJob: null,
-      history: [completedJob, ...state.history.take(9)],
-    );
+    _archiveJob(completedJob);
 
     unawaited(_refreshCompletedGame(completedJob));
   }
 
   void _failJob(String message) {
+    _cancelRequested = false;
     _cancelSubscription();
     final job = state.activeJob;
     if (job == null) return;
@@ -166,18 +195,57 @@ class CompressionNotifier extends Notifier<CompressionState> {
     _moveToHistoryAfterDelay();
   }
 
+  CompressionProgress _normalizeProgress(CompressionProgress progress) {
+    if (progress.filesProcessed <= progress.filesTotal) {
+      return progress;
+    }
+
+    return CompressionProgress(
+      gameName: progress.gameName,
+      filesTotal: progress.filesProcessed,
+      filesProcessed: progress.filesProcessed,
+      bytesOriginal: progress.bytesOriginal,
+      bytesCompressed: progress.bytesCompressed,
+      bytesSaved: progress.bytesSaved,
+      estimatedTimeRemaining: progress.estimatedTimeRemaining,
+      isComplete: progress.isComplete,
+    );
+  }
+
+  bool _isCancellationMessage(String message) {
+    final normalized = message.toLowerCase();
+    return normalized.contains('cancelled') || normalized.contains('canceled');
+  }
+
+  CompressionProgress _initialProgress(String gameName) {
+    return CompressionProgress(
+      gameName: gameName,
+      filesTotal: 0,
+      filesProcessed: 0,
+      bytesOriginal: 0,
+      bytesCompressed: 0,
+      bytesSaved: 0,
+      estimatedTimeRemaining: null,
+      isComplete: false,
+    );
+  }
+
   void _moveToHistoryAfterDelay() {
     _historyTimer?.cancel();
     _historyTimer = Timer(const Duration(seconds: 3), () {
       if (_disposed) return;
       final job = state.activeJob;
       if (job == null || job.isActive) return;
-
-      state = CompressionState(
-        activeJob: null,
-        history: [job, ...state.history.take(9)],
-      );
+      _archiveJob(job);
     });
+  }
+
+  void _archiveJob(CompressionJobState job) {
+    _historyTimer?.cancel();
+    state = CompressionState(
+      activeJob: null,
+      history: [job, ...state.history.take(9)],
+    );
   }
 
   void _cancelSubscription() {
@@ -186,9 +254,17 @@ class CompressionNotifier extends Notifier<CompressionState> {
   }
 
   Future<void> _refreshCompletedGame(CompressionJobState job) async {
+    final bridge = ref.read(rustBridgeServiceProvider);
+    final gameListNotifier = ref.read(gameListProvider.notifier);
+    try {
+      bridge.clearDiscoveryCacheEntry(job.gamePath);
+    } catch (_) {
+      // Best-effort cache eviction; hydration/refresh fallback still applies.
+    }
+
     final gameListState = ref.read(gameListProvider).valueOrNull;
     if (gameListState == null) {
-      ref.read(gameListProvider.notifier).refresh();
+      gameListNotifier.requestHydration(job.gamePath);
       return;
     }
 
@@ -199,12 +275,10 @@ class CompressionNotifier extends Notifier<CompressionState> {
         ? gameListState.games[matchIndex]
         : null;
     if (existingGame == null) {
-      ref.read(gameListProvider.notifier).refresh();
       return;
     }
 
     try {
-      final bridge = ref.read(rustBridgeServiceProvider);
       final hydrated = await bridge.hydrateGame(
         gamePath: existingGame.path,
         gameName: existingGame.name,
@@ -212,14 +286,12 @@ class CompressionNotifier extends Notifier<CompressionState> {
       );
       if (_disposed) return;
       if (hydrated != null) {
-        ref.read(gameListProvider.notifier).updateGame(hydrated);
+        gameListNotifier.updateGame(hydrated);
         return;
       }
+      gameListNotifier.requestHydration(job.gamePath);
     } catch (_) {
-      // Best-effort fallback below.
+      gameListNotifier.requestHydration(job.gamePath);
     }
-
-    if (_disposed) return;
-    ref.read(gameListProvider.notifier).refresh();
   }
 }

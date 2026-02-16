@@ -1,9 +1,16 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use walkdir::WalkDir;
 
 use crate::discovery::cache::{self, CachedGameStats};
 use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform};
 
 use super::stats::{dir_stats, dir_stats_quick};
+
+const MIN_LIKELY_INSTALL_SIZE_BYTES: u64 = 512 * 1024 * 1024;
+const MIN_GAME_EXE_SIZE_BYTES: u64 = 2 * 1024 * 1024;
+const INSTALL_PROBE_MAX_DEPTH: usize = 3;
+const INSTALL_PROBE_MAX_FILES: usize = 256;
 
 /// Build a GameInfo from a name, path, and platform.
 /// Returns None if the directory is empty.
@@ -29,17 +36,93 @@ pub fn build_game_info_with_mode_and_stats_path(
     platform: Platform,
     mode: DiscoveryScanMode,
 ) -> Option<GameInfo> {
+    if !stats_path.exists() {
+        cache::remove(&stats_path);
+        log_candidate_decision(
+            "skip",
+            platform,
+            &name,
+            &stats_path,
+            mode,
+            "stats path missing",
+        );
+        return None;
+    }
+
     if mode == DiscoveryScanMode::Quick {
-        if let Some(cached) = cache::lookup_stale(&stats_path) {
+        let include_probe = cache::has_entry(&stats_path);
+        let token = cache::compute_change_token(&stats_path, include_probe);
+
+        if let Some(cached) = cache::lookup(&stats_path, &token) {
+            if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
+                cache::remove(&stats_path);
+                log_candidate_decision(
+                    "skip",
+                    platform,
+                    &name,
+                    &stats_path,
+                    mode,
+                    "token cache hit but candidate failed install probe",
+                );
+                return None;
+            }
+            log_candidate_decision(
+                "accept",
+                platform,
+                &name,
+                &stats_path,
+                mode,
+                "token cache hit",
+            );
             return game_info_from_cached(name, game_path, platform, cached);
         }
 
         let stats = dir_stats_quick(&stats_path);
         if stats.logical_size == 0 {
+            cache::remove(&stats_path);
+            log_candidate_decision(
+                "skip",
+                platform,
+                &name,
+                &stats_path,
+                mode,
+                "quick stats reported zero logical size",
+            );
+            return None;
+        }
+
+        if !is_likely_installed_game(&stats_path, stats.logical_size, platform) {
+            cache::remove(&stats_path);
+            log_candidate_decision(
+                "skip",
+                platform,
+                &name,
+                &stats_path,
+                mode,
+                "quick stats path failed install probe",
+            );
             return None;
         }
 
         let is_directstorage = crate::safety::known_games::is_known_directstorage_game(&stats_path);
+        cache::upsert(
+            &stats_path,
+            token,
+            CachedGameStats::from_parts(
+                stats.logical_size,
+                stats.physical_size,
+                stats.is_compressed,
+                is_directstorage,
+            ),
+        );
+        log_candidate_decision(
+            "accept",
+            platform,
+            &name,
+            &stats_path,
+            mode,
+            "quick stats refreshed cache",
+        );
         return Some(game_info_from_parts(
             name,
             game_path,
@@ -54,11 +137,53 @@ pub fn build_game_info_with_mode_and_stats_path(
     let include_probe = cache::has_entry(&stats_path);
     let token = cache::compute_change_token(&stats_path, include_probe);
     if let Some(cached) = cache::lookup(&stats_path, &token) {
+        if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
+            cache::remove(&stats_path);
+            log_candidate_decision(
+                "skip",
+                platform,
+                &name,
+                &stats_path,
+                mode,
+                "full token cache hit but candidate failed install probe",
+            );
+            return None;
+        }
+        log_candidate_decision(
+            "accept",
+            platform,
+            &name,
+            &stats_path,
+            mode,
+            "full token cache hit",
+        );
         return game_info_from_cached(name, game_path, platform, cached);
     }
 
     let stats = dir_stats(&stats_path);
     if stats.logical_size == 0 {
+        cache::remove(&stats_path);
+        log_candidate_decision(
+            "skip",
+            platform,
+            &name,
+            &stats_path,
+            mode,
+            "full stats reported zero logical size",
+        );
+        return None;
+    }
+
+    if !is_likely_installed_game(&stats_path, stats.logical_size, platform) {
+        cache::remove(&stats_path);
+        log_candidate_decision(
+            "skip",
+            platform,
+            &name,
+            &stats_path,
+            mode,
+            "full stats path failed install probe",
+        );
         return None;
     }
 
@@ -72,6 +197,15 @@ pub fn build_game_info_with_mode_and_stats_path(
             stats.is_compressed,
             is_directstorage,
         ),
+    );
+
+    log_candidate_decision(
+        "accept",
+        platform,
+        &name,
+        &stats_path,
+        mode,
+        "full stats refreshed cache",
     );
 
     Some(game_info_from_parts(
@@ -126,3 +260,96 @@ fn game_info_from_parts(
         last_played: None,
     }
 }
+
+fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) -> bool {
+    if logical_size == 0 {
+        return false;
+    }
+
+    if logical_size >= MIN_LIKELY_INSTALL_SIZE_BYTES {
+        return true;
+    }
+
+    // Xbox UWP layouts may not expose a direct game executable at root.
+    if platform == Platform::XboxGamePass && logical_size >= (256 * 1024 * 1024) {
+        return true;
+    }
+
+    has_game_executable(path)
+}
+
+fn has_game_executable(path: &Path) -> bool {
+    for (files_seen, entry) in WalkDir::new(path)
+        .max_depth(INSTALL_PROBE_MAX_DEPTH)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .enumerate()
+    {
+        if files_seen >= INSTALL_PROBE_MAX_FILES {
+            break;
+        }
+
+        let is_exe = entry
+            .path()
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"));
+        if !is_exe {
+            continue;
+        }
+
+        let exe_name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+        if is_non_game_exe(&exe_name) {
+            continue;
+        }
+
+        let size = entry.metadata().ok().map(|m| m.len()).unwrap_or(0);
+        if size >= MIN_GAME_EXE_SIZE_BYTES {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn is_non_game_exe(name: &str) -> bool {
+    name.contains("unins")
+        || name.contains("setup")
+        || name.contains("install")
+        || name.contains("redist")
+        || name.contains("vcredist")
+        || name.contains("dxsetup")
+        || name.contains("dotnet")
+        || name.contains("launcher")
+        || name == "ue4prereqsetup_x64.exe"
+        || name == "crashreportclient.exe"
+}
+
+fn mode_label(mode: DiscoveryScanMode) -> &'static str {
+    match mode {
+        DiscoveryScanMode::Quick => "quick",
+        DiscoveryScanMode::Full => "full",
+    }
+}
+
+fn log_candidate_decision(
+    decision: &str,
+    platform: Platform,
+    name: &str,
+    stats_path: &Path,
+    mode: DiscoveryScanMode,
+    detail: &str,
+) {
+    log::debug!(
+        "discovery[{decision}] platform={} mode={} name=\"{}\" path={} reason={}",
+        platform,
+        mode_label(mode),
+        name,
+        stats_path.display(),
+        detail
+    );
+}
+
+#[cfg(test)]
+mod tests;

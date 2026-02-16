@@ -108,7 +108,11 @@ fn auto_loop(stop_rx: std::sync::mpsc::Receiver<()>) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{LazyLock, Mutex};
+
     use super::*;
+
+    static TEST_MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
     fn stop_if_running() {
         if is_auto_compression_running() {
@@ -118,6 +122,7 @@ mod tests {
 
     #[test]
     fn auto_compression_start_stop_roundtrip() {
+        let _guard = TEST_MUTEX.lock().unwrap();
         stop_if_running();
         start_auto_compression().expect("start should succeed");
         assert!(is_auto_compression_running());
@@ -127,6 +132,7 @@ mod tests {
 
     #[test]
     fn auto_compression_rejects_double_start() {
+        let _guard = TEST_MUTEX.lock().unwrap();
         stop_if_running();
         start_auto_compression().expect("first start should succeed");
         let second = start_auto_compression();

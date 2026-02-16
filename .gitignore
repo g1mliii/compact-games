@@ -73,8 +73,11 @@ coverage/
 assets/fonts/*.ttf
 assets/fonts/*.otf
 !assets/fonts/.gitkeep
+!assets/fonts/Inter-Variable.ttf
+!assets/fonts/JetBrainsMono-Variable.ttf
 IMPLEMENTATION_PLAN.md
 AGENTS.md
 SPEC.md
 .claude/settings.local.json
 SETUP.md
+assets/fonts/Inter-Variable.ttf

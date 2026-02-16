@@ -21,8 +21,9 @@ class CompressionProgress {
   });
 
   double get fraction {
-    if (filesTotal == 0) return 0.0;
-    return filesProcessed / filesTotal;
+    final total = filesTotal < filesProcessed ? filesProcessed : filesTotal;
+    if (total == 0) return 0.0;
+    return filesProcessed / total;
   }
 
   int get percent => (fraction * 100).clamp(0, 100).toInt();
@@ -32,20 +33,24 @@ class CompressionProgress {
       identical(this, other) ||
       other is CompressionProgress &&
           runtimeType == other.runtimeType &&
+          gameName == other.gameName &&
           filesTotal == other.filesTotal &&
           filesProcessed == other.filesProcessed &&
           bytesOriginal == other.bytesOriginal &&
           bytesCompressed == other.bytesCompressed &&
           bytesSaved == other.bytesSaved &&
+          estimatedTimeRemaining == other.estimatedTimeRemaining &&
           isComplete == other.isComplete;
 
   @override
   int get hashCode => Object.hash(
-        filesTotal,
-        filesProcessed,
-        bytesOriginal,
-        bytesCompressed,
-        bytesSaved,
-        isComplete,
-      );
+    gameName,
+    filesTotal,
+    filesProcessed,
+    bytesOriginal,
+    bytesCompressed,
+    bytesSaved,
+    estimatedTimeRemaining,
+    isComplete,
+  );
 }

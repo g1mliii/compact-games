@@ -1,6 +1,9 @@
 #[flutter_rust_bridge::frb(sync)]
 pub fn init_app() -> String {
-    env_logger::try_init().ok();
+    let mut builder =
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"));
+    builder.format_timestamp_millis();
+    builder.try_init().ok();
     if let Err(e) = rayon::ThreadPoolBuilder::new()
         .num_threads(num_cpus::get().min(8))
         .build_global()

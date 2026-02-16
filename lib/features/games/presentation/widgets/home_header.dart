@@ -11,41 +11,105 @@ import '../../../../providers/games/game_list_provider.dart';
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
 
+  static const BorderRadius _panelRadius = BorderRadius.all(
+    Radius.circular(16),
+  );
+  static const double _compactHeaderBreakpoint = 720;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final totalSavings = ref.watch(totalSavingsProvider);
     final savedGB = totalSavings.savedBytes / (1024 * 1024 * 1024);
+    final savedBadgeWidgets = totalSavings.savedBytes > 0
+        ? <Widget>[
+            Text(
+              '${savedGB.toStringAsFixed(1)} GB saved',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.desertGold,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ]
+        : const <Widget>[];
+    final refreshButton = DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: IconButton(
+        icon: const Icon(LucideIcons.refreshCw, size: 18),
+        color: AppColors.richGold,
+        onPressed: () => ref.read(gameListProvider.notifier).refresh(),
+        tooltip: 'Refresh games',
+      ),
+    );
 
     return RepaintBoundary(
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(bottom: BorderSide(color: AppColors.border)),
+        decoration: BoxDecoration(
+          gradient: AppColors.panelGradient,
+          border: Border.all(color: AppColors.border),
+          borderRadius: _panelRadius,
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Row(
-            children: [
-              const Text('PressPlay', style: AppTypography.headingMedium),
-              const SizedBox(width: 16),
-              if (totalSavings.savedBytes > 0)
-                Text(
-                  '${savedGB.toStringAsFixed(1)} GB saved',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < _compactHeaderBreakpoint;
+              final titleBlock = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('PressPlay', style: AppTypography.headingMedium),
+                  Text(
+                    'Cinematic compression control',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
+                    ),
                   ),
-                ),
-              const Spacer(),
-              const _SearchField(),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(LucideIcons.refreshCw, size: 18),
-                color: AppColors.textSecondary,
-                onPressed: () => ref.read(gameListProvider.notifier).refresh(),
-                tooltip: 'Refresh games',
-              ),
-            ],
+                ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: titleBlock),
+                        if (savedBadgeWidgets.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          ...savedBadgeWidgets,
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Expanded(child: _SearchField()),
+                        const SizedBox(width: 8),
+                        refreshButton,
+                      ],
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  titleBlock,
+                  const SizedBox(width: 18),
+                  ...savedBadgeWidgets,
+                  const Spacer(),
+                  const SizedBox(width: 240, child: _SearchField()),
+                  const SizedBox(width: 8),
+                  refreshButton,
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -61,7 +125,7 @@ class _SearchField extends ConsumerStatefulWidget {
 }
 
 class _SearchFieldState extends ConsumerState<_SearchField> {
-  static const Duration _searchDebounce = Duration(milliseconds: 180);
+  static const Duration _searchDebounce = Duration(milliseconds: 300);
   final _controller = TextEditingController();
   Timer? _debounceTimer;
 
@@ -75,40 +139,22 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 220,
-      height: 36,
+      height: 40,
       child: TextField(
         controller: _controller,
         style: AppTypography.bodySmall,
         decoration: InputDecoration(
           hintText: 'Search games...',
-          hintStyle: AppTypography.bodySmall.copyWith(
-            color: AppColors.textMuted,
-          ),
           prefixIcon: const Icon(
             LucideIcons.search,
             size: 16,
-            color: AppColors.textMuted,
+            color: AppColors.desertSand,
           ),
           prefixIconConstraints: const BoxConstraints(
             minWidth: 36,
             minHeight: 36,
           ),
-          filled: true,
-          fillColor: AppColors.surfaceElevated,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.accent),
-          ),
+          fillColor: AppColors.surfaceElevated.withValues(alpha: 0.8),
         ),
         onChanged: _onSearchChanged,
       ),
