@@ -17,6 +17,17 @@ pub enum Platform {
     Custom,
 }
 
+/// Discovery scan strategy.
+///
+/// `Quick` prioritizes responsiveness and may use cached or sampled metadata.
+/// `Full` computes authoritative metadata and refreshes persistent cache entries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DiscoveryScanMode {
+    Quick,
+    #[default]
+    Full,
+}
+
 impl std::fmt::Display for Platform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -124,7 +135,7 @@ impl GameInfo {
 /// Trait implemented by each platform scanner.
 pub trait PlatformScanner {
     /// Scan for installed games from this platform.
-    fn scan(&self) -> Result<Vec<GameInfo>, super::scan_error::ScanError>;
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, super::scan_error::ScanError>;
 
     /// Human-readable platform name.
     fn platform_name(&self) -> &'static str;

@@ -89,7 +89,7 @@ flutter test
 flutter run -d windows
 ```
 
-The app will launch with a minimal UI showing "Game grid coming soon".
+The app will launch the main PressPlay game grid screen.
 
 ## Development Workflow
 
@@ -112,21 +112,19 @@ The app will launch with a minimal UI showing "Game grid coming soon".
 When you add new Rust functions to expose to Dart:
 
 1. Add `#[flutter_rust_bridge::frb(sync)]` annotation to Rust function
-2. Run `flutter_rust_bridge_codegen generate` to regenerate bindings
+2. Run `pwsh ./scripts/generate-frb.ps1` to regenerate bindings
 3. Generated Dart code appears in `lib/src/rust/`
 4. Import and use in Dart: `import 'package:pressplay/src/rust/api/minimal.dart';`
-
-**Note:** Bridge codegen is not yet configured. This will be set up in Phase 2.
 
 ## Current Status
 
 ### Implemented
-- ✅ Project structure scaffolded
-- ✅ Rust modules created with skeleton implementations
-- ✅ Flutter app structure with feature-first organization
-- ✅ Theme system (dark mode, colors, typography)
-- ✅ Basic HomeScreen placeholder
-- ✅ Build verification (both Rust and Flutter compile cleanly)
+-  Project structure scaffolded
+-  Rust modules created with skeleton implementations
+-  Flutter app structure with feature-first organization
+-  Theme system (dark mode, colors, typography)
+-  Basic HomeScreen placeholder
+-  Build verification (both Rust and Flutter compile cleanly)
 
 ### Not Yet Implemented
 - ⏳ WOF compression API integration (Windows FFI)
@@ -135,7 +133,7 @@ When you add new Rust functions to expose to Dart:
 - ⏳ Idle detection system
 - ⏳ File system watcher
 - ⏳ Progress tracking channels
-- ⏳ Flutter Rust Bridge codegen setup
+- ✅ Flutter Rust Bridge codegen setup (`scripts/generate-frb.ps1`)
 - ⏳ Game grid UI
 - ⏳ Cover art fetching (SteamGridDB)
 - ⏳ Settings screen

@@ -1,28 +1,23 @@
 use std::path::PathBuf;
 
-use super::platform::{GameInfo, Platform, PlatformScanner};
+use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
 const DEFAULT_UBISOFT_PATH: &str = r"C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games";
 
-pub struct UbisoftScanner;
-
-impl Default for UbisoftScanner {
-    fn default() -> Self {
-        Self
-    }
-}
+#[derive(Default)]
+pub struct UbisoftScanner {}
 
 impl PlatformScanner for UbisoftScanner {
-    fn scan(&self) -> Result<Vec<GameInfo>, ScanError> {
-        let mut games = scan_ubisoft_registry();
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
+        let mut games = scan_ubisoft_registry(mode);
 
         let default_path =
             find_ubisoft_games_path().unwrap_or_else(|| PathBuf::from(DEFAULT_UBISOFT_PATH));
 
         if default_path.is_dir() {
-            let dir_games = utils::scan_game_subdirs(&default_path, Platform::UbisoftConnect);
+            let dir_games = utils::scan_game_subdirs(&default_path, Platform::UbisoftConnect, mode);
             utils::merge_games(&mut games, dir_games);
         }
 
@@ -36,7 +31,7 @@ impl PlatformScanner for UbisoftScanner {
 }
 
 #[cfg(windows)]
-fn scan_ubisoft_registry() -> Vec<GameInfo> {
+fn scan_ubisoft_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     use winreg::enums::*;
     use winreg::RegKey;
 
@@ -67,13 +62,13 @@ fn scan_ubisoft_registry() -> Vec<GameInfo> {
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_else(|| format!("Ubisoft Game {key_name}"));
 
-            utils::build_game_info(name, game_path, Platform::UbisoftConnect)
+            utils::build_game_info_with_mode(name, game_path, Platform::UbisoftConnect, mode)
         })
         .collect()
 }
 
 #[cfg(not(windows))]
-fn scan_ubisoft_registry() -> Vec<GameInfo> {
+fn scan_ubisoft_registry(_mode: DiscoveryScanMode) -> Vec<GameInfo> {
     Vec::new()
 }
 
@@ -104,8 +99,8 @@ mod tests {
 
     #[test]
     fn ubisoft_scanner_returns_ok() {
-        let scanner = UbisoftScanner;
-        let result = scanner.scan();
+        let scanner = UbisoftScanner {};
+        let result = scanner.scan(DiscoveryScanMode::Full);
         assert!(result.is_ok());
     }
 
@@ -114,6 +109,7 @@ mod tests {
         let games = utils::scan_game_subdirs(
             Path::new(r"C:\NonExistent\Ubisoft\Games"),
             Platform::UbisoftConnect,
+            DiscoveryScanMode::Full,
         );
         assert!(games.is_empty());
     }

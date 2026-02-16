@@ -1,4 +1,5 @@
 pub mod battlenet;
+pub mod cache;
 pub mod custom;
 pub mod ea;
 pub mod epic;
@@ -6,6 +7,7 @@ pub mod gog;
 pub mod platform;
 pub mod scan_error;
 pub mod steam;
+pub mod storage;
 pub mod ubisoft;
 pub mod utils;
 pub mod xbox;

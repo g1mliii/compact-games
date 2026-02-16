@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use super::platform::{GameInfo, Platform, PlatformScanner};
+use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
@@ -29,14 +29,14 @@ impl Default for XboxScanner {
 }
 
 impl PlatformScanner for XboxScanner {
-    fn scan(&self) -> Result<Vec<GameInfo>, ScanError> {
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
         let mut games = Vec::new();
 
         if self.xbox_path.is_dir() {
-            games.extend(scan_xbox_dir(&self.xbox_path));
+            games.extend(scan_xbox_dir(&self.xbox_path, mode));
         }
 
-        let registry_games = scan_xbox_registry();
+        let registry_games = scan_xbox_registry(mode);
         utils::merge_games(&mut games, registry_games);
 
         log::info!("Xbox Game Pass: found {} games", games.len());
@@ -49,7 +49,7 @@ impl PlatformScanner for XboxScanner {
 }
 
 /// Scan the Xbox Games directory for game folders.
-fn scan_xbox_dir(xbox_path: &std::path::Path) -> Vec<GameInfo> {
+fn scan_xbox_dir(xbox_path: &std::path::Path, mode: DiscoveryScanMode) -> Vec<GameInfo> {
     let entries = match std::fs::read_dir(xbox_path) {
         Ok(e) => e,
         Err(e) => {
@@ -74,35 +74,20 @@ fn scan_xbox_dir(xbox_path: &std::path::Path) -> Vec<GameInfo> {
 
             let name = clean_xbox_name(&folder_name);
 
-            let stats = utils::dir_stats(&size_path);
-            if stats.logical_size == 0 {
-                return None;
-            }
-
-            let is_directstorage = crate::safety::directstorage::is_directstorage_game(&size_path);
-
-            Some(GameInfo {
+            utils::build_game_info_with_mode_and_stats_path(
                 name,
-                path: game_path,
-                platform: Platform::XboxGamePass,
-                size_bytes: stats.logical_size,
-                compressed_size: if stats.is_compressed {
-                    Some(stats.physical_size)
-                } else {
-                    None
-                },
-                is_compressed: stats.is_compressed,
-                is_directstorage,
-                excluded: false,
-                last_played: None,
-            })
+                game_path,
+                size_path,
+                Platform::XboxGamePass,
+                mode,
+            )
         })
         .collect()
 }
 
 /// Scan registry for Xbox/Microsoft Store game installations.
 #[cfg(windows)]
-fn scan_xbox_registry() -> Vec<GameInfo> {
+fn scan_xbox_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     use winreg::enums::*;
     use winreg::RegKey;
 
@@ -133,13 +118,13 @@ fn scan_xbox_registry() -> Vec<GameInfo> {
                     .unwrap_or_else(|| key_name.clone()),
             );
 
-            utils::build_game_info(name, game_path, Platform::XboxGamePass)
+            utils::build_game_info_with_mode(name, game_path, Platform::XboxGamePass, mode)
         })
         .collect()
 }
 
 #[cfg(not(windows))]
-fn scan_xbox_registry() -> Vec<GameInfo> {
+fn scan_xbox_registry(_mode: DiscoveryScanMode) -> Vec<GameInfo> {
     Vec::new()
 }
 
@@ -231,7 +216,7 @@ mod tests {
     #[test]
     fn xbox_scanner_nonexistent_path_returns_empty() {
         let scanner = XboxScanner::with_path(PathBuf::from(r"C:\NonExistent\XboxGames"));
-        let result = scanner.scan().unwrap();
+        let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
         assert!(result.is_empty());
     }
 }

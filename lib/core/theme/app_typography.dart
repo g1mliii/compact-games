@@ -3,17 +3,8 @@ import 'app_colors.dart';
 
 /// PressPlay typography system using Inter and JetBrains Mono.
 abstract final class AppTypography {
-  static const List<String> bodyFontFallback = <String>[
-    'Inter',
-    'Segoe UI',
-    'Arial',
-  ];
-  static const List<String> monoFontFallback = <String>[
-    'JetBrains Mono',
-    'Consolas',
-    'Courier New',
-    'monospace',
-  ];
+  static const List<String> bodyFontFallback = <String>['Inter'];
+  static const List<String> monoFontFallback = <String>['JetBrains Mono'];
 
   static const TextStyle headingLarge = TextStyle(
     fontFamilyFallback: bodyFontFallback,

@@ -51,6 +51,9 @@ REM Install Flutter dependencies
 cd ..
 flutter pub get
 
+REM Regenerate Flutter-Rust bindings (required after API changes)
+pwsh ./scripts/generate-frb.ps1
+
 REM Run the app
 flutter run
 ```

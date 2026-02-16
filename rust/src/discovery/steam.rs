@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use super::platform::{GameInfo, Platform, PlatformScanner};
+use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
@@ -30,7 +30,7 @@ impl Default for SteamScanner {
 }
 
 impl PlatformScanner for SteamScanner {
-    fn scan(&self) -> Result<Vec<GameInfo>, ScanError> {
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
         if !self.steam_path.is_dir() {
             log::info!("Steam path not found: {}", self.steam_path.display());
             return Ok(Vec::new());
@@ -45,7 +45,7 @@ impl PlatformScanner for SteamScanner {
         let games: Vec<GameInfo> = library_paths
             .iter()
             .flat_map(|lib_path| {
-                scan_library(lib_path)
+                scan_library(lib_path, mode)
                     .inspect_err(|e| {
                         log::warn!("Failed to scan Steam library {}: {e}", lib_path.display())
                     })
@@ -113,7 +113,10 @@ fn extract_quoted_value(s: &str) -> Option<&str> {
 }
 
 /// Scan a single Steam library folder for games.
-fn scan_library(steamapps_path: &Path) -> Result<Vec<GameInfo>, ScanError> {
+fn scan_library(
+    steamapps_path: &Path,
+    mode: DiscoveryScanMode,
+) -> Result<Vec<GameInfo>, ScanError> {
     let common_path = steamapps_path.join("common");
     if !common_path.is_dir() {
         return Ok(Vec::new());
@@ -121,7 +124,7 @@ fn scan_library(steamapps_path: &Path) -> Result<Vec<GameInfo>, ScanError> {
 
     let manifests = parse_app_manifests(steamapps_path);
 
-    let games: Vec<GameInfo> = std::fs::read_dir(&common_path)?
+    let candidates: Vec<(String, PathBuf)> = std::fs::read_dir(&common_path)?
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.path().is_dir())
         .filter_map(|entry| {
@@ -135,11 +138,16 @@ fn scan_library(steamapps_path: &Path) -> Result<Vec<GameInfo>, ScanError> {
             let folder_key = folder_name.to_ascii_lowercase();
             let name = manifests.get(&folder_key).cloned().unwrap_or(folder_name);
 
-            utils::build_game_info(name, game_path, Platform::Steam)
+            Some((name, game_path))
         })
         .collect();
 
-    Ok(games)
+    Ok(utils::build_games_from_candidates(
+        &common_path,
+        candidates,
+        Platform::Steam,
+        mode,
+    ))
 }
 
 struct AppManifest {
@@ -342,7 +350,7 @@ mod tests {
     #[test]
     fn steam_scanner_nonexistent_path_returns_empty() {
         let scanner = SteamScanner::with_path(PathBuf::from(r"C:\NonExistent\Steam"));
-        let result = scanner.scan().unwrap();
+        let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
         assert!(result.is_empty());
     }
 }

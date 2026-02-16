@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::platform::{GameInfo, Platform, PlatformScanner};
+use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
@@ -20,23 +20,18 @@ const KNOWN_BATTLENET_GAMES: &[(&str, &str)] = &[
     ("Crash Bandicoot 4", "Crash Bandicoot 4"),
 ];
 
-pub struct BattleNetScanner;
-
-impl Default for BattleNetScanner {
-    fn default() -> Self {
-        Self
-    }
-}
+#[derive(Default)]
+pub struct BattleNetScanner {}
 
 impl PlatformScanner for BattleNetScanner {
-    fn scan(&self) -> Result<Vec<GameInfo>, ScanError> {
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
         let mut games = Vec::new();
 
-        if let Some(config_games) = scan_battlenet_config() {
+        if let Some(config_games) = scan_battlenet_config(mode) {
             games.extend(config_games);
         }
 
-        let registry_games = scan_battlenet_registry();
+        let registry_games = scan_battlenet_registry(mode);
         utils::merge_games(&mut games, registry_games);
 
         // Fallback: check common install paths for known games
@@ -45,7 +40,12 @@ impl PlatformScanner for BattleNetScanner {
             .filter_map(|(folder, display_name)| {
                 let path = PathBuf::from(r"C:\Program Files (x86)").join(folder);
                 if path.is_dir() {
-                    utils::build_game_info(display_name.to_string(), path, Platform::BattleNet)
+                    utils::build_game_info_with_mode(
+                        display_name.to_string(),
+                        path,
+                        Platform::BattleNet,
+                        mode,
+                    )
                 } else {
                     None
                 }
@@ -63,7 +63,7 @@ impl PlatformScanner for BattleNetScanner {
 }
 
 /// Parse Battle.net launcher config for installed game paths.
-fn scan_battlenet_config() -> Option<Vec<GameInfo>> {
+fn scan_battlenet_config(mode: DiscoveryScanMode) -> Option<Vec<GameInfo>> {
     let program_data = std::env::var("PROGRAMDATA").ok()?;
 
     // Try Battle.net's launcher JSON config
@@ -73,7 +73,7 @@ fn scan_battlenet_config() -> Option<Vec<GameInfo>> {
         .join("battle.net.config");
 
     if config_path.is_file() {
-        return parse_battlenet_json_config(&config_path);
+        return parse_battlenet_json_config(&config_path, mode);
     }
 
     // Try product.install text file
@@ -84,13 +84,16 @@ fn scan_battlenet_config() -> Option<Vec<GameInfo>> {
 
     if product_install.is_file() {
         let content = std::fs::read_to_string(&product_install).ok()?;
-        return Some(parse_product_install(&content));
+        return Some(parse_product_install(&content, mode));
     }
 
     None
 }
 
-fn parse_battlenet_json_config(config_path: &Path) -> Option<Vec<GameInfo>> {
+fn parse_battlenet_json_config(
+    config_path: &Path,
+    mode: DiscoveryScanMode,
+) -> Option<Vec<GameInfo>> {
     let content = std::fs::read_to_string(config_path).ok()?;
     let json: serde_json::Value = serde_json::from_str(&content)
         .inspect_err(|e| log::debug!("Failed to parse Battle.net config: {e}"))
@@ -107,10 +110,10 @@ fn parse_battlenet_json_config(config_path: &Path) -> Option<Vec<GameInfo>> {
         return None;
     }
 
-    Some(scan_battlenet_dir(&base))
+    Some(scan_battlenet_dir(&base, mode))
 }
 
-fn parse_product_install(content: &str) -> Vec<GameInfo> {
+fn parse_product_install(content: &str, mode: DiscoveryScanMode) -> Vec<GameInfo> {
     content
         .lines()
         .filter_map(|line| extract_install_path(line.trim()))
@@ -125,7 +128,7 @@ fn parse_product_install(content: &str) -> Vec<GameInfo> {
                 .map(|n| n.to_string_lossy().into_owned())?;
 
             let display_name = resolve_battlenet_name(&folder_name);
-            utils::build_game_info(display_name, game_path, Platform::BattleNet)
+            utils::build_game_info_with_mode(display_name, game_path, Platform::BattleNet, mode)
         })
         .collect()
 }
@@ -157,7 +160,7 @@ fn resolve_battlenet_name(folder_name: &str) -> String {
 
 /// Scan registry for Battle.net game installations.
 #[cfg(windows)]
-fn scan_battlenet_registry() -> Vec<GameInfo> {
+fn scan_battlenet_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     use winreg::enums::*;
     use winreg::RegKey;
 
@@ -197,7 +200,9 @@ fn scan_battlenet_registry() -> Vec<GameInfo> {
             .get_value("DisplayName")
             .unwrap_or_else(|_| key_name.clone());
 
-        if let Some(game) = utils::build_game_info(name, game_path, Platform::BattleNet) {
+        if let Some(game) =
+            utils::build_game_info_with_mode(name, game_path, Platform::BattleNet, mode)
+        {
             games.push(game);
         }
     }
@@ -206,25 +211,27 @@ fn scan_battlenet_registry() -> Vec<GameInfo> {
 }
 
 #[cfg(not(windows))]
-fn scan_battlenet_registry() -> Vec<GameInfo> {
+fn scan_battlenet_registry(_mode: DiscoveryScanMode) -> Vec<GameInfo> {
     Vec::new()
 }
 
-fn scan_battlenet_dir(games_path: &Path) -> Vec<GameInfo> {
+fn scan_battlenet_dir(games_path: &Path, mode: DiscoveryScanMode) -> Vec<GameInfo> {
     let Ok(entries) = std::fs::read_dir(games_path) else {
         return Vec::new();
     };
 
-    entries
+    let candidates: Vec<(String, PathBuf)> = entries
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_dir())
-        .filter_map(|e| {
+        .map(|e| {
             let game_path = e.path();
             let folder_name = e.file_name().to_string_lossy().into_owned();
             let display_name = resolve_battlenet_name(&folder_name);
-            utils::build_game_info(display_name, game_path, Platform::BattleNet)
+            (display_name, game_path)
         })
-        .collect()
+        .collect();
+
+    utils::build_games_from_candidates(games_path, candidates, Platform::BattleNet, mode)
 }
 
 #[cfg(test)]
@@ -233,8 +240,8 @@ mod tests {
 
     #[test]
     fn battlenet_scanner_returns_ok() {
-        let scanner = BattleNetScanner;
-        let result = scanner.scan();
+        let scanner = BattleNetScanner {};
+        let result = scanner.scan(DiscoveryScanMode::Full);
         assert!(result.is_ok());
     }
 
@@ -271,7 +278,10 @@ mod tests {
 
     #[test]
     fn scan_nonexistent_directory_returns_empty() {
-        let games = scan_battlenet_dir(Path::new(r"C:\NonExistent\BattleNet"));
+        let games = scan_battlenet_dir(
+            Path::new(r"C:\NonExistent\BattleNet"),
+            DiscoveryScanMode::Full,
+        );
         assert!(games.is_empty());
     }
 }

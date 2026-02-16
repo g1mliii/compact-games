@@ -1,13 +1,12 @@
-/// Smoke-test function exposed to Dart via flutter_rust_bridge.
-/// Replace with real API surface as features land.
-#[flutter_rust_bridge::frb(sync)]
-pub fn greet(name: String) -> String {
-    format!("Hello from PressPlay, {name}!")
-}
-
 #[flutter_rust_bridge::frb(sync)]
 pub fn init_app() -> String {
     env_logger::try_init().ok();
+    if let Err(e) = rayon::ThreadPoolBuilder::new()
+        .num_threads(num_cpus::get().min(8))
+        .build_global()
+    {
+        log::warn!("Failed to configure global thread pool: {e}");
+    }
     log::info!("PressPlay core initialized");
     String::from("PressPlay core ready")
 }

@@ -145,8 +145,8 @@ if (!$SkipBridge) {
         Write-Ok "flutter_rust_bridge_codegen found"
     } else {
         Write-Warn "flutter_rust_bridge_codegen not found."
-        Write-Warn "Install with: cargo install flutter_rust_bridge_codegen"
-        Write-Warn "Then run: flutter_rust_bridge_codegen generate"
+        Write-Warn "Install with: cargo install flutter_rust_bridge_codegen --version 2.11.1"
+        Write-Warn "Then run: pwsh ./scripts/generate-frb.ps1"
     }
 }
 

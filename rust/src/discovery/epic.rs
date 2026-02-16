@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::platform::{GameInfo, Platform, PlatformScanner};
+use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
@@ -29,15 +29,15 @@ impl Default for EpicScanner {
 }
 
 impl PlatformScanner for EpicScanner {
-    fn scan(&self) -> Result<Vec<GameInfo>, ScanError> {
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
         let mut games = Vec::new();
 
         if self.epic_path.is_dir() {
-            games.extend(scan_epic_dir(&self.epic_path));
+            games.extend(scan_epic_dir(&self.epic_path, mode));
         }
 
         // Check launcher manifests for additional install locations
-        let manifest_games = scan_epic_manifests();
+        let manifest_games = scan_epic_manifests(mode);
         utils::merge_games(&mut games, manifest_games);
 
         log::info!("Epic Games: found {} games", games.len());
@@ -50,7 +50,7 @@ impl PlatformScanner for EpicScanner {
 }
 
 /// Scan the Epic Games install directory for game folders.
-fn scan_epic_dir(epic_path: &Path) -> Vec<GameInfo> {
+fn scan_epic_dir(epic_path: &Path, mode: DiscoveryScanMode) -> Vec<GameInfo> {
     let entries = match std::fs::read_dir(epic_path) {
         Ok(e) => e,
         Err(e) => {
@@ -59,7 +59,7 @@ fn scan_epic_dir(epic_path: &Path) -> Vec<GameInfo> {
         }
     };
 
-    entries
+    let candidates: Vec<(String, PathBuf)> = entries
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_dir())
         .filter_map(|e| {
@@ -71,9 +71,11 @@ fn scan_epic_dir(epic_path: &Path) -> Vec<GameInfo> {
             }
 
             let name = read_egstore_name(&game_path).unwrap_or(folder_name);
-            utils::build_game_info(name, game_path, Platform::EpicGames)
+            Some((name, game_path))
         })
-        .collect()
+        .collect();
+
+    utils::build_games_from_candidates(epic_path, candidates, Platform::EpicGames, mode)
 }
 
 /// Read game name from .egstore metadata folder.
@@ -108,7 +110,7 @@ fn parse_mancpn_name(content: &str) -> Option<String> {
 }
 
 /// Scan Epic launcher .item manifest files for installed games.
-fn scan_epic_manifests() -> Vec<GameInfo> {
+fn scan_epic_manifests(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     let program_data = std::env::var("PROGRAMDATA").ok();
     let manifests_path = program_data
         .map(|pd| {
@@ -125,13 +127,13 @@ fn scan_epic_manifests() -> Vec<GameInfo> {
         if !alt.is_dir() {
             return Vec::new();
         }
-        return scan_manifest_files(&alt);
+        return scan_manifest_files(&alt, mode);
     };
 
-    scan_manifest_files(&manifests_path)
+    scan_manifest_files(&manifests_path, mode)
 }
 
-fn scan_manifest_files(dir: &Path) -> Vec<GameInfo> {
+fn scan_manifest_files(dir: &Path, mode: DiscoveryScanMode) -> Vec<GameInfo> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };
@@ -141,12 +143,12 @@ fn scan_manifest_files(dir: &Path) -> Vec<GameInfo> {
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "item"))
         .filter_map(|e| {
             let content = std::fs::read_to_string(e.path()).ok()?;
-            parse_epic_manifest_item(&content)
+            parse_epic_manifest_item(&content, mode)
         })
         .collect()
 }
 
-fn parse_epic_manifest_item(content: &str) -> Option<GameInfo> {
+fn parse_epic_manifest_item(content: &str, mode: DiscoveryScanMode) -> Option<GameInfo> {
     let json: serde_json::Value = serde_json::from_str(content)
         .inspect_err(|e| log::debug!("Failed to parse Epic manifest: {e}"))
         .ok()?;
@@ -159,7 +161,7 @@ fn parse_epic_manifest_item(content: &str) -> Option<GameInfo> {
         return None;
     }
 
-    utils::build_game_info(name, game_path, Platform::EpicGames)
+    utils::build_game_info_with_mode(name, game_path, Platform::EpicGames, mode)
 }
 
 fn is_epic_system_folder(name: &str) -> bool {
@@ -204,13 +206,13 @@ mod tests {
             "InstallLocation": "C:\\NonExistent\\TestGame",
             "InstallSize": 5000000000
         }"#;
-        assert!(parse_epic_manifest_item(json).is_none());
+        assert!(parse_epic_manifest_item(json, DiscoveryScanMode::Full).is_none());
     }
 
     #[test]
     fn parse_epic_manifest_item_missing_fields() {
         let json = r#"{"InstallLocation": "C:\\Test"}"#;
-        assert!(parse_epic_manifest_item(json).is_none());
+        assert!(parse_epic_manifest_item(json, DiscoveryScanMode::Full).is_none());
     }
 
     #[test]
@@ -224,7 +226,7 @@ mod tests {
     #[test]
     fn epic_scanner_nonexistent_path_returns_empty() {
         let scanner = EpicScanner::with_path(PathBuf::from(r"C:\NonExistent\Epic"));
-        let result = scanner.scan().unwrap();
+        let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
         assert!(result.is_empty());
     }
 }

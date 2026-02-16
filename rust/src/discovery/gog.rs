@@ -1,23 +1,18 @@
 use std::path::PathBuf;
 
-use super::platform::{GameInfo, Platform, PlatformScanner};
+use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
-pub struct GogScanner;
-
-impl Default for GogScanner {
-    fn default() -> Self {
-        Self
-    }
-}
+#[derive(Default)]
+pub struct GogScanner {}
 
 impl PlatformScanner for GogScanner {
-    fn scan(&self) -> Result<Vec<GameInfo>, ScanError> {
-        let mut games = scan_gog_registry_games();
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
+        let mut games = scan_gog_registry_games(mode);
 
         if let Some(galaxy_path) = find_gog_galaxy_games_path() {
-            let dir_games = utils::scan_game_subdirs(&galaxy_path, Platform::GogGalaxy);
+            let dir_games = utils::scan_game_subdirs(&galaxy_path, Platform::GogGalaxy, mode);
             utils::merge_games(&mut games, dir_games);
         }
 
@@ -31,7 +26,7 @@ impl PlatformScanner for GogScanner {
 }
 
 #[cfg(windows)]
-fn scan_gog_registry_games() -> Vec<GameInfo> {
+fn scan_gog_registry_games(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     use winreg::enums::*;
     use winreg::RegKey;
 
@@ -58,13 +53,13 @@ fn scan_gog_registry_games() -> Vec<GameInfo> {
                 return None;
             }
 
-            utils::build_game_info(name, game_path, Platform::GogGalaxy)
+            utils::build_game_info_with_mode(name, game_path, Platform::GogGalaxy, mode)
         })
         .collect()
 }
 
 #[cfg(not(windows))]
-fn scan_gog_registry_games() -> Vec<GameInfo> {
+fn scan_gog_registry_games(_mode: DiscoveryScanMode) -> Vec<GameInfo> {
     Vec::new()
 }
 
@@ -101,15 +96,18 @@ mod tests {
 
     #[test]
     fn gog_scanner_returns_ok() {
-        let scanner = GogScanner;
-        let result = scanner.scan();
+        let scanner = GogScanner {};
+        let result = scanner.scan(DiscoveryScanMode::Full);
         assert!(result.is_ok());
     }
 
     #[test]
     fn scan_nonexistent_directory_returns_empty() {
-        let games =
-            utils::scan_game_subdirs(Path::new(r"C:\NonExistent\GOG\Games"), Platform::GogGalaxy);
+        let games = utils::scan_game_subdirs(
+            Path::new(r"C:\NonExistent\GOG\Games"),
+            Platform::GogGalaxy,
+            DiscoveryScanMode::Full,
+        );
         assert!(games.is_empty());
     }
 }

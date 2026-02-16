@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use super::platform::{GameInfo, Platform, PlatformScanner};
+use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
@@ -9,27 +9,22 @@ const DEFAULT_EA_PATHS: &[&str] = &[
     r"C:\Program Files (x86)\Origin Games",
 ];
 
-pub struct EaScanner;
-
-impl Default for EaScanner {
-    fn default() -> Self {
-        Self
-    }
-}
+#[derive(Default)]
+pub struct EaScanner {}
 
 impl PlatformScanner for EaScanner {
-    fn scan(&self) -> Result<Vec<GameInfo>, ScanError> {
-        let mut games = scan_ea_registry();
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
+        let mut games = scan_ea_registry(mode);
 
         for default_path in DEFAULT_EA_PATHS {
             let path = PathBuf::from(default_path);
             if path.is_dir() {
-                let dir_games = utils::scan_game_subdirs(&path, Platform::EaApp);
+                let dir_games = utils::scan_game_subdirs(&path, Platform::EaApp, mode);
                 utils::merge_games(&mut games, dir_games);
             }
         }
 
-        if let Some(config_games) = scan_ea_desktop_config() {
+        if let Some(config_games) = scan_ea_desktop_config(mode) {
             utils::merge_games(&mut games, config_games);
         }
 
@@ -43,7 +38,7 @@ impl PlatformScanner for EaScanner {
 }
 
 #[cfg(windows)]
-fn scan_ea_registry() -> Vec<GameInfo> {
+fn scan_ea_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     use winreg::enums::*;
     use winreg::RegKey;
 
@@ -75,7 +70,7 @@ fn scan_ea_registry() -> Vec<GameInfo> {
                     return None;
                 }
 
-                utils::build_game_info(key_name, game_path, Platform::EaApp)
+                utils::build_game_info_with_mode(key_name, game_path, Platform::EaApp, mode)
             })
             .collect();
 
@@ -86,11 +81,11 @@ fn scan_ea_registry() -> Vec<GameInfo> {
 }
 
 #[cfg(not(windows))]
-fn scan_ea_registry() -> Vec<GameInfo> {
+fn scan_ea_registry(_mode: DiscoveryScanMode) -> Vec<GameInfo> {
     Vec::new()
 }
 
-fn scan_ea_desktop_config() -> Option<Vec<GameInfo>> {
+fn scan_ea_desktop_config(mode: DiscoveryScanMode) -> Option<Vec<GameInfo>> {
     let program_data = std::env::var("PROGRAMDATA").ok()?;
     let ea_config = PathBuf::from(program_data)
         .join("EA Desktop")
@@ -106,14 +101,14 @@ fn scan_ea_desktop_config() -> Option<Vec<GameInfo>> {
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
         .filter_map(|e| {
             let content = std::fs::read_to_string(e.path()).ok()?;
-            parse_ea_install_json(&content)
+            parse_ea_install_json(&content, mode)
         })
         .collect();
 
     Some(games)
 }
 
-fn parse_ea_install_json(content: &str) -> Option<GameInfo> {
+fn parse_ea_install_json(content: &str, mode: DiscoveryScanMode) -> Option<GameInfo> {
     let json: serde_json::Value = serde_json::from_str(content)
         .inspect_err(|e| log::debug!("Failed to parse EA config: {e}"))
         .ok()?;
@@ -134,7 +129,7 @@ fn parse_ea_install_json(content: &str) -> Option<GameInfo> {
         return None;
     }
 
-    utils::build_game_info(name, game_path, Platform::EaApp)
+    utils::build_game_info_with_mode(name, game_path, Platform::EaApp, mode)
 }
 
 #[cfg(test)]
@@ -145,8 +140,8 @@ mod tests {
 
     #[test]
     fn ea_scanner_returns_ok() {
-        let scanner = EaScanner;
-        let result = scanner.scan();
+        let scanner = EaScanner {};
+        let result = scanner.scan(DiscoveryScanMode::Full);
         assert!(result.is_ok());
     }
 
@@ -156,19 +151,22 @@ mod tests {
             "displayName": "Test Game",
             "installLocation": "C:\\NonExistent\\TestGame"
         }"#;
-        assert!(parse_ea_install_json(json).is_none());
+        assert!(parse_ea_install_json(json, DiscoveryScanMode::Full).is_none());
     }
 
     #[test]
     fn parse_ea_install_json_missing_name() {
         let json = r#"{"installLocation": "C:\\Test"}"#;
-        assert!(parse_ea_install_json(json).is_none());
+        assert!(parse_ea_install_json(json, DiscoveryScanMode::Full).is_none());
     }
 
     #[test]
     fn scan_nonexistent_directory_returns_empty() {
-        let games =
-            utils::scan_game_subdirs(Path::new(r"C:\NonExistent\EA\Games"), Platform::EaApp);
+        let games = utils::scan_game_subdirs(
+            Path::new(r"C:\NonExistent\EA\Games"),
+            Platform::EaApp,
+            DiscoveryScanMode::Full,
+        );
         assert!(games.is_empty());
     }
 }

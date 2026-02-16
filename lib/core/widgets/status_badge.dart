@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_typography.dart';
 import '../theme/app_colors.dart';
 
 class StatusBadge extends StatelessWidget {
@@ -67,18 +68,18 @@ class StatusBadge extends StatelessWidget {
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 6),
           ],
-          Text(label, style: _labelStyle.copyWith(color: color)),
+          Text(
+            label,
+            style: AppTypography.label.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
         ],
       ),
     );
   }
-
-  static const TextStyle _labelStyle = TextStyle(
-    fontFamilyFallback: <String>['Inter', 'Segoe UI', 'Arial'],
-    fontSize: 12,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0.5,
-  );
 }
 
 enum StatusBadgeVariant { filled, outlined }

@@ -33,12 +33,17 @@ dependencies:
   path: ^1.9.1
 
   # Flutter Rust Bridge
-  flutter_rust_bridge: ^2.9.0
+  flutter_rust_bridge: 2.11.1
+
+  # Code generation (FRB needs freezed_annotation at runtime)
+  freezed_annotation: ^3.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  freezed: ^3.2.5
+  build_runner: ^2.11.1
 
 flutter:
   uses-material-design: true

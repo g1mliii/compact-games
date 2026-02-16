@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
-use super::platform::{GameInfo, Platform, PlatformScanner};
+use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
@@ -59,13 +59,13 @@ impl CustomScanner {
 }
 
 impl PlatformScanner for CustomScanner {
-    fn scan(&self) -> Result<Vec<GameInfo>, ScanError> {
+    fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
         let games: Vec<GameInfo> = self
             .paths
             .iter()
             .filter(|p| p.is_dir())
             .flat_map(|path| {
-                scan_custom_path(path)
+                scan_custom_path(path, mode)
                     .inspect_err(|e| {
                         log::warn!("Failed to scan custom path {}: {e}", path.display());
                     })
@@ -83,7 +83,7 @@ impl PlatformScanner for CustomScanner {
 }
 
 /// Scan a user-provided path for game-like folders.
-fn scan_custom_path(root: &Path) -> Result<Vec<GameInfo>, ScanError> {
+fn scan_custom_path(root: &Path, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
     let mut games = Vec::new();
 
     // If the root itself looks like a game, add it directly
@@ -93,7 +93,9 @@ fn scan_custom_path(root: &Path) -> Result<Vec<GameInfo>, ScanError> {
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Unknown Game".to_owned());
 
-        if let Some(game) = utils::build_game_info(name, root.to_path_buf(), Platform::Custom) {
+        if let Some(game) =
+            utils::build_game_info_with_mode(name, root.to_path_buf(), Platform::Custom, mode)
+        {
             games.push(game);
         }
     }
@@ -126,7 +128,7 @@ fn scan_custom_path(root: &Path) -> Result<Vec<GameInfo>, ScanError> {
             }
 
             let name = folder_name;
-            utils::build_game_info(name, game_path, Platform::Custom)
+            utils::build_game_info_with_mode(name, game_path, Platform::Custom, mode)
         })
         .collect();
 
@@ -216,14 +218,14 @@ mod tests {
     #[test]
     fn custom_scanner_empty_paths_returns_empty() {
         let scanner = CustomScanner::new(Vec::new());
-        let result = scanner.scan().unwrap();
+        let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
         assert!(result.is_empty());
     }
 
     #[test]
     fn custom_scanner_nonexistent_path_returns_empty() {
         let scanner = CustomScanner::new(vec![PathBuf::from(r"C:\NonExistent\CustomGames")]);
-        let result = scanner.scan().unwrap();
+        let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
         assert!(result.is_empty());
     }
 
@@ -247,7 +249,7 @@ mod tests {
             .set_len(MIN_EXE_SIZE + 1)
             .unwrap();
 
-        let games = scan_custom_path(root_path).unwrap();
+        let games = scan_custom_path(root_path, DiscoveryScanMode::Full).unwrap();
         assert!(games.iter().any(|g| g.path == sub_game_path));
     }
 

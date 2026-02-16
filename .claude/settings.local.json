@@ -32,7 +32,15 @@
       "Bash(cargo bloat:*)",
       "Bash(cargo +stable miri test:*)",
       "Bash(// This would test SystemTime serialization)",
-      "Bash(EOF)"
+      "Bash(EOF)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(flutter_rust_bridge_codegen generate:*)",
+      "Bash(where:*)",
+      "Bash(dart run:*)",
+      "Bash(dart pub global:*)",
+      "Bash(dart pub add:*)",
+      "Bash(flutter_rust_bridge_codegen:*)"
     ]
   }
 }
