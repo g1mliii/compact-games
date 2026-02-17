@@ -1,9 +1,10 @@
 //! Windows-specific compress/decompress/ratio implementations using WOF API.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
+use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 
 use super::super::error::CompressionError;
@@ -11,15 +12,23 @@ use super::super::wof::{self, CompressFileResult};
 use super::{CompressionEngine, CompressionStats, MIN_COMPRESSIBLE_SIZE};
 
 impl CompressionEngine {
-    pub(super) fn compress_impl(&self, folder: &Path) -> Result<CompressionStats, CompressionError> {
+    pub(super) fn compress_impl(
+        &self,
+        folder: &Path,
+    ) -> Result<CompressionStats, CompressionError> {
+        let files: Vec<PathBuf> = Self::file_iter(folder).map(|e| e.into_path()).collect();
+        self.compress_impl_from_manifest(files)
+    }
+
+    pub(super) fn compress_impl_from_manifest(
+        &self,
+        files: Vec<PathBuf>,
+    ) -> Result<CompressionStats, CompressionError> {
         let start = std::time::Instant::now();
         let disk_full = Arc::new(AtomicBool::new(false));
         let skipped = Arc::new(AtomicU64::new(0));
         let algorithm = self.algorithm;
 
-        let files: Vec<std::path::PathBuf> = Self::file_iter(folder)
-            .map(|e| e.into_path())
-            .collect();
         self.files_total
             .store(files.len() as u64, Ordering::Relaxed);
 
@@ -50,8 +59,7 @@ impl CompressionEngine {
             let physical = wof::get_physical_size(path).unwrap_or(file_size);
             if physical < file_size {
                 self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
-                self.bytes_compressed
-                    .fetch_add(physical, Ordering::Relaxed);
+                self.bytes_compressed.fetch_add(physical, Ordering::Relaxed);
                 self.files_processed.fetch_add(1, Ordering::Relaxed);
                 return Ok(());
             }
@@ -101,20 +109,18 @@ impl CompressionEngine {
     }
 
     pub(super) fn decompress_impl(&self, folder: &Path) -> Result<(), CompressionError> {
-        let files: Vec<std::path::PathBuf> = Self::file_iter(folder)
-            .map(|e| e.into_path())
-            .collect();
-        let files_total = files.len() as u64;
-        self.files_total.store(files_total, Ordering::Relaxed);
+        self.files_total.store(0, Ordering::Relaxed);
         let decompression_candidates = Arc::new(AtomicU64::new(0));
         let likely_uncompressed = Arc::new(AtomicU64::new(0));
 
-        let result = files.par_iter().try_for_each(|path| {
+        let result = Self::file_iter(folder).par_bridge().try_for_each(|entry| {
             if self.cancel_token.is_cancelled() {
                 return Err(CompressionError::Cancelled);
             }
+            self.files_total.fetch_add(1, Ordering::Relaxed);
 
-            let file_size = match std::fs::metadata(path) {
+            let path = entry.path();
+            let file_size = match entry.metadata() {
                 Ok(m) => m.len(),
                 Err(_) => {
                     self.files_processed.fetch_add(1, Ordering::Relaxed);
@@ -160,7 +166,7 @@ impl CompressionEngine {
         log::warn!(
             "[decompression][summary] path=\"{}\" files={} candidates={} skipped_likely_uncompressed={}",
             folder.display(),
-            files_total,
+            self.files_total.load(Ordering::Relaxed),
             decompression_candidates.load(Ordering::Relaxed),
             likely_uncompressed.load(Ordering::Relaxed),
         );

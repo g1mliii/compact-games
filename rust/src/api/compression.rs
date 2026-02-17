@@ -17,6 +17,9 @@ use super::types::{
 use crate::compression::algorithm::CompressionAlgorithm;
 use crate::compression::engine::{CancellationToken, CompressionEngine};
 use crate::compression::error::CompressionError;
+use crate::compression::history::{
+    persist_if_dirty, record_compression, ActualStats, CompressionHistoryEntry, EstimateSnapshot,
+};
 use crate::frb_generated::StreamSink;
 use crate::progress::tracker::CompressionProgress;
 use crate::safety::directstorage::is_directstorage_game;
@@ -74,6 +77,21 @@ pub fn compress_game(
 
     let engine = CompressionEngine::new(algo);
     let cancel_token = engine.cancel_token();
+    let file_manifest = match engine.build_file_manifest(&path) {
+        Ok(files) => files,
+        Err(e) => return Err(e.into()),
+    };
+
+    // Capture estimate before compression for history tracking
+    let estimate_snapshot =
+        match engine.estimate_folder_savings_with_manifest(&path, &file_manifest) {
+            Ok(est) => Some(EstimateSnapshot {
+                scanned_files: est.scanned_files,
+                sampled_bytes: est.sampled_bytes,
+                estimated_saved_bytes: est.estimated_saved_bytes,
+            }),
+            Err(_) => None,
+        };
 
     // Store cancel token for external cancellation access
     {
@@ -92,7 +110,11 @@ pub fn compress_game(
     }
     set_active_progress(None);
 
-    let handle = match engine.compress_folder_with_progress(&path, Arc::from(game_name)) {
+    let handle = match engine.compress_folder_with_progress_with_manifest(
+        &path,
+        Arc::from(game_name.clone()),
+        file_manifest,
+    ) {
         Ok(handle) => handle,
         Err(e) => {
             let mut guard = active_lock().lock().unwrap_or_else(|poisoned| {
@@ -162,6 +184,31 @@ pub fn compress_game(
                 saved,
                 saved_ratio
             );
+
+            // Record compression history for adaptive learning
+            if let Some(est) = estimate_snapshot {
+                let history_entry = CompressionHistoryEntry {
+                    game_path: game_path.clone(),
+                    game_name: game_name.clone(),
+                    timestamp_ms: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .ok()
+                        .map(|d| d.as_millis() as u64)
+                        .unwrap_or_default(),
+                    estimate: est,
+                    actual_stats: ActualStats {
+                        original_bytes: stats.original_bytes,
+                        compressed_bytes: stats.compressed_bytes,
+                        actual_saved_bytes: stats.bytes_saved(),
+                        files_processed: stats.files_processed,
+                    },
+                    algorithm: algo,
+                    duration_ms: stats.duration_ms,
+                };
+
+                record_compression(history_entry);
+            }
+
             Ok(stats.into())
         }
         Some(Err(CompressionError::Cancelled)) => Ok(cancelled_stats()),
@@ -225,4 +272,10 @@ pub fn estimate_compression_savings(
 #[frb(sync)]
 pub fn is_directstorage(game_path: String) -> bool {
     is_directstorage_game(Path::new(&game_path))
+}
+
+/// Persist compression history to disk.
+#[frb(sync)]
+pub fn persist_compression_history() {
+    persist_if_dirty();
 }

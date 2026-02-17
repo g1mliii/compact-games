@@ -77,6 +77,33 @@ pub fn build_game_info_with_mode_and_stats_path(
             return game_info_from_cached(name, game_path, platform, cached);
         }
 
+        // Keep quick mode stable: if authoritative cache exists but token drifted,
+        // use stale cached stats until hydration/full scan refreshes this entry.
+        if let Some(stale_cached) = cache::lookup_stale(&stats_path) {
+            if !is_likely_installed_game(&stats_path, stale_cached.logical_size, platform) {
+                cache::remove(&stats_path);
+                log_candidate_decision(
+                    "skip",
+                    platform,
+                    &name,
+                    &stats_path,
+                    mode,
+                    "stale cache fallback failed install probe",
+                );
+                return None;
+            }
+
+            log_candidate_decision(
+                "accept",
+                platform,
+                &name,
+                &stats_path,
+                mode,
+                "stale cache fallback",
+            );
+            return game_info_from_cached(name, game_path, platform, stale_cached);
+        }
+
         let stats = dir_stats_quick(&stats_path);
         if stats.logical_size == 0 {
             cache::remove(&stats_path);
@@ -105,23 +132,13 @@ pub fn build_game_info_with_mode_and_stats_path(
         }
 
         let is_directstorage = crate::safety::known_games::is_known_directstorage_game(&stats_path);
-        cache::upsert(
-            &stats_path,
-            token,
-            CachedGameStats::from_parts(
-                stats.logical_size,
-                stats.physical_size,
-                stats.is_compressed,
-                is_directstorage,
-            ),
-        );
         log_candidate_decision(
             "accept",
             platform,
             &name,
             &stats_path,
             mode,
-            "quick stats refreshed cache",
+            "quick stats sampled (not persisted)",
         );
         return Some(game_info_from_parts(
             name,

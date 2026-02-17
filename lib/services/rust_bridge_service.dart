@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import '../models/game_info.dart';
 import '../models/compression_algorithm.dart';
@@ -13,6 +14,12 @@ import '../src/rust/api/types.dart' as rust_types;
 
 class RustBridgeService {
   static const RustBridgeService instance = RustBridgeService._();
+  static const int _maxConcurrentEstimateRequests = 1;
+  static int _activeEstimateRequests = 0;
+  static final Queue<Completer<void>> _estimatePermitQueue =
+      Queue<Completer<void>>();
+  static final Map<String, Future<CompressionEstimate>> _estimateInFlight =
+      <String, Future<CompressionEstimate>>{};
 
   const RustBridgeService._();
 
@@ -83,6 +90,11 @@ class RustBridgeService {
     rust_compression.cancelCompression();
   }
 
+  /// Persist compression history entries to disk.
+  void persistCompressionHistory() {
+    rust_compression.persistCompressionHistory();
+  }
+
   CompressionProgress? getCompressionProgress() {
     final progress = rust_compression.getCompressionProgress();
     if (progress == null) {
@@ -106,12 +118,29 @@ class RustBridgeService {
     required String gamePath,
     required CompressionAlgorithm algorithm,
   }) async {
-    final frbAlgorithm = _toFrbAlgorithm(algorithm);
-    final estimate = await rust_compression.estimateCompressionSavings(
-      gamePath: gamePath,
-      algorithm: frbAlgorithm,
-    );
-    return _mapFrbEstimate(estimate);
+    final key = _estimateRequestKey(gamePath, algorithm);
+    final existing = _estimateInFlight[key];
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = _runWithEstimatePermit(() async {
+      final frbAlgorithm = _toFrbAlgorithm(algorithm);
+      final estimate = await rust_compression.estimateCompressionSavings(
+        gamePath: gamePath,
+        algorithm: frbAlgorithm,
+      );
+      return _mapFrbEstimate(estimate);
+    });
+
+    _estimateInFlight[key] = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_estimateInFlight[key], future)) {
+        _estimateInFlight.remove(key);
+      }
+    }
   }
 
   /// Check if a game uses DirectStorage.
@@ -135,6 +164,32 @@ class RustBridgeService {
 
   bool isAutoCompressionRunning() {
     return rust_automation.isAutoCompressionRunning();
+  }
+
+  String _estimateRequestKey(String gamePath, CompressionAlgorithm algorithm) {
+    return '${algorithm.name}|${gamePath.toLowerCase()}';
+  }
+
+  Future<T> _runWithEstimatePermit<T>(Future<T> Function() task) async {
+    if (_activeEstimateRequests >= _maxConcurrentEstimateRequests) {
+      final waiter = Completer<void>();
+      _estimatePermitQueue.addLast(waiter);
+      await waiter.future;
+    }
+
+    _activeEstimateRequests += 1;
+    try {
+      return await task();
+    } finally {
+      _activeEstimateRequests -= 1;
+      if (_estimatePermitQueue.isNotEmpty &&
+          _activeEstimateRequests < _maxConcurrentEstimateRequests) {
+        final next = _estimatePermitQueue.removeFirst();
+        if (!next.isCompleted) {
+          next.complete();
+        }
+      }
+    }
   }
 }
 

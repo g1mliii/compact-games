@@ -92,21 +92,21 @@ fn quick_scan_accepts_small_folder_with_game_executable() {
 }
 
 #[test]
-fn quick_scan_refreshes_stale_cache_when_install_shrinks_to_stub() {
+fn quick_scan_clears_stale_cache_when_install_shrinks_to_stub() {
     let temp = tempfile::TempDir::new().unwrap();
     let game_dir = temp.path().join("ShrinkingInstall");
     fs::create_dir_all(&game_dir).unwrap();
     let exe_path = game_dir.join("game.exe");
     fs::write(&exe_path, vec![2_u8; (3 * 1024 * 1024) as usize]).unwrap();
 
-    let first_quick = build_game_info_with_mode_and_stats_path(
+    let first_full = build_game_info_with_mode_and_stats_path(
         "Shrinking Install".to_owned(),
         game_dir.clone(),
         game_dir.clone(),
         Platform::Steam,
-        DiscoveryScanMode::Quick,
+        DiscoveryScanMode::Full,
     );
-    assert!(first_quick.is_some());
+    assert!(first_full.is_some());
     assert!(cache::lookup_stale(&game_dir).is_some());
 
     fs::remove_file(exe_path).unwrap();
@@ -125,4 +125,57 @@ fn quick_scan_refreshes_stale_cache_when_install_shrinks_to_stub() {
         cache::lookup_stale(&game_dir).is_none(),
         "invalid candidate should clear stale cached stats",
     );
+}
+
+#[test]
+fn quick_scan_keeps_authoritative_cached_size_when_token_drifts() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("TokenDriftGame");
+    let deep_content = game_dir
+        .join("content")
+        .join("packs")
+        .join("nested")
+        .join("data");
+    fs::create_dir_all(&deep_content).unwrap();
+
+    fs::write(
+        game_dir.join("game.exe"),
+        vec![9_u8; (3 * 1024 * 1024) as usize],
+    )
+    .unwrap();
+    fs::write(
+        deep_content.join("bulk.pak"),
+        vec![7_u8; (48 * 1024 * 1024) as usize],
+    )
+    .unwrap();
+
+    let full = build_game_info_with_mode_and_stats_path(
+        "Token Drift Game".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    )
+    .expect("full scan should build game info");
+    let full_size = full.size_bytes;
+    assert!(full_size > 40 * 1024 * 1024);
+
+    // Token drift at root should invalidate strict token lookup.
+    fs::write(game_dir.join("drift.marker"), b"drift").unwrap();
+
+    let quick = build_game_info_with_mode_and_stats_path(
+        "Token Drift Game".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Quick,
+    )
+    .expect("quick scan should use stale cache fallback");
+
+    assert_eq!(
+        quick.size_bytes, full_size,
+        "quick mode should preserve authoritative cached size instead of sampled overwrite"
+    );
+    let cached_after = cache::lookup_stale(&game_dir).expect("cache entry should remain");
+    assert_eq!(cached_after.logical_size, full_size);
 }

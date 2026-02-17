@@ -7,6 +7,8 @@ import 'core/constants/app_constants.dart';
 import 'services/rust_bridge_service.dart';
 import 'src/rust/frb_generated.dart';
 
+final _windowListener = _PressPlayWindowListener();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -15,6 +17,7 @@ Future<void> main() async {
   RustBridgeService.instance.initApp();
 
   await windowManager.ensureInitialized();
+  windowManager.addListener(_windowListener);
 
   const windowOptions = WindowOptions(
     size: Size(
@@ -54,7 +57,7 @@ Future<void> _initRustBridge() async {
       return;
     } catch (e) {
       lastError = e;
-      RustLib.dispose();
+      _safeDisposeRustLib();
       debugPrint('[rust] Failed loading $path: $e');
     }
   }
@@ -62,6 +65,14 @@ Future<void> _initRustBridge() async {
   throw StateError(
     'Failed to initialize Rust library. Tried: ${candidates.join(', ')}. Last error: $lastError',
   );
+}
+
+void _safeDisposeRustLib() {
+  try {
+    RustLib.dispose();
+  } catch (_) {
+    // Ignore dispose failures when init never completed.
+  }
 }
 
 List<String> _rustLibraryCandidates() {
@@ -75,4 +86,11 @@ List<String> _rustLibraryCandidates() {
   return _preferDebugRustDll
       ? const [debugDll, releaseDll]
       : const [releaseDll, debugDll];
+}
+
+class _PressPlayWindowListener extends WindowListener {
+  @override
+  void onWindowClose() {
+    RustBridgeService.instance.persistCompressionHistory();
+  }
 }

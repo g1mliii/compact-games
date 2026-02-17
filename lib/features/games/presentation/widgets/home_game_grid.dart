@@ -18,7 +18,8 @@ import 'game_grid_placeholders.dart';
 class HomeGameGrid extends ConsumerWidget {
   const HomeGameGrid({super.key});
 
-  static const double _defaultCardAspectRatio = 0.5;
+  static const EdgeInsets _gridPadding = EdgeInsets.fromLTRB(24, 20, 24, 24);
+  static const double _defaultCardAspectRatio = 0.54;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,7 +54,7 @@ class HomeGameGrid extends ConsumerWidget {
             final crossAxisCount = _calculateColumns(constraints.maxWidth);
             final childAspectRatio = _cardAspectRatioFor(crossAxisCount);
             return GridView.builder(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+              padding: _gridPadding,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
                 crossAxisSpacing: AppConstants.gridSpacing,
@@ -73,17 +74,20 @@ class HomeGameGrid extends ConsumerWidget {
   }
 
   int _calculateColumns(double availableWidth) {
+    final contentWidth = availableWidth - _gridPadding.horizontal;
+    final normalizedWidth = contentWidth > AppConstants.cardMinWidth
+        ? contentWidth
+        : AppConstants.cardMinWidth;
     final columns =
-        (availableWidth /
+        (normalizedWidth /
                 (AppConstants.cardMinWidth + AppConstants.gridSpacing))
             .floor();
-    return columns.clamp(1, 6);
+    return columns.clamp(1, 5);
   }
 
   double _cardAspectRatioFor(int crossAxisCount) {
-    if (crossAxisCount == 1) return 0.47;
-    if (crossAxisCount == 2) return 0.48;
-    if (crossAxisCount == 3) return 0.49;
+    if (crossAxisCount <= 2) return 0.53;
+    if (crossAxisCount == 3) return 0.54;
     return _defaultCardAspectRatio;
   }
 }
@@ -103,6 +107,7 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
   DateTime _lastHydrationRequestAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _hydrationRequestScheduled = false;
   bool _estimateFetchScheduled = false;
+  bool _estimateFetchInFlight = false;
   bool _compressionConfirmOpen = false;
   CompressionEstimate? _cachedEstimate;
   CompressionAlgorithm? _cachedEstimateAlgorithm;
@@ -114,6 +119,7 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
       _lastHydrationRequestAt = DateTime.fromMillisecondsSinceEpoch(0);
       _hydrationRequestScheduled = false;
       _estimateFetchScheduled = false;
+      _estimateFetchInFlight = false;
       _cachedEstimate = null;
       _cachedEstimateAlgorithm = null;
     }
@@ -147,6 +153,7 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
     if (game.isCompressed || game.isDirectStorage) return;
     if (_cachedEstimate != null) return;
     if (_estimateFetchScheduled) return;
+    if (_estimateFetchInFlight) return;
 
     final algorithm =
         ref.read(settingsProvider).valueOrNull?.settings.algorithm ??
@@ -159,10 +166,9 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
       _estimateFetchScheduled = false;
       if (!mounted) return;
       // Fire-and-forget; rebuild will pick up the result via setState.
-      unawaited(_getCompressionEstimate(
-        gamePath: game.path,
-        algorithm: algorithm,
-      ));
+      unawaited(
+        _getCompressionEstimate(gamePath: game.path, algorithm: algorithm),
+      );
     });
   }
 
@@ -238,14 +244,15 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
     if (_cachedEstimate != null && _cachedEstimateAlgorithm == algorithm) {
       return _cachedEstimate;
     }
+    if (_estimateFetchInFlight) {
+      return null;
+    }
 
+    _estimateFetchInFlight = true;
     try {
       final estimate = await ref
           .read(rustBridgeServiceProvider)
-          .estimateCompressionSavings(
-            gamePath: gamePath,
-            algorithm: algorithm,
-          );
+          .estimateCompressionSavings(gamePath: gamePath, algorithm: algorithm);
       if (!mounted) return estimate;
       setState(() {
         _cachedEstimate = estimate;
@@ -254,6 +261,8 @@ class _GameCardAdapterState extends ConsumerState<_GameCardAdapter> {
       return estimate;
     } catch (_) {
       return null;
+    } finally {
+      _estimateFetchInFlight = false;
     }
   }
 }

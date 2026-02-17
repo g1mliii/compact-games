@@ -104,6 +104,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Home grid avoids over-packed columns around 1024px width', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1024, 900));
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            const _StaticRustBridgeService(_sampleGames),
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    final grid = tester.widget<GridView>(find.byType(GridView).first);
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 3);
+    expect(delegate.childAspectRatio, inInclusiveRange(0.53, 0.54));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Refresh button clears cache and requests full discovery', (
     WidgetTester tester,
   ) async {
@@ -410,6 +439,9 @@ class _FailingRustBridgeService implements RustBridgeService {
   void cancelCompression() {}
 
   @override
+  void persistCompressionHistory() {}
+
+  @override
   Stream<CompressionProgress> compressGame({
     required String gamePath,
     required String gameName,
@@ -504,6 +536,9 @@ class _StaticRustBridgeService implements RustBridgeService {
 
   @override
   void cancelCompression() {}
+
+  @override
+  void persistCompressionHistory() {}
 
   @override
   Stream<CompressionProgress> compressGame({
@@ -611,6 +646,9 @@ class _RecordingRustBridgeService implements RustBridgeService {
   void cancelCompression() {}
 
   @override
+  void persistCompressionHistory() {}
+
+  @override
   Stream<CompressionProgress> compressGame({
     required String gamePath,
     required String gameName,
@@ -705,6 +743,9 @@ class _CancelledErrorRustBridgeService implements RustBridgeService {
 
   @override
   void cancelCompression() {}
+
+  @override
+  void persistCompressionHistory() {}
 
   @override
   Stream<CompressionProgress> compressGame({

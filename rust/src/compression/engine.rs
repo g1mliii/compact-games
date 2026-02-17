@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -8,6 +8,7 @@ use walkdir::WalkDir;
 
 mod engine_safety;
 mod estimation;
+mod estimation_runtime;
 mod operation_session;
 #[cfg(windows)]
 mod wof_ops;
@@ -101,6 +102,28 @@ impl Default for CancellationToken {
 }
 
 const MIN_COMPRESSIBLE_SIZE: u64 = 4096;
+const USE_ADAPTIVE_ESTIMATION: bool = true;
+
+#[derive(Default, Clone, Copy)]
+struct EstimateTotals {
+    scanned_files: u64,
+    sampled_bytes: u64,
+    estimated_saved_bytes: u64,
+    saw_cancel: bool,
+}
+
+impl EstimateTotals {
+    fn merge(self, other: Self) -> Self {
+        Self {
+            scanned_files: self.scanned_files.saturating_add(other.scanned_files),
+            sampled_bytes: self.sampled_bytes.saturating_add(other.sampled_bytes),
+            estimated_saved_bytes: self
+                .estimated_saved_bytes
+                .saturating_add(other.estimated_saved_bytes),
+            saw_cancel: self.saw_cancel || other.saw_cancel,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct CompressionEngine {
@@ -186,20 +209,45 @@ impl CompressionEngine {
         self.compress_impl(folder)
     }
 
+    /// Build a per-request file manifest for traversal reuse.
+    ///
+    /// Intended for immediate reuse inside a single compression action
+    /// (estimate + compression), not for long-term caching.
+    pub fn build_file_manifest(&self, folder: &Path) -> Result<Vec<PathBuf>, CompressionError> {
+        self.validate_path(folder)?;
+        if self.cancel_token.is_cancelled() {
+            return Err(CompressionError::Cancelled);
+        }
+        Ok(Self::file_iter(folder)
+            .map(|entry| entry.into_path())
+            .collect())
+    }
+
     pub fn compress_folder_with_progress(
         &self,
         folder: &Path,
         game_name: Arc<str>,
     ) -> Result<CompressionProgressHandle, CompressionError> {
+        let file_manifest = self.build_file_manifest(folder)?;
+        self.compress_folder_with_progress_with_manifest(folder, game_name, file_manifest)
+    }
+
+    pub fn compress_folder_with_progress_with_manifest(
+        &self,
+        folder: &Path,
+        game_name: Arc<str>,
+        file_manifest: Vec<PathBuf>,
+    ) -> Result<CompressionProgressHandle, CompressionError> {
         self.validate_path(folder)?;
         run_safety_checks(folder, self.directstorage_policy, self.safety.as_ref())?;
-        let folder = folder.to_path_buf();
         let engine = self.clone();
         let operation = self.begin_operation();
+        let files_total = file_manifest.len() as u64;
 
         let (progress_ready_tx, progress_ready_rx) = bounded(1);
         let (result_tx, result_rx) = bounded(1);
 
+        self.files_total.store(files_total, Ordering::Relaxed);
         std::thread::spawn(move || {
             let _operation = operation;
 
@@ -212,7 +260,7 @@ impl CompressionEngine {
                 return;
             }
 
-            let result = engine.compress_impl(&folder);
+            let result = engine.compress_impl_from_manifest(file_manifest);
 
             reporter.mark_done();
             reporter.stop();
@@ -246,49 +294,6 @@ impl CompressionEngine {
         Self::ratio_impl(folder)
     }
 
-    pub fn estimate_folder_savings(
-        &self,
-        folder: &Path,
-    ) -> Result<CompressionEstimate, CompressionError> {
-        self.validate_path(folder)?;
-        let mut scanned_files: u64 = 0;
-        let mut sampled_bytes: u64 = 0;
-        let mut estimated_saved_bytes: u64 = 0;
-        let algorithm_scale_num = estimation::algorithm_scale_num(self.algorithm);
-
-        for entry in Self::file_iter(folder) {
-            if self.cancel_token.is_cancelled() {
-                return Err(CompressionError::Cancelled);
-            }
-
-            let metadata = match entry.metadata() {
-                Ok(m) => m,
-                Err(_) => continue,
-            };
-            let file_size = metadata.len();
-            scanned_files = scanned_files.saturating_add(1);
-            sampled_bytes = sampled_bytes.saturating_add(file_size);
-
-            if file_size < MIN_COMPRESSIBLE_SIZE {
-                continue;
-            }
-
-            let (ratio_num, ratio_den) = estimation::compression_ratio_parts(entry.path());
-
-            let saved = file_size
-                .saturating_mul(ratio_num)
-                .saturating_mul(algorithm_scale_num)
-                / ratio_den.saturating_mul(100);
-            estimated_saved_bytes = estimated_saved_bytes.saturating_add(saved);
-        }
-
-        Ok(CompressionEstimate {
-            scanned_files,
-            sampled_bytes,
-            estimated_saved_bytes,
-        })
-    }
-
     fn validate_path(&self, path: &Path) -> Result<(), CompressionError> {
         match std::fs::metadata(path) {
             Err(_) => Err(CompressionError::PathNotFound(path.to_path_buf())),
@@ -306,6 +311,16 @@ impl CompressionEngine {
 
     #[cfg(not(windows))]
     fn compress_impl(&self, _folder: &Path) -> Result<CompressionStats, CompressionError> {
+        Err(CompressionError::WofApiError {
+            message: "WOF compression requires Windows".into(),
+        })
+    }
+
+    #[cfg(not(windows))]
+    fn compress_impl_from_manifest(
+        &self,
+        _files: Vec<PathBuf>,
+    ) -> Result<CompressionStats, CompressionError> {
         Err(CompressionError::WofApiError {
             message: "WOF compression requires Windows".into(),
         })
