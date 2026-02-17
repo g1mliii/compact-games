@@ -44,11 +44,13 @@ impl CompressionStats {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionEstimate {
     pub scanned_files: u64,
     pub sampled_bytes: u64,
     pub estimated_saved_bytes: u64,
+    pub artwork_candidate_path: Option<PathBuf>,
+    pub executable_candidate_path: Option<PathBuf>,
 }
 
 impl CompressionEstimate {
@@ -68,6 +70,12 @@ impl CompressionEstimate {
 pub struct CompressionProgressHandle {
     pub progress: Receiver<CompressionProgress>,
     pub result: Receiver<Result<CompressionStats, CompressionError>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ManifestFile {
+    pub path: PathBuf,
+    pub logical_size_hint: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -104,12 +112,21 @@ impl Default for CancellationToken {
 const MIN_COMPRESSIBLE_SIZE: u64 = 4096;
 const USE_ADAPTIVE_ESTIMATION: bool = true;
 
-#[derive(Default, Clone, Copy)]
+#[derive(Clone, Default)]
 struct EstimateTotals {
     scanned_files: u64,
     sampled_bytes: u64,
     estimated_saved_bytes: u64,
     saw_cancel: bool,
+    artwork_candidate: Option<EstimateCandidate>,
+    executable_candidate: Option<EstimateCandidate>,
+}
+
+#[derive(Clone)]
+struct EstimateCandidate {
+    score: u16,
+    path: PathBuf,
+    path_len: usize,
 }
 
 impl EstimateTotals {
@@ -121,6 +138,35 @@ impl EstimateTotals {
                 .estimated_saved_bytes
                 .saturating_add(other.estimated_saved_bytes),
             saw_cancel: self.saw_cancel || other.saw_cancel,
+            artwork_candidate: select_best_candidate(
+                self.artwork_candidate,
+                other.artwork_candidate,
+            ),
+            executable_candidate: select_best_candidate(
+                self.executable_candidate,
+                other.executable_candidate,
+            ),
+        }
+    }
+}
+
+fn select_best_candidate(
+    left: Option<EstimateCandidate>,
+    right: Option<EstimateCandidate>,
+) -> Option<EstimateCandidate> {
+    match (left, right) {
+        (None, None) => None,
+        (Some(candidate), None) | (None, Some(candidate)) => Some(candidate),
+        (Some(left), Some(right)) => {
+            if left.score > right.score {
+                Some(left)
+            } else if right.score > left.score {
+                Some(right)
+            } else if left.path_len <= right.path_len {
+                Some(left)
+            } else {
+                Some(right)
+            }
         }
     }
 }
@@ -213,13 +259,22 @@ impl CompressionEngine {
     ///
     /// Intended for immediate reuse inside a single compression action
     /// (estimate + compression), not for long-term caching.
-    pub fn build_file_manifest(&self, folder: &Path) -> Result<Vec<PathBuf>, CompressionError> {
+    pub fn build_file_manifest(
+        &self,
+        folder: &Path,
+    ) -> Result<Vec<ManifestFile>, CompressionError> {
         self.validate_path(folder)?;
         if self.cancel_token.is_cancelled() {
             return Err(CompressionError::Cancelled);
         }
         Ok(Self::file_iter(folder)
-            .map(|entry| entry.into_path())
+            .map(|entry| {
+                let logical_size_hint = entry.metadata().ok().map(|m| m.len());
+                ManifestFile {
+                    path: entry.into_path(),
+                    logical_size_hint,
+                }
+            })
             .collect())
     }
 
@@ -236,7 +291,7 @@ impl CompressionEngine {
         &self,
         folder: &Path,
         game_name: Arc<str>,
-        file_manifest: Vec<PathBuf>,
+        file_manifest: Vec<ManifestFile>,
     ) -> Result<CompressionProgressHandle, CompressionError> {
         self.validate_path(folder)?;
         run_safety_checks(folder, self.directstorage_policy, self.safety.as_ref())?;
@@ -319,7 +374,7 @@ impl CompressionEngine {
     #[cfg(not(windows))]
     fn compress_impl_from_manifest(
         &self,
-        _files: Vec<PathBuf>,
+        _files: Vec<ManifestFile>,
     ) -> Result<CompressionStats, CompressionError> {
         Err(CompressionError::WofApiError {
             message: "WOF compression requires Windows".into(),

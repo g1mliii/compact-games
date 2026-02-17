@@ -51,6 +51,10 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     _updateSetting((s) => s.copyWith(autoCompress: !s.autoCompress));
   }
 
+  void setAutoCompress(bool enabled) {
+    _updateSetting((s) => s.copyWith(autoCompress: enabled));
+  }
+
   void setCpuThreshold(double percent) {
     _updateSetting((s) => s.copyWith(cpuThreshold: percent));
   }
@@ -60,8 +64,17 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
   }
 
   void addCustomFolder(String path) {
+    final normalized = path.trim();
+    if (normalized.isEmpty) {
+      return;
+    }
     _updateSetting(
-      (s) => s.copyWith(customFolders: [...s.customFolders, path]),
+      (s) {
+        if (s.customFolders.contains(normalized)) {
+          return s;
+        }
+        return s.copyWith(customFolders: [...s.customFolders, normalized]);
+      },
     );
   }
 
@@ -83,6 +96,26 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
       excluded.add(gamePath);
     }
     _updateSetting((s) => s.copyWith(excludedPaths: excluded));
+  }
+
+  void setNotificationsEnabled(bool enabled) {
+    _updateSetting((s) => s.copyWith(notificationsEnabled: enabled));
+  }
+
+  void setThemeVariant(String variant) {
+    _updateSetting((s) => s.copyWith(themeVariant: variant));
+  }
+
+  void setDirectStorageOverrideEnabled(bool enabled) {
+    _updateSetting((s) => s.copyWith(directStorageOverrideEnabled: enabled));
+  }
+
+  void setSteamGridDbApiKey(String? key) {
+    _updateSetting((s) => s.copyWith(steamGridDbApiKey: () => key));
+  }
+
+  void setInventoryAdvancedScanEnabled(bool enabled) {
+    _updateSetting((s) => s.copyWith(inventoryAdvancedScanEnabled: enabled));
   }
 
   void _updateSetting(AppSettings Function(AppSettings) updater) {

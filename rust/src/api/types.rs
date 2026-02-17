@@ -178,6 +178,8 @@ pub struct FrbCompressionEstimate {
     pub estimated_compressed_bytes: u64,
     pub estimated_saved_bytes: u64,
     pub estimated_savings_ratio: f64,
+    pub artwork_candidate_path: Option<String>,
+    pub executable_candidate_path: Option<String>,
 }
 
 impl From<CompressionEstimate> for FrbCompressionEstimate {
@@ -188,6 +190,14 @@ impl From<CompressionEstimate> for FrbCompressionEstimate {
             estimated_compressed_bytes: e.estimated_compressed_bytes(),
             estimated_saved_bytes: e.estimated_saved_bytes,
             estimated_savings_ratio: e.estimated_savings_ratio(),
+            artwork_candidate_path: e
+                .artwork_candidate_path
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned()),
+            executable_candidate_path: e
+                .executable_candidate_path
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned()),
         }
     }
 }

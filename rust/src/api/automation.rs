@@ -13,6 +13,7 @@ use flutter_rust_bridge::frb;
 
 use super::types::FrbAutomationError;
 use crate::automation::idle::IdleDetector;
+use crate::frb_generated::StreamSink;
 
 struct ActiveAutoCompression {
     stop_tx: Sender<()>,
@@ -20,9 +21,23 @@ struct ActiveAutoCompression {
 }
 
 static ACTIVE_AUTO: OnceLock<Mutex<Option<ActiveAutoCompression>>> = OnceLock::new();
+static AUTO_STATUS_SINKS: OnceLock<Mutex<Vec<StreamSink<bool>>>> = OnceLock::new();
+const MAX_AUTO_STATUS_SINKS: usize = 32;
 
 fn active_auto_lock() -> &'static Mutex<Option<ActiveAutoCompression>> {
     ACTIVE_AUTO.get_or_init(|| Mutex::new(None))
+}
+
+fn auto_status_sinks_lock() -> &'static Mutex<Vec<StreamSink<bool>>> {
+    AUTO_STATUS_SINKS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn broadcast_auto_status(is_running: bool) {
+    let mut guard = auto_status_sinks_lock().lock().unwrap_or_else(|poisoned| {
+        log::warn!("AUTO status sinks lock poisoned during broadcast; recovering");
+        poisoned.into_inner()
+    });
+    guard.retain(|sink| sink.add(is_running).is_ok());
 }
 
 /// Start auto-compression background service.
@@ -49,6 +64,8 @@ pub fn start_auto_compression() -> Result<(), FrbAutomationError> {
         })?;
 
     *guard = Some(ActiveAutoCompression { stop_tx, handle });
+    drop(guard);
+    broadcast_auto_status(true);
     Ok(())
 }
 
@@ -69,12 +86,11 @@ pub fn stop_auto_compression() -> Result<(), FrbAutomationError> {
     };
 
     let _ = active.stop_tx.send(());
-    active
-        .handle
-        .join()
-        .map_err(|_| FrbAutomationError::StopFailed {
-            message: "auto-compression thread panicked during shutdown".to_owned(),
-        })?;
+    let join_result = active.handle.join();
+    broadcast_auto_status(false);
+    join_result.map_err(|_| FrbAutomationError::StopFailed {
+        message: "auto-compression thread panicked during shutdown".to_owned(),
+    })?;
 
     Ok(())
 }
@@ -87,6 +103,28 @@ pub fn is_auto_compression_running() -> bool {
         poisoned.into_inner()
     });
     guard.is_some()
+}
+
+/// Subscribe to auto-compression running-state changes.
+///
+/// The stream emits an initial value immediately, then emits on start/stop
+/// transitions. Inactive/closed sinks are pruned on each broadcast.
+pub fn watch_auto_compression_status(sink: StreamSink<bool>) -> Result<(), FrbAutomationError> {
+    let running = is_auto_compression_running();
+    if sink.add(running).is_err() {
+        return Ok(());
+    }
+
+    let mut guard = auto_status_sinks_lock().lock().unwrap_or_else(|poisoned| {
+        log::warn!("AUTO status sinks lock poisoned during subscribe; recovering");
+        poisoned.into_inner()
+    });
+
+    if guard.len() >= MAX_AUTO_STATUS_SINKS {
+        guard.remove(0);
+    }
+    guard.push(sink);
+    Ok(())
 }
 
 fn auto_loop(stop_rx: std::sync::mpsc::Receiver<()>) {
@@ -104,6 +142,8 @@ fn auto_loop(stop_rx: std::sync::mpsc::Receiver<()>) {
             }
         }
     }
+
+    broadcast_auto_status(false);
 }
 
 #[cfg(test)]

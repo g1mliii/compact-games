@@ -18,7 +18,7 @@ pub fn is_directstorage_game(game_path: &Path) -> bool {
     }
 
     if is_known_directstorage_game(game_path) {
-        log::warn!(
+        log::info!(
             "DirectStorage detected via known-games database: {}",
             game_path.display()
         );
@@ -35,7 +35,7 @@ pub fn is_directstorage_game(game_path: &Path) -> bool {
                 .iter()
                 .any(|dll| name.eq_ignore_ascii_case(dll))
             {
-                log::warn!(
+                log::info!(
                     "DirectStorage detected: {} in {}",
                     name,
                     game_path.display()
@@ -48,7 +48,7 @@ pub fn is_directstorage_game(game_path: &Path) -> bool {
                 .iter()
                 .any(|m| name.eq_ignore_ascii_case(m))
             {
-                log::warn!(
+                log::info!(
                     "DirectStorage manifest detected: {} in {}",
                     name,
                     game_path.display()

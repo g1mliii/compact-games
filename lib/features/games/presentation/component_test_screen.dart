@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../models/game_info.dart';
 import 'widgets/compression_progress_indicator.dart';
 import 'widgets/game_card.dart';
 
@@ -35,6 +36,7 @@ class ComponentTestScreen extends StatelessWidget {
                 width: 280,
                 child: GameCard(
                   gameName: 'Cyber Quest',
+                  platform: Platform.steam,
                   totalSizeBytes: 120 * _oneGiB,
                   isCompressed: false,
                 ),
@@ -43,6 +45,7 @@ class ComponentTestScreen extends StatelessWidget {
                 width: 280,
                 child: GameCard(
                   gameName: 'Racing Legends',
+                  platform: Platform.epicGames,
                   totalSizeBytes: 200 * _oneGiB,
                   compressedSizeBytes: 176 * _oneGiB,
                   isCompressed: true,
@@ -52,6 +55,7 @@ class ComponentTestScreen extends StatelessWidget {
                 width: 280,
                 child: GameCard(
                   gameName: 'Galactic Frontline',
+                  platform: Platform.xboxGamePass,
                   totalSizeBytes: 80 * _oneGiB,
                   isDirectStorage: true,
                 ),

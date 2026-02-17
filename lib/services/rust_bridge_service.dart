@@ -15,9 +15,11 @@ import '../src/rust/api/types.dart' as rust_types;
 class RustBridgeService {
   static const RustBridgeService instance = RustBridgeService._();
   static const int _maxConcurrentEstimateRequests = 1;
+  static const int _maxPendingEstimateRequests = 24;
+  static const Duration _estimatePermitWaitTimeout = Duration(seconds: 8);
   static int _activeEstimateRequests = 0;
-  static final Queue<Completer<void>> _estimatePermitQueue =
-      Queue<Completer<void>>();
+  static final Queue<_EstimatePermitWaiter> _estimatePermitQueue =
+      Queue<_EstimatePermitWaiter>();
   static final Map<String, Future<CompressionEstimate>> _estimateInFlight =
       <String, Future<CompressionEstimate>>{};
 
@@ -166,15 +168,33 @@ class RustBridgeService {
     return rust_automation.isAutoCompressionRunning();
   }
 
+  Stream<bool> watchAutoCompressionStatus() {
+    return rust_automation.watchAutoCompressionStatus().distinct();
+  }
+
   String _estimateRequestKey(String gamePath, CompressionAlgorithm algorithm) {
     return '${algorithm.name}|${gamePath.toLowerCase()}';
   }
 
   Future<T> _runWithEstimatePermit<T>(Future<T> Function() task) async {
+    _EstimatePermitWaiter? waiter;
     if (_activeEstimateRequests >= _maxConcurrentEstimateRequests) {
-      final waiter = Completer<void>();
+      if (_estimatePermitQueue.length >= _maxPendingEstimateRequests) {
+        throw StateError(
+          'Too many pending estimate requests. Try again when scrolling stops.',
+        );
+      }
+
+      waiter = _EstimatePermitWaiter();
       _estimatePermitQueue.addLast(waiter);
-      await waiter.future;
+      try {
+        await waiter.completer.future.timeout(_estimatePermitWaitTimeout);
+      } on TimeoutException {
+        _estimatePermitQueue.remove(waiter);
+        throw TimeoutException(
+          'Estimate request waited too long for a permit.',
+        );
+      }
     }
 
     _activeEstimateRequests += 1;
@@ -182,15 +202,45 @@ class RustBridgeService {
       return await task();
     } finally {
       _activeEstimateRequests -= 1;
-      if (_estimatePermitQueue.isNotEmpty &&
-          _activeEstimateRequests < _maxConcurrentEstimateRequests) {
-        final next = _estimatePermitQueue.removeFirst();
-        if (!next.isCompleted) {
-          next.complete();
-        }
+      if (_activeEstimateRequests < _maxConcurrentEstimateRequests) {
+        _releaseNextEstimatePermit();
       }
     }
   }
+
+  void _releaseNextEstimatePermit() {
+    if (_estimatePermitQueue.isEmpty) {
+      return;
+    }
+
+    final now = DateTime.now();
+    while (_estimatePermitQueue.isNotEmpty) {
+      final next = _estimatePermitQueue.removeFirst();
+      if (next.completer.isCompleted) {
+        continue;
+      }
+
+      final waited = now.difference(next.enqueuedAt);
+      if (waited > _estimatePermitWaitTimeout) {
+        next.completer.completeError(
+          TimeoutException('Estimate request waited too long for a permit.'),
+        );
+        continue;
+      }
+
+      next.completer.complete();
+      return;
+    }
+  }
+}
+
+class _EstimatePermitWaiter {
+  _EstimatePermitWaiter()
+    : enqueuedAt = DateTime.now(),
+      completer = Completer<void>();
+
+  final DateTime enqueuedAt;
+  final Completer<void> completer;
 }
 
 GameInfo _mapFrbGameInfo(rust_types.FrbGameInfo frb) {
@@ -244,6 +294,8 @@ CompressionEstimate _mapFrbEstimate(rust_types.FrbCompressionEstimate frb) {
     estimatedCompressedBytes: frb.estimatedCompressedBytes.toInt(),
     estimatedSavedBytes: frb.estimatedSavedBytes.toInt(),
     estimatedSavingsRatio: frb.estimatedSavingsRatio,
+    artworkCandidatePath: frb.artworkCandidatePath,
+    executableCandidatePath: frb.executableCandidatePath,
   );
 }
 

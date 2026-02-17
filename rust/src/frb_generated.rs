@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1567717207;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1637644839;
 
 // Section: executor
 
@@ -643,6 +643,44 @@ fn wire__crate__api__automation__stop_auto_compression_impl(
         },
     )
 }
+fn wire__crate__api__automation__watch_auto_compression_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "watch_auto_compression_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_sink =
+                <StreamSink<bool, flutter_rust_bridge::for_generated::SseCodec>>::sse_decode(
+                    &mut deserializer,
+                );
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::FrbAutomationError>((move || {
+                    let output_ok =
+                        crate::api::automation::watch_auto_compression_status(api_sink)?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -651,6 +689,14 @@ impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <String>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::anyhow::anyhow!("{}", inner);
+    }
+}
+
+impl SseDecode for StreamSink<bool, flutter_rust_bridge::for_generated::SseCodec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
     }
 }
 
@@ -793,12 +839,16 @@ impl SseDecode for crate::api::types::FrbCompressionEstimate {
         let mut var_estimatedCompressedBytes = <u64>::sse_decode(deserializer);
         let mut var_estimatedSavedBytes = <u64>::sse_decode(deserializer);
         let mut var_estimatedSavingsRatio = <f64>::sse_decode(deserializer);
+        let mut var_artworkCandidatePath = <Option<String>>::sse_decode(deserializer);
+        let mut var_executableCandidatePath = <Option<String>>::sse_decode(deserializer);
         return crate::api::types::FrbCompressionEstimate {
             scanned_files: var_scannedFiles,
             sampled_bytes: var_sampledBytes,
             estimated_compressed_bytes: var_estimatedCompressedBytes,
             estimated_saved_bytes: var_estimatedSavedBytes,
             estimated_savings_ratio: var_estimatedSavingsRatio,
+            artwork_candidate_path: var_artworkCandidatePath,
+            executable_candidate_path: var_executableCandidatePath,
         };
     }
 }
@@ -959,6 +1009,17 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Option<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::types::FrbCompressionProgress> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1056,6 +1117,12 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
         17 => wire__crate__api__automation__start_auto_compression_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        19 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1210,6 +1277,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbCompressionEstimate
             self.estimated_compressed_bytes.into_into_dart().into_dart(),
             self.estimated_saved_bytes.into_into_dart().into_dart(),
             self.estimated_savings_ratio.into_into_dart().into_dart(),
+            self.artwork_candidate_path.into_into_dart().into_dart(),
+            self.executable_candidate_path.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1374,6 +1443,13 @@ impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     }
 }
 
+impl SseEncode for StreamSink<bool, flutter_rust_bridge::for_generated::SseCodec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
 impl SseEncode
     for StreamSink<
         crate::api::types::FrbCompressionProgress,
@@ -1505,6 +1581,8 @@ impl SseEncode for crate::api::types::FrbCompressionEstimate {
         <u64>::sse_encode(self.estimated_compressed_bytes, serializer);
         <u64>::sse_encode(self.estimated_saved_bytes, serializer);
         <f64>::sse_encode(self.estimated_savings_ratio, serializer);
+        <Option<String>>::sse_encode(self.artwork_candidate_path, serializer);
+        <Option<String>>::sse_encode(self.executable_candidate_path, serializer);
     }
 }
 
@@ -1624,6 +1702,16 @@ impl SseEncode for Vec<u8> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <u8>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <String>::sse_encode(value, serializer);
         }
     }
 }

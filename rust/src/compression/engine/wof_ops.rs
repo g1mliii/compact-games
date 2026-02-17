@@ -1,6 +1,6 @@
 //! Windows-specific compress/decompress/ratio implementations using WOF API.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -9,20 +9,28 @@ use rayon::prelude::*;
 
 use super::super::error::CompressionError;
 use super::super::wof::{self, CompressFileResult};
-use super::{CompressionEngine, CompressionStats, MIN_COMPRESSIBLE_SIZE};
+use super::{CompressionEngine, CompressionStats, ManifestFile, MIN_COMPRESSIBLE_SIZE};
 
 impl CompressionEngine {
     pub(super) fn compress_impl(
         &self,
         folder: &Path,
     ) -> Result<CompressionStats, CompressionError> {
-        let files: Vec<PathBuf> = Self::file_iter(folder).map(|e| e.into_path()).collect();
+        let files: Vec<ManifestFile> = Self::file_iter(folder)
+            .map(|entry| {
+                let logical_size_hint = entry.metadata().ok().map(|m| m.len());
+                ManifestFile {
+                    path: entry.into_path(),
+                    logical_size_hint,
+                }
+            })
+            .collect();
         self.compress_impl_from_manifest(files)
     }
 
     pub(super) fn compress_impl_from_manifest(
         &self,
-        files: Vec<PathBuf>,
+        files: Vec<ManifestFile>,
     ) -> Result<CompressionStats, CompressionError> {
         let start = std::time::Instant::now();
         let disk_full = Arc::new(AtomicBool::new(false));
@@ -32,7 +40,8 @@ impl CompressionEngine {
         self.files_total
             .store(files.len() as u64, Ordering::Relaxed);
 
-        let result = files.par_iter().try_for_each(|path| {
+        let result = files.par_iter().try_for_each(|manifest_file| {
+            let path = manifest_file.path.as_path();
             if self.cancel_token.is_cancelled() {
                 return Err(CompressionError::Cancelled);
             }
@@ -40,14 +49,14 @@ impl CompressionEngine {
                 return Err(CompressionError::DiskFull);
             }
 
-            let file_size = match std::fs::metadata(path) {
-                Ok(m) => m.len(),
-                Err(_) => {
-                    skipped.fetch_add(1, Ordering::Relaxed);
-                    self.files_processed.fetch_add(1, Ordering::Relaxed);
-                    return Ok(());
-                }
-            };
+            let file_size = manifest_file
+                .logical_size_hint
+                .unwrap_or_else(|| std::fs::metadata(path).map(|m| m.len()).unwrap_or_default());
+            if file_size == 0 {
+                skipped.fetch_add(1, Ordering::Relaxed);
+                self.files_processed.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
 
             if file_size < MIN_COMPRESSIBLE_SIZE {
                 skipped.fetch_add(1, Ordering::Relaxed);
@@ -163,7 +172,7 @@ impl CompressionEngine {
         });
 
         result?;
-        log::warn!(
+        log::info!(
             "[decompression][summary] path=\"{}\" files={} candidates={} skipped_likely_uncompressed={}",
             folder.display(),
             self.files_total.load(Ordering::Relaxed),

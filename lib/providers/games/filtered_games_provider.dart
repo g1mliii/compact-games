@@ -4,6 +4,8 @@ import '../../models/game_info.dart';
 import 'game_list_provider.dart';
 import 'game_list_state.dart';
 
+final _sortedGamesMemo = _SortedGamesMemo();
+
 final _gamesProvider = Provider<List<GameInfo>>((ref) {
   return ref.watch(
         gameListProvider.select((asyncState) => asyncState.valueOrNull?.games),
@@ -77,9 +79,14 @@ List<GameInfo> _applyFiltersAndSort({
 }) {
   final query = searchQuery.isEmpty ? null : searchQuery.toLowerCase();
   final hasPlatformFilter = platformFilter.isNotEmpty;
+  final sortedGames = _sortedGamesMemo.sort(
+    games: games,
+    sortField: sortField,
+    sortDirection: sortDirection,
+  );
   final filtered = <GameInfo>[];
 
-  for (final game in games) {
+  for (final game in sortedGames) {
     if (query != null && !game.name.toLowerCase().contains(query)) {
       continue;
     }
@@ -92,18 +99,6 @@ List<GameInfo> _applyFiltersAndSort({
     filtered.add(game);
   }
 
-  filtered.sort((a, b) {
-    final cmp = switch (sortField) {
-      GameSortField.name => a.name.compareTo(b.name),
-      GameSortField.sizeBytes => a.sizeBytes.compareTo(b.sizeBytes),
-      GameSortField.savingsRatio => a.savingsRatio.compareTo(b.savingsRatio),
-      GameSortField.platform => a.platform.displayName.compareTo(
-        b.platform.displayName,
-      ),
-    };
-    return sortDirection == SortDirection.ascending ? cmp : -cmp;
-  });
-
   return filtered;
 }
 
@@ -114,4 +109,48 @@ bool _matchesCompressionFilter(GameInfo game, CompressionFilter filter) {
     CompressionFilter.uncompressed =>
       !game.isCompressed && !game.isDirectStorage,
   };
+}
+
+class _SortedGamesMemo {
+  List<GameInfo>? _lastGames;
+  GameSortField? _lastSortField;
+  SortDirection? _lastSortDirection;
+  List<GameInfo> _lastSorted = const <GameInfo>[];
+
+  List<GameInfo> sort({
+    required List<GameInfo> games,
+    required GameSortField sortField,
+    required SortDirection sortDirection,
+  }) {
+    if (identical(_lastGames, games) &&
+        _lastSortField == sortField &&
+        _lastSortDirection == sortDirection) {
+      return _lastSorted;
+    }
+
+    final sorted = List<GameInfo>.from(games)
+      ..sort((a, b) => _compare(a, b, sortField, sortDirection));
+    _lastGames = games;
+    _lastSortField = sortField;
+    _lastSortDirection = sortDirection;
+    _lastSorted = List<GameInfo>.unmodifiable(sorted);
+    return _lastSorted;
+  }
+
+  int _compare(
+    GameInfo a,
+    GameInfo b,
+    GameSortField sortField,
+    SortDirection sortDirection,
+  ) {
+    final cmp = switch (sortField) {
+      GameSortField.name => a.name.compareTo(b.name),
+      GameSortField.sizeBytes => a.sizeBytes.compareTo(b.sizeBytes),
+      GameSortField.savingsRatio => a.savingsRatio.compareTo(b.savingsRatio),
+      GameSortField.platform => a.platform.displayName.compareTo(
+        b.platform.displayName,
+      ),
+    };
+    return sortDirection == SortDirection.ascending ? cmp : -cmp;
+  }
 }

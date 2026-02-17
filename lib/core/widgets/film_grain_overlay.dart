@@ -62,6 +62,7 @@ class _FilmGrainPainter extends CustomPainter {
 
 abstract final class _NoisePointCache {
   static const int _step = 6;
+  static const int _sizeBucket = 96;
   static const int _maxEntries = 12;
   static final LinkedHashMap<_NoiseCacheKey, List<Offset>> _cache =
       LinkedHashMap<_NoiseCacheKey, List<Offset>>();
@@ -75,9 +76,11 @@ abstract final class _NoisePointCache {
       return const <Offset>[];
     }
 
+    final bucketedWidth = _bucketUp(width);
+    final bucketedHeight = _bucketUp(height);
     final key = _NoiseCacheKey(
-      width: width,
-      height: height,
+      width: bucketedWidth,
+      height: bucketedHeight,
       densityPermille: (density * 1000).round().clamp(1, 1000),
     );
     final cached = _cache.remove(key);
@@ -87,8 +90,8 @@ abstract final class _NoisePointCache {
     }
 
     final generated = <Offset>[];
-    for (var y = 0; y < height; y += _step) {
-      for (var x = 0; x < width; x += _step) {
+    for (var y = 0; y < bucketedHeight; y += _step) {
+      for (var x = 0; x < bucketedWidth; x += _step) {
         final hash = ((x * 73856093) ^ (y * 19349663)) & 0xFF;
         final level = hash / 255.0;
         if (level > density) {
@@ -103,6 +106,10 @@ abstract final class _NoisePointCache {
       _cache.remove(_cache.keys.first);
     }
     return generated;
+  }
+
+  static int _bucketUp(int value) {
+    return ((value + _sizeBucket - 1) ~/ _sizeBucket) * _sizeBucket;
   }
 }
 

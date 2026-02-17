@@ -173,7 +173,7 @@ pub fn compress_game(
             } else {
                 0.0
             };
-            log::warn!(
+            log::info!(
                 "[compression][summary] game=\"{}\" algo={} processed={} skipped={} original={} compressed={} saved={} ({:.2}%)",
                 game_path,
                 algo,

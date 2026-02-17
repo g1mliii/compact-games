@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/compression/compression_progress_provider.dart';
 import '../../../../providers/compression/compression_provider.dart';
@@ -14,11 +13,10 @@ class HomeCompressionBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final animationsEnabled = AppMotion.animationsEnabled(context);
     final activeJob = ref.watch(activeCompressionJobProvider);
     final progress = ref.watch(activeCompressionProgressProvider);
     final gameName = ref.watch(compressingGameNameProvider) ?? '';
-    final banner = switch (activeJob?.type) {
+    return switch (activeJob?.type) {
       CompressionJobType.compression when progress != null => Padding(
         key: const ValueKey<String>('compression-active'),
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
@@ -40,28 +38,6 @@ class HomeCompressionBanner extends ConsumerWidget {
       ),
       _ => const SizedBox.shrink(key: ValueKey<String>('compression-empty')),
     };
-
-    if (!animationsEnabled) {
-      return banner;
-    }
-
-    return AnimatedSwitcher(
-      duration: AppMotion.slow,
-      switchInCurve: AppMotion.emphasizedCurve,
-      switchOutCurve: AppMotion.decelerateCurve,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SizeTransition(
-            sizeFactor: animation,
-            axis: Axis.horizontal,
-            axisAlignment: -1,
-            child: child,
-          ),
-        );
-      },
-      child: banner,
-    );
   }
 }
 

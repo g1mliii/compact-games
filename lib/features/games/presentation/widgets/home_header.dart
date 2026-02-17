@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../../../core/navigation/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../providers/cover_art/cover_art_provider.dart';
 import '../../../../providers/games/filtered_games_provider.dart';
 import '../../../../providers/games/game_list_provider.dart';
 
@@ -40,9 +42,19 @@ class HomeHeader extends ConsumerWidget {
       child: IconButton(
         icon: const Icon(LucideIcons.refreshCw, size: 18),
         color: AppColors.richGold,
-        onPressed: () => ref.read(gameListProvider.notifier).refresh(),
+        onPressed: () => unawaited(_refreshGamesAndCoverArt(ref)),
         tooltip: 'Refresh games',
       ),
+    );
+    final inventoryButton = _RouteIconButton(
+      icon: LucideIcons.list,
+      tooltip: 'Compression inventory',
+      onPressed: () => Navigator.of(context).pushNamed(AppRoutes.inventory),
+    );
+    final settingsButton = _RouteIconButton(
+      icon: LucideIcons.settings,
+      tooltip: 'Settings',
+      onPressed: () => Navigator.of(context).pushNamed(AppRoutes.settings),
     );
 
     return RepaintBoundary(
@@ -91,6 +103,10 @@ class HomeHeader extends ConsumerWidget {
                       children: [
                         const Expanded(child: _SearchField()),
                         const SizedBox(width: 8),
+                        inventoryButton,
+                        const SizedBox(width: 8),
+                        settingsButton,
+                        const SizedBox(width: 8),
                         refreshButton,
                       ],
                     ),
@@ -106,12 +122,67 @@ class HomeHeader extends ConsumerWidget {
                   const Spacer(),
                   const SizedBox(width: 240, child: _SearchField()),
                   const SizedBox(width: 8),
+                  inventoryButton,
+                  const SizedBox(width: 8),
+                  settingsButton,
+                  const SizedBox(width: 8),
                   refreshButton,
                 ],
               );
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _refreshGamesAndCoverArt(WidgetRef ref) async {
+    await ref.read(gameListProvider.notifier).refresh();
+
+    final games = ref.read(gameListProvider).valueOrNull?.games ?? const [];
+    if (games.isEmpty) {
+      return;
+    }
+
+    final paths = games.map((game) => game.path).toList(growable: false);
+    final coverArtService = ref.read(coverArtServiceProvider);
+    final placeholders = coverArtService.placeholderRefreshCandidates(paths);
+    if (placeholders.isEmpty) {
+      return;
+    }
+
+    coverArtService.clearLookupCaches();
+    coverArtService.invalidateCoverForGames(placeholders);
+    for (final path in placeholders) {
+      ref.invalidate(coverArtProvider(path));
+    }
+  }
+}
+
+class _RouteIconButton extends StatelessWidget {
+  const _RouteIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: IconButton(
+        icon: Icon(icon, size: 18),
+        color: AppColors.richGold,
+        onPressed: onPressed,
+        tooltip: tooltip,
       ),
     );
   }

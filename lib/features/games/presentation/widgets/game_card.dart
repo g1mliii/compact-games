@@ -1,155 +1,159 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import '../../../../core/utils/platform_icon.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../../models/game_info.dart';
 
-class GameCard extends StatefulWidget {
+class GameCard extends StatelessWidget {
   const GameCard({
     required this.gameName,
+    required this.platform,
     required this.totalSizeBytes,
     this.compressedSizeBytes,
     this.coverImageUrl,
+    this.coverImageProvider,
+    this.heroTag,
     this.isCompressed = false,
     this.isDirectStorage = false,
     this.estimatedSavedBytes,
+    this.assumeBoundedHeight = false,
     this.onTap,
+    this.onSecondaryTapDown,
     super.key,
   });
 
   final String gameName;
+  final Platform platform;
   final int totalSizeBytes;
   final int? compressedSizeBytes;
   final String? coverImageUrl;
+  final ImageProvider<Object>? coverImageProvider;
+  final String? heroTag;
   final bool isCompressed;
   final bool isDirectStorage;
   final int? estimatedSavedBytes;
+  final bool assumeBoundedHeight;
   final VoidCallback? onTap;
-
-  @override
-  State<GameCard> createState() => _GameCardState();
-}
-
-class _GameCardState extends State<GameCard> {
-  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
-
-  @override
-  void dispose() {
-    _isHovered.dispose();
-    super.dispose();
-  }
+  final GestureTapDownCallback? onSecondaryTapDown;
 
   @override
   Widget build(BuildContext context) {
-    final animationsEnabled = AppMotion.animationsEnabled(context);
     return RepaintBoundary(
       child: MouseRegion(
-        onEnter: (_) => _setHovered(true),
-        onExit: (_) => _setHovered(false),
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: widget.onTap,
-          child: ValueListenableBuilder<bool>(
-            valueListenable: _isHovered,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [_buildCoverArt(), _buildGameInfo()],
+          onTap: onTap,
+          onSecondaryTapDown: onSecondaryTapDown,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.panelGradient,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border, width: 1),
             ),
-            builder: (context, isHovered, child) {
-              final card = AnimatedContainer(
-                duration: animationsEnabled ? AppMotion.base : Duration.zero,
-                curve: AppMotion.standardCurve,
-                decoration: BoxDecoration(
-                  gradient: AppColors.panelGradient,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isHovered ? AppColors.richGold : AppColors.border,
-                    width: 1,
-                  ),
-                ),
-                child: child,
-              );
-
-              return AnimatedScale(
-                scale: animationsEnabled && isHovered ? 1.015 : 1.0,
-                duration: animationsEnabled ? AppMotion.base : Duration.zero,
-                curve: AppMotion.standardCurve,
-                child: AnimatedContainer(
-                  duration: animationsEnabled ? AppMotion.base : Duration.zero,
-                  curve: AppMotion.standardCurve,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: animationsEnabled && isHovered
-                        ? [
-                            BoxShadow(
-                              color: AppColors.richGold.withValues(alpha: 0.22),
-                              blurRadius: 22,
-                              offset: const Offset(0, 8),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: card,
-                ),
-              );
-            },
+            child: assumeBoundedHeight
+                ? _buildBoundedBody(context)
+                : _buildAdaptiveBody(),
           ),
         ),
       ),
     );
   }
 
-  void _setHovered(bool value) {
-    if (_isHovered.value == value) {
-      return;
-    }
-    _isHovered.value = value;
+  Widget _buildAdaptiveBody() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.maxHeight.isFinite) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildCoverArt(context: context, useAspectRatio: true),
+              _buildGameInfo(),
+            ],
+          );
+        }
+        return _buildBoundedBody(context);
+      },
+    );
   }
 
-  Widget _buildCoverArt() {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-      child: AspectRatio(
-        aspectRatio: AppConstants.coverAspectRatio,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (widget.coverImageUrl == null) {
-              return _buildPlaceholderCover();
-            }
-
-            final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-            final logicalWidth = constraints.maxWidth.isFinite
-                ? constraints.maxWidth
-                : AppConstants.cardMaxWidth;
-            final decodeWidth = (logicalWidth * devicePixelRatio)
-                .clamp(240.0, 960.0)
-                .round();
-            final decodeHeight = (decodeWidth / AppConstants.coverAspectRatio)
-                .round();
-
-            return Image.network(
-              widget.coverImageUrl!,
-              fit: BoxFit.cover,
-              cacheWidth: decodeWidth,
-              cacheHeight: decodeHeight,
-              filterQuality: FilterQuality.low,
-              errorBuilder: (context, error, stackTrace) =>
-                  _buildPlaceholderCover(),
-              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                if (wasSynchronouslyLoaded || frame != null) return child;
-                return _buildPlaceholderCover();
-              },
-            );
-          },
+  Widget _buildBoundedBody(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.max,
+      children: [
+        Expanded(
+          child: _buildCoverArt(context: context, useAspectRatio: false),
         ),
+        _buildGameInfo(),
+      ],
+    );
+  }
+
+  Widget _buildCoverArt({
+    required BuildContext context,
+    required bool useAspectRatio,
+  }) {
+    final content = _buildCoverContent(context);
+    final wrappedContent = useAspectRatio
+        ? AspectRatio(
+            aspectRatio: AppConstants.coverAspectRatio,
+            child: content,
+          )
+        : content;
+
+    final clipped = ClipRRect(
+      clipBehavior: Clip.hardEdge,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      child: wrappedContent,
+    );
+
+    final heroTag = this.heroTag;
+    if (heroTag == null) {
+      return clipped;
+    }
+    return Hero(tag: heroTag, child: clipped);
+  }
+
+  Widget _buildCoverContent(BuildContext context) {
+    if (coverImageProvider == null && coverImageUrl == null) {
+      return _buildPlaceholderCover();
+    }
+
+    final decodeWidth = _coverDecodeWidth(context);
+    final provider = coverImageProvider ?? NetworkImage(coverImageUrl!);
+    return ColoredBox(
+      color: AppColors.surfaceElevated,
+      child: Image(
+        image: ResizeImage(provider, width: decodeWidth),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        alignment: Alignment.center,
+        filterQuality: FilterQuality.none,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholderCover(),
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded || frame != null) {
+            return child;
+          }
+          return _buildPlaceholderCover();
+        },
       ),
     );
   }
 
+  int _coverDecodeWidth(BuildContext context) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final raw = (AppConstants.cardMaxWidth * dpr).clamp(192.0, 448.0);
+    final bucketed = ((raw / 64).round() * 64).clamp(192, 448);
+    return bucketed.toInt();
+  }
+
   Widget _buildPlaceholderCover() {
+    final icon = platformIcon(platform);
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -158,30 +162,24 @@ class _GameCardState extends State<GameCard> {
           colors: [AppColors.surfaceVariant, AppColors.surfaceElevated],
         ),
       ),
-      child: const Center(
-        child: Icon(
-          LucideIcons.gamepad2,
-          size: 48,
-          color: AppColors.desertSand,
-        ),
-      ),
+      child: Center(child: Icon(icon, size: 48, color: AppColors.desertSand)),
     );
   }
 
   Widget _buildGameInfo() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            widget.gameName,
+            gameName,
             style: AppTypography.headingSmall,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           Align(
             alignment: Alignment.centerLeft,
             child: FittedBox(
@@ -190,7 +188,7 @@ class _GameCardState extends State<GameCard> {
               child: _buildStatusBadge(),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           _buildSizeInfo(),
         ],
       ),
@@ -198,12 +196,12 @@ class _GameCardState extends State<GameCard> {
   }
 
   Widget _buildStatusBadge() {
-    if (widget.isDirectStorage) {
+    if (isDirectStorage) {
       return const StatusBadge.directStorage();
     }
 
-    if (widget.isCompressed && widget.compressedSizeBytes != null) {
-      final savedBytes = widget.totalSizeBytes - widget.compressedSizeBytes!;
+    if (isCompressed && compressedSizeBytes != null) {
+      final savedBytes = totalSizeBytes - compressedSizeBytes!;
       final safeSavedBytes = savedBytes > 0 ? savedBytes : 0;
       final savedGB = safeSavedBytes / (1024 * 1024 * 1024);
       return StatusBadge.compressed(savedGB);
@@ -213,12 +211,12 @@ class _GameCardState extends State<GameCard> {
   }
 
   Widget _buildSizeInfo() {
-    final sizeGB = widget.totalSizeBytes / (1024 * 1024 * 1024);
+    final sizeGB = totalSizeBytes / (1024 * 1024 * 1024);
 
-    if (widget.isCompressed && widget.compressedSizeBytes != null) {
-      final totalSizeBytes = widget.totalSizeBytes;
-      final compressedSizeBytes = widget.compressedSizeBytes!;
-      final compressedGB = widget.compressedSizeBytes! / (1024 * 1024 * 1024);
+    if (isCompressed && compressedSizeBytes != null) {
+      final totalSizeBytes = this.totalSizeBytes;
+      final compressedSizeBytes = this.compressedSizeBytes!;
+      final compressedGB = this.compressedSizeBytes! / (1024 * 1024 * 1024);
       final rawRatio = totalSizeBytes > 0
           ? compressedSizeBytes / totalSizeBytes
           : 0.0;
@@ -248,13 +246,13 @@ class _GameCardState extends State<GameCard> {
               ),
             ],
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           _CompressionBar(ratio: ratio),
         ],
       );
     }
 
-    final estimatedSaved = widget.estimatedSavedBytes;
+    final estimatedSaved = estimatedSavedBytes;
     if (estimatedSaved != null && estimatedSaved > 0) {
       final savedGB = estimatedSaved / (1024 * 1024 * 1024);
       return Row(

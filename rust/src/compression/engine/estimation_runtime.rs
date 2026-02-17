@@ -1,12 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 
 use super::estimation;
 use super::{
-    CompressionEngine, CompressionError, CompressionEstimate, EstimateTotals,
-    MIN_COMPRESSIBLE_SIZE, USE_ADAPTIVE_ESTIMATION,
+    CompressionEngine, CompressionError, CompressionEstimate, EstimateCandidate, EstimateTotals,
+    ManifestFile, MIN_COMPRESSIBLE_SIZE, USE_ADAPTIVE_ESTIMATION,
 };
 
 impl CompressionEngine {
@@ -39,13 +39,15 @@ impl CompressionEngine {
             scanned_files: totals.scanned_files,
             sampled_bytes: totals.sampled_bytes,
             estimated_saved_bytes: totals.estimated_saved_bytes,
+            artwork_candidate_path: totals.artwork_candidate.map(|c| c.path),
+            executable_candidate_path: totals.executable_candidate.map(|c| c.path),
         })
     }
 
     pub fn estimate_folder_savings_with_manifest(
         &self,
         folder: &Path,
-        file_manifest: &[PathBuf],
+        file_manifest: &[ManifestFile],
     ) -> Result<CompressionEstimate, CompressionError> {
         self.validate_path(folder)?;
         if !USE_ADAPTIVE_ESTIMATION {
@@ -72,6 +74,8 @@ impl CompressionEngine {
             scanned_files: totals.scanned_files,
             sampled_bytes: totals.sampled_bytes,
             estimated_saved_bytes: totals.estimated_saved_bytes,
+            artwork_candidate_path: totals.artwork_candidate.map(|c| c.path),
+            executable_candidate_path: totals.executable_candidate.map(|c| c.path),
         })
     }
 
@@ -92,12 +96,14 @@ impl CompressionEngine {
             scanned_files: totals.scanned_files,
             sampled_bytes: totals.sampled_bytes,
             estimated_saved_bytes: totals.estimated_saved_bytes,
+            artwork_candidate_path: totals.artwork_candidate.map(|c| c.path),
+            executable_candidate_path: totals.executable_candidate.map(|c| c.path),
         })
     }
 
     fn estimate_folder_savings_legacy_with_manifest(
         &self,
-        file_manifest: &[PathBuf],
+        file_manifest: &[ManifestFile],
     ) -> Result<CompressionEstimate, CompressionError> {
         let algorithm_scale_num = estimation::algorithm_scale_num(self.algorithm);
         let totals = self.estimate_totals_from_manifest(file_manifest, |path, file_size| {
@@ -112,6 +118,8 @@ impl CompressionEngine {
             scanned_files: totals.scanned_files,
             sampled_bytes: totals.sampled_bytes,
             estimated_saved_bytes: totals.estimated_saved_bytes,
+            artwork_candidate_path: totals.artwork_candidate.map(|c| c.path),
+            executable_candidate_path: totals.executable_candidate.map(|c| c.path),
         })
     }
 
@@ -157,58 +165,27 @@ impl CompressionEngine {
                     Err(_) => return EstimateTotals::default(),
                 };
                 let file_size = metadata.len();
+                let path = entry.path();
 
                 let mut totals = EstimateTotals {
                     scanned_files: 1,
                     sampled_bytes: file_size,
                     ..EstimateTotals::default()
                 };
-
-                if file_size < MIN_COMPRESSIBLE_SIZE {
-                    return totals;
+                if let Some(score) = artwork_score(path) {
+                    totals.artwork_candidate = Some(EstimateCandidate {
+                        score,
+                        path: path.to_path_buf(),
+                        path_len: path.as_os_str().len(),
+                    });
                 }
-
-                totals.estimated_saved_bytes = saved_for_file(entry.path(), file_size);
-                totals
-            })
-            .reduce(EstimateTotals::default, EstimateTotals::merge);
-
-        if totals.saw_cancel || self.cancel_token.is_cancelled() {
-            return Err(CompressionError::Cancelled);
-        }
-
-        Ok(totals)
-    }
-
-    fn estimate_totals_from_manifest<F>(
-        &self,
-        file_manifest: &[PathBuf],
-        saved_for_file: F,
-    ) -> Result<EstimateTotals, CompressionError>
-    where
-        F: Fn(&Path, u64) -> u64 + Sync,
-    {
-        let totals = file_manifest
-            .par_iter()
-            .map(|path| {
-                if self.cancel_token.is_cancelled() {
-                    return EstimateTotals {
-                        saw_cancel: true,
-                        ..EstimateTotals::default()
-                    };
+                if let Some(score) = executable_score(path, file_size) {
+                    totals.executable_candidate = Some(EstimateCandidate {
+                        score,
+                        path: path.to_path_buf(),
+                        path_len: path.as_os_str().len(),
+                    });
                 }
-
-                let metadata = match std::fs::metadata(path) {
-                    Ok(metadata) => metadata,
-                    Err(_) => return EstimateTotals::default(),
-                };
-                let file_size = metadata.len();
-
-                let mut totals = EstimateTotals {
-                    scanned_files: 1,
-                    sampled_bytes: file_size,
-                    ..EstimateTotals::default()
-                };
 
                 if file_size < MIN_COMPRESSIBLE_SIZE {
                     return totals;
@@ -225,4 +202,146 @@ impl CompressionEngine {
 
         Ok(totals)
     }
+
+    fn estimate_totals_from_manifest<F>(
+        &self,
+        file_manifest: &[ManifestFile],
+        saved_for_file: F,
+    ) -> Result<EstimateTotals, CompressionError>
+    where
+        F: Fn(&Path, u64) -> u64 + Sync,
+    {
+        let totals = file_manifest
+            .par_iter()
+            .map(|manifest_file| {
+                if self.cancel_token.is_cancelled() {
+                    return EstimateTotals {
+                        saw_cancel: true,
+                        ..EstimateTotals::default()
+                    };
+                }
+
+                let file_size = match manifest_file.logical_size_hint {
+                    Some(file_size) => file_size,
+                    None => return EstimateTotals::default(),
+                };
+                let path = manifest_file.path.as_path();
+
+                let mut totals = EstimateTotals {
+                    scanned_files: 1,
+                    sampled_bytes: file_size,
+                    ..EstimateTotals::default()
+                };
+                if let Some(score) = artwork_score(path) {
+                    totals.artwork_candidate = Some(EstimateCandidate {
+                        score,
+                        path: path.to_path_buf(),
+                        path_len: path.as_os_str().len(),
+                    });
+                }
+                if let Some(score) = executable_score(path, file_size) {
+                    totals.executable_candidate = Some(EstimateCandidate {
+                        score,
+                        path: path.to_path_buf(),
+                        path_len: path.as_os_str().len(),
+                    });
+                }
+
+                if file_size < MIN_COMPRESSIBLE_SIZE {
+                    return totals;
+                }
+
+                totals.estimated_saved_bytes = saved_for_file(path, file_size);
+                totals
+            })
+            .reduce(EstimateTotals::default, EstimateTotals::merge);
+
+        if totals.saw_cancel || self.cancel_token.is_cancelled() {
+            return Err(CompressionError::Cancelled);
+        }
+
+        Ok(totals)
+    }
+}
+
+fn artwork_score(path: &Path) -> Option<u16> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())?;
+    if !matches!(
+        ext.as_str(),
+        "jpg" | "jpeg" | "png" | "webp" | "bmp" | "ico"
+    ) {
+        return None;
+    }
+
+    let name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    let mut score = 0;
+    if name.contains("cover") {
+        score += 45;
+    }
+    if name.contains("library_600x900") {
+        score += 45;
+    }
+    if name.contains("capsule") {
+        score += 40;
+    }
+    if name.contains("poster") {
+        score += 35;
+    }
+    if name.contains("banner") {
+        score += 28;
+    }
+    if name.contains("hero") {
+        score += 22;
+    }
+    if name.contains("logo") || name.contains("icon") {
+        score += 14;
+    }
+    if score == 0 {
+        return None;
+    }
+    if ext == "jpg" || ext == "png" {
+        score += 5;
+    }
+    Some(score)
+}
+
+fn executable_score(path: &Path, file_size: u64) -> Option<u16> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())?;
+    if ext != "exe" {
+        return None;
+    }
+
+    let file_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.to_ascii_lowercase())
+        .unwrap_or_default();
+    if is_non_game_executable_name(&file_name) {
+        return None;
+    }
+
+    // Favor larger binaries because launch executables are often among the larger EXEs.
+    let size_mb = (file_size / (1024 * 1024)).min(200);
+    let size_score = u16::try_from(size_mb).unwrap_or(200);
+    Some(20 + size_score)
+}
+
+fn is_non_game_executable_name(name: &str) -> bool {
+    name.contains("setup")
+        || name.contains("install")
+        || name.contains("unins")
+        || name.contains("launcher")
+        || name.contains("vcredist")
+        || name.contains("dxsetup")
+        || name.contains("prereq")
 }
