@@ -61,31 +61,33 @@ class GameDetailsScreen extends ConsumerWidget {
             alignment: Alignment.center,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxCoverWidth),
-              child: AspectRatio(
-                aspectRatio: AppConstants.coverAspectRatio,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: ColoredBox(
-                    color: AppColors.surfaceElevated,
-                    child: coverProvider == null
-                        ? _CoverFallback(platform: game.platform)
-                        : Image(
-                            image: ResizeImage(
-                              coverProvider,
-                              width: _coverDecodeWidth(
-                                context: context,
-                                logicalWidth: maxCoverWidth,
+              child: RepaintBoundary(
+                child: AspectRatio(
+                  aspectRatio: AppConstants.coverAspectRatio,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: ColoredBox(
+                      color: AppColors.surfaceElevated,
+                      child: coverProvider == null
+                          ? _CoverFallback(platform: game.platform)
+                          : Image(
+                              image: ResizeImage(
+                                coverProvider,
+                                width: _coverDecodeWidth(
+                                  context: context,
+                                  logicalWidth: maxCoverWidth,
+                                ),
                               ),
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              alignment: Alignment.center,
+                              filterQuality: FilterQuality.none,
+                              gaplessPlayback: true,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _CoverFallback(platform: game.platform),
                             ),
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                            alignment: Alignment.center,
-                            filterQuality: FilterQuality.none,
-                            gaplessPlayback: true,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _CoverFallback(platform: game.platform),
-                          ),
+                    ),
                   ),
                 ),
               ),
