@@ -101,16 +101,19 @@ class _SortFieldButton extends StatelessWidget {
       itemBuilder: (context) => const <PopupMenuEntry<InventorySortField>>[
         PopupMenuItem(
           value: InventorySortField.savingsPercent,
-          child: Text('Savings %'),
+          child: Text('Savings %', style: AppTypography.bodySmall),
         ),
         PopupMenuItem(
           value: InventorySortField.originalSize,
-          child: Text('Original size'),
+          child: Text('Original size', style: AppTypography.bodySmall),
         ),
-        PopupMenuItem(value: InventorySortField.name, child: Text('Name')),
+        PopupMenuItem(
+          value: InventorySortField.name,
+          child: Text('Name', style: AppTypography.bodySmall),
+        ),
         PopupMenuItem(
           value: InventorySortField.platform,
-          child: Text('Platform'),
+          child: Text('Platform', style: AppTypography.bodySmall),
         ),
       ],
       child: InputDecorator(
@@ -122,6 +125,7 @@ class _SortFieldButton extends StatelessWidget {
                 _sortFieldLabel(sortField),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                style: AppTypography.bodySmall,
               ),
             ),
             const SizedBox(width: 8),
@@ -332,7 +336,10 @@ class InventoryEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Text('No games match the current inventory filters.'),
+      child: Text(
+        'No games match the current inventory filters.',
+        style: AppTypography.bodyMedium,
+      ),
     );
   }
 }

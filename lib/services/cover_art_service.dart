@@ -259,7 +259,7 @@ class CoverArtService {
     final sourceFile = File(sourcePath);
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await sourceFile.copy(target.path);
-    await _evictCacheIfNeeded(cacheDir);
+    unawaited(_evictCacheIfNeeded(cacheDir));
     return target.path;
   }
 
@@ -280,7 +280,7 @@ class CoverArtService {
         .where((entity) => entity is File)
         .cast<File>()
         .toList();
-    if (entries.length <= _maxCacheFiles) {
+    if (entries.length <= _maxCacheFiles + 20) {
       return;
     }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_settings.dart';
 import '../../models/compression_algorithm.dart';
+import '../games/manual_game_import.dart';
 import 'settings_persistence.dart';
 import 'settings_state.dart';
 
@@ -11,8 +12,7 @@ final settingsPersistenceProvider = Provider<SettingsPersistence>((ref) {
   return const SettingsPersistence();
 });
 
-final settingsProvider =
-    AsyncNotifierProvider<SettingsNotifier, SettingsState>(
+final settingsProvider = AsyncNotifierProvider<SettingsNotifier, SettingsState>(
   SettingsNotifier.new,
 );
 
@@ -64,24 +64,31 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
   }
 
   void addCustomFolder(String path) {
-    final normalized = path.trim();
-    if (normalized.isEmpty) {
+    final normalizedInput = path.trim();
+    if (normalizedInput.isEmpty) {
       return;
     }
-    _updateSetting(
-      (s) {
-        if (s.customFolders.contains(normalized)) {
-          return s;
-        }
-        return s.copyWith(customFolders: [...s.customFolders, normalized]);
-      },
-    );
+    final resolved = resolveManualImportTarget(normalizedInput);
+    final normalized = resolved.folderPath;
+    final normalizedKey = manualImportPathKey(normalized);
+    _updateSetting((s) {
+      final alreadyExists = s.customFolders.any(
+        (existing) => manualImportPathKey(existing) == normalizedKey,
+      );
+      if (alreadyExists) {
+        return s;
+      }
+      return s.copyWith(customFolders: [...s.customFolders, normalized]);
+    });
   }
 
   void removeCustomFolder(String path) {
+    final normalizedKey = manualImportPathKey(path);
     _updateSetting(
       (s) => s.copyWith(
-        customFolders: s.customFolders.where((f) => f != path).toList(),
+        customFolders: s.customFolders
+            .where((folder) => manualImportPathKey(folder) != normalizedKey)
+            .toList(),
       ),
     );
   }
@@ -122,10 +129,9 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     final current = state.valueOrNull;
     if (current == null) return;
     final newSettings = updater(current.settings).validated();
-    state = AsyncValue.data(current.copyWith(
-      settings: newSettings,
-      error: () => null,
-    ));
+    state = AsyncValue.data(
+      current.copyWith(settings: newSettings, error: () => null),
+    );
     _debounceSave(newSettings);
   }
 

@@ -8,6 +8,7 @@ import '../../models/game_info.dart';
 import '../../services/rust_bridge_service.dart';
 import 'game_list_dedupe.dart';
 import 'game_list_state.dart';
+import 'manual_game_import.dart';
 
 final rustBridgeServiceProvider = Provider<RustBridgeService>((ref) {
   return RustBridgeService.instance;
@@ -39,6 +40,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
   final Map<String, GameInfo> _pendingHydratedUpdates = <String, GameInfo>{};
 
   int _activeHydrations = 0;
+  bool _manualImportInProgress = false;
   Timer? _hydrationFlushTimer;
 
   @override
@@ -55,6 +57,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       _hydrationFailureCount.clear();
       _pendingHydratedUpdates.clear();
       _activeHydrations = 0;
+      _manualImportInProgress = false;
       _hydrationFlushTimer?.cancel();
       _hydrationFlushTimer = null;
     });
@@ -140,7 +143,6 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
   }
 
   /// Full reload from Rust backend.
-  /// Uses copyWithPrevious to keep the current data visible during reload.
   Future<void> refresh() async {
     if (state.isLoading) return;
     final requestId = ++_requestGeneration;
@@ -164,8 +166,83 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     );
   }
 
+  Future<ManualGameImportResult> addGameFromPathOrExe(String rawPath) async {
+    final trimmed = rawPath.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('Path cannot be empty.');
+    }
+    if (_manualImportInProgress) {
+      throw StateError('Another add-game operation is still running.');
+    }
+    final initialState = state.valueOrNull;
+    if (initialState == null) {
+      throw StateError('Game library is still loading. Try again in a moment.');
+    }
+    _manualImportInProgress = true;
+    try {
+      final target = resolveManualImportTarget(trimmed);
+      final bridge = ref.read(rustBridgeServiceProvider);
+      final scanResults = await bridge.scanCustomFolder(target.folderPath);
+      GameInfo? selected = pickManualGameFromScan(
+        scanResults,
+        target.folderPath,
+      );
+
+      selected ??= await bridge.hydrateGame(
+        gamePath: target.folderPath,
+        gameName: target.fallbackName,
+        platform: Platform.custom,
+      );
+
+      if (selected == null) {
+        throw StateError(
+          'No game metadata was detected for the selected target.',
+        );
+      }
+
+      final latestState = state.valueOrNull;
+      if (latestState == null) {
+        throw StateError(
+          'Game library is still loading. Try again in a moment.',
+        );
+      }
+
+      final beforeKeys = latestState.games
+          .map((g) => manualImportPathKey(g.path))
+          .toSet();
+      final merged = dedupeDiscoveredGames(<GameInfo>[
+        ...latestState.games,
+        selected,
+      ]);
+      final afterKeys = merged.map((g) => manualImportPathKey(g.path)).toSet();
+
+      if (!listEquals(latestState.games, merged)) {
+        final previousHydrated = Set<String>.from(_fullyHydratedPaths);
+        _queueResetForNewGameSet(merged, markAsFullyHydrated: false);
+        final nextPaths = merged.map((g) => g.path).toSet();
+        _fullyHydratedPaths
+          ..addAll(previousHydrated.where(nextPaths.contains))
+          ..add(selected.path);
+
+        state = AsyncValue.data(
+          latestState.copyWith(
+            games: merged,
+            lastRefreshed: () => DateTime.now(),
+            error: () => null,
+          ),
+        );
+      }
+
+      final selectedKey = manualImportPathKey(selected.path);
+      final wasAdded =
+          !beforeKeys.contains(selectedKey) && afterKeys.contains(selectedKey);
+      return ManualGameImportResult(game: selected, wasAdded: wasAdded);
+    } finally {
+      _manualImportInProgress = false;
+    }
+  }
+
   /// Queue lazy full-metadata hydration for a specific game path.
-  /// Safe to call repeatedly from UI build paths.
   void requestHydration(String gamePath) {
     if (_disposed) return;
     if (_fullyHydratedPaths.contains(gamePath)) return;
@@ -295,7 +372,6 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     );
   }
 
-  /// Targeted single-game update for immediate UI feedback.
   void updateGame(GameInfo updatedGame) {
     _updateState((s) => _applySingleGameUpdate(s, updatedGame));
   }

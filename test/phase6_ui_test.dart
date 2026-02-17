@@ -321,4 +321,31 @@ void main() {
     expect(coverArtService.invalidatedPaths, <String>[placeholderPath]);
     expect(coverArtService.clearLookupCachesCalls, 1);
   });
+
+  test(
+    'Settings custom path input resolves exe paths to folder targets',
+    () async {
+      final persistence = _InMemorySettingsPersistence();
+      final container = ProviderContainer(
+        overrides: [settingsPersistenceProvider.overrideWithValue(persistence)],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(settingsProvider.future);
+      final notifier = container.read(settingsProvider.notifier);
+
+      notifier.addCustomFolder(r'C:\Games\ManualEntry\game.exe');
+      notifier.addCustomFolder(r'C:\Games\ManualEntry\game.exe');
+
+      final folders =
+          container
+              .read(settingsProvider)
+              .valueOrNull
+              ?.settings
+              .customFolders ??
+          const <String>[];
+      expect(folders.length, 1);
+      expect(folders.first.toLowerCase().endsWith('.exe'), isFalse);
+    },
+  );
 }

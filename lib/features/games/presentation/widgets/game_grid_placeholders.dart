@@ -15,14 +15,14 @@ class GameGridEmptyView extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: AppColors.panelGradient,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border),
         ),
         child: Stack(
           children: [
             const Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(14)),
+                borderRadius: BorderRadius.all(Radius.circular(12)),
                 child: FilmGrainOverlay(opacity: 0.02, density: 0.1),
               ),
             ),
@@ -71,14 +71,14 @@ class GameGridErrorView extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: AppColors.panelGradient,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border),
         ),
         child: Stack(
           children: [
             const Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(14)),
+                borderRadius: BorderRadius.all(Radius.circular(12)),
                 child: FilmGrainOverlay(opacity: 0.02, density: 0.1),
               ),
             ),

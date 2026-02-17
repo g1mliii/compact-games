@@ -64,7 +64,7 @@ class GameDetailsScreen extends ConsumerWidget {
               child: AspectRatio(
                 aspectRatio: AppConstants.coverAspectRatio,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   child: ColoredBox(
                     color: AppColors.surfaceElevated,
                     child: coverProvider == null

@@ -127,7 +127,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: TextField(
                             controller: _folderController,
                             decoration: const InputDecoration(
-                              hintText: r'C:\Games\CustomLibrary',
+                              hintText:
+                                  r'C:\Games\CustomLibrary or C:\Games\MyGame\game.exe',
                             ),
                             onSubmitted: (_) => _addFolder(),
                           ),
@@ -307,7 +308,7 @@ class _AlgorithmSelector extends StatelessWidget {
                 algo.displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.bodySmall.copyWith(fontSize: 11),
+                style: AppTypography.bodySmall,
               ),
             ),
           )
@@ -324,7 +325,7 @@ class _AlgorithmSelector extends StatelessWidget {
                 selected.displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.bodySmall.copyWith(fontSize: 11),
+                style: AppTypography.bodySmall,
               ),
             ),
             const SizedBox(width: 8),

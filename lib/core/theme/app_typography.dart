@@ -75,6 +75,22 @@ abstract final class AppTypography {
     color: AppColors.textPrimary,
   );
 
+  static const TextStyle monoSmall = TextStyle(
+    fontFamily: monoFontFamily,
+    fontFamilyFallback: monoFontFallback,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+  );
+
+  static const TextStyle monoMedium = TextStyle(
+    fontFamily: monoFontFamily,
+    fontFamilyFallback: monoFontFallback,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+  );
+
   static const TextStyle statValue = TextStyle(
     fontFamily: monoFontFamily,
     fontFamilyFallback: monoFontFallback,

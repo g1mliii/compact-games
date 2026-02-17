@@ -122,9 +122,7 @@ class CompressionProgressIndicator extends StatelessWidget {
               hasKnownFileTotal
                   ? '${(progress * 100).toStringAsFixed(0)}%'
                   : 'Preparing...',
-              style: AppTypography.mono.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: AppTypography.monoMedium.copyWith(
                 color: AppColors.richGold,
               ),
             ),
@@ -227,13 +225,7 @@ class _StatChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: effectiveColor),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: AppTypography.bodySmall.copyWith(
-            color: effectiveColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text(label, style: AppTypography.label.copyWith(color: effectiveColor)),
       ],
     );
   }

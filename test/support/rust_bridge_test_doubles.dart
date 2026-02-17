@@ -144,13 +144,19 @@ class _StaticRustBridgeService extends _BaseRustBridgeService {
 }
 
 class _RecordingRustBridgeService extends _StaticRustBridgeService {
-  _RecordingRustBridgeService({required super.games});
+  _RecordingRustBridgeService({
+    required super.games,
+    this.scanCustomFolderGames = const <GameInfo>[],
+  });
 
   int compressCalls = 0;
   int decompressCalls = 0;
   int clearDiscoveryCacheCalls = 0;
   int clearDiscoveryCacheEntryCalls = 0;
   int getAllGamesCalls = 0;
+  int scanCustomFolderCalls = 0;
+  String? lastScanCustomFolderPath;
+  final List<GameInfo> scanCustomFolderGames;
 
   @override
   void clearDiscoveryCacheEntry(String path) {
@@ -181,6 +187,13 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   Future<List<GameInfo>> getAllGames() async {
     getAllGamesCalls += 1;
     return super.getAllGames();
+  }
+
+  @override
+  Future<List<GameInfo>> scanCustomFolder(String path) async {
+    scanCustomFolderCalls += 1;
+    lastScanCustomFolderPath = path;
+    return scanCustomFolderGames;
   }
 }
 

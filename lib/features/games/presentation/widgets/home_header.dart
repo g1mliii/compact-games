@@ -17,6 +17,12 @@ class HomeHeader extends ConsumerWidget {
     Radius.circular(16),
   );
   static const double _compactHeaderBreakpoint = 720;
+  static const ValueKey<String> _addGamePathFieldKey = ValueKey<String>(
+    'addGamePathField',
+  );
+  static const ValueKey<String> _confirmAddGameButtonKey = ValueKey<String>(
+    'confirmAddGameButton',
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,6 +56,11 @@ class HomeHeader extends ConsumerWidget {
       icon: LucideIcons.list,
       tooltip: 'Compression inventory',
       onPressed: () => Navigator.of(context).pushNamed(AppRoutes.inventory),
+    );
+    final addGameButton = _RouteIconButton(
+      icon: LucideIcons.folderPlus,
+      tooltip: 'Add game',
+      onPressed: () => unawaited(_promptAddGame(context, ref)),
     );
     final settingsButton = _RouteIconButton(
       icon: LucideIcons.settings,
@@ -103,6 +114,8 @@ class HomeHeader extends ConsumerWidget {
                       children: [
                         const Expanded(child: _SearchField()),
                         const SizedBox(width: 8),
+                        addGameButton,
+                        const SizedBox(width: 8),
                         inventoryButton,
                         const SizedBox(width: 8),
                         settingsButton,
@@ -121,6 +134,8 @@ class HomeHeader extends ConsumerWidget {
                   ...savedBadgeWidgets,
                   const Spacer(),
                   const SizedBox(width: 240, child: _SearchField()),
+                  const SizedBox(width: 8),
+                  addGameButton,
                   const SizedBox(width: 8),
                   inventoryButton,
                   const SizedBox(width: 8),
@@ -156,6 +171,91 @@ class HomeHeader extends ConsumerWidget {
     for (final path in placeholders) {
       ref.invalidate(coverArtProvider(path));
     }
+  }
+
+  Future<void> _promptAddGame(BuildContext context, WidgetRef ref) async {
+    var pendingPath = '';
+    String? inputValue;
+    inputValue = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add Game'),
+        content: TextField(
+          key: _addGamePathFieldKey,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: r'C:\Games\MyGame or C:\Games\MyGame\game.exe',
+          ),
+          onChanged: (value) {
+            pendingPath = value;
+          },
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: _confirmAddGameButtonKey,
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(pendingPath.trim()),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    final value = inputValue?.trim() ?? '';
+    if (value.isEmpty) {
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+
+    await _submitManualGame(context, ref, value);
+  }
+
+  Future<void> _submitManualGame(
+    BuildContext context,
+    WidgetRef ref,
+    String pathOrExe,
+  ) async {
+    try {
+      final result = await ref
+          .read(gameListProvider.notifier)
+          .addGameFromPathOrExe(pathOrExe);
+      if (!context.mounted) {
+        return;
+      }
+
+      final message = result.wasAdded
+          ? 'Added "${result.game.name}" to your library.'
+          : 'Updated "${result.game.name}" in your library.';
+      _showHeaderMessage(context, message);
+    } on ArgumentError catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      _showHeaderMessage(context, error.message?.toString() ?? 'Invalid path.');
+    } on StateError catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      _showHeaderMessage(context, error.message);
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      _showHeaderMessage(context, 'Failed to add game: $error');
+    }
+  }
+
+  void _showHeaderMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../../../core/utils/platform_icon.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -118,12 +120,36 @@ class GameCard extends StatelessWidget {
   }
 
   Widget _buildCoverContent(BuildContext context) {
-    if (coverImageProvider == null && coverImageUrl == null) {
-      return _buildPlaceholderCover();
+    // 1. Prefer explicit provider if given (e.g. from adapter)
+    if (coverImageProvider != null) {
+      return _buildImageWithProvider(context, coverImageProvider!);
     }
 
+    // 2. Handle URL string if provider is missing
+    final url = coverImageUrl;
+    if (url != null && url.isNotEmpty) {
+      ImageProvider? provider;
+      final uri = Uri.tryParse(url);
+
+      if (uri != null) {
+        if (uri.isScheme('file')) {
+          provider = FileImage(File.fromUri(uri));
+        } else if (uri.isScheme('http') || uri.isScheme('https')) {
+          provider = NetworkImage(url);
+        }
+      }
+
+      if (provider != null) {
+        return _buildImageWithProvider(context, provider);
+      }
+    }
+
+    // 3. Fallback
+    return _buildPlaceholderCover();
+  }
+
+  Widget _buildImageWithProvider(BuildContext context, ImageProvider provider) {
     final decodeWidth = _coverDecodeWidth(context);
-    final provider = coverImageProvider ?? NetworkImage(coverImageUrl!);
     return ColoredBox(
       color: AppColors.surfaceElevated,
       child: Image(
@@ -132,7 +158,7 @@ class GameCard extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         alignment: Alignment.center,
-        filterQuality: FilterQuality.none,
+        filterQuality: FilterQuality.none, // Pixel art style preference or perf
         gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) => _buildPlaceholderCover(),
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
@@ -230,10 +256,7 @@ class GameCard extends StatelessWidget {
             children: [
               Text(
                 '${compressedGB.toStringAsFixed(1)} GB',
-                style: AppTypography.mono.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTypography.monoSmall,
               ),
               const SizedBox(width: 4),
               Text(
@@ -259,10 +282,7 @@ class GameCard extends StatelessWidget {
         children: [
           Text(
             '${sizeGB.toStringAsFixed(1)} GB',
-            style: AppTypography.mono.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTypography.monoSmall,
           ),
           const SizedBox(width: 6),
           Text(
@@ -278,10 +298,7 @@ class GameCard extends StatelessWidget {
 
     return Text(
       '${sizeGB.toStringAsFixed(1)} GB',
-      style: AppTypography.mono.copyWith(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-      ),
+      style: AppTypography.monoSmall,
     );
   }
 }

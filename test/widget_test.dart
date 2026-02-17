@@ -160,6 +160,48 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Add game imports manual EXE target into the grid', (
+    WidgetTester tester,
+  ) async {
+    const manualGame = GameInfo(
+      name: 'Manual Entry',
+      path: r'C:\Manual\Entry',
+      platform: Platform.custom,
+      sizeBytes: 12 * _oneGiB,
+    );
+    final bridge = _RecordingRustBridgeService(
+      games: _sampleGames,
+      scanCustomFolderGames: const <GameInfo>[manualGame],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Manual Entry'), findsNothing);
+
+    await tester.tap(find.byTooltip('Add game'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('addGamePathField')),
+      r'C:\Manual\Entry\game.exe',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('confirmAddGameButton')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(bridge.scanCustomFolderCalls, 1);
+    expect(bridge.lastScanCustomFolderPath, r'C:\Manual\Entry');
+    expect(find.text('Manual Entry'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'CinematicBackground isolates static layers behind repaint boundary',
     (WidgetTester tester) async {
