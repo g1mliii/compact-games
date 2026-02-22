@@ -121,6 +121,41 @@ class _TestRustBridgeService implements RustBridgeService {
 
   @override
   void stopAutoCompression() {}
+
+  @override
+  Stream<WatcherEvent> watchWatcherEvents() {
+    return const Stream<WatcherEvent>.empty();
+  }
+
+  @override
+  Stream<List<AutomationJob>> watchAutomationQueue() {
+    return Stream<List<AutomationJob>>.value(const <AutomationJob>[]);
+  }
+
+  @override
+  Stream<SchedulerState> watchSchedulerState() {
+    return Stream<SchedulerState>.value(SchedulerState.idle);
+  }
+
+  @override
+  Future<void> updateAutomationConfig({
+    required double cpuThresholdPercent,
+    required int idleDurationSeconds,
+    required int cooldownSeconds,
+    required List<String> watchPaths,
+    required List<String> excludedPaths,
+    required CompressionAlgorithm algorithm,
+  }) async {}
+
+  @override
+  SchedulerState getSchedulerState() {
+    return SchedulerState.idle;
+  }
+
+  @override
+  List<AutomationJob> getAutomationQueue() {
+    return const <AutomationJob>[];
+  }
 }
 
 class _RecordingCoverArtService extends CoverArtService {

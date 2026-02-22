@@ -1,8 +1,14 @@
-//! FRB-compatible type wrappers.
+//! FRB-compatible type wrappers for game discovery and compression.
 //!
 //! Flutter Rust Bridge cannot directly handle `PathBuf`, `Duration`,
 //! crossbeam `Receiver`, or trait objects. These thin wrappers use only
 //! primitive types that FRB can serialize across the FFI boundary.
+//!
+//! Automation-specific types live in `automation_types.rs`.
+
+// Re-export automation types so FRB generated code (which references
+// `crate::api::types::FrbAutomation*`) continues to compile.
+pub use super::automation_types::*;
 
 use std::time::UNIX_EPOCH;
 
@@ -118,7 +124,7 @@ impl From<FrbCompressionAlgorithm> for CompressionAlgorithm {
 
 // ── Progress snapshot ─────────────────────────────────────────────────
 
-/// FRB-compatible progress (Duration → i64 millis).
+/// FRB-compatible progress (Duration -> i64 millis).
 #[derive(Debug, Clone)]
 pub struct FrbCompressionProgress {
     pub game_name: String,
@@ -202,9 +208,9 @@ impl From<CompressionEstimate> for FrbCompressionEstimate {
     }
 }
 
-// ── Compression error ─────────────────────────────────────────────────
+// ── Error types ──────────────────────────────────────────────────────
 
-/// FRB-compatible error enum.
+/// FRB-compatible compression error enum.
 #[derive(Debug)]
 pub enum FrbCompressionError {
     LockedFile { path: String },
@@ -272,17 +278,4 @@ pub enum FrbDiscoveryError {
     CustomScanFailed { path: String, message: String },
     #[error("Invalid custom scan path: {message}")]
     InvalidPath { message: String },
-}
-
-/// FRB-compatible automation lifecycle errors.
-#[derive(Debug, Error)]
-pub enum FrbAutomationError {
-    #[error("Auto-compression is already running")]
-    AlreadyRunning,
-    #[error("Auto-compression is not running")]
-    NotRunning,
-    #[error("Failed to start auto-compression: {message}")]
-    StartFailed { message: String },
-    #[error("Failed to stop auto-compression: {message}")]
-    StopFailed { message: String },
 }

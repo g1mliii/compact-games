@@ -6,9 +6,9 @@ enum CompressionAlgorithm {
   lzx;
 
   String get displayName => switch (this) {
-        xpress4k => 'XPRESS 4K (Fast)',
-        xpress8k => 'XPRESS 8K (Balanced)',
-        xpress16k => 'XPRESS 16K (Better Ratio)',
-        lzx => 'LZX (Maximum)',
-      };
+    xpress4k => 'XPRESS 4K (Fast)',
+    xpress8k => 'XPRESS 8K (Balanced)',
+    xpress16k => 'XPRESS 16K (Better Ratio)',
+    lzx => 'LZX (Maximum)',
+  };
 }

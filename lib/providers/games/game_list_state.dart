@@ -8,11 +8,11 @@ enum GameSortField {
   platform;
 
   String get displayName => switch (this) {
-        name => 'Name',
-        sizeBytes => 'Size',
-        savingsRatio => 'Savings',
-        platform => 'Platform',
-      };
+    name => 'Name',
+    sizeBytes => 'Size',
+    savingsRatio => 'Savings',
+    platform => 'Platform',
+  };
 }
 
 enum SortDirection { ascending, descending }
@@ -24,10 +24,10 @@ enum CompressionFilter {
   uncompressed;
 
   String get displayName => switch (this) {
-        all => 'All',
-        compressed => 'Compressed',
-        uncompressed => 'Uncompressed',
-      };
+    all => 'All',
+    compressed => 'Compressed',
+    uncompressed => 'Uncompressed',
+  };
 }
 
 /// Immutable state for the game list.
@@ -90,8 +90,9 @@ class GameListState {
       compressionFilter: compressionFilter ?? this.compressionFilter,
       sortField: sortField ?? this.sortField,
       sortDirection: sortDirection ?? this.sortDirection,
-      lastRefreshed:
-          lastRefreshed != null ? lastRefreshed() : this.lastRefreshed,
+      lastRefreshed: lastRefreshed != null
+          ? lastRefreshed()
+          : this.lastRefreshed,
       error: error != null ? error() : this.error,
     );
   }

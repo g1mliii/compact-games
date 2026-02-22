@@ -80,28 +80,29 @@ class AppSettings {
       themeVariant: themeVariant ?? this.themeVariant,
       directStorageOverrideEnabled:
           directStorageOverrideEnabled ?? this.directStorageOverrideEnabled,
-      steamGridDbApiKey:
-          steamGridDbApiKey != null ? steamGridDbApiKey() : this.steamGridDbApiKey,
+      steamGridDbApiKey: steamGridDbApiKey != null
+          ? steamGridDbApiKey()
+          : this.steamGridDbApiKey,
       inventoryAdvancedScanEnabled:
           inventoryAdvancedScanEnabled ?? this.inventoryAdvancedScanEnabled,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'schemaVersion': schemaVersion,
-        'algorithm': algorithm.name,
-        'autoCompress': autoCompress,
-        'cpuThreshold': cpuThreshold,
-        'idleDurationMinutes': idleDurationMinutes,
-        'cooldownMinutes': cooldownMinutes,
-        'customFolders': customFolders,
-        'excludedPaths': excludedPaths,
-        'notificationsEnabled': notificationsEnabled,
-        'themeVariant': themeVariant,
-        'directStorageOverrideEnabled': directStorageOverrideEnabled,
-        'steamGridDbApiKey': steamGridDbApiKey,
-        'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
-      };
+    'schemaVersion': schemaVersion,
+    'algorithm': algorithm.name,
+    'autoCompress': autoCompress,
+    'cpuThreshold': cpuThreshold,
+    'idleDurationMinutes': idleDurationMinutes,
+    'cooldownMinutes': cooldownMinutes,
+    'customFolders': customFolders,
+    'excludedPaths': excludedPaths,
+    'notificationsEnabled': notificationsEnabled,
+    'themeVariant': themeVariant,
+    'directStorageOverrideEnabled': directStorageOverrideEnabled,
+    'steamGridDbApiKey': steamGridDbApiKey,
+    'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final schemaVersion = json['schemaVersion'] as int? ?? 1;
@@ -115,19 +116,19 @@ class AppSettings {
       cpuThreshold: (json['cpuThreshold'] as num?)?.toDouble() ?? 10.0,
       idleDurationMinutes: json['idleDurationMinutes'] as int? ?? 5,
       cooldownMinutes: json['cooldownMinutes'] as int? ?? 5,
-      customFolders: (json['customFolders'] as List<dynamic>?)
-              ?.cast<String>()
-              .toList() ??
+      customFolders:
+          (json['customFolders'] as List<dynamic>?)?.cast<String>().toList() ??
           const [],
-      excludedPaths: (json['excludedPaths'] as List<dynamic>?)
-              ?.cast<String>()
-              .toList() ??
+      excludedPaths:
+          (json['excludedPaths'] as List<dynamic>?)?.cast<String>().toList() ??
           const [],
       notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
       themeVariant: json['themeVariant'] as String? ?? 'cinematicDesert',
       directStorageOverrideEnabled:
           json['directStorageOverrideEnabled'] as bool? ?? false,
-      steamGridDbApiKey: _normalizedApiKey(json['steamGridDbApiKey'] as String?),
+      steamGridDbApiKey: _normalizedApiKey(
+        json['steamGridDbApiKey'] as String?,
+      ),
       inventoryAdvancedScanEnabled:
           json['inventoryAdvancedScanEnabled'] as bool? ?? false,
     ).validated();

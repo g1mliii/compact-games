@@ -12,11 +12,7 @@ class PlatformShellService {
       return false;
     }
 
-    final result = await Process.run(
-      'explorer.exe',
-      [path],
-      runInShell: true,
-    );
+    final result = await Process.run('explorer.exe', [path], runInShell: true);
     return result.exitCode == 0;
   }
 }

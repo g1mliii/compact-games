@@ -99,16 +99,16 @@ class GameInfo {
 
   @override
   int get hashCode => Object.hash(
-        path,
-        name,
-        platform,
-        sizeBytes,
-        compressedSize,
-        isCompressed,
-        isDirectStorage,
-        excluded,
-        lastPlayed,
-      );
+    path,
+    name,
+    platform,
+    sizeBytes,
+    compressedSize,
+    isCompressed,
+    isDirectStorage,
+    excluded,
+    lastPlayed,
+  );
 
   @override
   String toString() =>

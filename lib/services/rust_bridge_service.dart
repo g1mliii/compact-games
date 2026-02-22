@@ -1,16 +1,20 @@
 import 'dart:async';
 import 'dart:collection';
 
+import '../models/automation_state.dart';
 import '../models/game_info.dart';
 import '../models/compression_algorithm.dart';
 import '../models/compression_estimate.dart';
 import '../models/compression_progress.dart';
 import '../models/compression_stats.dart';
+import '../models/watcher_event.dart';
 import '../src/rust/api/automation.dart' as rust_automation;
 import '../src/rust/api/compression.dart' as rust_compression;
 import '../src/rust/api/discovery.dart' as rust_discovery;
 import '../src/rust/api/minimal.dart' as rust_minimal;
 import '../src/rust/api/types.dart' as rust_types;
+
+part 'rust_bridge_mappers.dart';
 
 class RustBridgeService {
   static const RustBridgeService instance = RustBridgeService._();
@@ -172,6 +176,51 @@ class RustBridgeService {
     return rust_automation.watchAutoCompressionStatus().distinct();
   }
 
+  Stream<WatcherEvent> watchWatcherEvents() {
+    return rust_automation.watchWatcherEvents().map(_mapFrbWatcherEvent);
+  }
+
+  Stream<List<AutomationJob>> watchAutomationQueue() {
+    return rust_automation.watchAutomationQueue().map(
+      (jobs) => jobs.map(_mapFrbAutomationJob).toList(),
+    );
+  }
+
+  Stream<SchedulerState> watchSchedulerState() {
+    return rust_automation.watchSchedulerState().map(_mapFrbSchedulerState);
+  }
+
+  Future<void> updateAutomationConfig({
+    required double cpuThresholdPercent,
+    required int idleDurationSeconds,
+    required int cooldownSeconds,
+    required List<String> watchPaths,
+    required List<String> excludedPaths,
+    required CompressionAlgorithm algorithm,
+  }) {
+    return rust_automation.updateAutomationConfig(
+      config: rust_types.FrbAutomationConfig(
+        cpuThresholdPercent: cpuThresholdPercent,
+        idleDurationSeconds: BigInt.from(idleDurationSeconds),
+        cooldownSeconds: BigInt.from(cooldownSeconds),
+        watchPaths: watchPaths,
+        excludedPaths: excludedPaths,
+        algorithm: _toFrbAlgorithm(algorithm),
+      ),
+    );
+  }
+
+  SchedulerState getSchedulerState() {
+    return _mapFrbSchedulerState(rust_automation.getSchedulerState());
+  }
+
+  List<AutomationJob> getAutomationQueue() {
+    return rust_automation
+        .getAutomationQueue()
+        .map(_mapFrbAutomationJob)
+        .toList();
+  }
+
   String _estimateRequestKey(String gamePath, CompressionAlgorithm algorithm) {
     return '${algorithm.name}|${gamePath.toLowerCase()}';
   }
@@ -243,94 +292,3 @@ class _EstimatePermitWaiter {
   final Completer<void> completer;
 }
 
-GameInfo _mapFrbGameInfo(rust_types.FrbGameInfo frb) {
-  return GameInfo(
-    name: frb.name,
-    path: frb.path,
-    platform: _mapFrbPlatform(frb.platform),
-    sizeBytes: frb.sizeBytes.toInt(),
-    compressedSize: frb.compressedSize?.toInt(),
-    isCompressed: frb.isCompressed,
-    isDirectStorage: frb.isDirectstorage,
-    excluded: frb.excluded,
-    lastPlayed: frb.lastPlayed != null
-        ? DateTime.fromMillisecondsSinceEpoch(frb.lastPlayed!.toInt())
-        : null,
-  );
-}
-
-Platform _mapFrbPlatform(rust_types.FrbPlatform frb) {
-  return switch (frb) {
-    rust_types.FrbPlatform.steam => Platform.steam,
-    rust_types.FrbPlatform.epicGames => Platform.epicGames,
-    rust_types.FrbPlatform.gogGalaxy => Platform.gogGalaxy,
-    rust_types.FrbPlatform.ubisoftConnect => Platform.ubisoftConnect,
-    rust_types.FrbPlatform.eaApp => Platform.eaApp,
-    rust_types.FrbPlatform.battleNet => Platform.battleNet,
-    rust_types.FrbPlatform.xboxGamePass => Platform.xboxGamePass,
-    rust_types.FrbPlatform.custom => Platform.custom,
-  };
-}
-
-CompressionProgress _mapFrbProgress(rust_types.FrbCompressionProgress frb) {
-  return CompressionProgress(
-    gameName: frb.gameName,
-    filesTotal: frb.filesTotal.toInt(),
-    filesProcessed: frb.filesProcessed.toInt(),
-    bytesOriginal: frb.bytesOriginal.toInt(),
-    bytesCompressed: frb.bytesCompressed.toInt(),
-    bytesSaved: frb.bytesSaved.toInt(),
-    estimatedTimeRemaining: frb.estimatedTimeRemainingMs != null
-        ? Duration(milliseconds: frb.estimatedTimeRemainingMs!.toInt())
-        : null,
-    isComplete: frb.isComplete,
-  );
-}
-
-CompressionEstimate _mapFrbEstimate(rust_types.FrbCompressionEstimate frb) {
-  return CompressionEstimate(
-    scannedFiles: frb.scannedFiles.toInt(),
-    sampledBytes: frb.sampledBytes.toInt(),
-    estimatedCompressedBytes: frb.estimatedCompressedBytes.toInt(),
-    estimatedSavedBytes: frb.estimatedSavedBytes.toInt(),
-    estimatedSavingsRatio: frb.estimatedSavingsRatio,
-    artworkCandidatePath: frb.artworkCandidatePath,
-    executableCandidatePath: frb.executableCandidatePath,
-  );
-}
-
-// ignore: unused_element
-CompressionStats _mapFrbStats(rust_types.FrbCompressionStats frb) {
-  return CompressionStats(
-    originalBytes: frb.originalBytes.toInt(),
-    compressedBytes: frb.compressedBytes.toInt(),
-    filesProcessed: frb.filesProcessed.toInt(),
-    filesSkipped: frb.filesSkipped.toInt(),
-    durationMs: frb.durationMs.toInt(),
-  );
-}
-
-rust_types.FrbCompressionAlgorithm _toFrbAlgorithm(CompressionAlgorithm algo) {
-  return switch (algo) {
-    CompressionAlgorithm.xpress4k =>
-      rust_types.FrbCompressionAlgorithm.xpress4K,
-    CompressionAlgorithm.xpress8k =>
-      rust_types.FrbCompressionAlgorithm.xpress8K,
-    CompressionAlgorithm.xpress16k =>
-      rust_types.FrbCompressionAlgorithm.xpress16K,
-    CompressionAlgorithm.lzx => rust_types.FrbCompressionAlgorithm.lzx,
-  };
-}
-
-rust_types.FrbPlatform _toFrbPlatform(Platform platform) {
-  return switch (platform) {
-    Platform.steam => rust_types.FrbPlatform.steam,
-    Platform.epicGames => rust_types.FrbPlatform.epicGames,
-    Platform.gogGalaxy => rust_types.FrbPlatform.gogGalaxy,
-    Platform.ubisoftConnect => rust_types.FrbPlatform.ubisoftConnect,
-    Platform.eaApp => rust_types.FrbPlatform.eaApp,
-    Platform.battleNet => rust_types.FrbPlatform.battleNet,
-    Platform.xboxGamePass => rust_types.FrbPlatform.xboxGamePass,
-    Platform.custom => rust_types.FrbPlatform.custom,
-  };
-}
