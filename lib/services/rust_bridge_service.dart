@@ -49,6 +49,11 @@ class RustBridgeService {
       manualCompressionStopTimeout: manualCompressionStopTimeout,
     );
     _shutdownFuture = shutdown;
+    shutdown.whenComplete(() {
+      if (identical(_shutdownFuture, shutdown)) {
+        _shutdownFuture = null;
+      }
+    });
     return shutdown;
   }
 

@@ -7,6 +7,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/constants/app_constants.dart';
+import 'services/cover_art_service.dart';
 import 'services/rust_bridge_service.dart';
 import 'src/rust/frb_generated.dart';
 
@@ -115,6 +116,7 @@ class _PressPlayWindowListener extends WindowListener {
   Future<void> _shutdownAndClose() async {
     try {
       await RustBridgeService.instance.shutdownApp();
+      CoverArtService.shutdownSharedResources();
     } finally {
       try {
         await windowManager.setPreventClose(false);

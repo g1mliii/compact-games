@@ -45,6 +45,8 @@ Thumbs.db
 
 # Logs
 *.log
+ownership-map-out/
+ownership-map-out-pressplay-sensitive/
 
 # Environment
 .env

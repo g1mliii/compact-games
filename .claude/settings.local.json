@@ -42,7 +42,9 @@
       "Bash(dart pub add:*)",
       "Bash(flutter_rust_bridge_codegen:*)",
       "Bash(flutter test:*)",
-      "Bash(dart format:*)"
+      "Bash(dart format:*)",
+      "Bash(find \"/c/Users/subai/Documents/compact games/lib/services\" -type f -name \"*.dart\" | xargs ls -la 2>/dev/null)",
+      "Bash(ls resources:*)"
     ]
   }
 }

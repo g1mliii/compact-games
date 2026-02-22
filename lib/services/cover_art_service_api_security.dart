@@ -11,12 +11,15 @@ extension _CoverArtServiceApiSecurity on CoverArtService {
     required Duration timeout,
     required Map<String, String> headers,
   }) {
-    return _withApiRetries<http.Response>(() async {
+    return _withApiRetries<http.Response?>(() async {
       final response = await _withApiPermit(
         () => _sendGetNoRedirect(uri: uri, timeout: timeout, headers: headers),
       );
       if (response.statusCode == 429 || response.statusCode >= 500) {
         throw const _RetryableApiException();
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
       }
       return response;
     });
@@ -31,7 +34,9 @@ extension _CoverArtServiceApiSecurity on CoverArtService {
       ..headers.addAll(headers)
       ..followRedirects = false
       ..maxRedirects = 0;
-    final streamed = await _coverArtApiHttpClient.send(request).timeout(timeout);
+    final streamed = await _getCoverArtApiHttpClient()
+        .send(request)
+        .timeout(timeout);
     return http.Response.fromStream(streamed);
   }
 

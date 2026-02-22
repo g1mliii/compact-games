@@ -12,12 +12,31 @@ const Duration _apiImageRequestTimeout = Duration(seconds: 6);
 
 int _activeApiRequests = 0;
 final Queue<Completer<void>> _apiPermitQueue = Queue<Completer<void>>();
-final http.Client _coverArtApiHttpClient = http.Client();
+http.Client? _coverArtApiHttpClient;
 final LinkedHashMap<String, int> _apiGameIdCache = LinkedHashMap<String, int>();
 final LinkedHashMap<int, String> _apiGridUrlCache =
     LinkedHashMap<int, String>();
 final LinkedHashMap<String, String> _apiSteamAppGridUrlCache =
     LinkedHashMap<String, String>();
+
+http.Client _getCoverArtApiHttpClient() {
+  final existing = _coverArtApiHttpClient;
+  if (existing != null) {
+    return existing;
+  }
+  final created = http.Client();
+  _coverArtApiHttpClient = created;
+  return created;
+}
+
+void _disposeCoverArtApiHttpClient() {
+  final client = _coverArtApiHttpClient;
+  if (client == null) {
+    return;
+  }
+  _coverArtApiHttpClient = null;
+  client.close();
+}
 
 void _clearCoverArtApiLookupCaches() {
   _apiGameIdCache.clear();
@@ -280,7 +299,7 @@ extension _CoverArtServiceApi on CoverArtService {
   }) {
     return _withApiRetries<http.Response>(() async {
       final response = await _withApiPermit(
-        () => _coverArtApiHttpClient.get(uri, headers: headers).timeout(timeout),
+        () => _getCoverArtApiHttpClient().get(uri, headers: headers).timeout(timeout),
       );
       if (response.statusCode == 429 || response.statusCode >= 500) {
         throw const _RetryableApiException();

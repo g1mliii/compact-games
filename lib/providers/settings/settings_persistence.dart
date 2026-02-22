@@ -19,22 +19,27 @@ class SettingsPersistence {
 
     final secureApiKey = await _readSecureApiKey();
     if (secureApiKey != null) {
-      return settings.copyWith(steamGridDbApiKey: () => secureApiKey).validated();
+      final sanitized = settings.copyWith(steamGridDbApiKey: () => null).validated();
+      if (settings.steamGridDbApiKey != null) {
+        await _persistSettingsBestEffort(prefs, sanitized);
+      }
+      return sanitized
+          .copyWith(steamGridDbApiKey: () => secureApiKey)
+          .validated();
     }
 
     final legacyApiKey = settings.steamGridDbApiKey;
     if (legacyApiKey != null) {
       try {
         await _writeSecureApiKey(legacyApiKey);
-        final migrated = settings
-            .copyWith(steamGridDbApiKey: () => null)
-            .validated();
-        await _writeSettingsToPrefs(prefs, migrated);
-        return settings.validated();
       } catch (_) {
         // Keep legacy in-memory value if secure migration fails.
         return settings.validated();
       }
+
+      final migrated = settings.copyWith(steamGridDbApiKey: () => null).validated();
+      await _persistSettingsBestEffort(prefs, migrated);
+      return migrated.copyWith(steamGridDbApiKey: () => legacyApiKey).validated();
     }
 
     return settings.validated();
@@ -66,6 +71,17 @@ class SettingsPersistence {
   ) async {
     final json = jsonEncode(settings.toJson());
     await prefs.setString(_settingsKey, json);
+  }
+
+  Future<void> _persistSettingsBestEffort(
+    SharedPreferences prefs,
+    AppSettings settings,
+  ) async {
+    try {
+      await _writeSettingsToPrefs(prefs, settings);
+    } catch (_) {
+      // Keep runtime settings usable; scrub persisted plaintext on the next load.
+    }
   }
 
   Future<String?> _readSecureApiKey() async {

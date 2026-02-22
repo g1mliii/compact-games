@@ -100,6 +100,10 @@ class CoverArtService {
     _clearCoverArtApiLookupCaches();
   }
 
+  static void shutdownSharedResources() {
+    _disposeCoverArtApiHttpClient();
+  }
+
   Future<CoverArtResult> resolveCover(
     GameInfo game, {
     String? steamGridDbApiKey,
