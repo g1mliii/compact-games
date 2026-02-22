@@ -21,6 +21,7 @@ class InventoryScreen extends ConsumerStatefulWidget {
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   static const Duration _searchDebounce = Duration(milliseconds: 220);
+  static const String _fallbackAlgorithmLabel = 'XPRESS 8K (Balanced)';
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounceTimer;
   String _debouncedQuery = '';
@@ -42,17 +43,25 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final asyncList = ref.watch(gameListProvider);
-    final settings = ref.watch(
-      settingsProvider.select((value) => value.valueOrNull?.settings),
+    final algorithmLabel = ref.watch(
+      settingsProvider.select(
+        (value) =>
+            value.valueOrNull?.settings.algorithm.displayName ??
+            _fallbackAlgorithmLabel,
+      ),
+    );
+    final advancedEnabled = ref.watch(
+      settingsProvider.select(
+        (value) =>
+            value.valueOrNull?.settings.inventoryAdvancedScanEnabled ?? false,
+      ),
     );
     final watcherActive = ref.watch(
       autoCompressionRunningProvider.select(
         (value) => value.valueOrNull ?? false,
       ),
     );
-    final algorithmLabel =
-        settings?.algorithm.displayName ?? 'XPRESS 8K (Balanced)';
-    final advancedEnabled = settings?.inventoryAdvancedScanEnabled ?? false;
+    final refreshAllowed = !asyncList.isLoading;
 
     return Scaffold(
       appBar: AppBar(
@@ -61,7 +70,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           IconButton(
             tooltip: 'Refresh inventory',
             icon: const Icon(LucideIcons.refreshCw),
-            onPressed: () => unawaited(_refreshInventoryAndCoverArt()),
+            onPressed: refreshAllowed
+                ? () => unawaited(_refreshInventoryAndCoverArt())
+                : null,
           ),
         ],
       ),
@@ -73,6 +84,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ),
         data: (state) {
           final visibleGames = _computeVisibleGames(state.games);
+          final lastCheckedLabel = _formatLastChecked(state.lastRefreshed);
 
           return Column(
             children: [
@@ -105,8 +117,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: FilledButton.icon(
-                      onPressed: () =>
-                          unawaited(_refreshInventoryAndCoverArt()),
+                      onPressed: refreshAllowed
+                          ? () => unawaited(_refreshInventoryAndCoverArt())
+                          : null,
                       icon: const Icon(LucideIcons.scan),
                       label: const Text('Run Full Inventory Rescan'),
                     ),
@@ -118,20 +131,24 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               Expanded(
                 child: visibleGames.isEmpty
                     ? const InventoryEmpty()
-                    : ListView.builder(
-                        itemExtent: 52,
-                        itemCount: visibleGames.length,
-                        itemBuilder: (context, index) {
-                          final game = visibleGames[index];
-                          return InventoryRow(
-                            game: game,
-                            watcherActive: watcherActive,
-                            lastChecked: state.lastRefreshed,
-                            onOpenDetails: () => Navigator.of(
-                              context,
-                            ).pushNamed(AppRoutes.gameDetails(game.path)),
-                          );
-                        },
+                    : RepaintBoundary(
+                        child: ListView.builder(
+                          itemExtent: 52,
+                          addAutomaticKeepAlives: false,
+                          addRepaintBoundaries: false,
+                          itemCount: visibleGames.length,
+                          itemBuilder: (context, index) {
+                            final game = visibleGames[index];
+                            return InventoryRow(
+                              game: game,
+                              watcherActive: watcherActive,
+                              lastCheckedLabel: lastCheckedLabel,
+                              onOpenDetails: () => Navigator.of(
+                                context,
+                              ).pushNamed(AppRoutes.gameDetails(game.path)),
+                            );
+                          },
+                        ),
                       ),
               ),
             ],
@@ -175,6 +192,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     _lastVisibleDescending = _descending;
     _cachedVisibleGames = sorted;
     return _cachedVisibleGames;
+  }
+
+  String _formatLastChecked(DateTime? lastChecked) {
+    if (lastChecked == null) {
+      return 'N/A';
+    }
+    final hour = lastChecked.hour.toString().padLeft(2, '0');
+    final minute = lastChecked.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 
   void _onSearchChanged(String value) {

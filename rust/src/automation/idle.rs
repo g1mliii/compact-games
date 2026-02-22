@@ -156,7 +156,10 @@ mod tests {
             cpu_threshold_percent: 100.0,
             idle_duration: Duration::from_millis(50),
         };
-        let mock = MockMetricsSource { cpu: 5.0, memory: 1024 };
+        let mock = MockMetricsSource {
+            cpu: 5.0,
+            memory: 1024,
+        };
         let mut detector = IdleDetector::with_metrics_source(config, Box::new(mock));
 
         // First call sets the idle_since timestamp
@@ -172,7 +175,10 @@ mod tests {
             cpu_threshold_percent: 0.0,
             idle_duration: Duration::from_millis(1),
         };
-        let mock = MockMetricsSource { cpu: 50.0, memory: 1024 };
+        let mock = MockMetricsSource {
+            cpu: 50.0,
+            memory: 1024,
+        };
         let mut detector = IdleDetector::with_metrics_source(config, Box::new(mock));
 
         std::thread::sleep(Duration::from_millis(5));
@@ -199,7 +205,10 @@ mod tests {
             cpu_threshold_percent: 100.0,
             idle_duration: Duration::from_millis(1),
         };
-        let mock = MockMetricsSource { cpu: 5.0, memory: 1024 };
+        let mock = MockMetricsSource {
+            cpu: 5.0,
+            memory: 1024,
+        };
         let mut detector = IdleDetector::with_metrics_source(config, Box::new(mock));
 
         // Prime idle state

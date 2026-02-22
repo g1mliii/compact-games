@@ -1,0 +1,441 @@
+{
+  "generated_at": "2026-02-22T19:58:33.352860+00:00",
+  "repo": "C:\\Users\\subai\\Documents\\compact games",
+  "parameters": {
+    "since": "12 months ago",
+    "until": null,
+    "half_life_days": 180.0,
+    "bus_factor_threshold": 1,
+    "stale_days": 365,
+    "owner_threshold": 0.5,
+    "sensitive_config": "C:\\Users\\subai\\Documents\\compact games\\tasks\\security_sensitive_rules.csv",
+    "identity": "author",
+    "date_field": "author",
+    "include_merges": false,
+    "cochange_enabled": true,
+    "cochange_max_files": 50,
+    "cochange_min_count": 2,
+    "cochange_min_jaccard": 0.05,
+    "cochange_default_excludes": true,
+    "cochange_excludes": [
+      "**/Cargo.lock",
+      "**/Cargo.toml",
+      "**/package-lock.json",
+      "**/yarn.lock",
+      "**/pnpm-lock.yaml",
+      "**/go.sum",
+      "**/go.mod",
+      "**/Gemfile.lock",
+      "**/Pipfile.lock",
+      "**/poetry.lock",
+      "**/composer.lock",
+      "**/.github/**",
+      "**/.gitignore",
+      "**/.gitattributes",
+      "**/.gitmodules",
+      "**/.editorconfig",
+      "**/.vscode/**",
+      "**/.idea/**"
+    ],
+    "author_default_excludes": true,
+    "author_exclude_regexes": [
+      "dependabot"
+    ],
+    "community_top_owners": 5
+  },
+  "orphaned_sensitive_code": [],
+  "hidden_owners": [
+    {
+      "person": "dev@pressplay.local",
+      "name": "PressPlay",
+      "controls": "100% of bridge code",
+      "category": "bridge",
+      "share": 1.0
+    },
+    {
+      "person": "dev@pressplay.local",
+      "name": "PressPlay",
+      "controls": "100% of automation code",
+      "category": "automation",
+      "share": 1.0
+    },
+    {
+      "person": "dev@pressplay.local",
+      "name": "PressPlay",
+      "controls": "100% of compression_api code",
+      "category": "compression_api",
+      "share": 1.0
+    },
+    {
+      "person": "dev@pressplay.local",
+      "name": "PressPlay",
+      "controls": "100% of compression code",
+      "category": "compression",
+      "share": 1.0
+    },
+    {
+      "person": "dev@pressplay.local",
+      "name": "PressPlay",
+      "controls": "100% of safety code",
+      "category": "safety",
+      "share": 1.0
+    },
+    {
+      "person": "dev@pressplay.local",
+      "name": "PressPlay",
+      "controls": "100% of compression_ui code",
+      "category": "compression_ui",
+      "share": 1.0
+    }
+  ],
+  "bus_factor_hotspots": [
+    {
+      "path": "lib/services/rust_bridge_service.dart",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "bridge"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/idle.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/journal.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/mod.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/scheduler/mod.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/scheduler/tests.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/scheduler/types.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/watcher.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/watcher/coalescer.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/watcher/mod.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/automation/watcher/tests.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-22T12:52:28-05:00",
+      "sensitivity_tags": [
+        "automation"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/api/compression.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T23:57:10-05:00",
+      "sensitivity_tags": [
+        "compression_api"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/engine.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T23:57:10-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/engine/estimation_runtime.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T23:57:10-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/engine/wof_ops.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T23:57:10-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/safety/directstorage.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T23:57:10-05:00",
+      "sensitivity_tags": [
+        "safety"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/engine/estimation.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T21:01:25-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/history/adaptive.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T21:01:25-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/history/cache.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T21:01:25-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/history/mod.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T21:01:25-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/mod.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T21:01:25-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "lib/providers/compression/compression_progress_provider.dart",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T17:11:04-05:00",
+      "sensitivity_tags": [
+        "compression_ui"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "lib/providers/compression/compression_provider.dart",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T17:11:04-05:00",
+      "sensitivity_tags": [
+        "compression_ui"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "lib/providers/compression/compression_state.dart",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T17:11:04-05:00",
+      "sensitivity_tags": [
+        "compression_ui"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/engine/unit_tests.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T17:11:04-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/tests/safety_tests.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T17:11:04-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/tests/wof_tests.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-16T17:11:04-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/engine/operation_session.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-15T16:53:23-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/tests.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-15T16:53:23-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/safety/known_games.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-15T16:53:23-05:00",
+      "sensitivity_tags": [
+        "safety"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/engine/engine_safety.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-15T12:14:02-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/safety/known_directstorage_games.json",
+      "bus_factor": 1,
+      "last_touch": "2026-02-15T12:14:02-05:00",
+      "sensitivity_tags": [
+        "safety"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/safety/mod.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-15T12:14:02-05:00",
+      "sensitivity_tags": [
+        "safety"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/safety/process.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-15T12:14:02-05:00",
+      "sensitivity_tags": [
+        "safety"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/algorithm.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-14T22:06:46-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/wof.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-14T22:06:46-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    },
+    {
+      "path": "rust/src/compression/error.rs",
+      "bus_factor": 1,
+      "last_touch": "2026-02-08T22:49:19-05:00",
+      "sensitivity_tags": [
+        "compression"
+      ],
+      "top_owner": "dev@pressplay.local"
+    }
+  ],
+  "stats": {
+    "commits": 16,
+    "commits_seen": 16,
+    "commits_excluded_identities": 0,
+    "commits_excluded_merges": 0,
+    "edges": 359,
+    "people": 2,
+    "files": 170,
+    "cochange_pairs_total": 2093,
+    "cochange_edges": 173,
+    "cochange_commits_used": 11,
+    "cochange_commits_skipped": 3,
+    "cochange_commits_filtered": 0,
+    "cochange_files_excluded": 5
+  }
+}

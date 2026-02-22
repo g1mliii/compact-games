@@ -11,6 +11,7 @@ import '../models/watcher_event.dart';
 import '../src/rust/api/automation.dart' as rust_automation;
 import '../src/rust/api/compression.dart' as rust_compression;
 import '../src/rust/api/discovery.dart' as rust_discovery;
+import '../src/rust/frb_generated.dart';
 import '../src/rust/api/minimal.dart' as rust_minimal;
 import '../src/rust/api/types.dart' as rust_types;
 
@@ -21,17 +22,34 @@ class RustBridgeService {
   static const int _maxConcurrentEstimateRequests = 1;
   static const int _maxPendingEstimateRequests = 24;
   static const Duration _estimatePermitWaitTimeout = Duration(seconds: 8);
+  static const Duration _manualCompressionStopTimeout = Duration(seconds: 2);
   static int _activeEstimateRequests = 0;
   static final Queue<_EstimatePermitWaiter> _estimatePermitQueue =
       Queue<_EstimatePermitWaiter>();
   static final Map<String, Future<CompressionEstimate>> _estimateInFlight =
       <String, Future<CompressionEstimate>>{};
+  static Future<void>? _shutdownFuture;
 
   const RustBridgeService._();
 
   /// Initialize the Rust core (logger, thread pool).
   String initApp() {
     return rust_minimal.initApp();
+  }
+
+  Future<void> shutdownApp({
+    Duration manualCompressionStopTimeout = _manualCompressionStopTimeout,
+  }) {
+    final existing = _shutdownFuture;
+    if (existing != null) {
+      return existing;
+    }
+
+    final shutdown = _performShutdown(
+      manualCompressionStopTimeout: manualCompressionStopTimeout,
+    );
+    _shutdownFuture = shutdown;
+    return shutdown;
   }
 
   Future<List<GameInfo>> getAllGames() async {
@@ -281,6 +299,68 @@ class RustBridgeService {
       return;
     }
   }
+
+  Future<void> _performShutdown({
+    required Duration manualCompressionStopTimeout,
+  }) async {
+    try {
+      stopAutoCompression();
+    } catch (_) {
+      // Best effort: app is closing.
+    }
+
+    try {
+      cancelCompression();
+    } catch (_) {
+      // Best effort: app is closing.
+    }
+
+    await _waitForManualCompressionToStop(manualCompressionStopTimeout);
+
+    try {
+      persistCompressionHistory();
+    } catch (_) {
+      // Best effort: app is closing.
+    }
+
+    _failPendingEstimateWaiters();
+    _estimateInFlight.clear();
+    _activeEstimateRequests = 0;
+
+    try {
+      RustLib.dispose();
+    } catch (_) {
+      // Best effort: dispose may fail if init state is partial.
+    }
+  }
+
+  Future<void> _waitForManualCompressionToStop(Duration timeout) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      CompressionProgress? progress;
+      try {
+        progress = getCompressionProgress();
+      } catch (_) {
+        return;
+      }
+      if (progress == null) {
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
+  }
+
+  void _failPendingEstimateWaiters() {
+    while (_estimatePermitQueue.isNotEmpty) {
+      final waiter = _estimatePermitQueue.removeFirst();
+      if (waiter.completer.isCompleted) {
+        continue;
+      }
+      waiter.completer.completeError(
+        StateError('Estimate request cancelled during app shutdown.'),
+      );
+    }
+  }
 }
 
 class _EstimatePermitWaiter {
@@ -291,4 +371,3 @@ class _EstimatePermitWaiter {
   final DateTime enqueuedAt;
   final Completer<void> completer;
 }
-

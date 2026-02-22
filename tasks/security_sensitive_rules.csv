@@ -1,0 +1,6 @@
+rust/src/compression/**,compression,1.0
+rust/src/safety/**,safety,1.0
+rust/src/api/compression.rs,compression_api,1.0
+rust/src/automation/**,automation,0.7
+lib/services/rust_bridge_service.dart,bridge,0.6
+lib/providers/compression/**,compression_ui,0.6

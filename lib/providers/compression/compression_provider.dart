@@ -88,6 +88,9 @@ class CompressionNotifier extends Notifier<CompressionState> {
       _failJob('Failed to cancel compression: $e');
       return;
     }
+    // Prevent a stuck native stream from retaining a live subscription.
+    _cancelSubscription();
+    _cancelRequested = false;
     _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
   }
 

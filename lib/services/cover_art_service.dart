@@ -15,6 +15,8 @@ import '../models/game_info.dart';
 part 'cover_art_service_scan.dart';
 part 'cover_art_service_steam.dart';
 part 'cover_art_service_api.dart';
+part 'cover_art_service_api_security.dart';
+part 'cover_art_service_cache_maintenance.dart';
 part 'cover_art_service_quality.dart';
 
 enum CoverArtSource {
@@ -259,7 +261,7 @@ class CoverArtService {
     final sourceFile = File(sourcePath);
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await sourceFile.copy(target.path);
-    unawaited(_evictCacheIfNeeded(cacheDir));
+    _scheduleCacheEviction(cacheDir);
     return target.path;
   }
 

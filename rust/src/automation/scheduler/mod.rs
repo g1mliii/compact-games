@@ -88,8 +88,7 @@ impl AutoScheduler {
             }
             WatchEvent::GameUninstalled { path, .. } => {
                 self.queue.retain(|j| j.game_path != *path);
-                let path_prefix =
-                    format!("{}:", path.to_string_lossy().to_ascii_lowercase());
+                let path_prefix = format!("{}:", path.to_string_lossy().to_ascii_lowercase());
                 self.journal.remove_by_prefix(&path_prefix);
                 self.needs_persist = true;
                 return;
@@ -394,12 +393,18 @@ impl AutoScheduler {
             |j: &&AutomationJob| matches!(j.status, JobStatus::Pending | JobStatus::WaitingForIdle);
 
         // Reconcile jobs first (post-update recompression)
-        if let Some(job) = self.queue.iter().find(|j| is_ready(j) && j.kind == JobKind::Reconcile) {
+        if let Some(job) = self
+            .queue
+            .iter()
+            .find(|j| is_ready(j) && j.kind == JobKind::Reconcile)
+        {
             return Some(job);
         }
         // Then new installs
-        if let Some(job) =
-            self.queue.iter().find(|j| is_ready(j) && j.kind == JobKind::NewInstall)
+        if let Some(job) = self
+            .queue
+            .iter()
+            .find(|j| is_ready(j) && j.kind == JobKind::NewInstall)
         {
             return Some(job);
         }

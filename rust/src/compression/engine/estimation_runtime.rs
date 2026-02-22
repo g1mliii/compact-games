@@ -150,7 +150,7 @@ impl CompressionEngine {
     where
         F: Fn(&Path, u64) -> u64 + Sync,
     {
-        let totals = Self::file_iter(folder)
+        let totals = Self::file_iter(folder)?
             .par_bridge()
             .map(|entry| {
                 if self.cancel_token.is_cancelled() {

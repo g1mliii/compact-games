@@ -1,0 +1,1350 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {
+    "community_maintainers": [
+      {
+        "id": 1,
+        "size": 12,
+        "maintainers": [
+          {
+            "person_id": "dev@pressplay.local",
+            "name": "PressPlay",
+            "touches": 42,
+            "touch_share": 1.0,
+            "recency_share": 1.0,
+            "sensitive_share": 0.0,
+            "primary_tz_offset": "-05:00"
+          }
+        ],
+        "bus_factor": 1,
+        "owner_count": 1,
+        "totals": {
+          "touches": 42,
+          "recency_weight": 40.992268,
+          "sensitive_weight": 0
+        }
+      },
+      {
+        "id": 2,
+        "size": 11,
+        "maintainers": [
+          {
+            "person_id": "dev@pressplay.local",
+            "name": "PressPlay",
+            "touches": 44,
+            "touch_share": 1.0,
+            "recency_share": 1.0,
+            "sensitive_share": 1.0,
+            "primary_tz_offset": "-05:00"
+          }
+        ],
+        "bus_factor": 1,
+        "owner_count": 1,
+        "totals": {
+          "touches": 44,
+          "recency_weight": 42.71544,
+          "sensitive_weight": 31.1
+        }
+      },
+      {
+        "id": 3,
+        "size": 7,
+        "maintainers": [
+          {
+            "person_id": "dev@pressplay.local",
+            "name": "PressPlay",
+            "touches": 20,
+            "touch_share": 1.0,
+            "recency_share": 1.0,
+            "sensitive_share": 0.0,
+            "primary_tz_offset": "-05:00"
+          }
+        ],
+        "bus_factor": 1,
+        "owner_count": 1,
+        "totals": {
+          "touches": 20,
+          "recency_weight": 19.681957,
+          "sensitive_weight": 0
+        }
+      },
+      {
+        "id": 4,
+        "size": 7,
+        "maintainers": [
+          {
+            "person_id": "dev@pressplay.local",
+            "name": "PressPlay",
+            "touches": 31,
+            "touch_share": 1.0,
+            "recency_share": 1.0,
+            "sensitive_share": 1.0,
+            "primary_tz_offset": "-05:00"
+          }
+        ],
+        "bus_factor": 1,
+        "owner_count": 1,
+        "totals": {
+          "touches": 31,
+          "recency_weight": 30.338636,
+          "sensitive_weight": 12.0
+        }
+      },
+      {
+        "id": 5,
+        "size": 3,
+        "maintainers": [
+          {
+            "person_id": "dev@pressplay.local",
+            "name": "PressPlay",
+            "touches": 12,
+            "touch_share": 1.0,
+            "recency_share": 1.0,
+            "sensitive_share": 0.0,
+            "primary_tz_offset": "-05:00"
+          }
+        ],
+        "bus_factor": 1,
+        "owner_count": 1,
+        "totals": {
+          "touches": 12,
+          "recency_weight": 11.586477,
+          "sensitive_weight": 0
+        }
+      },
+      {
+        "id": 6,
+        "size": 2,
+        "maintainers": [
+          {
+            "person_id": "dev@pressplay.local",
+            "name": "PressPlay",
+            "touches": 7,
+            "touch_share": 1.0,
+            "recency_share": 1.0,
+            "sensitive_share": 0.0,
+            "primary_tz_offset": "-05:00"
+          }
+        ],
+        "bus_factor": 1,
+        "owner_count": 1,
+        "totals": {
+          "touches": 7,
+          "recency_weight": 6.787009,
+          "sensitive_weight": 0
+        }
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "community_id": 2,
+      "id": ".claude/settings.local.json"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/automation/idle.rs"
+    },
+    {
+      "community_id": 3,
+      "id": "lib/app.dart"
+    },
+    {
+      "community_id": 3,
+      "id": "lib/models/app_settings.dart"
+    },
+    {
+      "community_id": 3,
+      "id": "lib/providers/system/auto_compression_status_provider.dart"
+    },
+    {
+      "community_id": 3,
+      "id": "lib/services/platform_shell_service.dart"
+    },
+    {
+      "community_id": 4,
+      "id": "lib/services/rust_bridge_service.dart"
+    },
+    {
+      "community_id": 3,
+      "id": "rust/src/api/automation.rs"
+    },
+    {
+      "community_id": 3,
+      "id": "rust/src/api/types.rs"
+    },
+    {
+      "community_id": 4,
+      "id": "rust/src/frb_generated.rs"
+    },
+    {
+      "community_id": 1,
+      "id": "test/phase6_ui_test.dart"
+    },
+    {
+      "community_id": 3,
+      "id": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "community_id": 4,
+      "id": "test/widget_test.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/core/theme/app_typography.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/features/games/presentation/widgets/compression_progress_indicator.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/features/games/presentation/widgets/game_card.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/features/games/presentation/game_details_screen.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/features/games/presentation/widgets/home_header.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/features/games/presentation/widgets/inventory_components.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/features/settings/presentation/settings_screen.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/services/cover_art_service.dart"
+    },
+    {
+      "community_id": 6,
+      "id": "lib/features/games/presentation/component_test_screen.dart"
+    },
+    {
+      "community_id": 6,
+      "id": "lib/features/games/presentation/home_screen.dart"
+    },
+    {
+      "community_id": 4,
+      "id": "lib/features/games/presentation/widgets/home_game_grid.dart"
+    },
+    {
+      "community_id": 4,
+      "id": "rust/src/api/compression.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/compression/engine.rs"
+    },
+    {
+      "community_id": 4,
+      "id": "rust/src/compression/engine/estimation_runtime.rs"
+    },
+    {
+      "community_id": 4,
+      "id": "rust/src/compression/engine/wof_ops.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/safety/directstorage.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/compression/mod.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/compression/engine/unit_tests.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/compression/tests.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/safety/known_games.rs"
+    },
+    {
+      "community_id": 5,
+      "id": "rust/src/discovery/epic.rs"
+    },
+    {
+      "community_id": 5,
+      "id": "rust/src/discovery/steam.rs"
+    },
+    {
+      "community_id": 5,
+      "id": "rust/src/discovery/xbox.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/compression/algorithm.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/compression/wof.rs"
+    },
+    {
+      "community_id": 2,
+      "id": "rust/src/progress/reporter.rs"
+    },
+    {
+      "community_id": 1,
+      "id": "lib/core/widgets/status_badge.dart"
+    }
+  ],
+  "edges": [
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": ".claude/settings.local.json",
+      "target": "rust/src/automation/idle.rs"
+    },
+    {
+      "weight": 0.5,
+      "count": 4,
+      "source": ".claude/settings.local.json",
+      "target": "rust/src/compression/engine.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": ".claude/settings.local.json",
+      "target": "rust/src/compression/engine/unit_tests.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 4,
+      "source": ".claude/settings.local.json",
+      "target": "rust/src/compression/tests.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": ".claude/settings.local.json",
+      "target": "rust/src/safety/known_games.rs"
+    },
+    {
+      "weight": 0.285714,
+      "count": 2,
+      "source": ".claude/settings.local.json",
+      "target": "rust/src/compression/algorithm.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": ".claude/settings.local.json",
+      "target": "rust/src/compression/wof.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": ".claude/settings.local.json",
+      "target": "rust/src/progress/reporter.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "lib/models/app_settings.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "lib/providers/system/auto_compression_status_provider.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "lib/services/platform_shell_service.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "lib/services/rust_bridge_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "rust/src/api/automation.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "rust/src/api/types.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "rust/src/frb_generated.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "test/phase6_ui_test.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/app.dart",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "lib/providers/system/auto_compression_status_provider.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "lib/services/platform_shell_service.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "lib/services/rust_bridge_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "rust/src/api/automation.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "rust/src/api/types.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "rust/src/frb_generated.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "test/phase6_ui_test.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/models/app_settings.dart",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "lib/services/platform_shell_service.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "lib/services/rust_bridge_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "rust/src/api/automation.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "rust/src/api/types.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "rust/src/frb_generated.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "test/phase6_ui_test.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/providers/system/auto_compression_status_provider.dart",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/platform_shell_service.dart",
+      "target": "lib/services/rust_bridge_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/services/platform_shell_service.dart",
+      "target": "rust/src/api/automation.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/services/platform_shell_service.dart",
+      "target": "rust/src/api/types.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/platform_shell_service.dart",
+      "target": "rust/src/frb_generated.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/platform_shell_service.dart",
+      "target": "test/phase6_ui_test.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/services/platform_shell_service.dart",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/platform_shell_service.dart",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/services/platform_shell_service.dart",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "rust/src/api/automation.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "rust/src/api/types.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 3,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "rust/src/frb_generated.rs"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "test/phase6_ui_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.6,
+      "count": 3,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "lib/features/games/presentation/widgets/home_game_grid.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "rust/src/api/compression.rs"
+    },
+    {
+      "weight": 0.285714,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "rust/src/compression/engine.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "rust/src/compression/engine/estimation_runtime.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "lib/services/rust_bridge_service.dart",
+      "target": "rust/src/compression/engine/wof_ops.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/api/automation.rs",
+      "target": "rust/src/api/types.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/api/automation.rs",
+      "target": "rust/src/frb_generated.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/api/automation.rs",
+      "target": "test/phase6_ui_test.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/api/automation.rs",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/api/automation.rs",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "rust/src/api/automation.rs",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/api/types.rs",
+      "target": "rust/src/frb_generated.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/api/types.rs",
+      "target": "test/phase6_ui_test.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/api/types.rs",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/api/types.rs",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "rust/src/api/types.rs",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "rust/src/frb_generated.rs",
+      "target": "test/phase6_ui_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/frb_generated.rs",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "rust/src/frb_generated.rs",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.6,
+      "count": 3,
+      "source": "rust/src/frb_generated.rs",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/frb_generated.rs",
+      "target": "lib/features/games/presentation/widgets/home_game_grid.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/frb_generated.rs",
+      "target": "rust/src/api/compression.rs"
+    },
+    {
+      "weight": 0.285714,
+      "count": 2,
+      "source": "rust/src/frb_generated.rs",
+      "target": "rust/src/compression/engine.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/frb_generated.rs",
+      "target": "rust/src/compression/engine/estimation_runtime.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/frb_generated.rs",
+      "target": "rust/src/compression/engine/wof_ops.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/phase6_ui_test.dart",
+      "target": "test/support/phase6_test_doubles.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 3,
+      "source": "test/phase6_ui_test.dart",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.6,
+      "count": 3,
+      "source": "test/phase6_ui_test.dart",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/phase6_ui_test.dart",
+      "target": "lib/features/games/presentation/game_details_screen.dart"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "test/phase6_ui_test.dart",
+      "target": "lib/features/games/presentation/widgets/game_card.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/phase6_ui_test.dart",
+      "target": "lib/features/games/presentation/widgets/home_header.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/phase6_ui_test.dart",
+      "target": "lib/features/games/presentation/widgets/inventory_components.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/phase6_ui_test.dart",
+      "target": "lib/features/settings/presentation/settings_screen.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/phase6_ui_test.dart",
+      "target": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/phase6_ui_test.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/support/phase6_test_doubles.dart",
+      "target": "test/support/rust_bridge_test_doubles.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/support/phase6_test_doubles.dart",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.6,
+      "count": 3,
+      "source": "test/support/rust_bridge_test_doubles.dart",
+      "target": "test/widget_test.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/support/rust_bridge_test_doubles.dart",
+      "target": "lib/features/games/presentation/game_details_screen.dart"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "test/support/rust_bridge_test_doubles.dart",
+      "target": "lib/features/games/presentation/widgets/game_card.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/support/rust_bridge_test_doubles.dart",
+      "target": "lib/features/games/presentation/widgets/home_header.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/support/rust_bridge_test_doubles.dart",
+      "target": "lib/features/games/presentation/widgets/inventory_components.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/support/rust_bridge_test_doubles.dart",
+      "target": "lib/features/settings/presentation/settings_screen.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/support/rust_bridge_test_doubles.dart",
+      "target": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "test/support/rust_bridge_test_doubles.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/core/theme/app_typography.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/games/presentation/game_details_screen.dart"
+    },
+    {
+      "weight": 0.285714,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/games/presentation/widgets/compression_progress_indicator.dart"
+    },
+    {
+      "weight": 0.428571,
+      "count": 3,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/games/presentation/widgets/game_card.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/games/presentation/widgets/home_header.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/games/presentation/widgets/inventory_components.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/settings/presentation/settings_screen.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/games/presentation/component_test_screen.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/games/presentation/home_screen.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "lib/features/games/presentation/widgets/home_game_grid.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "rust/src/api/compression.rs"
+    },
+    {
+      "weight": 0.222222,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "rust/src/compression/engine.rs"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "rust/src/compression/engine/estimation_runtime.rs"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "test/widget_test.dart",
+      "target": "rust/src/compression/engine/wof_ops.rs"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "lib/core/theme/app_typography.dart",
+      "target": "lib/features/games/presentation/widgets/compression_progress_indicator.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/core/theme/app_typography.dart",
+      "target": "lib/features/games/presentation/widgets/game_card.dart"
+    },
+    {
+      "weight": 0.8,
+      "count": 4,
+      "source": "lib/features/games/presentation/widgets/compression_progress_indicator.dart",
+      "target": "lib/features/games/presentation/widgets/game_card.dart"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/compression_progress_indicator.dart",
+      "target": "lib/core/widgets/status_badge.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/features/games/presentation/game_details_screen.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/features/games/presentation/widgets/home_header.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/features/games/presentation/widgets/inventory_components.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/features/settings/presentation/settings_screen.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/features/games/presentation/component_test_screen.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/features/games/presentation/home_screen.dart"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/game_card.dart",
+      "target": "lib/core/widgets/status_badge.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/game_details_screen.dart",
+      "target": "lib/features/games/presentation/widgets/home_header.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/game_details_screen.dart",
+      "target": "lib/features/games/presentation/widgets/inventory_components.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/game_details_screen.dart",
+      "target": "lib/features/settings/presentation/settings_screen.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/game_details_screen.dart",
+      "target": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/game_details_screen.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/home_header.dart",
+      "target": "lib/features/games/presentation/widgets/inventory_components.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/home_header.dart",
+      "target": "lib/features/settings/presentation/settings_screen.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/home_header.dart",
+      "target": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/home_header.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/inventory_components.dart",
+      "target": "lib/features/settings/presentation/settings_screen.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/inventory_components.dart",
+      "target": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/inventory_components.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/settings/presentation/settings_screen.dart",
+      "target": "lib/providers/settings/settings_provider.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/settings/presentation/settings_screen.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/providers/settings/settings_provider.dart",
+      "target": "lib/services/cover_art_service.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/component_test_screen.dart",
+      "target": "lib/features/games/presentation/home_screen.dart"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/home_game_grid.dart",
+      "target": "rust/src/api/compression.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/home_game_grid.dart",
+      "target": "rust/src/compression/engine.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/home_game_grid.dart",
+      "target": "rust/src/compression/engine/estimation_runtime.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "lib/features/games/presentation/widgets/home_game_grid.dart",
+      "target": "rust/src/compression/engine/wof_ops.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/api/compression.rs",
+      "target": "rust/src/compression/engine.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/api/compression.rs",
+      "target": "rust/src/compression/engine/estimation_runtime.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/api/compression.rs",
+      "target": "rust/src/compression/engine/wof_ops.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/compression/engine/estimation_runtime.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/compression/engine/wof_ops.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/safety/directstorage.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/compression/mod.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/compression/engine/unit_tests.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 4,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/compression/tests.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/safety/known_games.rs"
+    },
+    {
+      "weight": 0.285714,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/compression/algorithm.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/compression/wof.rs"
+    },
+    {
+      "weight": 0.333333,
+      "count": 2,
+      "source": "rust/src/compression/engine.rs",
+      "target": "rust/src/progress/reporter.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/compression/engine/estimation_runtime.rs",
+      "target": "rust/src/compression/engine/wof_ops.rs"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "rust/src/compression/engine/unit_tests.rs",
+      "target": "rust/src/compression/tests.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/compression/engine/unit_tests.rs",
+      "target": "rust/src/safety/known_games.rs"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "rust/src/compression/tests.rs",
+      "target": "rust/src/safety/known_games.rs"
+    },
+    {
+      "weight": 0.4,
+      "count": 2,
+      "source": "rust/src/compression/tests.rs",
+      "target": "rust/src/compression/algorithm.rs"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "rust/src/compression/tests.rs",
+      "target": "rust/src/compression/wof.rs"
+    },
+    {
+      "weight": 0.5,
+      "count": 2,
+      "source": "rust/src/compression/tests.rs",
+      "target": "rust/src/progress/reporter.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/discovery/epic.rs",
+      "target": "rust/src/discovery/steam.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/discovery/epic.rs",
+      "target": "rust/src/discovery/xbox.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/discovery/steam.rs",
+      "target": "rust/src/discovery/xbox.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/compression/algorithm.rs",
+      "target": "rust/src/compression/wof.rs"
+    },
+    {
+      "weight": 0.666667,
+      "count": 2,
+      "source": "rust/src/compression/algorithm.rs",
+      "target": "rust/src/progress/reporter.rs"
+    },
+    {
+      "weight": 1.0,
+      "count": 2,
+      "source": "rust/src/compression/wof.rs",
+      "target": "rust/src/progress/reporter.rs"
+    }
+  ]
+}

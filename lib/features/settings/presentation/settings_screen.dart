@@ -16,9 +16,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final TextEditingController _folderController = TextEditingController();
-  final TextEditingController _steamGridDbApiKeyController =
-      TextEditingController();
+  final TextEditingController _steamGridDbApiKeyController = TextEditingController();
   bool _steamGridDbApiKeySeeded = false;
+  bool _revealSteamGridDbApiKey = false;
 
   @override
   void dispose() {
@@ -209,9 +209,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 10),
                     TextField(
                       controller: _steamGridDbApiKeyController,
+                      obscureText: !_revealSteamGridDbApiKey,
+                      enableSuggestions: false,
+                      autocorrect: false,
                       decoration: const InputDecoration(
                         labelText: 'SteamGridDB API key (optional)',
                         isDense: true,
+                      ).copyWith(
+                        suffixIcon: IconButton(
+                          tooltip: _revealSteamGridDbApiKey
+                              ? 'Hide key'
+                              : 'Show key',
+                          icon: Icon(
+                            _revealSteamGridDbApiKey
+                                ? LucideIcons.eyeOff
+                                : LucideIcons.eye,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _revealSteamGridDbApiKey =
+                                  !_revealSteamGridDbApiKey;
+                            });
+                          },
+                        ),
                       ),
                       onSubmitted: (_) => _saveSteamGridDbApiKey(),
                     ),
@@ -290,47 +310,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 class _AlgorithmSelector extends StatelessWidget {
   const _AlgorithmSelector({required this.selected, required this.onSelected});
+  static const double _controlHeight = 40;
 
   final CompressionAlgorithm selected;
   final ValueChanged<CompressionAlgorithm> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<CompressionAlgorithm>(
-      tooltip: 'Algorithm',
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      onSelected: onSelected,
-      itemBuilder: (context) => CompressionAlgorithm.values
-          .map(
-            (algo) => PopupMenuItem<CompressionAlgorithm>(
-              value: algo,
-              child: Text(
-                algo.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.bodySmall,
+    return SizedBox(
+      height: _controlHeight,
+      child: PopupMenuButton<CompressionAlgorithm>(
+        tooltip: 'Algorithm',
+        popUpAnimationStyle: AnimationStyle.noAnimation,
+        padding: EdgeInsets.zero,
+        onSelected: onSelected,
+        itemBuilder: (context) => CompressionAlgorithm.values
+            .map(
+              (algo) => PopupMenuItem<CompressionAlgorithm>(
+                value: algo,
+                child: Text(
+                  algo.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodySmall,
+                ),
               ),
+            )
+            .toList(growable: false),
+        child: InputDecorator(
+          decoration: const InputDecoration(
+            labelText: 'Algorithm',
+            isDense: true,
+          ),
+          child: SizedBox.expand(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    selected.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodySmall,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(LucideIcons.chevronDown, size: 16),
+              ],
             ),
-          )
-          .toList(growable: false),
-      child: InputDecorator(
-        decoration: const InputDecoration(
-          labelText: 'Algorithm',
-          isDense: true,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                selected.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.bodySmall,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(LucideIcons.chevronDown, size: 16),
-          ],
+          ),
         ),
       ),
     );

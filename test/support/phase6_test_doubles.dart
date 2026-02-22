@@ -94,6 +94,11 @@ class _TestRustBridgeService implements RustBridgeService {
   }
 
   @override
+  Future<void> shutdownApp({
+    Duration manualCompressionStopTimeout = const Duration(seconds: 2),
+  }) async {}
+
+  @override
   bool isAutoCompressionRunning() {
     return false;
   }

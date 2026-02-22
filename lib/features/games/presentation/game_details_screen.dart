@@ -33,14 +33,21 @@ class GameDetailsScreen extends ConsumerWidget {
 
     final coverResult = ref.watch(coverArtProvider(game.path)).valueOrNull;
     final coverProvider = imageProviderFromCover(coverResult);
-    final settings = ref.watch(settingsProvider).valueOrNull?.settings;
-    final isExcluded = settings?.excludedPaths.contains(game.path) ?? false;
+    final isExcluded = ref.watch(
+      settingsProvider.select(
+        (async) =>
+            async.valueOrNull?.settings.excludedPaths.contains(game.path) ??
+            false,
+      ),
+    );
     final currentSize = game.compressedSize ?? game.sizeBytes;
     final savedBytes = (game.sizeBytes - currentSize).clamp(0, game.sizeBytes);
     final savingsPercent = (game.savingsRatio * 100).toStringAsFixed(1);
     final lastPlayedText = _formatLastPlayed(game.lastPlayed);
     final windowWidth = MediaQuery.sizeOf(context).width;
     final maxCoverWidth = windowWidth < 1100 ? 220.0 : 250.0;
+    final deferred = Scrollable.recommendDeferredLoadingForContext(context);
+    final filterQuality = deferred ? FilterQuality.none : FilterQuality.low;
 
     return Scaffold(
       appBar: AppBar(
@@ -82,7 +89,8 @@ class GameDetailsScreen extends ConsumerWidget {
                               width: double.infinity,
                               height: double.infinity,
                               alignment: Alignment.center,
-                              filterQuality: FilterQuality.none,
+                              filterQuality: filterQuality,
+                              isAntiAlias: true,
                               gaplessPlayback: true,
                               errorBuilder: (context, error, stackTrace) =>
                                   _CoverFallback(platform: game.platform),
@@ -204,8 +212,13 @@ class _ActionButtons extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider).valueOrNull?.settings;
-    final isExcluded = settings?.excludedPaths.contains(game.path) ?? false;
+    final isExcluded = ref.watch(
+      settingsProvider.select(
+        (async) =>
+            async.valueOrNull?.settings.excludedPaths.contains(game.path) ??
+            false,
+      ),
+    );
 
     return Card(
       child: Padding(

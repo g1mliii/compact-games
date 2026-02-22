@@ -127,7 +127,8 @@ Contributions are welcome! Please read [AGENTS.md](AGENTS.md) for development gu
 2. Follow the guidelines in `AGENTS.md`
 3. Write tests for new features
 4. Run `cargo clippy` and `flutter analyze` before committing
-5. Submit a pull request
+5. Run ownership risk audit for sensitive paths: `pwsh ./scripts/run-security-ownership-audit.ps1`
+6. Submit a pull request
 
 ## Performance Benchmarks
 

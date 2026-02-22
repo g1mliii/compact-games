@@ -28,7 +28,6 @@ use crate::compression::engine::{CancellationToken, CompressionEngine};
 use crate::safety::directstorage::is_directstorage_game;
 use crate::safety::process::ProcessChecker;
 
-
 pub(super) fn broadcast_auto_status(is_running: bool) {
     let mut guard = auto_status_sinks_lock().lock().unwrap_or_else(|poisoned| {
         log::warn!("AUTO status sinks lock poisoned during broadcast; recovering");
@@ -86,16 +85,23 @@ fn update_shared_state(scheduler: &AutoScheduler, watcher: &GameWatcher) {
 }
 
 enum CompressionResult {
-    Success { idempotency_key: String },
-    Failed { idempotency_key: String, error: String },
-    Skipped { idempotency_key: String, reason: String },
+    Success {
+        idempotency_key: String,
+    },
+    Failed {
+        idempotency_key: String,
+        error: String,
+    },
+    Skipped {
+        idempotency_key: String,
+        reason: String,
+    },
 }
 
 struct ActiveCompressionJob {
     result_rx: crossbeam_channel::Receiver<CompressionResult>,
     cancel_token: CancellationToken,
 }
-
 
 pub(super) fn auto_loop(
     stop_rx: std::sync::mpsc::Receiver<()>,
@@ -136,7 +142,7 @@ pub(super) fn auto_loop(
             Err(RecvTimeoutError::Timeout) => {}
         }
 
-        // Check config updates 
+        // Check config updates
         while let Ok(new_config) = config_rx.try_recv() {
             log::info!("Received automation config update");
             current_algorithm = frb_algorithm_to_internal(&new_config.algorithm);
@@ -171,8 +177,7 @@ pub(super) fn auto_loop(
                     active_compression = None;
                     broadcast_automation_queue(scheduler.queue_snapshot());
                 }
-                Err(crossbeam_channel::TryRecvError::Empty) => {
-                }
+                Err(crossbeam_channel::TryRecvError::Empty) => {}
                 Err(crossbeam_channel::TryRecvError::Disconnected) => {
                     log::error!("Compression worker thread disconnected unexpectedly");
                     active_compression = None;
@@ -363,20 +368,14 @@ fn spawn_compression_job(
                     CompressionResult::Success { idempotency_key }
                 }
                 Err(crate::compression::error::CompressionError::Cancelled) => {
-                    log::info!(
-                        "Auto-compression cancelled for: {}",
-                        game_path.display()
-                    );
+                    log::info!("Auto-compression cancelled for: {}", game_path.display());
                     CompressionResult::Failed {
                         idempotency_key,
                         error: "Cancelled due to user activity".to_string(),
                     }
                 }
                 Err(e) => {
-                    log::error!(
-                        "Auto-compression failed for {}: {e}",
-                        game_path.display()
-                    );
+                    log::error!("Auto-compression failed for {}: {e}", game_path.display());
                     CompressionResult::Failed {
                         idempotency_key,
                         error: e.to_string(),

@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 use crossbeam_channel::{bounded, Receiver};
 use serde::{Deserialize, Serialize};
-use walkdir::WalkDir;
 
 mod engine_safety;
 mod estimation;
 mod estimation_runtime;
 mod operation_session;
+mod path_guard;
 #[cfg(windows)]
 mod wof_ops;
 
@@ -21,6 +21,7 @@ use crate::progress::tracker::CompressionProgress;
 pub use self::engine_safety::SafetyConfig;
 use self::engine_safety::{run_safety_checks, DirectStoragePolicy};
 use self::operation_session::{OperationGuard, OperationLock, OperationSession};
+use self::path_guard::safe_file_iter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionStats {
@@ -267,7 +268,7 @@ impl CompressionEngine {
         if self.cancel_token.is_cancelled() {
             return Err(CompressionError::Cancelled);
         }
-        Ok(Self::file_iter(folder)
+        Ok(Self::file_iter(folder)?
             .map(|entry| {
                 let logical_size_hint = entry.metadata().ok().map(|m| m.len());
                 ManifestFile {
@@ -357,11 +358,10 @@ impl CompressionEngine {
         }
     }
 
-    fn file_iter(folder: &Path) -> impl Iterator<Item = walkdir::DirEntry> + '_ {
-        WalkDir::new(folder)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
+    fn file_iter(folder: &Path) -> Result<impl Iterator<Item = walkdir::DirEntry> + '_, CompressionError> {
+        let canonical_root =
+            std::fs::canonicalize(folder).map_err(|source| CompressionError::Io { source })?;
+        Ok(safe_file_iter(folder, canonical_root))
     }
 
     #[cfg(not(windows))]

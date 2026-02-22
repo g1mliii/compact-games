@@ -78,6 +78,11 @@ class _BaseRustBridgeService implements RustBridgeService {
   }
 
   @override
+  Future<void> shutdownApp({
+    Duration manualCompressionStopTimeout = const Duration(seconds: 2),
+  }) async {}
+
+  @override
   bool isAutoCompressionRunning() {
     return false;
   }
@@ -271,5 +276,26 @@ class _DelayedDecompressRustBridgeService extends _RecordingRustBridgeService {
       return;
     }
     _decompressCompleter.complete();
+  }
+}
+
+class _FakePlatformShellService extends PlatformShellService {
+  _FakePlatformShellService({this.folderPath, this.executablePath});
+
+  final String? folderPath;
+  final String? executablePath;
+  int pickFolderCalls = 0;
+  int pickExecutableCalls = 0;
+
+  @override
+  Future<String?> pickGameFolder() async {
+    pickFolderCalls += 1;
+    return folderPath;
+  }
+
+  @override
+  Future<String?> pickGameExecutable() async {
+    pickExecutableCalls += 1;
+    return executablePath;
   }
 }

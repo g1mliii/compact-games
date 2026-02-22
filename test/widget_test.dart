@@ -21,7 +21,9 @@ import 'package:pressplay/models/watcher_event.dart';
 import 'package:pressplay/providers/compression/compression_provider.dart';
 import 'package:pressplay/providers/compression/compression_state.dart';
 import 'package:pressplay/providers/games/game_list_provider.dart';
+import 'package:pressplay/providers/system/platform_shell_provider.dart';
 import 'package:pressplay/services/rust_bridge_service.dart';
+import 'package:pressplay/services/platform_shell_service.dart';
 
 part 'support/rust_bridge_test_doubles.dart';
 part 'support/widget_progress_indicator_tests.dart';
@@ -201,6 +203,54 @@ void main() {
     expect(bridge.scanCustomFolderCalls, 1);
     expect(bridge.lastScanCustomFolderPath, r'C:\Manual\Entry');
     expect(find.text('Manual Entry'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Add game supports browse-folder selection in dialog', (
+    WidgetTester tester,
+  ) async {
+    const manualGame = GameInfo(
+      name: 'Browsed Entry',
+      path: r'C:\Manual\Entry',
+      platform: Platform.custom,
+      sizeBytes: 14 * _oneGiB,
+    );
+    final bridge = _RecordingRustBridgeService(
+      games: _sampleGames,
+      scanCustomFolderGames: const <GameInfo>[manualGame],
+    );
+    final shell = _FakePlatformShellService(
+      folderPath: r'C:\Manual\Entry',
+      executablePath: r'C:\Manual\Entry\game.exe',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          platformShellServiceProvider.overrideWithValue(shell),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Add game'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('browseGameFolderButton')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('confirmAddGameButton')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(shell.pickFolderCalls, 1);
+    expect(bridge.scanCustomFolderCalls, 1);
+    expect(bridge.lastScanCustomFolderPath, r'C:\Manual\Entry');
+    expect(find.text('Browsed Entry'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

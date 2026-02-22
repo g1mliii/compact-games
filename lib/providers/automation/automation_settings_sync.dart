@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/compression_algorithm.dart';
@@ -11,43 +14,73 @@ import '../settings/settings_provider.dart';
 /// Uses .select() to avoid re-evaluating on unrelated settings changes
 /// (e.g. theme, notifications, API keys).
 final automationSettingsSyncProvider = Provider<void>((ref) {
-  final autoCompress = ref.watch(settingsProvider.select(
-    (async) => async.valueOrNull?.settings.autoCompress,
-  ));
-  final cpuThreshold = ref.watch(settingsProvider.select(
-    (async) => async.valueOrNull?.settings.cpuThreshold,
-  ));
-  final idleDurationMinutes = ref.watch(settingsProvider.select(
-    (async) => async.valueOrNull?.settings.idleDurationMinutes,
-  ));
-  final cooldownMinutes = ref.watch(settingsProvider.select(
-    (async) => async.valueOrNull?.settings.cooldownMinutes,
-  ));
-  final customFolders = ref.watch(settingsProvider.select(
-    (async) => async.valueOrNull?.settings.customFolders,
-  ));
-  final excludedPaths = ref.watch(settingsProvider.select(
-    (async) => async.valueOrNull?.settings.excludedPaths,
-  ));
-  final algorithm = ref.watch(settingsProvider.select(
-    (async) => async.valueOrNull?.settings.algorithm,
-  ));
+  final autoCompress = ref.watch(
+    settingsProvider.select(
+      (async) => async.valueOrNull?.settings.autoCompress,
+    ),
+  );
+  final cpuThreshold = ref.watch(
+    settingsProvider.select(
+      (async) => async.valueOrNull?.settings.cpuThreshold,
+    ),
+  );
+  final idleDurationMinutes = ref.watch(
+    settingsProvider.select(
+      (async) => async.valueOrNull?.settings.idleDurationMinutes,
+    ),
+  );
+  final cooldownMinutes = ref.watch(
+    settingsProvider.select(
+      (async) => async.valueOrNull?.settings.cooldownMinutes,
+    ),
+  );
+  final customFolders = ref.watch(
+    settingsProvider.select(
+      (async) => async.valueOrNull?.settings.customFolders,
+    ),
+  );
+  final excludedPaths = ref.watch(
+    settingsProvider.select(
+      (async) => async.valueOrNull?.settings.excludedPaths,
+    ),
+  );
+  final algorithm = ref.watch(
+    settingsProvider.select((async) => async.valueOrNull?.settings.algorithm),
+  );
 
   if (autoCompress == null) return;
 
   final bridge = ref.read(rustBridgeServiceProvider);
 
   if (autoCompress) {
-    bridge.updateAutomationConfig(
-      cpuThresholdPercent: cpuThreshold!,
-      idleDurationSeconds: idleDurationMinutes! * 60,
-      cooldownSeconds: cooldownMinutes! * 60,
-      watchPaths: customFolders ?? const [],
-      excludedPaths: excludedPaths ?? const [],
-      algorithm: algorithm ?? CompressionAlgorithm.xpress8k,
+    _runAutomationSync(
+      bridge.updateAutomationConfig(
+        cpuThresholdPercent: cpuThreshold!,
+        idleDurationSeconds: idleDurationMinutes! * 60,
+        cooldownSeconds: cooldownMinutes! * 60,
+        watchPaths: customFolders ?? const [],
+        excludedPaths: excludedPaths ?? const [],
+        algorithm: algorithm ?? CompressionAlgorithm.xpress8k,
+      ),
+      operation: 'update config',
     );
-    bridge.startAutoCompression();
+    _runAutomationSync(
+      bridge.startAutoCompression(),
+      operation: 'start auto compression',
+    );
   } else {
-    bridge.stopAutoCompression();
+    try {
+      bridge.stopAutoCompression();
+    } catch (error) {
+      debugPrint('[automation][sync] stop auto compression failed: $error');
+    }
   }
 });
+
+void _runAutomationSync(Future<void> task, {required String operation}) {
+  unawaited(
+    task.catchError((Object error, StackTrace _) {
+      debugPrint('[automation][sync] $operation failed: $error');
+    }),
+  );
+}

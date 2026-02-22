@@ -100,7 +100,6 @@ class AppSettings {
     'notificationsEnabled': notificationsEnabled,
     'themeVariant': themeVariant,
     'directStorageOverrideEnabled': directStorageOverrideEnabled,
-    'steamGridDbApiKey': steamGridDbApiKey,
     'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
   };
 

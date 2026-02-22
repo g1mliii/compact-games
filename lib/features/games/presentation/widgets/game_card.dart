@@ -107,7 +107,7 @@ class GameCard extends StatelessWidget {
         : content;
 
     final clipped = ClipRRect(
-      clipBehavior: Clip.hardEdge,
+      clipBehavior: Clip.antiAlias,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
       child: wrappedContent,
     );
@@ -150,6 +150,8 @@ class GameCard extends StatelessWidget {
 
   Widget _buildImageWithProvider(BuildContext context, ImageProvider provider) {
     final decodeWidth = _coverDecodeWidth(context);
+    final deferred = Scrollable.recommendDeferredLoadingForContext(context);
+    final filterQuality = deferred ? FilterQuality.none : FilterQuality.low;
     return ColoredBox(
       color: AppColors.surfaceElevated,
       child: Image(
@@ -158,7 +160,10 @@ class GameCard extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         alignment: Alignment.center,
-        filterQuality: FilterQuality.none, // Pixel art style preference or perf
+        // Keep quality lightweight in steady state, and drop to none when
+        // deferred loading is recommended (e.g. fast scrolling).
+        filterQuality: filterQuality,
+        isAntiAlias: true,
         gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) => _buildPlaceholderCover(),
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {

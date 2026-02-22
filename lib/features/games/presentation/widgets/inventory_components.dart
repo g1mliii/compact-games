@@ -7,6 +7,17 @@ import '../../../../models/game_info.dart';
 
 enum InventorySortField { name, originalSize, savingsPercent, platform }
 
+const double _inventoryControlHeight = 40;
+const ValueKey<String> _inventorySearchFieldKey = ValueKey<String>(
+  'inventorySearchField',
+);
+const ValueKey<String> _inventorySortFieldKey = ValueKey<String>(
+  'inventorySortField',
+);
+const ValueKey<String> _inventorySortDecoratorKey = ValueKey<String>(
+  'inventorySortDecorator',
+);
+
 class InventoryToolbar extends StatelessWidget {
   const InventoryToolbar({
     super.key,
@@ -30,17 +41,26 @@ class InventoryToolbar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 700;
-        final searchField = TextField(
-          controller: searchController,
-          decoration: const InputDecoration(
-            hintText: 'Search inventory...',
-            prefixIcon: Icon(LucideIcons.search),
+        final searchField = SizedBox(
+          key: _inventorySearchFieldKey,
+          height: _inventoryControlHeight,
+          child: TextField(
+            controller: searchController,
+            decoration: const InputDecoration(
+              hintText: 'Search inventory...',
+              prefixIcon: Icon(LucideIcons.search),
+              isDense: true,
+            ),
+            onChanged: onSearchChanged,
           ),
-          onChanged: onSearchChanged,
         );
-        final sortFieldWidget = _SortFieldButton(
-          sortField: sortField,
-          onSortChanged: onSortChanged,
+        final sortFieldWidget = SizedBox(
+          key: _inventorySortFieldKey,
+          height: _inventoryControlHeight,
+          child: _SortFieldButton(
+            sortField: sortField,
+            onSortChanged: onSortChanged,
+          ),
         );
         final directionButton = IconButton(
           tooltip: descending ? 'Descending' : 'Ascending',
@@ -71,9 +91,9 @@ class InventoryToolbar extends StatelessWidget {
 
         return Row(
           children: [
-            SizedBox(width: 320, child: searchField),
+            Expanded(flex: 3, child: searchField),
             const SizedBox(width: 8),
-            SizedBox(width: 210, child: sortFieldWidget),
+            Expanded(flex: 3, child: sortFieldWidget),
             const SizedBox(width: 8),
             directionButton,
           ],
@@ -97,6 +117,7 @@ class _SortFieldButton extends StatelessWidget {
     return PopupMenuButton<InventorySortField>(
       tooltip: 'Sort by',
       popUpAnimationStyle: AnimationStyle.noAnimation,
+      padding: EdgeInsets.zero,
       onSelected: onSortChanged,
       itemBuilder: (context) => const <PopupMenuEntry<InventorySortField>>[
         PopupMenuItem(
@@ -117,20 +138,23 @@ class _SortFieldButton extends StatelessWidget {
         ),
       ],
       child: InputDecorator(
+        key: _inventorySortDecoratorKey,
         decoration: const InputDecoration(labelText: 'Sort by', isDense: true),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                _sortFieldLabel(sortField),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.bodySmall,
+        child: SizedBox.expand(
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _sortFieldLabel(sortField),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodySmall,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(LucideIcons.chevronDown, size: 16),
-          ],
+              const SizedBox(width: 8),
+              const Icon(LucideIcons.chevronDown, size: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -228,13 +252,13 @@ class InventoryRow extends StatelessWidget {
     super.key,
     required this.game,
     required this.watcherActive,
-    required this.lastChecked,
+    required this.lastCheckedLabel,
     required this.onOpenDetails,
   });
 
   final GameInfo game;
   final bool watcherActive;
-  final DateTime? lastChecked;
+  final String lastCheckedLabel;
   final VoidCallback onOpenDetails;
 
   @override
@@ -243,9 +267,6 @@ class InventoryRow extends StatelessWidget {
     final currentGb =
         (game.compressedSize ?? game.sizeBytes) / (1024 * 1024 * 1024);
     final savingsPercent = (game.savingsRatio * 100).toStringAsFixed(1);
-    final checkedLabel = lastChecked == null
-        ? 'N/A'
-        : '${lastChecked!.hour.toString().padLeft(2, '0')}:${lastChecked!.minute.toString().padLeft(2, '0')}';
 
     return InkWell(
       onTap: onOpenDetails,
@@ -289,7 +310,7 @@ class InventoryRow extends StatelessWidget {
             ),
             Expanded(
               flex: 14,
-              child: Text(checkedLabel, style: AppTypography.bodySmall),
+              child: Text(lastCheckedLabel, style: AppTypography.bodySmall),
             ),
             Expanded(
               flex: 12,

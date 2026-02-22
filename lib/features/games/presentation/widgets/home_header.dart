@@ -9,6 +9,20 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/cover_art/cover_art_provider.dart';
 import '../../../../providers/games/filtered_games_provider.dart';
 import '../../../../providers/games/game_list_provider.dart';
+import '../../../../providers/system/platform_shell_provider.dart';
+
+const ValueKey<String> _addGamePathFieldKey = ValueKey<String>(
+  'addGamePathField',
+);
+const ValueKey<String> _confirmAddGameButtonKey = ValueKey<String>(
+  'confirmAddGameButton',
+);
+const ValueKey<String> _browseGameFolderButtonKey = ValueKey<String>(
+  'browseGameFolderButton',
+);
+const ValueKey<String> _browseGameExeButtonKey = ValueKey<String>(
+  'browseGameExeButton',
+);
 
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
@@ -17,12 +31,6 @@ class HomeHeader extends ConsumerWidget {
     Radius.circular(16),
   );
   static const double _compactHeaderBreakpoint = 720;
-  static const ValueKey<String> _addGamePathFieldKey = ValueKey<String>(
-    'addGamePathField',
-  );
-  static const ValueKey<String> _confirmAddGameButtonKey = ValueKey<String>(
-    'confirmAddGameButton',
-  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -174,36 +182,9 @@ class HomeHeader extends ConsumerWidget {
   }
 
   Future<void> _promptAddGame(BuildContext context, WidgetRef ref) async {
-    var pendingPath = '';
-    String? inputValue;
-    inputValue = await showDialog<String>(
+    final inputValue = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Add Game'),
-        content: TextField(
-          key: _addGamePathFieldKey,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: r'C:\Games\MyGame or C:\Games\MyGame\game.exe',
-          ),
-          onChanged: (value) {
-            pendingPath = value;
-          },
-          onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            key: _confirmAddGameButtonKey,
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(pendingPath.trim()),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (_) => const _AddGameDialog(),
     );
 
     final value = inputValue?.trim() ?? '';
@@ -256,6 +237,137 @@ class HomeHeader extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _AddGameDialog extends ConsumerStatefulWidget {
+  const _AddGameDialog();
+
+  @override
+  ConsumerState<_AddGameDialog> createState() => _AddGameDialogState();
+}
+
+class _AddGameDialogState extends ConsumerState<_AddGameDialog> {
+  final TextEditingController _inputController = TextEditingController();
+  bool _pickingPath = false;
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Game'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                key: _addGamePathFieldKey,
+                controller: _inputController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: r'C:\Games\MyGame or C:\Games\MyGame\game.exe',
+                ),
+                onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildBrowseButton(
+                    key: _browseGameFolderButtonKey,
+                    pickExecutable: false,
+                    icon: LucideIcons.folderOpen,
+                    label: 'Browse Folder',
+                  ),
+                  _buildBrowseButton(
+                    key: _browseGameExeButtonKey,
+                    pickExecutable: true,
+                    icon: LucideIcons.fileCode2,
+                    label: 'Browse EXE',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: _confirmAddGameButtonKey,
+          onPressed: () =>
+              Navigator.of(context).pop(_inputController.text.trim()),
+          child: const Text('Add'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _browseAndPopulatePath({required bool pickExecutable}) async {
+    if (_pickingPath) {
+      return;
+    }
+    setState(() {
+      _pickingPath = true;
+    });
+
+    final shell = ref.read(platformShellServiceProvider);
+    try {
+      final selected = pickExecutable
+          ? await shell.pickGameExecutable()
+          : await shell.pickGameFolder();
+      if (!mounted) {
+        return;
+      }
+      if (selected == null || selected.trim().isEmpty) {
+        return;
+      }
+
+      final normalized = selected.trim();
+      _inputController.text = normalized;
+      _inputController.selection = TextSelection.collapsed(
+        offset: normalized.length,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pickingPath = false;
+        });
+      } else {
+        _pickingPath = false;
+      }
+    }
+  }
+
+  Widget _buildBrowseButton({
+    required Key key,
+    required bool pickExecutable,
+    required IconData icon,
+    required String label,
+  }) {
+    return OutlinedButton.icon(
+      key: key,
+      onPressed: _pickingPath
+          ? null
+          : () => unawaited(
+              _browseAndPopulatePath(pickExecutable: pickExecutable),
+            ),
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+    );
   }
 }
 

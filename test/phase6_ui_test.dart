@@ -279,6 +279,8 @@ void main() {
 
     final image = tester.widget<Image>(find.byType(Image).first);
     expect(image.fit, BoxFit.cover);
+    expect(image.isAntiAlias, isTrue);
+    expect(image.filterQuality, FilterQuality.low);
   });
 
   testWidgets('Refresh retries only placeholder cover entries', (

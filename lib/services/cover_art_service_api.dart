@@ -12,6 +12,7 @@ const Duration _apiImageRequestTimeout = Duration(seconds: 6);
 
 int _activeApiRequests = 0;
 final Queue<Completer<void>> _apiPermitQueue = Queue<Completer<void>>();
+final http.Client _coverArtApiHttpClient = http.Client();
 final LinkedHashMap<String, int> _apiGameIdCache = LinkedHashMap<String, int>();
 final LinkedHashMap<int, String> _apiGridUrlCache =
     LinkedHashMap<int, String>();
@@ -238,11 +239,11 @@ extension _CoverArtServiceApi on CoverArtService {
     String imageUrl,
   ) async {
     final uri = Uri.tryParse(imageUrl);
-    if (uri == null) {
+    if (uri == null || !_isTrustedSteamGridImageUri(uri)) {
       return null;
     }
 
-    final response = await _sendGetWithRetries(
+    final response = await _sendStrictImageGetWithRetries(
       uri: uri,
       timeout: _apiImageRequestTimeout,
       headers: const <String, String>{'User-Agent': 'PressPlay/0.1'},
@@ -268,7 +269,7 @@ extension _CoverArtServiceApi on CoverArtService {
     final cacheDir = await _ensureCacheDir();
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await target.writeAsBytes(response.bodyBytes, flush: true);
-    await _evictCacheIfNeeded(cacheDir);
+    _scheduleCacheEviction(cacheDir);
     return target.path;
   }
 
@@ -279,7 +280,7 @@ extension _CoverArtServiceApi on CoverArtService {
   }) {
     return _withApiRetries<http.Response>(() async {
       final response = await _withApiPermit(
-        () => http.get(uri, headers: headers).timeout(timeout),
+        () => _coverArtApiHttpClient.get(uri, headers: headers).timeout(timeout),
       );
       if (response.statusCode == 429 || response.statusCode >= 500) {
         throw const _RetryableApiException();

@@ -1,0 +1,12 @@
+# Default owner for unmatched paths.
+* @g1mliii
+
+# Safety-critical Rust paths.
+rust/src/compression/** @g1mliii @subaigsuri1
+rust/src/safety/** @g1mliii @subaigsuri1
+rust/src/automation/** @g1mliii @subaigsuri1
+rust/src/api/compression.rs @g1mliii @subaigsuri1
+
+# Bridge + compression UI paths.
+lib/services/rust_bridge_service.dart @g1mliii @subaigsuri1
+lib/providers/compression/** @g1mliii @subaigsuri1

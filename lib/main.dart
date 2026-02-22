@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
@@ -17,9 +20,18 @@ Future<void> main() async {
   RustBridgeService.instance.initApp();
 
   await windowManager.ensureInitialized();
+  windowManager.removeListener(_windowListener);
   windowManager.addListener(_windowListener);
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+    await windowManager.setPreventClose(true);
+  }
 
-  const windowOptions = WindowOptions(
+  final titleBarStyle =
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
+      ? TitleBarStyle.hidden
+      : TitleBarStyle.normal;
+
+  final windowOptions = WindowOptions(
     size: Size(
       AppConstants.defaultWindowWidth,
       AppConstants.defaultWindowHeight,
@@ -30,7 +42,7 @@ Future<void> main() async {
     ),
     center: true,
     title: AppConstants.appName,
-    titleBarStyle: TitleBarStyle.normal,
+    titleBarStyle: titleBarStyle,
   );
 
   windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -89,8 +101,47 @@ List<String> _rustLibraryCandidates() {
 }
 
 class _PressPlayWindowListener extends WindowListener {
+  bool _isClosing = false;
+
   @override
   void onWindowClose() {
-    RustBridgeService.instance.persistCompressionHistory();
+    if (_isClosing) {
+      return;
+    }
+    _isClosing = true;
+    unawaited(_shutdownAndClose());
+  }
+
+  Future<void> _shutdownAndClose() async {
+    try {
+      await RustBridgeService.instance.shutdownApp();
+    } finally {
+      try {
+        await windowManager.setPreventClose(false);
+      } catch (_) {
+        // Best effort: close interception may already be unavailable.
+      }
+      try {
+        await windowManager.destroy();
+        windowManager.removeListener(this);
+        return;
+      } catch (_) {
+        // Best effort fallback.
+      }
+      try {
+        await windowManager.close();
+        windowManager.removeListener(this);
+        return;
+      } catch (_) {
+        // Try platform-level app close if window_manager close calls fail.
+      }
+
+      try {
+        await SystemNavigator.pop();
+      } catch (_) {
+        // Best effort: if app is still alive, allow another close attempt.
+      }
+      _isClosing = false;
+    }
   }
 }

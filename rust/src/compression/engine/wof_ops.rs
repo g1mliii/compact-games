@@ -1,11 +1,19 @@
 //! Windows-specific compress/decompress/ratio implementations using WOF API.
 
+use std::fs::OpenOptions;
+use std::os::windows::fs::OpenOptionsExt;
+use std::os::windows::io::AsRawHandle;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
+use windows::Win32::Foundation::HANDLE;
+use windows::Win32::Storage::FileSystem::{
+    GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_SHARE_DELETE, FILE_SHARE_READ,
+    FILE_SHARE_WRITE,
+};
 
 use super::super::error::CompressionError;
 use super::super::wof::{self, CompressFileResult};
@@ -16,7 +24,7 @@ impl CompressionEngine {
         &self,
         folder: &Path,
     ) -> Result<CompressionStats, CompressionError> {
-        let files: Vec<ManifestFile> = Self::file_iter(folder)
+        let files: Vec<ManifestFile> = Self::file_iter(folder)?
             .map(|entry| {
                 let logical_size_hint = entry.metadata().ok().map(|m| m.len());
                 ManifestFile {
@@ -73,6 +81,19 @@ impl CompressionEngine {
                 return Ok(());
             }
 
+            if has_multiple_links(path) {
+                log::warn!(
+                    "Skipping multi-linked file during compression: {}",
+                    path.display()
+                );
+                self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                self.bytes_compressed
+                    .fetch_add(file_size, Ordering::Relaxed);
+                skipped.fetch_add(1, Ordering::Relaxed);
+                self.files_processed.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
+
             match wof::wof_compress_file(path, algorithm) {
                 Ok(CompressFileResult::Compressed) => {
                     self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
@@ -122,7 +143,7 @@ impl CompressionEngine {
         let decompression_candidates = Arc::new(AtomicU64::new(0));
         let likely_uncompressed = Arc::new(AtomicU64::new(0));
 
-        let result = Self::file_iter(folder).par_bridge().try_for_each(|entry| {
+        let result = Self::file_iter(folder)?.par_bridge().try_for_each(|entry| {
             if self.cancel_token.is_cancelled() {
                 return Err(CompressionError::Cancelled);
             }
@@ -144,6 +165,16 @@ impl CompressionEngine {
 
             let physical_size = wof::get_physical_size(path).unwrap_or(file_size);
             if physical_size >= file_size {
+                likely_uncompressed.fetch_add(1, Ordering::Relaxed);
+                self.files_processed.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
+
+            if has_multiple_links(path) {
+                log::warn!(
+                    "Skipping multi-linked file during decompression: {}",
+                    path.display()
+                );
                 likely_uncompressed.fetch_add(1, Ordering::Relaxed);
                 self.files_processed.fetch_add(1, Ordering::Relaxed);
                 return Ok(());
@@ -187,7 +218,7 @@ impl CompressionEngine {
         let mut logical_total: u64 = 0;
         let mut physical_total: u64 = 0;
 
-        for entry in Self::file_iter(folder) {
+        for entry in Self::file_iter(folder)? {
             let path = entry.path();
             if let Ok(metadata) = std::fs::metadata(path) {
                 let logical = metadata.len();
@@ -203,4 +234,25 @@ impl CompressionEngine {
 
         Ok(physical_total as f64 / logical_total as f64)
     }
+}
+
+fn has_multiple_links(path: &Path) -> bool {
+    link_count(path).is_some_and(|count| count > 1)
+}
+
+fn link_count(path: &Path) -> Option<u64> {
+    let file = OpenOptions::new()
+        .read(true)
+        .share_mode((FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE).0)
+        .open(path)
+        .ok()?;
+    let mut info = BY_HANDLE_FILE_INFORMATION::default();
+    let ok = unsafe {
+        // Windows API required to get stable hard-link count for the file.
+        GetFileInformationByHandle(HANDLE(file.as_raw_handle()), &mut info).is_ok()
+    };
+    if !ok {
+        return None;
+    }
+    Some(info.nNumberOfLinks as u64)
 }
