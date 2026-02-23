@@ -6,11 +6,16 @@ use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
 
-/// Minimum executable size to consider as a game (10MB).
-const MIN_EXE_SIZE: u64 = 10 * 1024 * 1024;
+/// Minimum executable size to consider as a game (2MB).
+const MIN_EXE_SIZE: u64 = 2 * 1024 * 1024;
+/// Unity bootstrap executables are often smaller than main game binaries.
+const MIN_UNITY_BOOTSTRAP_EXE_SIZE: u64 = 256 * 1024;
+const UNITY_DATA_SUFFIX: &str = "_data";
 
 /// Maximum scan depth for finding game-like folders.
-const MAX_SCAN_DEPTH: usize = 3;
+const MAX_SCAN_DEPTH: usize = 6;
+const MAX_SIZE_SAMPLE_DEPTH: usize = 3;
+const MAX_SIZE_SAMPLE_FILES: usize = 50;
 
 /// Non-game folders to always skip.
 const SKIP_FOLDERS: &[&str] = &[
@@ -50,11 +55,22 @@ const MIN_GAME_SIZE: u64 = 100 * 1024 * 1024;
 
 pub struct CustomScanner {
     paths: Vec<PathBuf>,
+    include_root_candidate: bool,
 }
 
 impl CustomScanner {
     pub fn new(paths: Vec<PathBuf>) -> Self {
-        Self { paths }
+        Self {
+            paths,
+            include_root_candidate: true,
+        }
+    }
+
+    pub fn new_library_roots(paths: Vec<PathBuf>) -> Self {
+        Self {
+            paths,
+            include_root_candidate: false,
+        }
     }
 }
 
@@ -65,7 +81,7 @@ impl PlatformScanner for CustomScanner {
             .iter()
             .filter(|p| p.is_dir())
             .flat_map(|path| {
-                scan_custom_path(path, mode)
+                scan_custom_path(path, mode, self.include_root_candidate)
                     .inspect_err(|e| {
                         log::warn!("Failed to scan custom path {}: {e}", path.display());
                     })
@@ -83,11 +99,15 @@ impl PlatformScanner for CustomScanner {
 }
 
 /// Scan a user-provided path for game-like folders.
-fn scan_custom_path(root: &Path, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
+fn scan_custom_path(
+    root: &Path,
+    mode: DiscoveryScanMode,
+    include_root_candidate: bool,
+) -> Result<Vec<GameInfo>, ScanError> {
     let mut games = Vec::new();
 
     // If the root itself looks like a game, add it directly
-    if is_game_folder(root) {
+    if include_root_candidate && is_game_folder(root) {
         let name = root
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
@@ -139,10 +159,15 @@ fn scan_custom_path(root: &Path, mode: DiscoveryScanMode) -> Result<Vec<GameInfo
 
 /// Heuristic check: does this folder look like a game installation?
 fn is_game_folder(path: &Path) -> bool {
+    if has_unity_layout(path) {
+        return true;
+    }
+
     // Check for common game subdirectories up front.
     let has_game_subdir = GAME_INDICATORS
         .iter()
-        .any(|indicator| path.join(indicator).is_dir());
+        .any(|indicator| path.join(indicator).is_dir())
+        || has_nested_game_indicator_subdir(path);
 
     let mut has_large_exe = false;
     let mut sample_size: u64 = 0;
@@ -156,34 +181,37 @@ fn is_game_folder(path: &Path) -> bool {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
     {
-        let metadata = entry.metadata().ok();
+        let should_sample = !has_game_subdir
+            && sampled_files < MAX_SIZE_SAMPLE_FILES
+            && entry.depth() <= MAX_SIZE_SAMPLE_DEPTH;
 
+        let mut should_check_exe_size = false;
         if !has_large_exe {
             let is_exe = entry
                 .path()
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"));
-
             if is_exe {
                 let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
-                if !is_non_game_exe(&name)
-                    && metadata
-                        .as_ref()
-                        .is_some_and(|file_meta| file_meta.len() >= MIN_EXE_SIZE)
-                {
+                should_check_exe_size = !is_non_game_exe(&name);
+            }
+        }
+
+        if should_check_exe_size || should_sample {
+            if let Ok(file_meta) = entry.metadata() {
+                let file_len = file_meta.len();
+
+                if should_check_exe_size && file_len >= MIN_EXE_SIZE {
                     has_large_exe = true;
                     if has_game_subdir {
                         return true;
                     }
                 }
-            }
-        }
 
-        // Quick size estimate: sample up to 50 files within shallow depth.
-        if !has_game_subdir && sampled_files < 50 && entry.depth() <= 2 {
-            if let Some(file_meta) = metadata.as_ref() {
-                sample_size = sample_size.saturating_add(file_meta.len());
-                sampled_files += 1;
+                if should_sample {
+                    sample_size = sample_size.saturating_add(file_len);
+                    sampled_files += 1;
+                }
             }
         }
 
@@ -195,78 +223,60 @@ fn is_game_folder(path: &Path) -> bool {
     has_large_exe && (has_game_subdir || sample_size >= MIN_GAME_SIZE)
 }
 
-fn is_non_game_exe(name: &str) -> bool {
-    name.contains("unins")
-        || name.contains("setup")
-        || name.contains("install")
-        || name.contains("redist")
-        || name.contains("vcredist")
-        || name.contains("dxsetup")
-        || name.contains("dotnet")
-        || name == "ue4prereqsetup_x64.exe"
-        || name == "crashreportclient.exe"
+fn has_nested_game_indicator_subdir(path: &Path) -> bool {
+    let entries = match std::fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+
+    entries
+        .filter_map(|entry| entry.ok().map(|e| e.path()))
+        .filter(|child| child.is_dir())
+        .any(|child| {
+            GAME_INDICATORS
+                .iter()
+                .any(|indicator| child.join(indicator).is_dir())
+        })
 }
+
+fn has_unity_layout(path: &Path) -> bool {
+    let entries = match std::fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+
+    entries
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().is_dir())
+        .any(|entry| {
+            let folder_name = entry.file_name().to_string_lossy().into_owned();
+            let folder_name_lower = folder_name.to_ascii_lowercase();
+            if !folder_name_lower.ends_with(UNITY_DATA_SUFFIX) {
+                return false;
+            }
+
+            let stem_len = folder_name.len().saturating_sub(UNITY_DATA_SUFFIX.len());
+            if stem_len == 0 {
+                return false;
+            }
+
+            let exe_stem = &folder_name[..stem_len];
+            let exe_name = format!("{exe_stem}.exe");
+            let exe_name_lower = exe_name.to_ascii_lowercase();
+            if is_non_game_exe(&exe_name_lower) {
+                return false;
+            }
+
+            let exe_path = path.join(exe_name);
+            exe_path
+                .metadata()
+                .ok()
+                .is_some_and(|meta| meta.is_file() && meta.len() >= MIN_UNITY_BOOTSTRAP_EXE_SIZE)
+        })
+}
+
+// Use the canonical shared version from utils.
+use super::utils::is_non_game_exe;
 
 #[cfg(test)]
-mod tests {
-    use std::fs::File;
-
-    use tempfile::TempDir;
-
-    use super::*;
-
-    #[test]
-    fn custom_scanner_empty_paths_returns_empty() {
-        let scanner = CustomScanner::new(Vec::new());
-        let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn custom_scanner_nonexistent_path_returns_empty() {
-        let scanner = CustomScanner::new(vec![PathBuf::from(r"C:\NonExistent\CustomGames")]);
-        let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn scan_custom_path_includes_subdirs_when_root_matches() {
-        let root = TempDir::new().unwrap();
-        let root_path = root.path();
-
-        std::fs::create_dir(root_path.join("data")).unwrap();
-        let root_exe = root_path.join("rootgame.exe");
-        File::create(&root_exe)
-            .unwrap()
-            .set_len(MIN_EXE_SIZE + 1)
-            .unwrap();
-
-        let sub_game_path = root_path.join("SubGame");
-        std::fs::create_dir_all(sub_game_path.join("bin")).unwrap();
-        let sub_exe = sub_game_path.join("subgame.exe");
-        File::create(&sub_exe)
-            .unwrap()
-            .set_len(MIN_EXE_SIZE + 1)
-            .unwrap();
-
-        let games = scan_custom_path(root_path, DiscoveryScanMode::Full).unwrap();
-        assert!(games.iter().any(|g| g.path == sub_game_path));
-    }
-
-    #[test]
-    fn is_non_game_exe_filters_installers() {
-        assert!(is_non_game_exe("unins000.exe"));
-        assert!(is_non_game_exe("setup.exe"));
-        assert!(is_non_game_exe("vcredist_x64.exe"));
-        assert!(is_non_game_exe("dxsetup.exe"));
-        assert!(!is_non_game_exe("game.exe"));
-        assert!(!is_non_game_exe("portal2.exe"));
-    }
-
-    #[test]
-    fn skip_folders_are_lowercase() {
-        for folder in SKIP_FOLDERS {
-            assert_eq!(*folder, folder.to_ascii_lowercase());
-        }
-    }
-}
+mod tests;

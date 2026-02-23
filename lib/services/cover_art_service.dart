@@ -15,9 +15,11 @@ import '../models/game_info.dart';
 part 'cover_art_service_scan.dart';
 part 'cover_art_service_steam.dart';
 part 'cover_art_service_api.dart';
+part 'cover_art_service_api_lifecycle.dart';
 part 'cover_art_service_api_security.dart';
 part 'cover_art_service_cache_maintenance.dart';
 part 'cover_art_service_quality.dart';
+part 'cover_art_service_runtime_memory.dart';
 
 enum CoverArtSource {
   cache,
@@ -48,8 +50,10 @@ class CoverArtService {
   static const Duration _steamManifestCacheTtl = Duration(minutes: 15);
   static final LinkedHashMap<String, CoverArtResult> _memoryCache =
       LinkedHashMap<String, CoverArtResult>();
+  static const int _maxInFlightEntries = 100;
   static final Map<String, Future<CoverArtResult>> _inFlight =
       <String, Future<CoverArtResult>>{};
+  static Directory? _cachedCacheDir;
   static final LinkedHashMap<
     String,
     ({String? artworkPath, String? executablePath})
@@ -101,7 +105,7 @@ class CoverArtService {
   }
 
   static void shutdownSharedResources() {
-    _disposeCoverArtApiHttpClient();
+    shutdownCoverArtSharedResources();
   }
 
   Future<CoverArtResult> resolveCover(
@@ -117,6 +121,11 @@ class CoverArtService {
     final inFlight = _inFlight[cacheKey];
     if (inFlight != null) {
       return inFlight;
+    }
+
+    // Prevent unbounded in-flight growth under burst conditions.
+    if (_inFlight.length >= _maxInFlightEntries) {
+      return Future<CoverArtResult>.value(const CoverArtResult.none());
     }
 
     final future = _resolveCoverInternal(
@@ -270,6 +279,10 @@ class CoverArtService {
   }
 
   Future<Directory> _ensureCacheDir() async {
+    final cached = _cachedCacheDir;
+    if (cached != null) {
+      return cached;
+    }
     final base = await getApplicationSupportDirectory();
     final dir = Directory(
       p.join(base.path, 'PressPlay', AppConstants.coverCacheDir),
@@ -277,6 +290,7 @@ class CoverArtService {
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
+    _cachedCacheDir = dir;
     return dir;
   }
 

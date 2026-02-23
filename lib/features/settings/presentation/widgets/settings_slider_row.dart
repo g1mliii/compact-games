@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
 class SettingsSliderRow extends StatefulWidget {
@@ -61,27 +62,38 @@ class _SettingsSliderRowState extends State<SettingsSliderRow> {
             Text(valueLabel, style: AppTypography.bodySmall),
           ],
         ),
-        Slider(
-          min: widget.min,
-          max: widget.max,
-          divisions: widget.divisions,
-          value: _draftValue,
-          onChanged: (value) {
-            setState(() {
-              _dragging = true;
-              _draftValue = value;
-            });
-          },
-          onChangeEnd: (value) {
-            setState(() {
-              _dragging = false;
-              _draftValue = value;
-            });
-            if ((widget.value - value).abs() <= _epsilon) {
-              return;
-            }
-            widget.onChangedCommitted(value);
-          },
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 2.5,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            activeTrackColor: AppColors.accent,
+            inactiveTrackColor: AppColors.surfaceElevated.withValues(
+              alpha: 0.55,
+            ),
+          ),
+          child: Slider(
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
+            value: _draftValue,
+            onChanged: (value) {
+              setState(() {
+                _dragging = true;
+                _draftValue = value;
+              });
+            },
+            onChangeEnd: (value) {
+              setState(() {
+                _dragging = false;
+                _draftValue = value;
+              });
+              if ((widget.value - value).abs() <= _epsilon) {
+                return;
+              }
+              widget.onChangedCommitted(value);
+            },
+          ),
         ),
       ],
     );

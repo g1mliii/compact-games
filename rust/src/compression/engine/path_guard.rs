@@ -1,15 +1,21 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use walkdir::{DirEntry, WalkDir};
 
+/// Returns an iterator over safe-to-compress files under `folder`.
+///
+/// **Thread-safety note:** This iterator is consumed by a single thread
+/// (even when fed to `par_bridge()`, which pulls sequentially). The parent
+/// path cache uses `Mutex` rather than `RefCell` so this remains sound if
+/// a future refactor parallelises the iteration itself.
 pub(super) fn safe_file_iter(
     folder: &Path,
     canonical_root: PathBuf,
 ) -> impl Iterator<Item = DirEntry> + '_ {
-    let parent_path_safety_cache = RefCell::new(HashMap::<PathBuf, bool>::new());
+    let parent_path_safety_cache = Mutex::new(HashMap::<PathBuf, bool>::new());
 
     WalkDir::new(folder)
         .follow_links(false)
@@ -31,7 +37,7 @@ pub(super) fn safe_file_iter(
 fn is_safe_file_entry(
     entry: &DirEntry,
     canonical_root: &Path,
-    parent_cache: &RefCell<HashMap<PathBuf, bool>>,
+    parent_cache: &Mutex<HashMap<PathBuf, bool>>,
 ) -> bool {
     if entry.path_is_symlink() {
         log::warn!(
@@ -63,13 +69,13 @@ fn is_safe_file_entry(
 fn is_parent_within_root(
     file_path: &Path,
     canonical_root: &Path,
-    parent_cache: &RefCell<HashMap<PathBuf, bool>>,
+    parent_cache: &Mutex<HashMap<PathBuf, bool>>,
 ) -> bool {
     let Some(parent) = file_path.parent() else {
         return false;
     };
 
-    if let Some(cached) = { parent_cache.borrow().get(parent).copied() } {
+    if let Some(cached) = parent_cache.lock().unwrap().get(parent).copied() {
         return cached;
     }
 
@@ -77,7 +83,8 @@ fn is_parent_within_root(
         .map(|canonical_parent| canonical_parent.starts_with(canonical_root))
         .unwrap_or(false);
     parent_cache
-        .borrow_mut()
+        .lock()
+        .unwrap()
         .insert(parent.to_path_buf(), is_within_root);
     is_within_root
 }
@@ -96,7 +103,7 @@ mod tests {
         fs::write(&file, b"x").expect("fixture file");
 
         let canonical_root = fs::canonicalize(dir.path()).expect("canonical root");
-        let cache = RefCell::new(HashMap::<PathBuf, bool>::new());
+        let cache = Mutex::new(HashMap::<PathBuf, bool>::new());
         assert!(is_parent_within_root(&file, &canonical_root, &cache));
     }
 
@@ -108,7 +115,7 @@ mod tests {
         fs::write(&outside_file, b"x").expect("outside file");
 
         let canonical_root = fs::canonicalize(root.path()).expect("canonical root");
-        let cache = RefCell::new(HashMap::<PathBuf, bool>::new());
+        let cache = Mutex::new(HashMap::<PathBuf, bool>::new());
         assert!(!is_parent_within_root(
             &outside_file,
             &canonical_root,

@@ -7,14 +7,22 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/constants/app_constants.dart';
-import 'services/cover_art_service.dart';
+import 'core/performance/pressplay_shader_warm_up.dart';
+import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
 import 'src/rust/frb_generated.dart';
 
 final _windowListener = _PressPlayWindowListener();
+final _memoryObserver = _PressPlayMemoryObserver();
 
 Future<void> main() async {
+  if (!kIsWeb && _enableShaderWarmUp) {
+    PaintingBinding.shaderWarmUp = const PressPlayShaderWarmUp();
+  }
   WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding.instance
+    ..removeObserver(_memoryObserver)
+    ..addObserver(_memoryObserver);
 
   // Initialize Flutter-Rust bridge and Rust core
   await _initRustBridge();
@@ -53,6 +61,11 @@ Future<void> main() async {
 
   runApp(const PressPlayApp());
 }
+
+const bool _enableShaderWarmUp = bool.fromEnvironment(
+  'PRESSPLAY_SHADER_WARM_UP',
+  defaultValue: true,
+);
 
 const bool _preferDebugRustDll = bool.fromEnvironment(
   'PRESSPLAY_PREFER_DEBUG_RUST_DLL',
@@ -113,11 +126,16 @@ class _PressPlayWindowListener extends WindowListener {
     unawaited(_shutdownAndClose());
   }
 
+  @override
+  void onWindowMinimize() {
+    UiMemoryLifecycle.trim(UiMemoryTrimLevel.background);
+  }
+
   Future<void> _shutdownAndClose() async {
     try {
       await RustBridgeService.instance.shutdownApp();
-      CoverArtService.shutdownSharedResources();
     } finally {
+      UiMemoryLifecycle.trim(UiMemoryTrimLevel.shutdown);
       try {
         await windowManager.setPreventClose(false);
       } catch (_) {
@@ -126,6 +144,7 @@ class _PressPlayWindowListener extends WindowListener {
       try {
         await windowManager.destroy();
         windowManager.removeListener(this);
+        WidgetsBinding.instance.removeObserver(_memoryObserver);
         return;
       } catch (_) {
         // Best effort fallback.
@@ -133,6 +152,7 @@ class _PressPlayWindowListener extends WindowListener {
       try {
         await windowManager.close();
         windowManager.removeListener(this);
+        WidgetsBinding.instance.removeObserver(_memoryObserver);
         return;
       } catch (_) {
         // Try platform-level app close if window_manager close calls fail.
@@ -144,6 +164,35 @@ class _PressPlayWindowListener extends WindowListener {
         // Best effort: if app is still alive, allow another close attempt.
       }
       _isClosing = false;
+    }
+  }
+}
+
+class _PressPlayMemoryObserver with WidgetsBindingObserver {
+  bool _trimmedForBackground = false;
+
+  @override
+  void didHaveMemoryPressure() {
+    UiMemoryLifecycle.trim(UiMemoryTrimLevel.pressure);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _trimmedForBackground = false;
+        break;
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        if (_trimmedForBackground) {
+          return;
+        }
+        _trimmedForBackground = true;
+        UiMemoryLifecycle.trim(UiMemoryTrimLevel.background);
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        break;
     }
   }
 }

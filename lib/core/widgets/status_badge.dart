@@ -9,6 +9,7 @@ class StatusBadge extends StatelessWidget {
     required this.color,
     this.icon,
     this.variant = StatusBadgeVariant.filled,
+    this.toneAlpha = 1.0,
     super.key,
   });
 
@@ -24,24 +25,28 @@ class StatusBadge extends StatelessWidget {
     : label = 'Not Compressed',
       color = AppColors.notCompressed,
       icon = LucideIcons.circle,
-      variant = StatusBadgeVariant.filled;
+      variant = StatusBadgeVariant.filled,
+      toneAlpha = 0.78;
 
   const StatusBadge.directStorage({super.key})
     : label = 'DirectStorage',
       color = AppColors.directStorage,
       icon = LucideIcons.alertTriangle,
-      variant = StatusBadgeVariant.filled;
+      variant = StatusBadgeVariant.filled,
+      toneAlpha = 1.0;
 
   const StatusBadge.compressing({super.key})
     : label = 'Compressing',
       color = AppColors.compressing,
       icon = LucideIcons.hourglass,
-      variant = StatusBadgeVariant.filled;
+      variant = StatusBadgeVariant.filled,
+      toneAlpha = 1.0;
 
   final String label;
   final Color color;
   final IconData? icon;
   final StatusBadgeVariant variant;
+  final double toneAlpha;
 
   static const BorderRadius _borderRadius = BorderRadius.all(
     Radius.circular(8),
@@ -49,8 +54,9 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = color.withValues(alpha: 0.1);
-    final borderColor = color.withValues(alpha: 0.3);
+    final effectiveColor = color.withValues(alpha: toneAlpha);
+    final backgroundColor = effectiveColor.withValues(alpha: 0.1);
+    final borderColor = effectiveColor.withValues(alpha: 0.3);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -73,13 +79,13 @@ class StatusBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14, color: color),
+            Icon(icon, size: 14, color: effectiveColor),
             const SizedBox(width: 6),
           ],
           Text(
             label,
             style: AppTypography.label.copyWith(
-              color: color,
+              color: effectiveColor,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
             ),

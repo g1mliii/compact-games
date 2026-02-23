@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -172,7 +173,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(GameDetailsScreen), findsOneWidget);
-    expect(find.byTooltip('Open folder'), findsOneWidget);
+    expect(find.byTooltip('Open directory'), findsOneWidget);
+    expect(find.byTooltip('Copy path'), findsOneWidget);
   });
 
   testWidgets('Inventory search filters list rows', (
@@ -243,7 +245,9 @@ void main() {
 
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -1400));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(Switch).last);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('settingsInventoryAdvancedToggle')),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -256,11 +260,76 @@ void main() {
     );
   });
 
+  testWidgets('Settings inventory watcher toggle updates provider', (
+    WidgetTester tester,
+  ) async {
+    final persistence = _InMemorySettingsPersistence();
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          initialRoute: AppRoutes.settings,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(settingsProvider).valueOrNull?.settings.autoCompress,
+      isFalse,
+    );
+
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -1400));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('settingsWatcherToggleButton')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(settingsProvider).valueOrNull?.settings.autoCompress,
+      isTrue,
+    );
+  });
+
+  test('Rust bridge provider resolves to singleton instance', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final a = container.read(rustBridgeServiceProvider);
+    final b = container.read(rustBridgeServiceProvider);
+    expect(identical(a, b), isTrue);
+    expect(identical(a, RustBridgeService.instance), isTrue);
+  });
+
   testWidgets('GameCard cover image uses cover fit to fill frame', (
     WidgetTester tester,
   ) async {
+    // Use a MemoryImage so the test does not depend on network/file I/O.
+    final testProvider = MemoryImage(Uint8List.fromList(
+      // 1x1 transparent PNG
+      [
+        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
+        0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196,
+        137, 0, 0, 0, 10, 73, 68, 65, 84, 120, 156, 98, 0, 0, 0, 2,
+        0, 1, 226, 33, 188, 51, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66,
+        96, 130,
+      ],
+    ));
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
           body: SizedBox(
             width: 280,
@@ -269,7 +338,7 @@ void main() {
               gameName: 'Fit Test',
               platform: Platform.steam,
               totalSizeBytes: 10 * _oneGiB,
-              coverImageUrl: 'https://example.com/cover.jpg',
+              coverImageProvider: testProvider,
               assumeBoundedHeight: true,
             ),
           ),

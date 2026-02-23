@@ -5,6 +5,12 @@ DateTime _lastCacheEvictionRun = DateTime.fromMillisecondsSinceEpoch(0);
 Future<void>? _cacheEvictionInFlight;
 bool _cacheEvictionQueued = false;
 
+void _resetCacheEvictionScheduler() {
+  _cacheEvictionQueued = false;
+  _cacheEvictionInFlight = null;
+  _lastCacheEvictionRun = DateTime.fromMillisecondsSinceEpoch(0);
+}
+
 extension _CoverArtServiceCacheMaintenance on CoverArtService {
   void _scheduleCacheEviction(Directory cacheDir, {bool force = false}) {
     if (_cacheEvictionInFlight != null) {

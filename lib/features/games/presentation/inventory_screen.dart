@@ -6,8 +6,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/navigation/app_routes.dart';
 import '../../../models/game_info.dart';
-import '../../../providers/cover_art/cover_art_provider.dart';
 import '../../../providers/games/game_list_provider.dart';
+import '../../../providers/games/refresh_games_helper.dart';
 import '../../../providers/settings/settings_provider.dart';
 import '../../../providers/system/auto_compression_status_provider.dart';
 import 'widgets/inventory_components.dart';
@@ -42,7 +42,23 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncList = ref.watch(gameListProvider);
+    final games = ref.watch(
+      gameListProvider.select((s) => s.valueOrNull?.games),
+    );
+    final lastRefreshed = ref.watch(
+      gameListProvider.select((s) => s.valueOrNull?.lastRefreshed),
+    );
+    final isLoading = ref.watch(
+      gameListProvider.select((s) => s.isLoading),
+    );
+    final hasError = ref.watch(
+      gameListProvider.select((s) => s.hasError),
+    );
+    final errorValue = ref.watch(
+      gameListProvider.select(
+        (s) => s.hasError ? s.error : null,
+      ),
+    );
     final algorithmLabel = ref.watch(
       settingsProvider.select(
         (value) =>
@@ -56,12 +72,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             value.valueOrNull?.settings.inventoryAdvancedScanEnabled ?? false,
       ),
     );
+    final watcherEnabled = ref.watch(
+      settingsProvider.select(
+        (value) => value.valueOrNull?.settings.autoCompress ?? false,
+      ),
+    );
     final watcherActive = ref.watch(
       autoCompressionRunningProvider.select(
         (value) => value.valueOrNull ?? false,
       ),
     );
-    final refreshAllowed = !asyncList.isLoading;
+    final refreshAllowed = !isLoading;
 
     return Scaffold(
       appBar: AppBar(
@@ -71,20 +92,24 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             tooltip: 'Refresh inventory',
             icon: const Icon(LucideIcons.refreshCw),
             onPressed: refreshAllowed
-                ? () => unawaited(_refreshInventoryAndCoverArt())
+                ? () => unawaited(refreshGamesAndInvalidateCovers(ref))
                 : null,
           ),
         ],
       ),
-      body: asyncList.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => InventoryError(
-          message: 'Failed to load inventory: $error',
-          onRetry: () => ref.read(gameListProvider.notifier).refresh(),
-        ),
-        data: (state) {
-          final visibleGames = _computeVisibleGames(state.games);
-          final lastCheckedLabel = _formatLastChecked(state.lastRefreshed);
+      body: () {
+        if (games == null && isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (games == null && hasError) {
+          return InventoryError(
+            message: 'Failed to load inventory: $errorValue',
+            onRetry: () => ref.read(gameListProvider.notifier).refresh(),
+          );
+        }
+        final gamesList = games ?? const <GameInfo>[];
+        final visibleGames = _computeVisibleGames(gamesList);
+        final lastCheckedLabel = _formatLastChecked(lastRefreshed);
 
           return Column(
             children: [
@@ -105,26 +130,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 child: InventoryStatusRow(
                   algorithmLabel: algorithmLabel,
                   watcherActive: watcherActive,
+                  watcherEnabled: watcherEnabled,
                   advancedEnabled: advancedEnabled,
+                  onWatcherEnabledChanged: (enabled) => ref
+                      .read(settingsProvider.notifier)
+                      .setAutoCompress(enabled),
                   onAdvancedChanged: (enabled) => ref
                       .read(settingsProvider.notifier)
                       .setInventoryAdvancedScanEnabled(enabled),
+                  onRunFullRescan: () =>
+                      unawaited(refreshGamesAndInvalidateCovers(ref)),
+                  canRunFullRescan: refreshAllowed,
                 ),
               ),
-              if (advancedEnabled)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
-                      onPressed: refreshAllowed
-                          ? () => unawaited(_refreshInventoryAndCoverArt())
-                          : null,
-                      icon: const Icon(LucideIcons.scan),
-                      label: const Text('Run Full Inventory Rescan'),
-                    ),
-                  ),
-                ),
               const SizedBox(height: 10),
               const InventoryHeader(),
               const SizedBox(height: 4),
@@ -140,9 +158,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           itemBuilder: (context, index) {
                             final game = visibleGames[index];
                             return InventoryRow(
+                              key: ValueKey(game.path),
                               game: game,
                               watcherActive: watcherActive,
                               lastCheckedLabel: lastCheckedLabel,
+                              isStriped: index.isOdd,
                               onOpenDetails: () => Navigator.of(
                                 context,
                               ).pushNamed(AppRoutes.gameDetails(game.path)),
@@ -153,8 +173,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ),
             ],
           );
-        },
-      ),
+      }(),
     );
   }
 
@@ -222,25 +241,4 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     });
   }
 
-  Future<void> _refreshInventoryAndCoverArt() async {
-    await ref.read(gameListProvider.notifier).refresh();
-
-    final games = ref.read(gameListProvider).valueOrNull?.games ?? const [];
-    if (games.isEmpty) {
-      return;
-    }
-
-    final paths = games.map((game) => game.path).toList(growable: false);
-    final coverArtService = ref.read(coverArtServiceProvider);
-    final placeholders = coverArtService.placeholderRefreshCandidates(paths);
-    if (placeholders.isEmpty) {
-      return;
-    }
-
-    coverArtService.clearLookupCaches();
-    coverArtService.invalidateCoverForGames(placeholders);
-    for (final path in placeholders) {
-      ref.invalidate(coverArtProvider(path));
-    }
-  }
 }

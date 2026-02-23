@@ -9,6 +9,10 @@ const Duration _apiPermitWaitTimeout = Duration(seconds: 8);
 const Duration _apiInitialRetryDelay = Duration(milliseconds: 220);
 const Duration _apiJsonRequestTimeout = Duration(seconds: 4);
 const Duration _apiImageRequestTimeout = Duration(seconds: 6);
+const List<String> _steamGridDimensionPreference = <String>[
+  '512x512',
+  '600x900',
+];
 
 int _activeApiRequests = 0;
 final Queue<Completer<void>> _apiPermitQueue = Queue<Completer<void>>();
@@ -107,10 +111,10 @@ extension _CoverArtServiceApi on CoverArtService {
       return cached;
     }
 
-    final endpoint =
-        '/api/v2/grids/steam/$cacheKey?types=static&dimensions=600x900';
-    final json = await _steamGridDbGetJson(endpoint: endpoint, apiKey: apiKey);
-    final resolved = _selectSteamGridUrl(json);
+    final resolved = await _findSteamGridDbGridUrlForTarget(
+      endpointBase: '/api/v2/grids/steam/$cacheKey',
+      apiKey: apiKey,
+    );
     if (resolved != null) {
       _writeApiLru(_apiSteamAppGridUrlCache, cacheKey, resolved);
     }
@@ -171,14 +175,29 @@ extension _CoverArtServiceApi on CoverArtService {
       return cached;
     }
 
-    final endpoint =
-        '/api/v2/grids/game/$gameId?types=static&dimensions=600x900';
-    final json = await _steamGridDbGetJson(endpoint: endpoint, apiKey: apiKey);
-    final resolved = _selectSteamGridUrl(json);
+    final resolved = await _findSteamGridDbGridUrlForTarget(
+      endpointBase: '/api/v2/grids/game/$gameId',
+      apiKey: apiKey,
+    );
     if (resolved != null) {
       _writeApiLru(_apiGridUrlCache, gameId, resolved);
     }
     return resolved;
+  }
+
+  Future<String?> _findSteamGridDbGridUrlForTarget({
+    required String endpointBase,
+    required String apiKey,
+  }) async {
+    for (final dimension in _steamGridDimensionPreference) {
+      final endpoint = '$endpointBase?types=static&dimensions=$dimension';
+      final json = await _steamGridDbGetJson(endpoint: endpoint, apiKey: apiKey);
+      final resolved = _selectSteamGridUrl(json);
+      if (resolved != null) {
+        return resolved;
+      }
+    }
+    return null;
   }
 
   String? _selectSteamGridUrl(Map<String, dynamic>? json) {

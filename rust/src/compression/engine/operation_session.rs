@@ -118,6 +118,9 @@ impl OperationSession {
 
 impl Drop for OperationSession {
     fn drop(&mut self) {
+        // Reset cancel flag on session teardown so the next operation starts
+        // with a clean slate. The OperationGuard serializes operations, so
+        // there is no race between Drop and a new caller's cancel().
         self.cancel_token.reset();
     }
 }

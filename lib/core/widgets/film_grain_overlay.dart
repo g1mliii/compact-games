@@ -14,6 +14,9 @@ class FilmGrainOverlay extends StatelessWidget {
   final double opacity;
   final double density;
 
+  /// Releases cached grain point sets; useful for low-memory/background trims.
+  static void clearNoiseCache() => _NoisePointCache.clear();
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -110,6 +113,10 @@ abstract final class _NoisePointCache {
 
   static int _bucketUp(int value) {
     return ((value + _sizeBucket - 1) ~/ _sizeBucket) * _sizeBucket;
+  }
+
+  static void clear() {
+    _cache.clear();
   }
 }
 

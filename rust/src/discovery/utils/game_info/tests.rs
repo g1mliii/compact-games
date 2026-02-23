@@ -1,4 +1,4 @@
-use std::fs;
+use std::fs::{self, File};
 
 use crate::discovery::cache;
 use crate::discovery::platform::{DiscoveryScanMode, Platform};
@@ -10,11 +10,10 @@ fn quick_scan_ignores_stale_cache_for_deleted_path() {
     let temp = tempfile::TempDir::new().unwrap();
     let game_dir = temp.path().join("DeletedGame");
     fs::create_dir_all(&game_dir).unwrap();
-    fs::write(
-        game_dir.join("game.exe"),
-        vec![1_u8; (3 * 1024 * 1024) as usize],
-    )
-    .unwrap();
+    File::create(game_dir.join("game.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
 
     let full_scan = build_game_info_with_mode_and_stats_path(
         "Deleted Game".to_owned(),
@@ -71,11 +70,10 @@ fn quick_scan_accepts_small_folder_with_game_executable() {
     let temp = tempfile::TempDir::new().unwrap();
     let game_dir = temp.path().join("SmallInstalledGame");
     fs::create_dir_all(&game_dir).unwrap();
-    fs::write(
-        game_dir.join("smallgame.exe"),
-        vec![7_u8; (3 * 1024 * 1024) as usize],
-    )
-    .unwrap();
+    File::create(game_dir.join("smallgame.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
 
     let quick_scan = build_game_info_with_mode_and_stats_path(
         "Small Installed Game".to_owned(),
@@ -92,12 +90,38 @@ fn quick_scan_accepts_small_folder_with_game_executable() {
 }
 
 #[test]
+fn quick_scan_accepts_unity_layout_with_small_bootstrap_exe() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("Cairn");
+    let data_dir = game_dir.join("Cairn_Data");
+    fs::create_dir_all(&data_dir).unwrap();
+    File::create(game_dir.join("Cairn.exe"))
+        .unwrap()
+        .set_len(512 * 1024)
+        .unwrap();
+    fs::write(data_dir.join("globalgamemanagers"), vec![9_u8; 4096]).unwrap();
+
+    let quick_scan = build_game_info_with_mode_and_stats_path(
+        "Cairn".to_owned(),
+        game_dir.clone(),
+        game_dir,
+        Platform::Custom,
+        DiscoveryScanMode::Quick,
+    );
+
+    assert!(
+        quick_scan.is_some(),
+        "Unity layout should pass install-likelihood probe even with a smaller bootstrap executable",
+    );
+}
+
+#[test]
 fn quick_scan_clears_stale_cache_when_install_shrinks_to_stub() {
     let temp = tempfile::TempDir::new().unwrap();
     let game_dir = temp.path().join("ShrinkingInstall");
     fs::create_dir_all(&game_dir).unwrap();
     let exe_path = game_dir.join("game.exe");
-    fs::write(&exe_path, vec![2_u8; (3 * 1024 * 1024) as usize]).unwrap();
+    File::create(&exe_path).unwrap().set_len(3 * 1024 * 1024).unwrap();
 
     let first_full = build_game_info_with_mode_and_stats_path(
         "Shrinking Install".to_owned(),
@@ -138,16 +162,14 @@ fn quick_scan_keeps_authoritative_cached_size_when_token_drifts() {
         .join("data");
     fs::create_dir_all(&deep_content).unwrap();
 
-    fs::write(
-        game_dir.join("game.exe"),
-        vec![9_u8; (3 * 1024 * 1024) as usize],
-    )
-    .unwrap();
-    fs::write(
-        deep_content.join("bulk.pak"),
-        vec![7_u8; (48 * 1024 * 1024) as usize],
-    )
-    .unwrap();
+    File::create(game_dir.join("game.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
+    File::create(deep_content.join("bulk.pak"))
+        .unwrap()
+        .set_len(48 * 1024 * 1024)
+        .unwrap();
 
     let full = build_game_info_with_mode_and_stats_path(
         "Token Drift Game".to_owned(),

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import '../../../../core/utils/platform_icon.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -39,6 +37,13 @@ class GameCard extends StatelessWidget {
   final bool assumeBoundedHeight;
   final VoidCallback? onTap;
   final GestureTapDownCallback? onSecondaryTapDown;
+  static const Color _cardShellColor = Color(0xFF2A303C);
+  static final Color _surfaceVariantAlpha95 =
+      AppColors.surfaceVariant.withValues(alpha: 0.95);
+  static final Color _borderColor =
+      AppColors.desertGold.withValues(alpha: 0.26);
+  static const BorderRadius _cardBorderRadius =
+      BorderRadius.all(Radius.circular(12));
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +55,19 @@ class GameCard extends StatelessWidget {
           onSecondaryTapDown: onSecondaryTapDown,
           child: Container(
             decoration: BoxDecoration(
-              gradient: AppColors.panelGradient,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border, width: 1),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _cardShellColor,
+                  _surfaceVariantAlpha95,
+                ],
+              ),
+              borderRadius: _cardBorderRadius,
+              border: Border.all(
+                color: _borderColor,
+                width: 1,
+              ),
             ),
             child: assumeBoundedHeight
                 ? _buildBoundedBody(context)
@@ -107,7 +122,7 @@ class GameCard extends StatelessWidget {
         : content;
 
     final clipped = ClipRRect(
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.hardEdge,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
       child: wrappedContent,
     );
@@ -120,31 +135,12 @@ class GameCard extends StatelessWidget {
   }
 
   Widget _buildCoverContent(BuildContext context) {
-    // 1. Prefer explicit provider if given (e.g. from adapter)
+    // Prefer explicit provider (all production callers pass this).
     if (coverImageProvider != null) {
       return _buildImageWithProvider(context, coverImageProvider!);
     }
 
-    // 2. Handle URL string if provider is missing
-    final url = coverImageUrl;
-    if (url != null && url.isNotEmpty) {
-      ImageProvider? provider;
-      final uri = Uri.tryParse(url);
-
-      if (uri != null) {
-        if (uri.isScheme('file')) {
-          provider = FileImage(File.fromUri(uri));
-        } else if (uri.isScheme('http') || uri.isScheme('https')) {
-          provider = NetworkImage(url);
-        }
-      }
-
-      if (provider != null) {
-        return _buildImageWithProvider(context, provider);
-      }
-    }
-
-    // 3. Fallback
+    // Fallback placeholder when no provider is available.
     return _buildPlaceholderCover();
   }
 
@@ -199,7 +195,7 @@ class GameCard extends StatelessWidget {
 
   Widget _buildGameInfo() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -210,7 +206,7 @@ class GameCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 6),
           Align(
             alignment: Alignment.centerLeft,
             child: FittedBox(
@@ -219,7 +215,7 @@ class GameCard extends StatelessWidget {
               child: _buildStatusBadge(),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 6),
           _buildSizeInfo(),
         ],
       ),
@@ -257,22 +253,31 @@ class GameCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Text(
-                '${compressedGB.toStringAsFixed(1)} GB',
-                style: AppTypography.monoSmall,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Text(
+                    '${compressedGB.toStringAsFixed(1)} GB',
+                    style: AppTypography.monoSmall.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '/ ${sizeGB.toStringAsFixed(1)} GB',
+                    style: AppTypography.bodySmall.copyWith(
+                      fontFamilyFallback: AppTypography.monoFontFallback,
+                      decoration: TextDecoration.lineThrough,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 4),
-              Text(
-                '/ ${sizeGB.toStringAsFixed(1)} GB',
-                style: AppTypography.bodySmall.copyWith(
-                  fontFamilyFallback: AppTypography.monoFontFallback,
-                  decoration: TextDecoration.lineThrough,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 2),
           _CompressionBar(ratio: ratio),
@@ -283,27 +288,36 @@ class GameCard extends StatelessWidget {
     final estimatedSaved = estimatedSavedBytes;
     if (estimatedSaved != null && estimatedSaved > 0) {
       final savedGB = estimatedSaved / (1024 * 1024 * 1024);
-      return Row(
-        children: [
-          Text(
-            '${sizeGB.toStringAsFixed(1)} GB',
-            style: AppTypography.monoSmall,
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            children: [
+              Text(
+                '${sizeGB.toStringAsFixed(1)} GB',
+                style: AppTypography.monoSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '~${savedGB.toStringAsFixed(1)} GB saveable',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.success,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          Text(
-            '~${savedGB.toStringAsFixed(1)} GB saveable',
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.success,
-              fontSize: 11,
-            ),
-          ),
-        ],
+        ),
       );
     }
 
     return Text(
       '${sizeGB.toStringAsFixed(1)} GB',
-      style: AppTypography.monoSmall,
+      style: AppTypography.monoSmall.copyWith(fontWeight: FontWeight.w700),
     );
   }
 }

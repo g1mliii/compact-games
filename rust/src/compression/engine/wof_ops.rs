@@ -215,24 +215,27 @@ impl CompressionEngine {
     }
 
     pub(super) fn ratio_impl(folder: &Path) -> Result<f64, CompressionError> {
-        let mut logical_total: u64 = 0;
-        let mut physical_total: u64 = 0;
+        let logical_total = AtomicU64::new(0);
+        let physical_total = AtomicU64::new(0);
 
-        for entry in Self::file_iter(folder)? {
-            let path = entry.path();
-            if let Ok(metadata) = std::fs::metadata(path) {
-                let logical = metadata.len();
-                let physical = wof::get_physical_size(path).unwrap_or(logical);
-                logical_total += logical;
-                physical_total += physical;
-            }
-        }
+        Self::file_iter(folder)?
+            .par_bridge()
+            .for_each(|entry| {
+                let path = entry.path();
+                if let Ok(metadata) = std::fs::metadata(path) {
+                    let logical = metadata.len();
+                    let physical = wof::get_physical_size(path).unwrap_or(logical);
+                    logical_total.fetch_add(logical, Ordering::Relaxed);
+                    physical_total.fetch_add(physical, Ordering::Relaxed);
+                }
+            });
 
-        if logical_total == 0 {
+        let logical = logical_total.load(Ordering::Relaxed);
+        if logical == 0 {
             return Ok(1.0);
         }
 
-        Ok(physical_total as f64 / logical_total as f64)
+        Ok(physical_total.load(Ordering::Relaxed) as f64 / logical as f64)
     }
 }
 

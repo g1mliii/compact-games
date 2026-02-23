@@ -7,10 +7,16 @@ use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform};
 
 use super::stats::{dir_stats, dir_stats_quick};
 
+mod logging;
+
+use self::logging::log_candidate_decision;
+
 const MIN_LIKELY_INSTALL_SIZE_BYTES: u64 = 512 * 1024 * 1024;
 const MIN_GAME_EXE_SIZE_BYTES: u64 = 2 * 1024 * 1024;
+const MIN_UNITY_BOOTSTRAP_EXE_SIZE_BYTES: u64 = 256 * 1024;
 const INSTALL_PROBE_MAX_DEPTH: usize = 3;
 const INSTALL_PROBE_MAX_FILES: usize = 256;
+const UNITY_DATA_SUFFIX: &str = "_data";
 
 /// Build a GameInfo from a name, path, and platform.
 /// Returns None if the directory is empty.
@@ -292,7 +298,48 @@ fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) 
         return true;
     }
 
+    if has_unity_bootstrap_layout(path) {
+        return true;
+    }
+
     has_game_executable(path)
+}
+
+fn has_unity_bootstrap_layout(path: &Path) -> bool {
+    let entries = match std::fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+
+    entries
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().is_dir())
+        .any(|entry| {
+            let folder_name = entry.file_name().to_string_lossy().into_owned();
+            let folder_name_lower = folder_name.to_ascii_lowercase();
+            if !folder_name_lower.ends_with(UNITY_DATA_SUFFIX) {
+                return false;
+            }
+
+            let stem_len = folder_name.len().saturating_sub(UNITY_DATA_SUFFIX.len());
+            if stem_len == 0 {
+                return false;
+            }
+
+            let exe_stem = &folder_name[..stem_len];
+            let exe_name = format!("{exe_stem}.exe");
+            let exe_name_lower = exe_name.to_ascii_lowercase();
+            if is_non_game_exe(&exe_name_lower) {
+                return false;
+            }
+
+            path.join(exe_name)
+                .metadata()
+                .ok()
+                .is_some_and(|meta| {
+                    meta.is_file() && meta.len() >= MIN_UNITY_BOOTSTRAP_EXE_SIZE_BYTES
+                })
+        })
 }
 
 fn has_game_executable(path: &Path) -> bool {
@@ -330,7 +377,11 @@ fn has_game_executable(path: &Path) -> bool {
     false
 }
 
-fn is_non_game_exe(name: &str) -> bool {
+/// Returns true for executables that are known installers, redistributables,
+/// or crash reporters -- not actual game binaries. Intentionally excludes
+/// `"launcher"` because many games ship a `*Launcher.exe` as the main
+/// entry point (see Lesson 67).
+pub(crate) fn is_non_game_exe(name: &str) -> bool {
     name.contains("unins")
         || name.contains("setup")
         || name.contains("install")
@@ -338,34 +389,8 @@ fn is_non_game_exe(name: &str) -> bool {
         || name.contains("vcredist")
         || name.contains("dxsetup")
         || name.contains("dotnet")
-        || name.contains("launcher")
         || name == "ue4prereqsetup_x64.exe"
         || name == "crashreportclient.exe"
-}
-
-fn mode_label(mode: DiscoveryScanMode) -> &'static str {
-    match mode {
-        DiscoveryScanMode::Quick => "quick",
-        DiscoveryScanMode::Full => "full",
-    }
-}
-
-fn log_candidate_decision(
-    decision: &str,
-    platform: Platform,
-    name: &str,
-    stats_path: &Path,
-    mode: DiscoveryScanMode,
-    detail: &str,
-) {
-    log::debug!(
-        "discovery[{decision}] platform={} mode={} name=\"{}\" path={} reason={}",
-        platform,
-        mode_label(mode),
-        name,
-        stats_path.display(),
-        detail
-    );
 }
 
 #[cfg(test)]

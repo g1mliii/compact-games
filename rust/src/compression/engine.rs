@@ -92,15 +92,15 @@ impl CancellationToken {
     }
 
     pub fn cancel(&self) {
-        self.cancelled.store(true, Ordering::Relaxed);
+        self.cancelled.store(true, Ordering::Release);
     }
 
     pub fn is_cancelled(&self) -> bool {
-        self.cancelled.load(Ordering::Relaxed)
+        self.cancelled.load(Ordering::Acquire)
     }
 
     fn reset(&self) {
-        self.cancelled.store(false, Ordering::Relaxed);
+        self.cancelled.store(false, Ordering::Release);
     }
 }
 
@@ -358,7 +358,9 @@ impl CompressionEngine {
         }
     }
 
-    fn file_iter(folder: &Path) -> Result<impl Iterator<Item = walkdir::DirEntry> + '_, CompressionError> {
+    fn file_iter(
+        folder: &Path,
+    ) -> Result<impl Iterator<Item = walkdir::DirEntry> + '_, CompressionError> {
         let canonical_root =
             std::fs::canonicalize(folder).map_err(|source| CompressionError::Io { source })?;
         Ok(safe_file_iter(folder, canonical_root))

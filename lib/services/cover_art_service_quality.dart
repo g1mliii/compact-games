@@ -1,9 +1,9 @@
 part of 'cover_art_service.dart';
 
 const int _preferredCoverMinWidth = 300;
-const int _preferredCoverMinHeight = 450;
+const int _preferredCoverMinHeight = 300;
 const double _preferredCoverAspectMin = 0.62;
-const double _preferredCoverAspectMax = 0.72;
+const double _preferredCoverAspectMax = 1.08;
 const int _imageHeaderMaxReadBytes = 512 * 1024;
 
 const Set<int> _jpegSofMarkers = <int>{
@@ -34,7 +34,7 @@ extension _CoverArtServiceQuality on CoverArtService {
     if (localPath == null) {
       return false;
     }
-    return !(await _isPreferredPortraitCover(localPath));
+    return !(await _isPreferredCardCover(localPath));
   }
 
   Future<bool> _needsApiUpgradeForPath(
@@ -44,7 +44,7 @@ extension _CoverArtServiceQuality on CoverArtService {
     if (!_isApiEnabled(apiKey)) {
       return false;
     }
-    return !(await _isPreferredPortraitCover(localPath));
+    return !(await _isPreferredCardCover(localPath));
   }
 
   bool _isApiEnabled(String? apiKey) {
@@ -67,7 +67,7 @@ extension _CoverArtServiceQuality on CoverArtService {
     }
   }
 
-  Future<bool> _isPreferredPortraitCover(String path) async {
+  Future<bool> _isPreferredCardCover(String path) async {
     final cacheKey = path.toLowerCase();
     final cached = CoverArtService._coverQualityPathCache.remove(cacheKey);
     if (cached != null) {
@@ -77,12 +77,12 @@ extension _CoverArtServiceQuality on CoverArtService {
 
     var preferred = false;
     final lowerName = p.basename(path).toLowerCase();
-    if (lowerName.contains('600x900')) {
+    if (lowerName.contains('600x900') || lowerName.contains('512x512')) {
       preferred = true;
     } else {
       final size = await _readImageSize(path);
       if (size != null) {
-        preferred = _isPreferredPortraitSize(size.width, size.height);
+        preferred = _isPreferredCardCoverSize(size.width, size.height);
       }
     }
 
@@ -94,7 +94,7 @@ extension _CoverArtServiceQuality on CoverArtService {
     return preferred;
   }
 
-  bool _isPreferredPortraitSize(int width, int height) {
+  bool _isPreferredCardCoverSize(int width, int height) {
     if (width < _preferredCoverMinWidth || height < _preferredCoverMinHeight) {
       return false;
     }

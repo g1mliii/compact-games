@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
@@ -13,6 +14,20 @@ use super::game_info::build_game_info_with_mode;
 
 const PARALLEL_MIN_CANDIDATES: usize = 3;
 const PARALLEL_UNKNOWN_MIN_CANDIDATES: usize = 8;
+const MAX_COMMON_CUSTOM_ROOTS: usize = 24;
+const COMMON_CUSTOM_FOLDER_NAMES: &[&str] = &[
+    "Games",
+    "GameLibrary",
+    "Game Libraries",
+    "Gaming",
+    "My Games",
+    "SteamLibrary",
+    "Steam Library",
+    "Ubisoft",
+    "Ubisoft Games",
+    "Uplay",
+    "Battle.net",
+];
 
 /// Scan a directory's immediate subdirectories for games.
 /// Each subdirectory name is used as the game name.
@@ -159,6 +174,7 @@ enum ScannerTask {
     Ea,
     BattleNet,
     Xbox,
+    CommonCustomRoots,
 }
 
 fn scanner_tasks() -> Vec<ScannerTask> {
@@ -170,6 +186,7 @@ fn scanner_tasks() -> Vec<ScannerTask> {
         ScannerTask::Ea,
         ScannerTask::BattleNet,
         ScannerTask::Xbox,
+        ScannerTask::CommonCustomRoots,
     ]
 }
 
@@ -190,6 +207,93 @@ fn run_scanner_task(task: ScannerTask, mode: DiscoveryScanMode) -> Vec<GameInfo>
         ScannerTask::Ea => collect_scanner_results(EaScanner {}, mode),
         ScannerTask::BattleNet => collect_scanner_results(BattleNetScanner {}, mode),
         ScannerTask::Xbox => collect_scanner_results(XboxScanner::new(), mode),
+        ScannerTask::CommonCustomRoots => run_common_custom_roots(mode),
+    }
+}
+
+fn run_common_custom_roots(mode: DiscoveryScanMode) -> Vec<GameInfo> {
+    use crate::discovery::custom::CustomScanner;
+
+    let roots = discover_common_custom_roots();
+    if roots.is_empty() {
+        return Vec::new();
+    }
+
+    log::info!("Common custom roots: scanning {} root(s)", roots.len());
+    collect_scanner_results(CustomScanner::new_library_roots(roots), mode)
+}
+
+fn discover_common_custom_roots() -> Vec<PathBuf> {
+    #[cfg(windows)]
+    {
+        use sysinfo::Disks;
+        let mut mounts: Vec<PathBuf> = Disks::new_with_refreshed_list()
+            .list()
+            .iter()
+            .map(|disk| disk.mount_point().to_path_buf())
+            .collect();
+        mounts.extend(windows_drive_roots());
+        common_custom_roots_from_mounts(mounts)
+    }
+
+    #[cfg(not(windows))]
+    {
+        Vec::new()
+    }
+}
+
+#[cfg(windows)]
+fn windows_drive_roots() -> Vec<PathBuf> {
+    // Skip A: and B: (floppy drives) -- probing these can cause multi-second
+    // hangs on systems with floppy controller emulation.
+    (b'C'..=b'Z')
+        .map(|drive| PathBuf::from(format!("{}:\\", drive as char)))
+        .filter(|path| path.is_dir())
+        .collect()
+}
+
+fn common_custom_roots_from_mounts(mount_points: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut results = Vec::new();
+    let mut seen = HashSet::new();
+
+    for mount in mount_points {
+        if !mount.is_dir() {
+            continue;
+        }
+
+        for folder in COMMON_CUSTOM_FOLDER_NAMES {
+            let candidate = mount.join(folder);
+            if !candidate.is_dir() {
+                continue;
+            }
+
+            let key = normalize_path_key(&candidate);
+            if !seen.insert(key) {
+                continue;
+            }
+
+            results.push(candidate);
+            if results.len() >= MAX_COMMON_CUSTOM_ROOTS {
+                return results;
+            }
+        }
+    }
+
+    results
+}
+
+fn normalize_path_key(path: &Path) -> String {
+    #[cfg(windows)]
+    {
+        path.as_os_str()
+            .to_string_lossy()
+            .replace('/', "\\")
+            .to_ascii_lowercase()
+    }
+
+    #[cfg(not(windows))]
+    {
+        path.as_os_str().to_string_lossy().into_owned()
     }
 }
 
@@ -225,4 +329,56 @@ pub fn scan_custom_paths_with_mode(
     let result = CustomScanner::new(paths).scan(mode);
     cache::persist_if_dirty();
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::TempDir;
+
+    use super::*;
+
+    #[test]
+    fn common_custom_roots_detect_existing_games_folder() {
+        let mount = TempDir::new().unwrap();
+        let games = mount.path().join("Games");
+        std::fs::create_dir_all(&games).unwrap();
+
+        let roots = common_custom_roots_from_mounts(vec![mount.path().to_path_buf()]);
+        assert!(
+            roots.iter().any(|p| p == &games),
+            "expected {:?} in {:?}",
+            games,
+            roots
+        );
+    }
+
+    #[test]
+    fn common_custom_roots_dedupes_case_equivalent_paths() {
+        let mount = TempDir::new().unwrap();
+        let games = mount.path().join("Games");
+        std::fs::create_dir_all(&games).unwrap();
+
+        let roots = common_custom_roots_from_mounts(vec![
+            mount.path().to_path_buf(),
+            mount.path().to_path_buf(),
+        ]);
+
+        assert_eq!(roots.len(), 1);
+        assert_eq!(roots[0], games);
+    }
+
+    #[test]
+    fn common_custom_roots_detects_steamlibrary_alias() {
+        let mount = TempDir::new().unwrap();
+        let steam_library = mount.path().join("SteamLibrary");
+        std::fs::create_dir_all(&steam_library).unwrap();
+
+        let roots = common_custom_roots_from_mounts(vec![mount.path().to_path_buf()]);
+        assert!(
+            roots.iter().any(|p| p == &steam_library),
+            "expected {:?} in {:?}",
+            steam_library,
+            roots
+        );
+    }
 }

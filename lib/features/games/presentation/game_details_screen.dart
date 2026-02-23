@@ -2,26 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/cover_art_utils.dart';
-import '../../../core/utils/platform_icon.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../models/game_info.dart';
-import '../../../providers/compression/compression_provider.dart';
 import '../../../providers/cover_art/cover_art_provider.dart';
 import '../../../providers/games/single_game_provider.dart';
 import '../../../providers/settings/settings_provider.dart';
 import '../../../providers/system/platform_shell_provider.dart';
+import 'widgets/game_details/details_actions.dart';
+import 'widgets/game_details/details_info_card.dart';
+import 'widgets/game_details/details_media.dart';
 
-class GameDetailsScreen extends ConsumerWidget {
+class GameDetailsScreen extends ConsumerStatefulWidget {
   const GameDetailsScreen({required this.gamePath, super.key});
+
+  static const double _maxContentWidth = 1120;
+  static const double _wideLayoutBreakpoint = 980;
+  static const double _coverColumnWidth = 300;
+  static const double _compactCoverWidth = 280;
 
   final String gamePath;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final game = ref.watch(singleGameProvider(gamePath));
+  ConsumerState<GameDetailsScreen> createState() => _GameDetailsScreenState();
+}
+
+class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
+  bool _wide = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final game = ref.watch(singleGameProvider(widget.gamePath));
     if (game == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Game Details')),
@@ -31,155 +42,154 @@ class GameDetailsScreen extends ConsumerWidget {
       );
     }
 
-    final coverResult = ref.watch(coverArtProvider(game.path)).valueOrNull;
+    final coverResult = ref.watch(coverArtProvider(widget.gamePath)).valueOrNull;
     final coverProvider = imageProviderFromCover(coverResult);
     final isExcluded = ref.watch(
       settingsProvider.select(
         (async) =>
-            async.valueOrNull?.settings.excludedPaths.contains(game.path) ??
+            async.valueOrNull?.settings.excludedPaths.contains(widget.gamePath) ??
             false,
       ),
     );
+
     final currentSize = game.compressedSize ?? game.sizeBytes;
     final savedBytes = (game.sizeBytes - currentSize).clamp(0, game.sizeBytes);
     final savingsPercent = (game.savingsRatio * 100).toStringAsFixed(1);
     final lastPlayedText = _formatLastPlayed(game.lastPlayed);
-    final windowWidth = MediaQuery.sizeOf(context).width;
-    final maxCoverWidth = windowWidth < 1100 ? 220.0 : 250.0;
     final deferred = Scrollable.recommendDeferredLoadingForContext(context);
-    final filterQuality = deferred ? FilterQuality.none : FilterQuality.low;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(game.name),
+        title: Text(game.name, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-            tooltip: 'Open folder',
+            tooltip: 'Open directory',
             onPressed: () =>
                 ref.read(platformShellServiceProvider).openFolder(game.path),
             icon: const Icon(LucideIcons.folderOpen),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Align(
-            alignment: Alignment.center,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxCoverWidth),
-              child: RepaintBoundary(
-                child: AspectRatio(
-                  aspectRatio: AppConstants.coverAspectRatio,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: ColoredBox(
-                      color: AppColors.surfaceElevated,
-                      child: coverProvider == null
-                          ? _CoverFallback(platform: game.platform)
-                          : Image(
-                              image: ResizeImage(
-                                coverProvider,
-                                width: _coverDecodeWidth(
-                                  context: context,
-                                  logicalWidth: maxCoverWidth,
-                                ),
-                              ),
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                              alignment: Alignment.center,
-                              filterQuality: filterQuality,
-                              isAntiAlias: true,
-                              gaplessPlayback: true,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  _CoverFallback(platform: game.platform),
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _StatLine(
-                    label: 'Platform',
-                    value: game.platform.displayName,
-                  ),
-                  _StatLine(
-                    label: 'Compression',
-                    value: game.isCompressed ? 'Compressed' : 'Not compressed',
-                  ),
-                  _StatLine(
-                    label: 'DirectStorage',
-                    value: game.isDirectStorage ? 'Detected' : 'Not detected',
-                  ),
-                  _StatLine(
-                    label: 'Auto-compress',
-                    value: isExcluded ? 'Excluded' : 'Included',
-                  ),
-                  _StatLine(
-                    label: 'Original size',
-                    value: _formatBytes(game.sizeBytes),
-                  ),
-                  _StatLine(
-                    label: 'Current size',
-                    value: _formatBytes(currentSize),
-                  ),
-                  _StatLine(
-                    label: 'Space saved',
-                    value: _formatBytes(savedBytes),
-                  ),
-                  _StatLine(label: 'Savings', value: '$savingsPercent%'),
-                  _StatLine(label: 'Last played', value: lastPlayedText),
-                  const SizedBox(height: 6),
-                  SelectableText(
-                    game.path,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (game.isDirectStorage) ...[
-            const SizedBox(height: 12),
-            Card(
-              color: AppColors.error.withValues(alpha: 0.15),
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Row(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= GameDetailsScreen._wideLayoutBreakpoint;
+          _wide = wide;
+          final contentWidth = constraints.maxWidth > GameDetailsScreen._maxContentWidth
+              ? GameDetailsScreen._maxContentWidth
+              : constraints.maxWidth;
+          final coverWidth = _wide ? GameDetailsScreen._coverColumnWidth : GameDetailsScreen._compactCoverWidth;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: GameDetailsScreen._maxContentWidth),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(LucideIcons.alertTriangle, size: 18),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'DirectStorage detected. Compression can impact runtime performance.',
-                        style: AppTypography.bodySmall,
+                    GameDetailsHeader(
+                      gameName: game.name,
+                      platform: game.platform,
+                      coverProvider: coverProvider,
+                      decodeWidth: _decodeWidth(
+                        context: context,
+                        logicalWidth: contentWidth,
+                        min: 384,
+                        max: 768,
+                        bucket: 128,
                       ),
+                      deferred: deferred,
                     ),
+                    const SizedBox(height: 16),
+                    if (_wide)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: GameDetailsScreen._coverColumnWidth,
+                            child: GameDetailsCover(
+                              platform: game.platform,
+                              coverProvider: coverProvider,
+                              decodeWidth: _decodeWidth(
+                                context: context,
+                                logicalWidth: GameDetailsScreen._coverColumnWidth,
+                                min: 224,
+                                max: 512,
+                              ),
+                              deferred: deferred,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _DetailsRightColumn(
+                              game: game,
+                              isExcluded: isExcluded,
+                              currentSize: currentSize,
+                              savedBytes: savedBytes,
+                              savingsPercent: savingsPercent,
+                              lastPlayedText: lastPlayedText,
+                              centeredActions: false,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            alignment: Alignment.center,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: GameDetailsScreen._compactCoverWidth,
+                              ),
+                              child: GameDetailsCover(
+                                platform: game.platform,
+                                coverProvider: coverProvider,
+                                decodeWidth: _decodeWidth(
+                                  context: context,
+                                  logicalWidth: coverWidth,
+                                  min: 224,
+                                  max: 512,
+                                ),
+                                deferred: deferred,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _DetailsRightColumn(
+                            game: game,
+                            isExcluded: isExcluded,
+                            currentSize: currentSize,
+                            savedBytes: savedBytes,
+                            savingsPercent: savingsPercent,
+                            lastPlayedText: lastPlayedText,
+                            centeredActions: true,
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
             ),
-          ],
-          const SizedBox(height: 16),
-          _ActionButtons(game: game),
-        ],
+          );
+        },
       ),
     );
   }
 
-  String _formatBytes(int bytes) {
-    final gb = bytes / (1024 * 1024 * 1024);
-    return '${gb.toStringAsFixed(2)} GB';
+  int _decodeWidth({
+    required BuildContext context,
+    required double logicalWidth,
+    required double min,
+    required double max,
+    int bucket = 64,
+  }) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final raw = (logicalWidth * dpr).clamp(min, max);
+    return ((raw / bucket).round() * bucket)
+        .clamp(min.toInt(), max.toInt())
+        .toInt();
   }
 
   String _formatLastPlayed(DateTime? value) {
@@ -194,115 +204,51 @@ class GameDetailsScreen extends ConsumerWidget {
     final min = local.minute.toString().padLeft(2, '0');
     return '$y-$m-$d $h:$min';
   }
-
-  int _coverDecodeWidth({
-    required BuildContext context,
-    required double logicalWidth,
-  }) {
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    final raw = (logicalWidth * dpr).clamp(224.0, 448.0);
-    return ((raw / 64).round() * 64).clamp(192, 448).toInt();
-  }
 }
 
-class _ActionButtons extends ConsumerWidget {
-  const _ActionButtons({required this.game});
+class _DetailsRightColumn extends StatelessWidget {
+  const _DetailsRightColumn({
+    required this.game,
+    required this.isExcluded,
+    required this.currentSize,
+    required this.savedBytes,
+    required this.savingsPercent,
+    required this.lastPlayedText,
+    required this.centeredActions,
+  });
 
   final GameInfo game;
+  final bool isExcluded;
+  final int currentSize;
+  final int savedBytes;
+  final String savingsPercent;
+  final String lastPlayedText;
+  final bool centeredActions;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isExcluded = ref.watch(
-      settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.excludedPaths.contains(game.path) ??
-            false,
-      ),
-    );
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!game.isCompressed)
-              FilledButton.icon(
-                onPressed: game.isDirectStorage
-                    ? null
-                    : () => ref
-                          .read(compressionProvider.notifier)
-                          .startCompression(
-                            gamePath: game.path,
-                            gameName: game.name,
-                          ),
-                icon: const Icon(LucideIcons.archive),
-                label: const Text('Compress Now'),
-              )
-            else
-              FilledButton.icon(
-                onPressed: () => ref
-                    .read(compressionProvider.notifier)
-                    .startDecompression(
-                      gamePath: game.path,
-                      gameName: game.name,
-                    ),
-                icon: const Icon(LucideIcons.unplug),
-                label: const Text('Decompress'),
-              ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () => ref
-                  .read(settingsProvider.notifier)
-                  .toggleGameExclusion(game.path),
-              icon: const Icon(LucideIcons.shieldAlert),
-              label: Text(
-                isExcluded
-                    ? 'Include In Auto-Compression'
-                    : 'Exclude From Auto-Compression',
-              ),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GameDetailsInfoCard(
+          game: game,
+          isExcluded: isExcluded,
+          currentSize: currentSize,
+          savedBytes: savedBytes,
+          savingsPercent: savingsPercent,
+          lastPlayedText: lastPlayedText,
         ),
-      ),
-    );
-  }
-}
-
-class _StatLine extends StatelessWidget {
-  const _StatLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(label, style: AppTypography.bodySmall),
-          ),
-          Expanded(child: Text(value, style: AppTypography.bodyMedium)),
+        if (game.isDirectStorage) ...[
+          const SizedBox(height: 12),
+          const GameDetailsDirectStorageWarningCard(),
         ],
-      ),
-    );
-  }
-}
-
-class _CoverFallback extends StatelessWidget {
-  const _CoverFallback({required this.platform});
-
-  final Platform platform;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = platformIcon(platform);
-    return Container(
-      color: AppColors.surfaceVariant,
-      child: Center(child: Icon(icon, size: 48, color: AppColors.desertSand)),
+        const SizedBox(height: 14),
+        GameDetailsActionsCard(
+          game: game,
+          centered: centeredActions,
+          isExcluded: isExcluded,
+        ),
+      ],
     );
   }
 }

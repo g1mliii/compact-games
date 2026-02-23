@@ -4,6 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../models/game_info.dart';
+export 'inventory_status_row.dart';
+part 'inventory_sort_menu.dart';
 
 enum InventorySortField { name, originalSize, savingsPercent, platform }
 
@@ -17,8 +19,11 @@ const ValueKey<String> _inventorySortFieldKey = ValueKey<String>(
 const ValueKey<String> _inventorySortDecoratorKey = ValueKey<String>(
   'inventorySortDecorator',
 );
+const ValueKey<String> _inventorySortMenuRowKey = ValueKey<String>(
+  'inventorySortMenuRow',
+);
 
-class InventoryToolbar extends StatelessWidget {
+class InventoryToolbar extends StatefulWidget {
   const InventoryToolbar({
     super.key,
     required this.searchController,
@@ -37,42 +42,52 @@ class InventoryToolbar extends StatelessWidget {
   final VoidCallback onToggleSortDirection;
 
   @override
+  State<InventoryToolbar> createState() => _InventoryToolbarState();
+}
+
+class _InventoryToolbarState extends State<InventoryToolbar> {
+  static const double _compactBreakpoint = 700;
+  bool _compact = false;
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 700;
+        final compact = constraints.maxWidth < _compactBreakpoint;
+        _compact = compact;
+
         final searchField = SizedBox(
           key: _inventorySearchFieldKey,
           height: _inventoryControlHeight,
           child: TextField(
-            controller: searchController,
+            controller: widget.searchController,
             decoration: const InputDecoration(
               hintText: 'Search inventory...',
               prefixIcon: Icon(LucideIcons.search),
               isDense: true,
             ),
-            onChanged: onSearchChanged,
+            onChanged: widget.onSearchChanged,
           ),
         );
         final sortFieldWidget = SizedBox(
           key: _inventorySortFieldKey,
           height: _inventoryControlHeight,
           child: _SortFieldButton(
-            sortField: sortField,
-            onSortChanged: onSortChanged,
+            sortField: widget.sortField,
+            onSortChanged: widget.onSortChanged,
           ),
         );
         final directionButton = IconButton(
-          tooltip: descending ? 'Descending' : 'Ascending',
-          onPressed: onToggleSortDirection,
+          tooltip: widget.descending ? 'Descending' : 'Ascending',
+          onPressed: widget.onToggleSortDirection,
           icon: Icon(
-            descending
+            widget.descending
                 ? LucideIcons.arrowDownWideNarrow
                 : LucideIcons.arrowUpNarrowWide,
           ),
         );
 
-        if (compact) {
+        if (_compact) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -114,133 +129,122 @@ class _SortFieldButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<InventorySortField>(
-      tooltip: 'Sort by',
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      padding: EdgeInsets.zero,
-      onSelected: onSortChanged,
-      itemBuilder: (context) => const <PopupMenuEntry<InventorySortField>>[
-        PopupMenuItem(
-          value: InventorySortField.savingsPercent,
-          child: Text('Savings %', style: AppTypography.bodySmall),
-        ),
-        PopupMenuItem(
-          value: InventorySortField.originalSize,
-          child: Text('Original size', style: AppTypography.bodySmall),
-        ),
-        PopupMenuItem(
-          value: InventorySortField.name,
-          child: Text('Name', style: AppTypography.bodySmall),
-        ),
-        PopupMenuItem(
-          value: InventorySortField.platform,
-          child: Text('Platform', style: AppTypography.bodySmall),
-        ),
-      ],
-      child: InputDecorator(
-        key: _inventorySortDecoratorKey,
-        decoration: const InputDecoration(labelText: 'Sort by', isDense: true),
-        child: SizedBox.expand(
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _sortFieldLabel(sortField),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.bodySmall,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _openSortMenu(context),
+        child: InputDecorator(
+          key: _inventorySortDecoratorKey,
+          decoration: const InputDecoration(
+            labelText: 'Sort by',
+            isDense: true,
+          ),
+          child: SizedBox.expand(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _inventorySortFieldLabel(sortField),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodySmall,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(LucideIcons.chevronDown, size: 16),
-            ],
+                const SizedBox(width: 8),
+                const Icon(LucideIcons.chevronDown, size: 16),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  String _sortFieldLabel(InventorySortField field) {
-    return switch (field) {
-      InventorySortField.savingsPercent => 'Savings %',
-      InventorySortField.originalSize => 'Original size',
-      InventorySortField.name => 'Name',
-      InventorySortField.platform => 'Platform',
-    };
+  Future<void> _openSortMenu(BuildContext context) async {
+    final menuPosition = _sortMenuPosition(context);
+    if (menuPosition == null) {
+      return;
+    }
+
+    final selected = await showMenu<InventorySortField>(
+      context: context,
+      popUpAnimationStyle: AnimationStyle.noAnimation,
+      position: menuPosition.position,
+      constraints: BoxConstraints.tightFor(width: menuPosition.width),
+      items: <PopupMenuEntry<InventorySortField>>[
+        _HorizontalSortMenuEntry(selected: sortField),
+      ],
+    );
+
+    if (selected != null && selected != sortField) {
+      onSortChanged(selected);
+    }
+  }
+
+  _SortMenuPosition? _sortMenuPosition(BuildContext context) {
+    final buttonBox = context.findRenderObject();
+    final overlayState = Overlay.maybeOf(context);
+    if (buttonBox is! RenderBox || overlayState == null) {
+      return null;
+    }
+
+    final overlayBox = overlayState.context.findRenderObject();
+    if (overlayBox is! RenderBox || !buttonBox.hasSize) {
+      return null;
+    }
+
+    final buttonRect =
+        buttonBox.localToGlobal(Offset.zero, ancestor: overlayBox) &
+        buttonBox.size;
+    return _SortMenuPosition(
+      width: buttonRect.width,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(
+          buttonRect.left,
+          buttonRect.bottom + 4,
+          buttonRect.width,
+          0,
+        ),
+        Offset.zero & overlayBox.size,
+      ),
+    );
   }
 }
 
-class InventoryStatusRow extends StatelessWidget {
-  const InventoryStatusRow({
-    super.key,
-    required this.algorithmLabel,
-    required this.watcherActive,
-    required this.advancedEnabled,
-    required this.onAdvancedChanged,
-  });
-
-  final String algorithmLabel;
-  final bool watcherActive;
-  final bool advancedEnabled;
-  final ValueChanged<bool> onAdvancedChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 6,
-      children: [
-        Chip(label: Text('Algorithm: $algorithmLabel')),
-        Chip(
-          label: Text(watcherActive ? 'Watcher: active' : 'Watcher: paused'),
-          backgroundColor: watcherActive
-              ? AppColors.success.withValues(alpha: 0.2)
-              : AppColors.warning.withValues(alpha: 0.2),
-        ),
-        FilterChip(
-          label: const Text('Advanced metadata scans (manual)'),
-          selected: advancedEnabled,
-          onSelected: onAdvancedChanged,
-        ),
-      ],
-    );
-  }
+String _inventorySortFieldLabel(InventorySortField field) {
+  return switch (field) {
+    InventorySortField.savingsPercent => 'Savings %',
+    InventorySortField.originalSize => 'Original size',
+    InventorySortField.name => 'Name',
+    InventorySortField.platform => 'Platform',
+  };
 }
 
 class InventoryHeader extends StatelessWidget {
   const InventoryHeader({super.key});
 
+  static final _headerStyle = AppTypography.label.copyWith(
+    fontSize: 11,
+    letterSpacing: 0.9,
+    color: AppColors.textMuted.withValues(alpha: 0.9),
+    fontWeight: FontWeight.w600,
+  );
+
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 0),
+    final headerStyle = _headerStyle;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Row(
         children: [
-          Expanded(flex: 28, child: Text('Game', style: AppTypography.label)),
-          Expanded(
-            flex: 12,
-            child: Text('Platform', style: AppTypography.label),
-          ),
-          Expanded(
-            flex: 12,
-            child: Text('Original', style: AppTypography.label),
-          ),
-          Expanded(
-            flex: 12,
-            child: Text('Current', style: AppTypography.label),
-          ),
-          Expanded(
-            flex: 10,
-            child: Text('Savings', style: AppTypography.label),
-          ),
-          Expanded(
-            flex: 14,
-            child: Text('Last Checked', style: AppTypography.label),
-          ),
-          Expanded(
-            flex: 12,
-            child: Text('Watcher', style: AppTypography.label),
-          ),
+          Expanded(flex: 28, child: Text('GAME', style: headerStyle)),
+          Expanded(flex: 12, child: Text('PLATFORM', style: headerStyle)),
+          Expanded(flex: 12, child: Text('ORIGINAL', style: headerStyle)),
+          Expanded(flex: 12, child: Text('CURRENT', style: headerStyle)),
+          Expanded(flex: 10, child: Text('SAVINGS', style: headerStyle)),
+          Expanded(flex: 14, child: Text('LAST CHECKED', style: headerStyle)),
+          Expanded(flex: 12, child: Text('WATCHER', style: headerStyle)),
         ],
       ),
     );
@@ -254,12 +258,23 @@ class InventoryRow extends StatelessWidget {
     required this.watcherActive,
     required this.lastCheckedLabel,
     required this.onOpenDetails,
+    this.isStriped = false,
   });
 
   final GameInfo game;
   final bool watcherActive;
   final String lastCheckedLabel;
   final VoidCallback onOpenDetails;
+  final bool isStriped;
+
+  static final _stripedDecoration = BoxDecoration(
+    color: AppColors.surfaceVariant.withValues(alpha: 0.16),
+    border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+  );
+  static final _normalDecoration = BoxDecoration(
+    color: Colors.transparent,
+    border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -270,56 +285,59 @@ class InventoryRow extends StatelessWidget {
 
     return InkWell(
       onTap: onOpenDetails,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 28,
-              child: Text(
-                game.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.bodyMedium,
+      child: Container(
+        decoration: isStriped ? _stripedDecoration : _normalDecoration,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 28,
+                child: Text(
+                  game.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodyMedium,
+                ),
               ),
-            ),
-            Expanded(
-              flex: 12,
-              child: Text(
-                game.platform.displayName,
-                style: AppTypography.bodySmall,
+              Expanded(
+                flex: 12,
+                child: Text(
+                  game.platform.displayName,
+                  style: AppTypography.bodySmall,
+                ),
               ),
-            ),
-            Expanded(
-              flex: 12,
-              child: Text(
-                '${originalGb.toStringAsFixed(1)} GB',
-                style: AppTypography.bodySmall,
+              Expanded(
+                flex: 12,
+                child: Text(
+                  '${originalGb.toStringAsFixed(1)} GB',
+                  style: AppTypography.bodySmall,
+                ),
               ),
-            ),
-            Expanded(
-              flex: 12,
-              child: Text(
-                '${currentGb.toStringAsFixed(1)} GB',
-                style: AppTypography.bodySmall,
+              Expanded(
+                flex: 12,
+                child: Text(
+                  '${currentGb.toStringAsFixed(1)} GB',
+                  style: AppTypography.bodySmall,
+                ),
               ),
-            ),
-            Expanded(
-              flex: 10,
-              child: Text('$savingsPercent%', style: AppTypography.bodySmall),
-            ),
-            Expanded(
-              flex: 14,
-              child: Text(lastCheckedLabel, style: AppTypography.bodySmall),
-            ),
-            Expanded(
-              flex: 12,
-              child: Text(
-                watcherActive ? 'Monitored' : 'Paused',
-                style: AppTypography.bodySmall,
+              Expanded(
+                flex: 10,
+                child: Text('$savingsPercent%', style: AppTypography.bodySmall),
               ),
-            ),
-          ],
+              Expanded(
+                flex: 14,
+                child: Text(lastCheckedLabel, style: AppTypography.bodySmall),
+              ),
+              Expanded(
+                flex: 12,
+                child: Text(
+                  watcherActive ? 'Monitored' : 'Paused',
+                  style: AppTypography.bodySmall,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
