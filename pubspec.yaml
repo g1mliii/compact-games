@@ -48,6 +48,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/app_icon.ico
   fonts:
     - family: Inter
       fonts:

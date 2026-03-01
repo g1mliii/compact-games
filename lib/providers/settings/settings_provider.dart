@@ -125,6 +125,10 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     _updateSetting((s) => s.copyWith(inventoryAdvancedScanEnabled: enabled));
   }
 
+  void setMinimizeToTray(bool enabled) {
+    _updateSetting((s) => s.copyWith(minimizeToTray: enabled));
+  }
+
   void _updateSetting(AppSettings Function(AppSettings) updater) {
     final current = state.valueOrNull;
     if (current == null) return;

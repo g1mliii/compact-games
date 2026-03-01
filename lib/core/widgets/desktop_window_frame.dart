@@ -17,8 +17,8 @@ class DesktopWindowFrame extends StatelessWidget {
       color: AppColors.background,
       child: Column(
         children: [
-          const _PressPlayWindowTitleBar(),
-          Expanded(child: child),
+          const RepaintBoundary(child: _PressPlayWindowTitleBar()),
+          Expanded(child: RepaintBoundary(child: child)),
         ],
       ),
     );

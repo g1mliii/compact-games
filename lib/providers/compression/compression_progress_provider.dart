@@ -27,7 +27,9 @@ final activeCompressionProgressProvider = Provider<CompressionProgress?>((ref) {
 });
 
 /// Name of the game currently being compressed (for header/tray display).
+/// Returns null for decompression jobs so the tray shows the correct mode.
 final compressingGameNameProvider = Provider<String?>((ref) {
   final job = ref.watch(activeCompressionJobProvider);
-  return job?.gameName;
+  if (job == null || job.type != CompressionJobType.compression) return null;
+  return job.gameName;
 });

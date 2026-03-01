@@ -17,6 +17,7 @@ class AppSettings {
   final bool directStorageOverrideEnabled;
   final String? steamGridDbApiKey;
   final bool inventoryAdvancedScanEnabled;
+  final bool minimizeToTray;
 
   const AppSettings({
     this.schemaVersion = currentSchemaVersion,
@@ -32,6 +33,7 @@ class AppSettings {
     this.directStorageOverrideEnabled = false,
     this.steamGridDbApiKey,
     this.inventoryAdvancedScanEnabled = false,
+    this.minimizeToTray = true,
   });
 
   /// Clamp values to safe ranges.
@@ -50,6 +52,7 @@ class AppSettings {
       directStorageOverrideEnabled: directStorageOverrideEnabled,
       steamGridDbApiKey: _normalizedApiKey(steamGridDbApiKey),
       inventoryAdvancedScanEnabled: inventoryAdvancedScanEnabled,
+      minimizeToTray: minimizeToTray,
     );
   }
 
@@ -66,6 +69,7 @@ class AppSettings {
     bool? directStorageOverrideEnabled,
     String? Function()? steamGridDbApiKey,
     bool? inventoryAdvancedScanEnabled,
+    bool? minimizeToTray,
   }) {
     return AppSettings(
       schemaVersion: schemaVersion,
@@ -85,6 +89,7 @@ class AppSettings {
           : this.steamGridDbApiKey,
       inventoryAdvancedScanEnabled:
           inventoryAdvancedScanEnabled ?? this.inventoryAdvancedScanEnabled,
+      minimizeToTray: minimizeToTray ?? this.minimizeToTray,
     );
   }
 
@@ -101,6 +106,7 @@ class AppSettings {
     'themeVariant': themeVariant,
     'directStorageOverrideEnabled': directStorageOverrideEnabled,
     'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
+    'minimizeToTray': minimizeToTray,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -130,6 +136,7 @@ class AppSettings {
       ),
       inventoryAdvancedScanEnabled:
           json['inventoryAdvancedScanEnabled'] as bool? ?? false,
+      minimizeToTray: json['minimizeToTray'] as bool? ?? true,
     ).validated();
   }
 

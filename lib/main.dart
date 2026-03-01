@@ -10,10 +10,20 @@ import 'core/constants/app_constants.dart';
 import 'core/performance/pressplay_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
+import 'services/tray_service.dart';
+import 'services/window_close_coordinator.dart';
 import 'src/rust/frb_generated.dart';
 
 final _windowListener = _PressPlayWindowListener();
 final _memoryObserver = _PressPlayMemoryObserver();
+final _windowCloseCoordinator = WindowCloseCoordinator(
+  tray: _TrayLifecycleWindowAdapter(TrayService.instance),
+  window: const _WindowLifecycleWindowManagerAdapter(),
+  appShutdown: _RustShutdownAdapter(RustBridgeService.instance),
+  trimMemory: UiMemoryLifecycle.trim,
+  cleanupLifecycleHooks: _cleanupLifecycleHooks,
+  requestAppExit: _requestAppExit,
+);
 
 Future<void> main() async {
   if (!kIsWeb && _enableShaderWarmUp) {
@@ -57,6 +67,11 @@ Future<void> main() async {
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
+    try {
+      await TrayService.instance.init();
+    } catch (e) {
+      debugPrint('[tray] Init failed (non-fatal): $e');
+    }
   });
 
   runApp(const PressPlayApp());
@@ -115,56 +130,14 @@ List<String> _rustLibraryCandidates() {
 }
 
 class _PressPlayWindowListener extends WindowListener {
-  bool _isClosing = false;
-
   @override
   void onWindowClose() {
-    if (_isClosing) {
-      return;
-    }
-    _isClosing = true;
-    unawaited(_shutdownAndClose());
+    unawaited(_windowCloseCoordinator.onWindowClose());
   }
 
   @override
   void onWindowMinimize() {
-    UiMemoryLifecycle.trim(UiMemoryTrimLevel.background);
-  }
-
-  Future<void> _shutdownAndClose() async {
-    try {
-      await RustBridgeService.instance.shutdownApp();
-    } finally {
-      UiMemoryLifecycle.trim(UiMemoryTrimLevel.shutdown);
-      try {
-        await windowManager.setPreventClose(false);
-      } catch (_) {
-        // Best effort: close interception may already be unavailable.
-      }
-      try {
-        await windowManager.destroy();
-        windowManager.removeListener(this);
-        WidgetsBinding.instance.removeObserver(_memoryObserver);
-        return;
-      } catch (_) {
-        // Best effort fallback.
-      }
-      try {
-        await windowManager.close();
-        windowManager.removeListener(this);
-        WidgetsBinding.instance.removeObserver(_memoryObserver);
-        return;
-      } catch (_) {
-        // Try platform-level app close if window_manager close calls fail.
-      }
-
-      try {
-        await SystemNavigator.pop();
-      } catch (_) {
-        // Best effort: if app is still alive, allow another close attempt.
-      }
-      _isClosing = false;
-    }
+    _windowCloseCoordinator.onWindowMinimize();
   }
 }
 
@@ -194,5 +167,69 @@ class _PressPlayMemoryObserver with WidgetsBindingObserver {
       case AppLifecycleState.detached:
         break;
     }
+  }
+}
+
+void _cleanupLifecycleHooks() {
+  windowManager.removeListener(_windowListener);
+  WidgetsBinding.instance.removeObserver(_memoryObserver);
+}
+
+Future<void> _requestAppExit() {
+  return SystemNavigator.pop();
+}
+
+class _TrayLifecycleWindowAdapter implements TrayLifecycleAdapter {
+  _TrayLifecycleWindowAdapter(this._trayService);
+
+  final TrayService _trayService;
+
+  @override
+  bool get quitRequested => _trayService.quitRequested;
+
+  @override
+  bool get minimizeToTray => _trayService.minimizeToTray;
+
+  @override
+  bool get isInitialized => _trayService.isInitialized;
+
+  @override
+  Future<void> dispose() {
+    return _trayService.dispose();
+  }
+}
+
+class _WindowLifecycleWindowManagerAdapter implements WindowLifecycleAdapter {
+  const _WindowLifecycleWindowManagerAdapter();
+
+  @override
+  Future<void> hide() {
+    return windowManager.hide();
+  }
+
+  @override
+  Future<void> setPreventClose(bool value) {
+    return windowManager.setPreventClose(value);
+  }
+
+  @override
+  Future<void> destroy() {
+    return windowManager.destroy();
+  }
+
+  @override
+  Future<void> close() {
+    return windowManager.close();
+  }
+}
+
+class _RustShutdownAdapter implements AppShutdownAdapter {
+  _RustShutdownAdapter(this._rustBridgeService);
+
+  final RustBridgeService _rustBridgeService;
+
+  @override
+  Future<void> shutdownApp() {
+    return _rustBridgeService.shutdownApp();
   }
 }
