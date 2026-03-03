@@ -7,6 +7,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/constants/app_constants.dart';
+import 'core/performance/perf_monitor.dart';
 import 'core/performance/pressplay_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
@@ -26,10 +27,17 @@ final _windowCloseCoordinator = WindowCloseCoordinator(
 );
 
 Future<void> main() async {
+  PerfMonitor.markStartupBegin();
   if (!kIsWeb && _enableShaderWarmUp) {
     PaintingBinding.shaderWarmUp = const PressPlayShaderWarmUp();
   }
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Cap decoded image memory at 50MB / 300 entries to stay under budget.
+  final imageCache = PaintingBinding.instance.imageCache;
+  imageCache.maximumSizeBytes = 50 * 1024 * 1024;
+  imageCache.maximumSize = 300;
+
   WidgetsBinding.instance
     ..removeObserver(_memoryObserver)
     ..addObserver(_memoryObserver);
@@ -65,8 +73,9 @@ Future<void> main() async {
   );
 
   windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-    await windowManager.focus();
+    // Avoid stealing foreground focus from active fullscreen/borderless games
+    // when the app starts in the background.
+    await windowManager.show(inactive: true);
     try {
       await TrayService.instance.init();
     } catch (e) {
@@ -75,6 +84,7 @@ Future<void> main() async {
   });
 
   runApp(const PressPlayApp());
+  PerfMonitor.markStartupEnd();
 }
 
 const bool _enableShaderWarmUp = bool.fromEnvironment(

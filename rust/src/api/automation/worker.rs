@@ -25,6 +25,7 @@ use crate::automation::scheduler::{AutoScheduler, SchedulerAction, SchedulerConf
 use crate::automation::watcher::{GameWatcher, WatcherConfig};
 use crate::compression::algorithm::CompressionAlgorithm;
 use crate::compression::engine::{CancellationToken, CompressionEngine};
+use crate::compression::thread_policy::compute_thread_policy;
 use crate::safety::directstorage::is_directstorage_game;
 use crate::safety::process::ProcessChecker;
 
@@ -129,6 +130,7 @@ pub(super) fn auto_loop(
     let mut last_state = scheduler.state();
     let mut active_compression: Option<ActiveCompressionJob> = None;
     let mut current_algorithm = CompressionAlgorithm::Xpress8K;
+    let mut current_io_parallelism_override: Option<usize> = None;
 
     loop {
         match stop_rx.recv_timeout(Duration::from_secs(2)) {
@@ -146,6 +148,9 @@ pub(super) fn auto_loop(
         while let Ok(new_config) = config_rx.try_recv() {
             log::info!("Received automation config update");
             current_algorithm = frb_algorithm_to_internal(&new_config.algorithm);
+            current_io_parallelism_override = new_config
+                .io_parallelism_override
+                .map(|value| value as usize);
             apply_config(
                 &new_config,
                 &mut idle_detector,
@@ -193,6 +198,7 @@ pub(super) fn auto_loop(
         }
 
         let is_idle = idle_detector.is_idle();
+        let cpu_usage_percent = idle_detector.cpu_usage();
 
         if !is_idle {
             if let Some(ref job) = active_compression {
@@ -207,6 +213,8 @@ pub(super) fn auto_loop(
                         &job,
                         &process_checker,
                         current_algorithm,
+                        cpu_usage_percent,
+                        current_io_parallelism_override,
                     ));
                 }
                 SchedulerAction::Persist => {
@@ -280,6 +288,8 @@ fn spawn_compression_job(
     job: &crate::automation::scheduler::AutomationJob,
     process_checker: &ProcessChecker,
     algorithm: CompressionAlgorithm,
+    cpu_usage_percent: f32,
+    io_parallelism_override: Option<usize>,
 ) -> ActiveCompressionJob {
     let game_path = job.game_path.clone();
     let game_name = job.game_name.clone();
@@ -324,25 +334,20 @@ fn spawn_compression_job(
     }
 
     let token = cancel_token.clone();
-    let _ = std::thread::Builder::new()
+    let spawn_fail_tx = result_tx.clone();
+    let spawn_fail_key = idempotency_key.clone();
+    let spawn_result = std::thread::Builder::new()
         .name("pressplay-auto-compress".to_owned())
         .spawn(move || {
-            let engine = CompressionEngine::new(algorithm);
-            let engine_token = engine.cancel_token();
-            let cancel_watcher_token = token.clone();
-            let cancel_watcher_engine_token = engine_token.clone();
-            let cancel_watcher = std::thread::Builder::new()
-                .name("pressplay-cancel-watcher".to_owned())
-                .spawn(move || {
-                    while !cancel_watcher_token.is_cancelled()
-                        && !cancel_watcher_engine_token.is_cancelled()
-                    {
-                        std::thread::sleep(Duration::from_millis(250));
-                    }
-                    if cancel_watcher_token.is_cancelled() {
-                        cancel_watcher_engine_token.cancel();
-                    }
-                });
+            let policy = compute_thread_policy(
+                &game_path,
+                true,
+                Some(cpu_usage_percent),
+                io_parallelism_override,
+            );
+            let engine = CompressionEngine::new(algorithm)
+                .with_thread_policy(policy)
+                .with_cancel_token(token.clone());
 
             log::info!(
                 "Auto-compressing: {} ({}) with {:?}",
@@ -352,10 +357,6 @@ fn spawn_compression_job(
             );
 
             let result = engine.compress_folder(&game_path);
-            engine_token.cancel();
-            if let Ok(handle) = cancel_watcher {
-                let _ = handle.join();
-            }
 
             let compression_result = match result {
                 Ok(stats) => {
@@ -385,6 +386,14 @@ fn spawn_compression_job(
 
             let _ = result_tx.send(compression_result);
         });
+
+    if let Err(e) = spawn_result {
+        log::error!("Failed to spawn auto-compression thread: {e}");
+        let _ = spawn_fail_tx.send(CompressionResult::Failed {
+            idempotency_key: spawn_fail_key,
+            error: format!("Thread spawn failed: {e}"),
+        });
+    }
 
     ActiveCompressionJob {
         result_rx,

@@ -36,13 +36,18 @@ class CompressionNotifier extends Notifier<CompressionState> {
     required String gamePath,
     required String gameName,
     CompressionAlgorithm? algorithm,
+    bool? allowDirectStorageOverride,
   }) async {
     if (state.hasActiveJob || _progressSubscription != null) return;
 
+    final settings = ref.read(settingsProvider).valueOrNull?.settings;
     final algo =
-        algorithm ??
-        ref.read(settingsProvider).valueOrNull?.settings.algorithm ??
-        CompressionAlgorithm.xpress8k;
+        algorithm ?? settings?.algorithm ?? CompressionAlgorithm.xpress8k;
+    final dsOverride =
+        allowDirectStorageOverride ??
+        settings?.directStorageOverrideEnabled ??
+        false;
+    final ioParallelismOverride = settings?.ioParallelismOverride;
     _cancelRequested = false;
 
     state = state.copyWith(
@@ -62,6 +67,8 @@ class CompressionNotifier extends Notifier<CompressionState> {
         gamePath: gamePath,
         gameName: gameName,
         algorithm: algo,
+        allowDirectStorageOverride: dsOverride,
+        ioParallelismOverride: ioParallelismOverride,
       );
 
       _cancelSubscription();
@@ -113,7 +120,12 @@ class CompressionNotifier extends Notifier<CompressionState> {
 
     try {
       final bridge = ref.read(rustBridgeServiceProvider);
-      await bridge.decompressGame(gamePath);
+      final ioParallelismOverride =
+          ref.read(settingsProvider).valueOrNull?.settings.ioParallelismOverride;
+      await bridge.decompressGame(
+        gamePath,
+        ioParallelismOverride: ioParallelismOverride,
+      );
       if (_disposed) return;
 
       _completeJob();

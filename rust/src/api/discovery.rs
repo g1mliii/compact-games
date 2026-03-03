@@ -30,6 +30,8 @@ pub fn get_all_games_quick() -> Result<Vec<FrbGameInfo>, FrbDiscoveryError> {
 #[frb(sync)]
 pub fn clear_discovery_cache() {
     crate::discovery::cache::clear_all();
+    crate::discovery::index::clear_all();
+    crate::discovery::change_feed::clear_all();
     log::info!("Discovery cache cleared");
 }
 
@@ -42,6 +44,10 @@ pub fn clear_discovery_cache_entry(path: String) {
     let path = PathBuf::from(path);
     crate::discovery::cache::remove(&path);
     crate::discovery::cache::persist_if_dirty();
+    crate::discovery::index::remove(&path);
+    crate::discovery::index::persist_if_dirty();
+    crate::discovery::change_feed::remove(&path);
+    crate::discovery::change_feed::persist_if_dirty();
 }
 
 /// Scan a single custom folder for games.
@@ -94,6 +100,10 @@ pub fn hydrate_game(
         platform,
         DiscoveryScanMode::Full,
     );
+
+    // Hydration upserts to the in-memory cache; flush to disk so
+    // the work survives abnormal exits and doesn't have to be redone.
+    crate::discovery::cache::persist_if_dirty();
 
     Ok(game.map(FrbGameInfo::from))
 }

@@ -26,7 +26,7 @@ import 'package:pressplay/services/rust_bridge_service.dart';
 part 'support/phase6_test_doubles.dart';
 
 const int _oneGiB = 1024 * 1024 * 1024;
-const List<GameInfo> _sampleGames = <GameInfo>[
+final List<GameInfo> _sampleGames = <GameInfo>[
   GameInfo(
     name: 'Pixel Raider',
     path: r'C:\Games\pixel_raider',
@@ -304,6 +304,58 @@ void main() {
     );
   });
 
+  testWidgets(
+    'Settings inventory layout keeps spacing and avoids overly wide controls',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 900));
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      final persistence = _InMemorySettingsPersistence();
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            initialRoute: AppRoutes.settings,
+            onGenerateRoute: AppRoutes.onGenerateRoute,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final firstCardRect = tester.getRect(find.byType(Card).first);
+      expect(firstCardRect.width, lessThan(1000));
+
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -1400));
+      await tester.pumpAndSettle();
+
+      final bannerRect = tester.getRect(
+        find.byKey(const ValueKey<String>('settingsWatcherStatusBanner')),
+      );
+      final watcherButtonRect = tester.getRect(
+        find.byKey(const ValueKey<String>('settingsWatcherToggleButton')),
+      );
+
+      expect(watcherButtonRect.width, lessThan(bannerRect.width));
+      expect(
+        watcherButtonRect.top - bannerRect.bottom,
+        greaterThanOrEqualTo(8),
+      );
+    },
+  );
+
   test('Rust bridge provider resolves to singleton instance', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -314,7 +366,7 @@ void main() {
     expect(identical(a, RustBridgeService.instance), isTrue);
   });
 
-  testWidgets('GameCard cover image uses cover fit to fill frame', (
+  testWidgets('GameCard cover image uses contain fit to avoid cropping', (
     WidgetTester tester,
   ) async {
     // Use a MemoryImage so the test does not depend on network/file I/O.
@@ -347,7 +399,7 @@ void main() {
     );
 
     final image = tester.widget<Image>(find.byType(Image).first);
-    expect(image.fit, BoxFit.cover);
+    expect(image.fit, BoxFit.contain);
     expect(image.isAntiAlias, isTrue);
     expect(image.filterQuality, FilterQuality.low);
   });

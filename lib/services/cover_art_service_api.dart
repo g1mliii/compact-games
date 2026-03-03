@@ -10,9 +10,12 @@ const Duration _apiInitialRetryDelay = Duration(milliseconds: 220);
 const Duration _apiJsonRequestTimeout = Duration(seconds: 4);
 const Duration _apiImageRequestTimeout = Duration(seconds: 6);
 const List<String> _steamGridDimensionPreference = <String>[
-  '512x512',
+  '342x482',
+  '660x930',
   '600x900',
 ];
+const double _steamGridPreferredAspectMin = 0.69;
+const double _steamGridPreferredAspectMax = 1.10;
 
 int _activeApiRequests = 0;
 final Queue<Completer<void>> _apiPermitQueue = Queue<Completer<void>>();
@@ -210,8 +213,9 @@ extension _CoverArtServiceApi on CoverArtService {
     }
 
     String? fallbackUrl;
-    String? bestPortraitUrl;
-    var bestPortraitHeight = 0;
+    var fallbackArea = -1;
+    String? preferredUrl;
+    var preferredArea = -1;
     for (final item in data) {
       if (item is! Map) {
         continue;
@@ -221,16 +225,28 @@ extension _CoverArtServiceApi on CoverArtService {
       if (url == null || url.isEmpty) {
         continue;
       }
-      fallbackUrl ??= url;
-
       final width = _readInt(item['width']) ?? 0;
       final height = _readInt(item['height']) ?? 0;
-      if (height > width && height > bestPortraitHeight) {
-        bestPortraitHeight = height;
-        bestPortraitUrl = url;
+      final area = width > 0 && height > 0 ? width * height : 0;
+
+      if (area > fallbackArea) {
+        fallbackArea = area;
+        fallbackUrl = url;
+      }
+
+      if (width <= 0 || height <= 0) {
+        continue;
+      }
+      final aspect = width / height;
+      final isPreferredAspect =
+          aspect >= _steamGridPreferredAspectMin &&
+          aspect <= _steamGridPreferredAspectMax;
+      if (isPreferredAspect && area > preferredArea) {
+        preferredArea = area;
+        preferredUrl = url;
       }
     }
-    return bestPortraitUrl ?? fallbackUrl;
+    return preferredUrl ?? fallbackUrl;
   }
 
   Future<Map<String, dynamic>?> _steamGridDbGetJson({

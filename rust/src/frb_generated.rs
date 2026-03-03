@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1868603680;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1193670539;
 
 // Section: executor
 
@@ -165,6 +165,8 @@ fn wire__crate__api__compression__compress_game_impl(
             let api_game_name = <String>::sse_decode(&mut deserializer);
             let api_algorithm =
                 <crate::api::types::FrbCompressionAlgorithm>::sse_decode(&mut deserializer);
+            let api_allow_directstorage_override = <bool>::sse_decode(&mut deserializer);
+            let api_io_parallelism_override = <Option<u64>>::sse_decode(&mut deserializer);
             let api_sink = <StreamSink<
                 crate::api::types::FrbCompressionProgress,
                 flutter_rust_bridge::for_generated::SseCodec,
@@ -176,6 +178,8 @@ fn wire__crate__api__compression__compress_game_impl(
                         api_game_path,
                         api_game_name,
                         api_algorithm,
+                        api_allow_directstorage_override,
+                        api_io_parallelism_override,
                         api_sink,
                     )?;
                     Ok(output_ok)
@@ -208,10 +212,14 @@ fn wire__crate__api__compression__decompress_game_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_game_path = <String>::sse_decode(&mut deserializer);
+            let api_io_parallelism_override = <Option<u64>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::types::FrbCompressionError>((move || {
-                    let output_ok = crate::api::compression::decompress_game(api_game_path)?;
+                    let output_ok = crate::api::compression::decompress_game(
+                        api_game_path,
+                        api_io_parallelism_override,
+                    )?;
                     Ok(output_ok)
                 })(
                 ))
@@ -670,6 +678,39 @@ fn wire__crate__api__discovery__scan_custom_folder_impl(
         },
     )
 }
+fn wire__crate__api__automation__shared_auto_state_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "shared_auto_state_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::automation::SharedAutoState::default())?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__automation__start_auto_compression_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -694,11 +735,12 @@ fn wire__crate__api__automation__start_auto_compression_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::api::types::FrbAutomationError>((move || {
-                    let output_ok = crate::api::automation::start_auto_compression()?;
-                    Ok(output_ok)
-                })(
-                ))
+                transform_result_sse::<_, crate::api::automation_types::FrbAutomationError>(
+                    (move || {
+                        let output_ok = crate::api::automation::start_auto_compression()?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -725,10 +767,12 @@ fn wire__crate__api__automation__stop_auto_compression_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
-            transform_result_sse::<_, crate::api::types::FrbAutomationError>((move || {
-                let output_ok = crate::api::automation::stop_auto_compression()?;
-                Ok(output_ok)
-            })())
+            transform_result_sse::<_, crate::api::automation_types::FrbAutomationError>(
+                (move || {
+                    let output_ok = crate::api::automation::stop_auto_compression()?;
+                    Ok(output_ok)
+                })(),
+            )
         },
     )
 }
@@ -755,14 +799,16 @@ fn wire__crate__api__automation__update_automation_config_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_config =
-                <crate::api::types::FrbAutomationConfig>::sse_decode(&mut deserializer);
+                <crate::api::automation_types::FrbAutomationConfig>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::api::types::FrbAutomationError>((move || {
-                    let output_ok = crate::api::automation::update_automation_config(api_config)?;
-                    Ok(output_ok)
-                })(
-                ))
+                transform_result_sse::<_, crate::api::automation_types::FrbAutomationError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::automation::update_automation_config(api_config)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -795,12 +841,13 @@ fn wire__crate__api__automation__watch_auto_compression_status_impl(
                 );
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::api::types::FrbAutomationError>((move || {
-                    let output_ok =
-                        crate::api::automation::watch_auto_compression_status(api_sink)?;
-                    Ok(output_ok)
-                })(
-                ))
+                transform_result_sse::<_, crate::api::automation_types::FrbAutomationError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::automation::watch_auto_compression_status(api_sink)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -828,16 +875,17 @@ fn wire__crate__api__automation__watch_automation_queue_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_sink = <StreamSink<
-                Vec<crate::api::types::FrbAutomationJob>,
+                Vec<crate::api::automation_types::FrbAutomationJob>,
                 flutter_rust_bridge::for_generated::SseCodec,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::api::types::FrbAutomationError>((move || {
-                    let output_ok = crate::api::automation::watch_automation_queue(api_sink)?;
-                    Ok(output_ok)
-                })(
-                ))
+                transform_result_sse::<_, crate::api::automation_types::FrbAutomationError>(
+                    (move || {
+                        let output_ok = crate::api::automation::watch_automation_queue(api_sink)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -865,16 +913,17 @@ fn wire__crate__api__automation__watch_scheduler_state_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_sink = <StreamSink<
-                crate::api::types::FrbSchedulerState,
+                crate::api::automation_types::FrbSchedulerState,
                 flutter_rust_bridge::for_generated::SseCodec,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::api::types::FrbAutomationError>((move || {
-                    let output_ok = crate::api::automation::watch_scheduler_state(api_sink)?;
-                    Ok(output_ok)
-                })(
-                ))
+                transform_result_sse::<_, crate::api::automation_types::FrbAutomationError>(
+                    (move || {
+                        let output_ok = crate::api::automation::watch_scheduler_state(api_sink)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -902,16 +951,17 @@ fn wire__crate__api__automation__watch_watcher_events_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_sink = <StreamSink<
-                crate::api::types::FrbWatcherEvent,
+                crate::api::automation_types::FrbWatcherEvent,
                 flutter_rust_bridge::for_generated::SseCodec,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, crate::api::types::FrbAutomationError>((move || {
-                    let output_ok = crate::api::automation::watch_watcher_events(api_sink)?;
-                    Ok(output_ok)
-                })(
-                ))
+                transform_result_sse::<_, crate::api::automation_types::FrbAutomationError>(
+                    (move || {
+                        let output_ok = crate::api::automation::watch_watcher_events(api_sink)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -950,7 +1000,7 @@ impl SseDecode
 
 impl SseDecode
     for StreamSink<
-        crate::api::types::FrbSchedulerState,
+        crate::api::automation_types::FrbSchedulerState,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -962,7 +1012,10 @@ impl SseDecode
 }
 
 impl SseDecode
-    for StreamSink<crate::api::types::FrbWatcherEvent, flutter_rust_bridge::for_generated::SseCodec>
+    for StreamSink<
+        crate::api::automation_types::FrbWatcherEvent,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -973,7 +1026,7 @@ impl SseDecode
 
 impl SseDecode
     for StreamSink<
-        Vec<crate::api::types::FrbAutomationJob>,
+        Vec<crate::api::automation_types::FrbAutomationJob>,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -1013,7 +1066,7 @@ impl SseDecode for f64 {
     }
 }
 
-impl SseDecode for crate::api::types::FrbAutomationConfig {
+impl SseDecode for crate::api::automation_types::FrbAutomationConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_cpuThresholdPercent = <f32>::sse_decode(deserializer);
@@ -1023,43 +1076,45 @@ impl SseDecode for crate::api::types::FrbAutomationConfig {
         let mut var_excludedPaths = <Vec<String>>::sse_decode(deserializer);
         let mut var_algorithm =
             <crate::api::types::FrbCompressionAlgorithm>::sse_decode(deserializer);
-        return crate::api::types::FrbAutomationConfig {
+        let mut var_ioParallelismOverride = <Option<u64>>::sse_decode(deserializer);
+        return crate::api::automation_types::FrbAutomationConfig {
             cpu_threshold_percent: var_cpuThresholdPercent,
             idle_duration_seconds: var_idleDurationSeconds,
             cooldown_seconds: var_cooldownSeconds,
             watch_paths: var_watchPaths,
             excluded_paths: var_excludedPaths,
             algorithm: var_algorithm,
+            io_parallelism_override: var_ioParallelismOverride,
         };
     }
 }
 
-impl SseDecode for crate::api::types::FrbAutomationError {
+impl SseDecode for crate::api::automation_types::FrbAutomationError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                return crate::api::types::FrbAutomationError::AlreadyRunning;
+                return crate::api::automation_types::FrbAutomationError::AlreadyRunning;
             }
             1 => {
-                return crate::api::types::FrbAutomationError::NotRunning;
+                return crate::api::automation_types::FrbAutomationError::NotRunning;
             }
             2 => {
                 let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::types::FrbAutomationError::StartFailed {
+                return crate::api::automation_types::FrbAutomationError::StartFailed {
                     message: var_message,
                 };
             }
             3 => {
                 let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::types::FrbAutomationError::StopFailed {
+                return crate::api::automation_types::FrbAutomationError::StopFailed {
                     message: var_message,
                 };
             }
             4 => {
                 let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::types::FrbAutomationError::ConfigUpdateFailed {
+                return crate::api::automation_types::FrbAutomationError::ConfigUpdateFailed {
                     message: var_message,
                 };
             }
@@ -1070,17 +1125,19 @@ impl SseDecode for crate::api::types::FrbAutomationError {
     }
 }
 
-impl SseDecode for crate::api::types::FrbAutomationJob {
+impl SseDecode for crate::api::automation_types::FrbAutomationJob {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_gamePath = <String>::sse_decode(deserializer);
         let mut var_gameName = <Option<String>>::sse_decode(deserializer);
-        let mut var_kind = <crate::api::types::FrbAutomationJobKind>::sse_decode(deserializer);
-        let mut var_status = <crate::api::types::FrbAutomationJobStatus>::sse_decode(deserializer);
+        let mut var_kind =
+            <crate::api::automation_types::FrbAutomationJobKind>::sse_decode(deserializer);
+        let mut var_status =
+            <crate::api::automation_types::FrbAutomationJobStatus>::sse_decode(deserializer);
         let mut var_queuedAtMs = <i64>::sse_decode(deserializer);
         let mut var_startedAtMs = <Option<i64>>::sse_decode(deserializer);
         let mut var_error = <Option<String>>::sse_decode(deserializer);
-        return crate::api::types::FrbAutomationJob {
+        return crate::api::automation_types::FrbAutomationJob {
             game_path: var_gamePath,
             game_name: var_gameName,
             kind: var_kind,
@@ -1092,31 +1149,31 @@ impl SseDecode for crate::api::types::FrbAutomationJob {
     }
 }
 
-impl SseDecode for crate::api::types::FrbAutomationJobKind {
+impl SseDecode for crate::api::automation_types::FrbAutomationJobKind {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::api::types::FrbAutomationJobKind::NewInstall,
-            1 => crate::api::types::FrbAutomationJobKind::Reconcile,
-            2 => crate::api::types::FrbAutomationJobKind::Opportunistic,
+            0 => crate::api::automation_types::FrbAutomationJobKind::NewInstall,
+            1 => crate::api::automation_types::FrbAutomationJobKind::Reconcile,
+            2 => crate::api::automation_types::FrbAutomationJobKind::Opportunistic,
             _ => unreachable!("Invalid variant for FrbAutomationJobKind: {}", inner),
         };
     }
 }
 
-impl SseDecode for crate::api::types::FrbAutomationJobStatus {
+impl SseDecode for crate::api::automation_types::FrbAutomationJobStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::api::types::FrbAutomationJobStatus::Pending,
-            1 => crate::api::types::FrbAutomationJobStatus::WaitingForSettle,
-            2 => crate::api::types::FrbAutomationJobStatus::WaitingForIdle,
-            3 => crate::api::types::FrbAutomationJobStatus::Compressing,
-            4 => crate::api::types::FrbAutomationJobStatus::Completed,
-            5 => crate::api::types::FrbAutomationJobStatus::Failed,
-            6 => crate::api::types::FrbAutomationJobStatus::Skipped,
+            0 => crate::api::automation_types::FrbAutomationJobStatus::Pending,
+            1 => crate::api::automation_types::FrbAutomationJobStatus::WaitingForSettle,
+            2 => crate::api::automation_types::FrbAutomationJobStatus::WaitingForIdle,
+            3 => crate::api::automation_types::FrbAutomationJobStatus::Compressing,
+            4 => crate::api::automation_types::FrbAutomationJobStatus::Completed,
+            5 => crate::api::automation_types::FrbAutomationJobStatus::Failed,
+            6 => crate::api::automation_types::FrbAutomationJobStatus::Skipped,
             _ => unreachable!("Invalid variant for FrbAutomationJobStatus: {}", inner),
         };
     }
@@ -1328,31 +1385,31 @@ impl SseDecode for crate::api::types::FrbPlatform {
     }
 }
 
-impl SseDecode for crate::api::types::FrbSchedulerState {
+impl SseDecode for crate::api::automation_types::FrbSchedulerState {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::api::types::FrbSchedulerState::Idle,
-            1 => crate::api::types::FrbSchedulerState::Settling,
-            2 => crate::api::types::FrbSchedulerState::WaitingForIdle,
-            3 => crate::api::types::FrbSchedulerState::SafetyCheck,
-            4 => crate::api::types::FrbSchedulerState::Compressing,
-            5 => crate::api::types::FrbSchedulerState::Paused,
-            6 => crate::api::types::FrbSchedulerState::Backoff,
+            0 => crate::api::automation_types::FrbSchedulerState::Idle,
+            1 => crate::api::automation_types::FrbSchedulerState::Settling,
+            2 => crate::api::automation_types::FrbSchedulerState::WaitingForIdle,
+            3 => crate::api::automation_types::FrbSchedulerState::SafetyCheck,
+            4 => crate::api::automation_types::FrbSchedulerState::Compressing,
+            5 => crate::api::automation_types::FrbSchedulerState::Paused,
+            6 => crate::api::automation_types::FrbSchedulerState::Backoff,
             _ => unreachable!("Invalid variant for FrbSchedulerState: {}", inner),
         };
     }
 }
 
-impl SseDecode for crate::api::types::FrbWatcherDiagnostics {
+impl SseDecode for crate::api::automation_types::FrbWatcherDiagnostics {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_isWatching = <bool>::sse_decode(deserializer);
         let mut var_watchedPathCount = <u32>::sse_decode(deserializer);
         let mut var_queueDepth = <u32>::sse_decode(deserializer);
         let mut var_lastError = <Option<String>>::sse_decode(deserializer);
-        return crate::api::types::FrbWatcherDiagnostics {
+        return crate::api::automation_types::FrbWatcherDiagnostics {
             is_watching: var_isWatching,
             watched_path_count: var_watchedPathCount,
             queue_depth: var_queueDepth,
@@ -1361,7 +1418,7 @@ impl SseDecode for crate::api::types::FrbWatcherDiagnostics {
     }
 }
 
-impl SseDecode for crate::api::types::FrbWatcherEvent {
+impl SseDecode for crate::api::automation_types::FrbWatcherEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut tag_ = <i32>::sse_decode(deserializer);
@@ -1369,7 +1426,7 @@ impl SseDecode for crate::api::types::FrbWatcherEvent {
             0 => {
                 let mut var_path = <String>::sse_decode(deserializer);
                 let mut var_gameName = <Option<String>>::sse_decode(deserializer);
-                return crate::api::types::FrbWatcherEvent::GameInstalled {
+                return crate::api::automation_types::FrbWatcherEvent::GameInstalled {
                     path: var_path,
                     game_name: var_gameName,
                 };
@@ -1377,7 +1434,7 @@ impl SseDecode for crate::api::types::FrbWatcherEvent {
             1 => {
                 let mut var_path = <String>::sse_decode(deserializer);
                 let mut var_gameName = <Option<String>>::sse_decode(deserializer);
-                return crate::api::types::FrbWatcherEvent::GameModified {
+                return crate::api::automation_types::FrbWatcherEvent::GameModified {
                     path: var_path,
                     game_name: var_gameName,
                 };
@@ -1385,7 +1442,7 @@ impl SseDecode for crate::api::types::FrbWatcherEvent {
             2 => {
                 let mut var_path = <String>::sse_decode(deserializer);
                 let mut var_gameName = <Option<String>>::sse_decode(deserializer);
-                return crate::api::types::FrbWatcherEvent::GameUninstalled {
+                return crate::api::automation_types::FrbWatcherEvent::GameUninstalled {
                     path: var_path,
                     game_name: var_gameName,
                 };
@@ -1423,15 +1480,13 @@ impl SseDecode for Vec<String> {
     }
 }
 
-impl SseDecode for Vec<crate::api::types::FrbAutomationJob> {
+impl SseDecode for Vec<crate::api::automation_types::FrbAutomationJob> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::types::FrbAutomationJob>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(<crate::api::automation_types::FrbAutomationJob>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -1518,6 +1573,26 @@ impl SseDecode for Option<u64> {
     }
 }
 
+impl SseDecode for crate::api::automation::SharedAutoState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_schedulerState =
+            <crate::api::automation_types::FrbSchedulerState>::sse_decode(deserializer);
+        let mut var_queue =
+            <Vec<crate::api::automation_types::FrbAutomationJob>>::sse_decode(deserializer);
+        let mut var_watchedPathCount = <u32>::sse_decode(deserializer);
+        let mut var_queueDepth = <u32>::sse_decode(deserializer);
+        let mut var_lastError = <Option<String>>::sse_decode(deserializer);
+        return crate::api::automation::SharedAutoState {
+            scheduler_state: var_schedulerState,
+            queue: var_queue,
+            watched_path_count: var_watchedPathCount,
+            queue_depth: var_queueDepth,
+            last_error: var_lastError,
+        };
+    }
+}
+
 impl SseDecode for u32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1575,37 +1650,43 @@ fn pde_ffi_dispatcher_primary_impl(
         19 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        20 => wire__crate__api__automation__start_auto_compression_impl(
+        20 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        22 => wire__crate__api__automation__update_automation_config_impl(
+        21 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        23 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => wire__crate__api__automation__watch_automation_queue_impl(
+        24 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => wire__crate__api__automation__watch_scheduler_state_impl(
+        25 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__api__automation__watch_watcher_events_impl(
+        26 => wire__crate__api__automation__watch_scheduler_state_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        27 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1652,7 +1733,7 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1660,7 +1741,7 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationConfig {
+impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbAutomationConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.cpu_threshold_percent.into_into_dart().into_dart(),
@@ -1669,34 +1750,39 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationConfig {
             self.watch_paths.into_into_dart().into_dart(),
             self.excluded_paths.into_into_dart().into_dart(),
             self.algorithm.into_into_dart().into_dart(),
+            self.io_parallelism_override.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::types::FrbAutomationConfig
+    for crate::api::automation_types::FrbAutomationConfig
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbAutomationConfig>
-    for crate::api::types::FrbAutomationConfig
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbAutomationConfig>
+    for crate::api::automation_types::FrbAutomationConfig
 {
-    fn into_into_dart(self) -> crate::api::types::FrbAutomationConfig {
+    fn into_into_dart(self) -> crate::api::automation_types::FrbAutomationConfig {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationError {
+impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbAutomationError {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::api::types::FrbAutomationError::AlreadyRunning => [0.into_dart()].into_dart(),
-            crate::api::types::FrbAutomationError::NotRunning => [1.into_dart()].into_dart(),
-            crate::api::types::FrbAutomationError::StartFailed { message } => {
+            crate::api::automation_types::FrbAutomationError::AlreadyRunning => {
+                [0.into_dart()].into_dart()
+            }
+            crate::api::automation_types::FrbAutomationError::NotRunning => {
+                [1.into_dart()].into_dart()
+            }
+            crate::api::automation_types::FrbAutomationError::StartFailed { message } => {
                 [2.into_dart(), message.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::types::FrbAutomationError::StopFailed { message } => {
+            crate::api::automation_types::FrbAutomationError::StopFailed { message } => {
                 [3.into_dart(), message.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::types::FrbAutomationError::ConfigUpdateFailed { message } => {
+            crate::api::automation_types::FrbAutomationError::ConfigUpdateFailed { message } => {
                 [4.into_dart(), message.into_into_dart().into_dart()].into_dart()
             }
             _ => {
@@ -1706,18 +1792,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationError {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::types::FrbAutomationError
+    for crate::api::automation_types::FrbAutomationError
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbAutomationError>
-    for crate::api::types::FrbAutomationError
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbAutomationError>
+    for crate::api::automation_types::FrbAutomationError
 {
-    fn into_into_dart(self) -> crate::api::types::FrbAutomationError {
+    fn into_into_dart(self) -> crate::api::automation_types::FrbAutomationError {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationJob {
+impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbAutomationJob {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.game_path.into_into_dart().into_dart(),
@@ -1732,18 +1818,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationJob {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::types::FrbAutomationJob
+    for crate::api::automation_types::FrbAutomationJob
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbAutomationJob>
-    for crate::api::types::FrbAutomationJob
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbAutomationJob>
+    for crate::api::automation_types::FrbAutomationJob
 {
-    fn into_into_dart(self) -> crate::api::types::FrbAutomationJob {
+    fn into_into_dart(self) -> crate::api::automation_types::FrbAutomationJob {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationJobKind {
+impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbAutomationJobKind {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::NewInstall => 0.into_dart(),
@@ -1754,18 +1840,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationJobKind {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::types::FrbAutomationJobKind
+    for crate::api::automation_types::FrbAutomationJobKind
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbAutomationJobKind>
-    for crate::api::types::FrbAutomationJobKind
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbAutomationJobKind>
+    for crate::api::automation_types::FrbAutomationJobKind
 {
-    fn into_into_dart(self) -> crate::api::types::FrbAutomationJobKind {
+    fn into_into_dart(self) -> crate::api::automation_types::FrbAutomationJobKind {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationJobStatus {
+impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbAutomationJobStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Pending => 0.into_dart(),
@@ -1780,13 +1866,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbAutomationJobStatus
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::types::FrbAutomationJobStatus
+    for crate::api::automation_types::FrbAutomationJobStatus
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbAutomationJobStatus>
-    for crate::api::types::FrbAutomationJobStatus
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbAutomationJobStatus>
+    for crate::api::automation_types::FrbAutomationJobStatus
 {
-    fn into_into_dart(self) -> crate::api::types::FrbAutomationJobStatus {
+    fn into_into_dart(self) -> crate::api::automation_types::FrbAutomationJobStatus {
         self
     }
 }
@@ -2026,7 +2112,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbPlatform>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::types::FrbSchedulerState {
+impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbSchedulerState {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Idle => 0.into_dart(),
@@ -2041,18 +2127,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbSchedulerState {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::types::FrbSchedulerState
+    for crate::api::automation_types::FrbSchedulerState
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbSchedulerState>
-    for crate::api::types::FrbSchedulerState
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbSchedulerState>
+    for crate::api::automation_types::FrbSchedulerState
 {
-    fn into_into_dart(self) -> crate::api::types::FrbSchedulerState {
+    fn into_into_dart(self) -> crate::api::automation_types::FrbSchedulerState {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::types::FrbWatcherDiagnostics {
+impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbWatcherDiagnostics {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.is_watching.into_into_dart().into_dart(),
@@ -2064,33 +2150,33 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbWatcherDiagnostics 
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::types::FrbWatcherDiagnostics
+    for crate::api::automation_types::FrbWatcherDiagnostics
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbWatcherDiagnostics>
-    for crate::api::types::FrbWatcherDiagnostics
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbWatcherDiagnostics>
+    for crate::api::automation_types::FrbWatcherDiagnostics
 {
-    fn into_into_dart(self) -> crate::api::types::FrbWatcherDiagnostics {
+    fn into_into_dart(self) -> crate::api::automation_types::FrbWatcherDiagnostics {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::types::FrbWatcherEvent {
+impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbWatcherEvent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::api::types::FrbWatcherEvent::GameInstalled { path, game_name } => [
+            crate::api::automation_types::FrbWatcherEvent::GameInstalled { path, game_name } => [
                 0.into_dart(),
                 path.into_into_dart().into_dart(),
                 game_name.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::types::FrbWatcherEvent::GameModified { path, game_name } => [
+            crate::api::automation_types::FrbWatcherEvent::GameModified { path, game_name } => [
                 1.into_dart(),
                 path.into_into_dart().into_dart(),
                 game_name.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::types::FrbWatcherEvent::GameUninstalled { path, game_name } => [
+            crate::api::automation_types::FrbWatcherEvent::GameUninstalled { path, game_name } => [
                 2.into_dart(),
                 path.into_into_dart().into_dart(),
                 game_name.into_into_dart().into_dart(),
@@ -2103,13 +2189,37 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbWatcherEvent {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::types::FrbWatcherEvent
+    for crate::api::automation_types::FrbWatcherEvent
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbWatcherEvent>
-    for crate::api::types::FrbWatcherEvent
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbWatcherEvent>
+    for crate::api::automation_types::FrbWatcherEvent
 {
-    fn into_into_dart(self) -> crate::api::types::FrbWatcherEvent {
+    fn into_into_dart(self) -> crate::api::automation_types::FrbWatcherEvent {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::automation::SharedAutoState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.scheduler_state.into_into_dart().into_dart(),
+            self.queue.into_into_dart().into_dart(),
+            self.watched_path_count.into_into_dart().into_dart(),
+            self.queue_depth.into_into_dart().into_dart(),
+            self.last_error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::automation::SharedAutoState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::automation::SharedAutoState>
+    for crate::api::automation::SharedAutoState
+{
+    fn into_into_dart(self) -> crate::api::automation::SharedAutoState {
         self
     }
 }
@@ -2142,7 +2252,7 @@ impl SseEncode
 
 impl SseEncode
     for StreamSink<
-        crate::api::types::FrbSchedulerState,
+        crate::api::automation_types::FrbSchedulerState,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -2153,7 +2263,10 @@ impl SseEncode
 }
 
 impl SseEncode
-    for StreamSink<crate::api::types::FrbWatcherEvent, flutter_rust_bridge::for_generated::SseCodec>
+    for StreamSink<
+        crate::api::automation_types::FrbWatcherEvent,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2163,7 +2276,7 @@ impl SseEncode
 
 impl SseEncode
     for StreamSink<
-        Vec<crate::api::types::FrbAutomationJob>,
+        Vec<crate::api::automation_types::FrbAutomationJob>,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -2201,7 +2314,7 @@ impl SseEncode for f64 {
     }
 }
 
-impl SseEncode for crate::api::types::FrbAutomationConfig {
+impl SseEncode for crate::api::automation_types::FrbAutomationConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <f32>::sse_encode(self.cpu_threshold_percent, serializer);
@@ -2210,28 +2323,29 @@ impl SseEncode for crate::api::types::FrbAutomationConfig {
         <Vec<String>>::sse_encode(self.watch_paths, serializer);
         <Vec<String>>::sse_encode(self.excluded_paths, serializer);
         <crate::api::types::FrbCompressionAlgorithm>::sse_encode(self.algorithm, serializer);
+        <Option<u64>>::sse_encode(self.io_parallelism_override, serializer);
     }
 }
 
-impl SseEncode for crate::api::types::FrbAutomationError {
+impl SseEncode for crate::api::automation_types::FrbAutomationError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::types::FrbAutomationError::AlreadyRunning => {
+            crate::api::automation_types::FrbAutomationError::AlreadyRunning => {
                 <i32>::sse_encode(0, serializer);
             }
-            crate::api::types::FrbAutomationError::NotRunning => {
+            crate::api::automation_types::FrbAutomationError::NotRunning => {
                 <i32>::sse_encode(1, serializer);
             }
-            crate::api::types::FrbAutomationError::StartFailed { message } => {
+            crate::api::automation_types::FrbAutomationError::StartFailed { message } => {
                 <i32>::sse_encode(2, serializer);
                 <String>::sse_encode(message, serializer);
             }
-            crate::api::types::FrbAutomationError::StopFailed { message } => {
+            crate::api::automation_types::FrbAutomationError::StopFailed { message } => {
                 <i32>::sse_encode(3, serializer);
                 <String>::sse_encode(message, serializer);
             }
-            crate::api::types::FrbAutomationError::ConfigUpdateFailed { message } => {
+            crate::api::automation_types::FrbAutomationError::ConfigUpdateFailed { message } => {
                 <i32>::sse_encode(4, serializer);
                 <String>::sse_encode(message, serializer);
             }
@@ -2242,27 +2356,27 @@ impl SseEncode for crate::api::types::FrbAutomationError {
     }
 }
 
-impl SseEncode for crate::api::types::FrbAutomationJob {
+impl SseEncode for crate::api::automation_types::FrbAutomationJob {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.game_path, serializer);
         <Option<String>>::sse_encode(self.game_name, serializer);
-        <crate::api::types::FrbAutomationJobKind>::sse_encode(self.kind, serializer);
-        <crate::api::types::FrbAutomationJobStatus>::sse_encode(self.status, serializer);
+        <crate::api::automation_types::FrbAutomationJobKind>::sse_encode(self.kind, serializer);
+        <crate::api::automation_types::FrbAutomationJobStatus>::sse_encode(self.status, serializer);
         <i64>::sse_encode(self.queued_at_ms, serializer);
         <Option<i64>>::sse_encode(self.started_at_ms, serializer);
         <Option<String>>::sse_encode(self.error, serializer);
     }
 }
 
-impl SseEncode for crate::api::types::FrbAutomationJobKind {
+impl SseEncode for crate::api::automation_types::FrbAutomationJobKind {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(
             match self {
-                crate::api::types::FrbAutomationJobKind::NewInstall => 0,
-                crate::api::types::FrbAutomationJobKind::Reconcile => 1,
-                crate::api::types::FrbAutomationJobKind::Opportunistic => 2,
+                crate::api::automation_types::FrbAutomationJobKind::NewInstall => 0,
+                crate::api::automation_types::FrbAutomationJobKind::Reconcile => 1,
+                crate::api::automation_types::FrbAutomationJobKind::Opportunistic => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -2272,18 +2386,18 @@ impl SseEncode for crate::api::types::FrbAutomationJobKind {
     }
 }
 
-impl SseEncode for crate::api::types::FrbAutomationJobStatus {
+impl SseEncode for crate::api::automation_types::FrbAutomationJobStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(
             match self {
-                crate::api::types::FrbAutomationJobStatus::Pending => 0,
-                crate::api::types::FrbAutomationJobStatus::WaitingForSettle => 1,
-                crate::api::types::FrbAutomationJobStatus::WaitingForIdle => 2,
-                crate::api::types::FrbAutomationJobStatus::Compressing => 3,
-                crate::api::types::FrbAutomationJobStatus::Completed => 4,
-                crate::api::types::FrbAutomationJobStatus::Failed => 5,
-                crate::api::types::FrbAutomationJobStatus::Skipped => 6,
+                crate::api::automation_types::FrbAutomationJobStatus::Pending => 0,
+                crate::api::automation_types::FrbAutomationJobStatus::WaitingForSettle => 1,
+                crate::api::automation_types::FrbAutomationJobStatus::WaitingForIdle => 2,
+                crate::api::automation_types::FrbAutomationJobStatus::Compressing => 3,
+                crate::api::automation_types::FrbAutomationJobStatus::Completed => 4,
+                crate::api::automation_types::FrbAutomationJobStatus::Failed => 5,
+                crate::api::automation_types::FrbAutomationJobStatus::Skipped => 6,
                 _ => {
                     unimplemented!("");
                 }
@@ -2457,18 +2571,18 @@ impl SseEncode for crate::api::types::FrbPlatform {
     }
 }
 
-impl SseEncode for crate::api::types::FrbSchedulerState {
+impl SseEncode for crate::api::automation_types::FrbSchedulerState {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(
             match self {
-                crate::api::types::FrbSchedulerState::Idle => 0,
-                crate::api::types::FrbSchedulerState::Settling => 1,
-                crate::api::types::FrbSchedulerState::WaitingForIdle => 2,
-                crate::api::types::FrbSchedulerState::SafetyCheck => 3,
-                crate::api::types::FrbSchedulerState::Compressing => 4,
-                crate::api::types::FrbSchedulerState::Paused => 5,
-                crate::api::types::FrbSchedulerState::Backoff => 6,
+                crate::api::automation_types::FrbSchedulerState::Idle => 0,
+                crate::api::automation_types::FrbSchedulerState::Settling => 1,
+                crate::api::automation_types::FrbSchedulerState::WaitingForIdle => 2,
+                crate::api::automation_types::FrbSchedulerState::SafetyCheck => 3,
+                crate::api::automation_types::FrbSchedulerState::Compressing => 4,
+                crate::api::automation_types::FrbSchedulerState::Paused => 5,
+                crate::api::automation_types::FrbSchedulerState::Backoff => 6,
                 _ => {
                     unimplemented!("");
                 }
@@ -2478,7 +2592,7 @@ impl SseEncode for crate::api::types::FrbSchedulerState {
     }
 }
 
-impl SseEncode for crate::api::types::FrbWatcherDiagnostics {
+impl SseEncode for crate::api::automation_types::FrbWatcherDiagnostics {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_watching, serializer);
@@ -2488,21 +2602,21 @@ impl SseEncode for crate::api::types::FrbWatcherDiagnostics {
     }
 }
 
-impl SseEncode for crate::api::types::FrbWatcherEvent {
+impl SseEncode for crate::api::automation_types::FrbWatcherEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::types::FrbWatcherEvent::GameInstalled { path, game_name } => {
+            crate::api::automation_types::FrbWatcherEvent::GameInstalled { path, game_name } => {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(path, serializer);
                 <Option<String>>::sse_encode(game_name, serializer);
             }
-            crate::api::types::FrbWatcherEvent::GameModified { path, game_name } => {
+            crate::api::automation_types::FrbWatcherEvent::GameModified { path, game_name } => {
                 <i32>::sse_encode(1, serializer);
                 <String>::sse_encode(path, serializer);
                 <Option<String>>::sse_encode(game_name, serializer);
             }
-            crate::api::types::FrbWatcherEvent::GameUninstalled { path, game_name } => {
+            crate::api::automation_types::FrbWatcherEvent::GameUninstalled { path, game_name } => {
                 <i32>::sse_encode(2, serializer);
                 <String>::sse_encode(path, serializer);
                 <Option<String>>::sse_encode(game_name, serializer);
@@ -2538,12 +2652,12 @@ impl SseEncode for Vec<String> {
     }
 }
 
-impl SseEncode for Vec<crate::api::types::FrbAutomationJob> {
+impl SseEncode for Vec<crate::api::automation_types::FrbAutomationJob> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::types::FrbAutomationJob>::sse_encode(item, serializer);
+            <crate::api::automation_types::FrbAutomationJob>::sse_encode(item, serializer);
         }
     }
 }
@@ -2615,6 +2729,20 @@ impl SseEncode for Option<u64> {
         if let Some(value) = self {
             <u64>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::automation::SharedAutoState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::automation_types::FrbSchedulerState>::sse_encode(
+            self.scheduler_state,
+            serializer,
+        );
+        <Vec<crate::api::automation_types::FrbAutomationJob>>::sse_encode(self.queue, serializer);
+        <u32>::sse_encode(self.watched_path_count, serializer);
+        <u32>::sse_encode(self.queue_depth, serializer);
+        <Option<String>>::sse_encode(self.last_error, serializer);
     }
 }
 

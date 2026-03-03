@@ -4,7 +4,9 @@ import '../../models/game_info.dart';
 import 'game_list_provider.dart';
 import 'game_list_state.dart';
 
-final _sortedGamesMemo = _SortedGamesMemo();
+final _sortedGamesMemoProvider = Provider<_SortedGamesMemo>((ref) {
+  return _SortedGamesMemo();
+});
 
 final _gamesProvider = Provider<List<GameInfo>>((ref) {
   return ref.watch(
@@ -16,6 +18,7 @@ final _gamesProvider = Provider<List<GameInfo>>((ref) {
 /// Derived provider: applies filters + sort + search to the full game list.
 /// Watches only filter/sort inputs to avoid work on unrelated state updates.
 final filteredGamesProvider = Provider<List<GameInfo>>((ref) {
+  final sortedGamesMemo = ref.watch(_sortedGamesMemoProvider);
   final inputs = ref.watch(
     gameListProvider.select((asyncState) {
       final state = asyncState.valueOrNull;
@@ -38,6 +41,7 @@ final filteredGamesProvider = Provider<List<GameInfo>>((ref) {
   }
 
   return _applyFiltersAndSort(
+    sortedGamesMemo: sortedGamesMemo,
     games: inputs.games,
     searchQuery: inputs.searchQuery,
     platformFilter: inputs.platformFilter,
@@ -70,6 +74,7 @@ final totalSavingsProvider = Provider<({int totalBytes, int savedBytes})>((
 });
 
 List<GameInfo> _applyFiltersAndSort({
+  required _SortedGamesMemo sortedGamesMemo,
   required List<GameInfo> games,
   required String searchQuery,
   required Set<Platform> platformFilter,
@@ -79,7 +84,7 @@ List<GameInfo> _applyFiltersAndSort({
 }) {
   final query = searchQuery.isEmpty ? null : searchQuery.toLowerCase();
   final hasPlatformFilter = platformFilter.isNotEmpty;
-  final sortedGames = _sortedGamesMemo.sort(
+  final sortedGames = sortedGamesMemo.sort(
     games: games,
     sortField: sortField,
     sortDirection: sortDirection,
@@ -87,7 +92,7 @@ List<GameInfo> _applyFiltersAndSort({
   final filtered = <GameInfo>[];
 
   for (final game in sortedGames) {
-    if (query != null && !game.name.toLowerCase().contains(query)) {
+    if (query != null && !game.normalizedName.contains(query)) {
       continue;
     }
     if (hasPlatformFilter && !platformFilter.contains(game.platform)) {
@@ -144,7 +149,7 @@ class _SortedGamesMemo {
     SortDirection sortDirection,
   ) {
     final cmp = switch (sortField) {
-      GameSortField.name => a.name.compareTo(b.name),
+      GameSortField.name => _compareByName(a, b),
       GameSortField.sizeBytes => a.sizeBytes.compareTo(b.sizeBytes),
       GameSortField.savingsRatio => a.savingsRatio.compareTo(b.savingsRatio),
       GameSortField.platform => a.platform.displayName.compareTo(
@@ -152,5 +157,17 @@ class _SortedGamesMemo {
       ),
     };
     return sortDirection == SortDirection.ascending ? cmp : -cmp;
+  }
+
+  int _compareByName(GameInfo a, GameInfo b) {
+    final normalized = a.normalizedName.compareTo(b.normalizedName);
+    if (normalized != 0) {
+      return normalized;
+    }
+    final raw = a.name.compareTo(b.name);
+    if (raw != 0) {
+      return raw;
+    }
+    return a.path.compareTo(b.path);
   }
 }

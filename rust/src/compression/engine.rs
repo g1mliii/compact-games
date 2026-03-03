@@ -15,6 +15,7 @@ mod wof_ops;
 
 use super::algorithm::CompressionAlgorithm;
 use super::error::CompressionError;
+use super::thread_policy::ThreadPolicy;
 use crate::progress::reporter::{EngineCounters, ProgressReporter};
 use crate::progress::tracker::CompressionProgress;
 
@@ -183,6 +184,7 @@ pub struct CompressionEngine {
     bytes_compressed: Arc<AtomicU64>,
     safety: Option<SafetyConfig>,
     directstorage_policy: DirectStoragePolicy,
+    thread_policy: Option<ThreadPolicy>,
 }
 
 impl CompressionEngine {
@@ -197,7 +199,22 @@ impl CompressionEngine {
             bytes_compressed: Arc::new(AtomicU64::new(0)),
             safety: None,
             directstorage_policy: DirectStoragePolicy::Block,
+            thread_policy: None,
         }
+    }
+
+    pub fn with_thread_policy(mut self, policy: ThreadPolicy) -> Self {
+        self.thread_policy = Some(policy);
+        self
+    }
+
+    pub fn with_cancel_token(mut self, token: CancellationToken) -> Self {
+        self.cancel_token = token;
+        self
+    }
+
+    pub fn thread_policy(&self) -> Option<&ThreadPolicy> {
+        self.thread_policy.as_ref()
     }
 
     pub fn cancel_token(&self) -> CancellationToken {

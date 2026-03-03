@@ -28,12 +28,17 @@ class _BaseRustBridgeService implements RustBridgeService {
     required String gamePath,
     required String gameName,
     CompressionAlgorithm algorithm = CompressionAlgorithm.xpress8k,
+    bool allowDirectStorageOverride = false,
+    int? ioParallelismOverride,
   }) {
     return const Stream<CompressionProgress>.empty();
   }
 
   @override
-  Future<void> decompressGame(String gamePath) async {}
+  Future<void> decompressGame(
+    String gamePath, {
+    int? ioParallelismOverride,
+  }) async {}
 
   @override
   Future<CompressionEstimate> estimateCompressionSavings({
@@ -131,6 +136,7 @@ class _BaseRustBridgeService implements RustBridgeService {
     required List<String> watchPaths,
     required List<String> excludedPaths,
     required CompressionAlgorithm algorithm,
+    int? ioParallelismOverride,
   }) async {}
 
   @override
@@ -196,6 +202,7 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   int getAllGamesCalls = 0;
   int scanCustomFolderCalls = 0;
   String? lastScanCustomFolderPath;
+  bool? lastAllowDirectStorageOverride;
   final List<GameInfo> scanCustomFolderGames;
 
   @override
@@ -213,13 +220,19 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
     required String gamePath,
     required String gameName,
     CompressionAlgorithm algorithm = CompressionAlgorithm.xpress8k,
+    bool allowDirectStorageOverride = false,
+    int? ioParallelismOverride,
   }) {
     compressCalls += 1;
+    lastAllowDirectStorageOverride = allowDirectStorageOverride;
     return const Stream<CompressionProgress>.empty();
   }
 
   @override
-  Future<void> decompressGame(String gamePath) async {
+  Future<void> decompressGame(
+    String gamePath, {
+    int? ioParallelismOverride,
+  }) async {
     decompressCalls += 1;
   }
 
@@ -243,6 +256,8 @@ class _CancelledErrorRustBridgeService extends _BaseRustBridgeService {
     required String gamePath,
     required String gameName,
     CompressionAlgorithm algorithm = CompressionAlgorithm.xpress8k,
+    bool allowDirectStorageOverride = false,
+    int? ioParallelismOverride,
   }) {
     return Stream<CompressionProgress>.error(
       Exception('FrbCompressionError.cancelled()'),
@@ -266,7 +281,10 @@ class _DelayedDecompressRustBridgeService extends _RecordingRustBridgeService {
   final Completer<void> _decompressCompleter = Completer<void>();
 
   @override
-  Future<void> decompressGame(String gamePath) {
+  Future<void> decompressGame(
+    String gamePath, {
+    int? ioParallelismOverride,
+  }) {
     decompressCalls += 1;
     return _decompressCompleter.future;
   }
@@ -297,5 +315,21 @@ class _FakePlatformShellService extends PlatformShellService {
   Future<String?> pickGameExecutable() async {
     pickExecutableCalls += 1;
     return executablePath;
+  }
+}
+
+class _FixedSettingsPersistence implements SettingsPersistence {
+  _FixedSettingsPersistence(this._current);
+
+  AppSettings _current;
+
+  @override
+  Future<AppSettings> load() async {
+    return _current;
+  }
+
+  @override
+  Future<void> save(AppSettings settings) async {
+    _current = settings;
   }
 }

@@ -33,7 +33,10 @@ class GameInfo {
   final bool excluded;
   final DateTime? lastPlayed;
 
-  const GameInfo({
+  /// Pre-lowered name for O(1) search filtering (avoids per-keystroke allocation).
+  late final String normalizedName = name.toLowerCase();
+
+  GameInfo({
     required this.name,
     required this.path,
     required this.platform,

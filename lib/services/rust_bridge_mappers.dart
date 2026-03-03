@@ -98,23 +98,32 @@ rust_types.FrbPlatform _toFrbPlatform(Platform platform) {
 
 // ── Automation mappers ──────────────────────────────────────────────
 
-WatcherEvent _mapFrbWatcherEvent(rust_types.FrbWatcherEvent frb) {
+WatcherEvent _mapFrbWatcherEvent(rust_automation_types.FrbWatcherEvent frb) {
   return switch (frb) {
-    rust_types.FrbWatcherEvent_GameInstalled(:final path, :final gameName) =>
+    rust_automation_types.FrbWatcherEvent_GameInstalled(
+      :final path,
+      :final gameName,
+    ) =>
       WatcherEvent(
         type: WatcherEventType.installed,
         gamePath: path,
         gameName: gameName,
         timestamp: DateTime.now(),
       ),
-    rust_types.FrbWatcherEvent_GameModified(:final path, :final gameName) =>
+    rust_automation_types.FrbWatcherEvent_GameModified(
+      :final path,
+      :final gameName,
+    ) =>
       WatcherEvent(
         type: WatcherEventType.modified,
         gamePath: path,
         gameName: gameName,
         timestamp: DateTime.now(),
       ),
-    rust_types.FrbWatcherEvent_GameUninstalled(:final path, :final gameName) =>
+    rust_automation_types.FrbWatcherEvent_GameUninstalled(
+      :final path,
+      :final gameName,
+    ) =>
       WatcherEvent(
         type: WatcherEventType.uninstalled,
         gamePath: path,
@@ -124,7 +133,7 @@ WatcherEvent _mapFrbWatcherEvent(rust_types.FrbWatcherEvent frb) {
   };
 }
 
-AutomationJob _mapFrbAutomationJob(rust_types.FrbAutomationJob frb) {
+AutomationJob _mapFrbAutomationJob(rust_automation_types.FrbAutomationJob frb) {
   return AutomationJob(
     gamePath: frb.gamePath,
     gameName: frb.gameName,
@@ -138,40 +147,53 @@ AutomationJob _mapFrbAutomationJob(rust_types.FrbAutomationJob frb) {
   );
 }
 
-AutomationJobKind _mapFrbJobKind(rust_types.FrbAutomationJobKind frb) {
+AutomationJobKind _mapFrbJobKind(
+  rust_automation_types.FrbAutomationJobKind frb,
+) {
   return switch (frb) {
-    rust_types.FrbAutomationJobKind.newInstall => AutomationJobKind.newInstall,
-    rust_types.FrbAutomationJobKind.reconcile => AutomationJobKind.reconcile,
-    rust_types.FrbAutomationJobKind.opportunistic =>
+    rust_automation_types.FrbAutomationJobKind.newInstall =>
+      AutomationJobKind.newInstall,
+    rust_automation_types.FrbAutomationJobKind.reconcile =>
+      AutomationJobKind.reconcile,
+    rust_automation_types.FrbAutomationJobKind.opportunistic =>
       AutomationJobKind.opportunistic,
   };
 }
 
-AutomationJobStatus _mapFrbJobStatus(rust_types.FrbAutomationJobStatus frb) {
+AutomationJobStatus _mapFrbJobStatus(
+  rust_automation_types.FrbAutomationJobStatus frb,
+) {
   return switch (frb) {
-    rust_types.FrbAutomationJobStatus.pending => AutomationJobStatus.pending,
-    rust_types.FrbAutomationJobStatus.waitingForSettle =>
+    rust_automation_types.FrbAutomationJobStatus.pending =>
+      AutomationJobStatus.pending,
+    rust_automation_types.FrbAutomationJobStatus.waitingForSettle =>
       AutomationJobStatus.waitingForSettle,
-    rust_types.FrbAutomationJobStatus.waitingForIdle =>
+    rust_automation_types.FrbAutomationJobStatus.waitingForIdle =>
       AutomationJobStatus.waitingForIdle,
-    rust_types.FrbAutomationJobStatus.compressing =>
+    rust_automation_types.FrbAutomationJobStatus.compressing =>
       AutomationJobStatus.compressing,
-    rust_types.FrbAutomationJobStatus.completed =>
+    rust_automation_types.FrbAutomationJobStatus.completed =>
       AutomationJobStatus.completed,
-    rust_types.FrbAutomationJobStatus.failed => AutomationJobStatus.failed,
-    rust_types.FrbAutomationJobStatus.skipped => AutomationJobStatus.skipped,
+    rust_automation_types.FrbAutomationJobStatus.failed =>
+      AutomationJobStatus.failed,
+    rust_automation_types.FrbAutomationJobStatus.skipped =>
+      AutomationJobStatus.skipped,
   };
 }
 
-SchedulerState _mapFrbSchedulerState(rust_types.FrbSchedulerState frb) {
+SchedulerState _mapFrbSchedulerState(
+  rust_automation_types.FrbSchedulerState frb,
+) {
   return switch (frb) {
-    rust_types.FrbSchedulerState.idle => SchedulerState.idle,
-    rust_types.FrbSchedulerState.settling => SchedulerState.settling,
-    rust_types.FrbSchedulerState.waitingForIdle =>
+    rust_automation_types.FrbSchedulerState.idle => SchedulerState.idle,
+    rust_automation_types.FrbSchedulerState.settling => SchedulerState.settling,
+    rust_automation_types.FrbSchedulerState.waitingForIdle =>
       SchedulerState.waitingForIdle,
-    rust_types.FrbSchedulerState.safetyCheck => SchedulerState.safetyCheck,
-    rust_types.FrbSchedulerState.compressing => SchedulerState.compressing,
-    rust_types.FrbSchedulerState.paused => SchedulerState.paused,
-    rust_types.FrbSchedulerState.backoff => SchedulerState.backoff,
+    rust_automation_types.FrbSchedulerState.safetyCheck =>
+      SchedulerState.safetyCheck,
+    rust_automation_types.FrbSchedulerState.compressing =>
+      SchedulerState.compressing,
+    rust_automation_types.FrbSchedulerState.paused => SchedulerState.paused,
+    rust_automation_types.FrbSchedulerState.backoff => SchedulerState.backoff,
   };
 }

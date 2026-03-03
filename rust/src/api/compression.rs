@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use crossbeam_channel::RecvTimeoutError;
 use flutter_rust_bridge::frb;
+use sysinfo::System;
 
 use super::types::{
     FrbCompressionAlgorithm, FrbCompressionError, FrbCompressionEstimate, FrbCompressionProgress,
@@ -20,6 +21,7 @@ use crate::compression::error::CompressionError;
 use crate::compression::history::{
     persist_if_dirty, record_compression, ActualStats, CompressionHistoryEntry, EstimateSnapshot,
 };
+use crate::compression::thread_policy::compute_thread_policy;
 use crate::frb_generated::StreamSink;
 use crate::progress::tracker::CompressionProgress;
 use crate::safety::directstorage::is_directstorage_game;
@@ -70,12 +72,23 @@ pub fn compress_game(
     game_path: String,
     game_name: String,
     algorithm: FrbCompressionAlgorithm,
+    allow_directstorage_override: bool,
+    io_parallelism_override: Option<u64>,
     sink: StreamSink<FrbCompressionProgress>,
 ) -> Result<FrbCompressionStats, FrbCompressionError> {
     let algo: CompressionAlgorithm = algorithm.into();
     let path = PathBuf::from(&game_path);
 
-    let engine = CompressionEngine::new(algo);
+    // User-initiated compression: full parallelism (is_background = false)
+    let policy = compute_thread_policy(
+        &path,
+        false,
+        current_cpu_usage_percent(),
+        io_override_to_usize(io_parallelism_override),
+    );
+    let engine = CompressionEngine::new(algo)
+        .with_thread_policy(policy)
+        .with_directstorage_override(allow_directstorage_override);
     let cancel_token = engine.cancel_token();
     let file_manifest = match engine.build_file_manifest(&path) {
         Ok(files) => files,
@@ -244,9 +257,19 @@ pub fn get_compression_progress() -> Option<FrbCompressionProgress> {
 }
 
 /// Decompress a game folder (no progress streaming needed).
-pub fn decompress_game(game_path: String) -> Result<(), FrbCompressionError> {
+pub fn decompress_game(
+    game_path: String,
+    io_parallelism_override: Option<u64>,
+) -> Result<(), FrbCompressionError> {
     let path = PathBuf::from(&game_path);
-    let engine = CompressionEngine::new(CompressionAlgorithm::default());
+    // User-initiated decompression: full parallelism
+    let policy = compute_thread_policy(
+        &path,
+        false,
+        current_cpu_usage_percent(),
+        io_override_to_usize(io_parallelism_override),
+    );
+    let engine = CompressionEngine::new(CompressionAlgorithm::default()).with_thread_policy(policy);
     engine.decompress_folder(&path).map_err(Into::into)
 }
 
@@ -278,4 +301,46 @@ pub fn is_directstorage(game_path: String) -> bool {
 #[frb(sync)]
 pub fn persist_compression_history() {
     persist_if_dirty();
+}
+
+/// Cached CPU monitor that persists between calls so `sysinfo` can compute
+/// deltas accurately. A fresh `System::new()` + single `refresh_cpu_all()`
+/// always returns ~0% because `sysinfo` needs two consecutive refreshes with a
+/// time gap to measure actual usage.
+fn current_cpu_usage_percent() -> Option<f32> {
+    use std::sync::Mutex;
+    use std::time::Instant;
+
+    static CPU_MONITOR: OnceLock<Mutex<(System, Instant)>> = OnceLock::new();
+    const MIN_REFRESH_INTERVAL: Duration = Duration::from_millis(500);
+
+    let monitor = CPU_MONITOR.get_or_init(|| {
+        let mut sys = System::new();
+        sys.refresh_cpu_all();
+        Mutex::new((sys, Instant::now()))
+    });
+
+    let mut guard = monitor.lock().unwrap_or_else(|e| {
+        log::warn!("CPU monitor lock poisoned; recovering");
+        e.into_inner()
+    });
+
+    let (ref mut sys, ref mut last_refresh) = *guard;
+    if last_refresh.elapsed() >= MIN_REFRESH_INTERVAL {
+        sys.refresh_cpu_all();
+        *last_refresh = Instant::now();
+    }
+
+    let usage = sys.global_cpu_usage();
+    // sysinfo returns 0.0 until a second refresh completes after a delay.
+    // In that case, return None so thread_policy falls through to defaults.
+    if usage <= 0.01 {
+        None
+    } else {
+        Some(usage)
+    }
+}
+
+fn io_override_to_usize(io_parallelism_override: Option<u64>) -> Option<usize> {
+    io_parallelism_override.and_then(|value| usize::try_from(value).ok())
 }

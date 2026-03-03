@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use rayon::prelude::*;
 
 use crate::discovery::cache;
+use crate::discovery::change_feed::{self, ScanPath};
+use crate::discovery::index;
 use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use crate::discovery::storage::{
     has_any_hdd_disk, has_any_ssd_disk, storage_class_for_path, StorageClass,
@@ -50,7 +52,65 @@ pub fn scan_game_subdirs(
         .map(|e| (e.file_name().to_string_lossy().into_owned(), e.path()))
         .collect();
 
-    build_games_from_candidates(games_path, candidates, platform, mode)
+    if mode != DiscoveryScanMode::Full {
+        return build_games_from_candidates(games_path, candidates, platform, mode);
+    }
+
+    let plan = change_feed::plan_subdir_scan(games_path, &candidates, mode);
+    for deleted_path in &plan.deleted {
+        cache::remove(deleted_path);
+        index::remove(deleted_path);
+    }
+
+    let mut results = Vec::with_capacity(candidates.len());
+    let mut rebuild_candidates = plan.changed.clone();
+    let mut index_miss_count = 0_usize;
+
+    for (name, path) in &plan.unchanged {
+        if let Some(mut cached) = lookup_index_with_token(path) {
+            cached.name = name.clone();
+            cached.path = path.clone();
+            cached.platform = platform;
+            results.push(cached);
+        } else {
+            index_miss_count = index_miss_count.saturating_add(1);
+            rebuild_candidates.push((name.clone(), path.clone()));
+        }
+    }
+
+    let rebuilt = build_games_from_candidates(games_path, rebuild_candidates, platform, mode);
+    merge_games(&mut results, rebuilt);
+
+    let plan_scan_path = plan.scan_path;
+    let plan_reason = plan.reason;
+    let effective_scan_path = if index_miss_count > 0 && plan_scan_path == ScanPath::Incremental {
+        ScanPath::PartialRebuild
+    } else {
+        plan_scan_path
+    };
+    let effective_reason = if index_miss_count > 0 && plan_scan_path == ScanPath::Incremental {
+        "index-miss"
+    } else {
+        plan_reason
+    };
+    log::debug!(
+        "[discovery][scan_path] root={} strategy={} reason={} changed={} unchanged={} deleted={} index_miss={}",
+        games_path.display(),
+        effective_scan_path.as_str(),
+        effective_reason,
+        plan.changed.len(),
+        plan.unchanged.len(),
+        plan.deleted.len(),
+        index_miss_count
+    );
+
+    plan.commit();
+    results
+}
+
+fn lookup_index_with_token(path: &Path) -> Option<GameInfo> {
+    let token = cache::compute_change_token(path, cache::has_entry(path));
+    index::lookup(path, &token)
 }
 
 pub fn build_games_from_candidates(
@@ -128,6 +188,12 @@ pub fn scan_all_platforms_with_mode(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     }
 
     cache::persist_if_dirty();
+    if mode == DiscoveryScanMode::Full {
+        index::mark_full_scan_success();
+        change_feed::mark_full_scan_success();
+    }
+    index::persist_if_dirty();
+    change_feed::persist_if_dirty();
     all_games
 }
 
@@ -328,6 +394,12 @@ pub fn scan_custom_paths_with_mode(
 
     let result = CustomScanner::new(paths).scan(mode);
     cache::persist_if_dirty();
+    if mode == DiscoveryScanMode::Full {
+        index::mark_full_scan_success();
+        change_feed::mark_full_scan_success();
+    }
+    index::persist_if_dirty();
+    change_feed::persist_if_dirty();
     result
 }
 
@@ -380,5 +452,30 @@ mod tests {
             steam_library,
             roots
         );
+    }
+
+    #[test]
+    fn unchanged_candidate_revalidates_index_token_before_reuse() {
+        let root = TempDir::new().unwrap();
+        let game_dir = root.path().join("GameA");
+        std::fs::create_dir_all(&game_dir).unwrap();
+        std::fs::write(game_dir.join("game.exe"), vec![0_u8; 3 * 1024 * 1024]).unwrap();
+
+        let first = scan_game_subdirs(root.path(), Platform::Custom, DiscoveryScanMode::Full);
+        assert_eq!(first.len(), 1);
+        let baseline = first[0].clone();
+
+        // Poison index entry with a mismatched token + stale size. With age-only
+        // lookup this would be returned for unchanged candidates.
+        let mut stale = baseline.clone();
+        stale.size_bytes = 1;
+        let mut stale_token = cache::compute_change_token(&game_dir, true);
+        stale_token.child_count = stale_token.child_count.saturating_add(1);
+        index::upsert(&game_dir, stale_token, &stale);
+
+        let second = scan_game_subdirs(root.path(), Platform::Custom, DiscoveryScanMode::Full);
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].size_bytes, baseline.size_bytes);
+        assert_ne!(second[0].size_bytes, stale.size_bytes);
     }
 }

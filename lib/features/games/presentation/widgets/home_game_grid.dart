@@ -11,7 +11,11 @@ class HomeGameGrid extends ConsumerWidget {
   const HomeGameGrid({super.key});
 
   static const EdgeInsets _gridPadding = EdgeInsets.fromLTRB(24, 20, 24, 24);
-  static const double _defaultCardAspectRatio = 0.82;
+  static const double _coverTargetAspectRatio = 342 / 482;
+  static const double _metadataSectionHeight = 90;
+  static const double _fallbackCardAspectRatio = 0.56;
+  static const double _minCardAspectRatio = 0.5;
+  static const double _maxCardAspectRatio = 0.65;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,22 +45,52 @@ class HomeGameGrid extends ConsumerWidget {
           return const GameGridEmptyView();
         }
 
-        return GridView.builder(
-          padding: _gridPadding,
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: AppConstants.cardMaxWidth,
-            crossAxisSpacing: AppConstants.gridSpacing,
-            mainAxisSpacing: AppConstants.gridSpacing,
-            childAspectRatio: _defaultCardAspectRatio,
-          ),
-          addRepaintBoundaries: false,
-          itemCount: games.length,
-          itemBuilder: (context, index) => GameCardAdapter(
-            key: ValueKey(games[index].path),
-            gamePath: games[index].path,
-          ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final cardAspectRatio = _cardAspectRatioForWidth(
+              constraints.maxWidth,
+            );
+
+            return GridView.builder(
+              padding: _gridPadding,
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: AppConstants.cardMaxWidth,
+                crossAxisSpacing: AppConstants.gridSpacing,
+                mainAxisSpacing: AppConstants.gridSpacing,
+                childAspectRatio: cardAspectRatio,
+              ),
+              addRepaintBoundaries: false,
+              itemCount: games.length,
+              itemBuilder: (context, index) => GameCardAdapter(
+                key: ValueKey(games[index].path),
+                gamePath: games[index].path,
+              ),
+            );
+          },
         );
       },
     );
+  }
+
+  static double _cardAspectRatioForWidth(double viewportWidth) {
+    if (!viewportWidth.isFinite || viewportWidth <= 0) {
+      return _fallbackCardAspectRatio;
+    }
+
+    final gridWidth = (viewportWidth - _gridPadding.horizontal).clamp(
+      AppConstants.cardMinWidth,
+      double.infinity,
+    );
+    final spacing = AppConstants.gridSpacing;
+    final denominator = AppConstants.cardMaxWidth + spacing;
+    final crossAxisCount = denominator > 0
+        ? (gridWidth / denominator).ceil().clamp(1, 12)
+        : 1;
+    final totalSpacing = spacing * (crossAxisCount - 1);
+    final cardWidth = (gridWidth - totalSpacing) / crossAxisCount;
+    final coverHeight = cardWidth / _coverTargetAspectRatio;
+    final totalHeight = coverHeight + _metadataSectionHeight;
+    final ratio = cardWidth / totalHeight;
+    return ratio.clamp(_minCardAspectRatio, _maxCardAspectRatio).toDouble();
   }
 }

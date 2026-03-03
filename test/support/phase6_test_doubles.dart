@@ -35,13 +35,18 @@ class _TestRustBridgeService implements RustBridgeService {
     required String gamePath,
     required String gameName,
     CompressionAlgorithm algorithm = CompressionAlgorithm.xpress8k,
+    bool allowDirectStorageOverride = false,
+    int? ioParallelismOverride,
   }) {
     compressCalls += 1;
     return const Stream<CompressionProgress>.empty();
   }
 
   @override
-  Future<void> decompressGame(String gamePath) async {
+  Future<void> decompressGame(
+    String gamePath, {
+    int? ioParallelismOverride,
+  }) async {
     decompressCalls += 1;
   }
 
@@ -150,6 +155,7 @@ class _TestRustBridgeService implements RustBridgeService {
     required List<String> watchPaths,
     required List<String> excludedPaths,
     required CompressionAlgorithm algorithm,
+    int? ioParallelismOverride,
   }) async {}
 
   @override

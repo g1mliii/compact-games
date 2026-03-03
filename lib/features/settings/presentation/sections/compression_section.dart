@@ -8,13 +8,16 @@ import '../widgets/settings_section_card.dart';
 
 class CompressionSection extends ConsumerWidget {
   const CompressionSection({super.key});
+  static const int _maxIoOverride = 16;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final algorithm = ref.watch(
-      settingsProvider.select((s) => s.valueOrNull?.settings.algorithm),
+    final settings = ref.watch(
+      settingsProvider.select((s) => s.valueOrNull?.settings),
     );
-    if (algorithm == null) return const SizedBox.shrink();
+    if (settings == null) return const SizedBox.shrink();
+    final algorithm = settings.algorithm;
+    final ioOverride = settings.ioParallelismOverride;
 
     return SettingsSectionCard(
       icon: LucideIcons.archive,
@@ -33,6 +36,30 @@ class CompressionSection extends ConsumerWidget {
               'XPRESS 8K is the recommended default for most games.',
               style: AppTypography.bodySmall,
             ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int?>(
+            initialValue: ioOverride,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'I/O Thread Override (Expert)',
+              helperText:
+                  'Auto is recommended. Override only for advanced tuning.',
+            ),
+            items: <DropdownMenuItem<int?>>[
+              const DropdownMenuItem<int?>(
+                value: null,
+                child: Text('Auto'),
+              ),
+              for (var i = 1; i <= _maxIoOverride; i++)
+                DropdownMenuItem<int?>(
+                  value: i,
+                  child: Text('$i thread${i == 1 ? '' : 's'}'),
+                ),
+            ],
+            onChanged: (value) => ref
+                .read(settingsProvider.notifier)
+                .setIoParallelismOverride(value),
           ),
         ],
       ),

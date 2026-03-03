@@ -3,9 +3,13 @@ import 'app_colors.dart';
 
 /// PressPlay typography system using Inter and JetBrains Mono.
 abstract final class AppTypography {
-  static const String bodyFontFamily = 'Inter';
+  static const String bodyFontFamily = 'Segoe UI Variable Text';
   static const String monoFontFamily = 'JetBrainsMono';
-  static const List<String> bodyFontFallback = <String>['sans-serif'];
+  static const List<String> bodyFontFallback = <String>[
+    'Segoe UI',
+    'Inter',
+    'sans-serif',
+  ];
   static const List<String> monoFontFallback = <String>['monospace'];
 
   static const TextStyle headingLarge = TextStyle(
@@ -14,7 +18,7 @@ abstract final class AppTypography {
     fontSize: 28,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: 0,
   );
 
   static const TextStyle headingMedium = TextStyle(
@@ -23,7 +27,7 @@ abstract final class AppTypography {
     fontSize: 20,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
-    letterSpacing: -0.3,
+    letterSpacing: 0,
   );
 
   static const TextStyle headingSmall = TextStyle(
@@ -32,39 +36,43 @@ abstract final class AppTypography {
     fontSize: 16,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
+    letterSpacing: 0.05,
   );
 
   static const TextStyle bodyLarge = TextStyle(
     fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 16,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
+    letterSpacing: 0.1,
   );
 
   static const TextStyle bodyMedium = TextStyle(
     fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 14,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w500,
     color: AppColors.textSecondary,
+    letterSpacing: 0.1,
   );
 
   static const TextStyle bodySmall = TextStyle(
     fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
-    fontSize: 12,
-    fontWeight: FontWeight.w400,
-    color: AppColors.textMuted,
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textSecondary,
+    letterSpacing: 0.12,
   );
 
   static const TextStyle label = TextStyle(
     fontFamily: bodyFontFamily,
     fontFamilyFallback: bodyFontFallback,
     fontSize: 12,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w600,
     color: AppColors.textSecondary,
-    letterSpacing: 0.5,
+    letterSpacing: 0.35,
   );
 
   static const TextStyle mono = TextStyle(

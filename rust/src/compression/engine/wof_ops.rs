@@ -9,7 +9,42 @@ use std::sync::Arc;
 
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
+use std::sync::Mutex;
 use windows::Win32::Foundation::HANDLE;
+
+/// Single cached thread pool.
+///
+/// Keeping only one pool avoids unbounded resident worker threads when users
+/// change thread overrides frequently (for example 2 -> 4 -> 8 -> ...), while
+/// still reusing the most recently used pool for the common steady-state case.
+type CachedPool = Option<(usize, Arc<rayon::ThreadPool>)>;
+
+static THREAD_POOL_CACHE: std::sync::LazyLock<Mutex<CachedPool>> =
+    std::sync::LazyLock::new(|| Mutex::new(None));
+
+fn get_or_create_thread_pool(
+    parallelism: usize,
+) -> Result<Arc<rayon::ThreadPool>, CompressionError> {
+    let mut cache = THREAD_POOL_CACHE.lock().unwrap_or_else(|e| {
+        log::warn!("Thread pool cache lock poisoned; recovering");
+        e.into_inner()
+    });
+    if let Some((cached_parallelism, pool)) = cache.as_ref() {
+        if *cached_parallelism == parallelism {
+            return Ok(Arc::clone(pool));
+        }
+    }
+    let pool = Arc::new(
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(parallelism)
+            .build()
+            .map_err(|e| CompressionError::Io {
+                source: std::io::Error::other(e.to_string()),
+            })?,
+    );
+    *cache = Some((parallelism, Arc::clone(&pool)));
+    Ok(pool)
+}
 use windows::Win32::Storage::FileSystem::{
     GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_SHARE_DELETE, FILE_SHARE_READ,
     FILE_SHARE_WRITE,
@@ -45,10 +80,13 @@ impl CompressionEngine {
         let skipped = Arc::new(AtomicU64::new(0));
         let algorithm = self.algorithm;
 
+        // Reset counters before starting to avoid stale accumulation from
+        // a previous run when the engine instance is reused.
+        self.reset_counters();
         self.files_total
             .store(files.len() as u64, Ordering::Relaxed);
 
-        let result = files.par_iter().try_for_each(|manifest_file| {
+        let compress_body = |manifest_file: &ManifestFile| -> Result<(), CompressionError> {
             let path = manifest_file.path.as_path();
             if self.cancel_token.is_cancelled() {
                 return Err(CompressionError::Cancelled);
@@ -125,9 +163,35 @@ impl CompressionEngine {
 
             self.files_processed.fetch_add(1, Ordering::Relaxed);
             Ok(())
-        });
+        };
+
+        let result = if let Some(policy) = &self.thread_policy {
+            let pool = get_or_create_thread_pool(policy.io_parallelism)?;
+            log::info!(
+                "[compression][thread_policy] io_parallelism={} background={}",
+                policy.io_parallelism,
+                policy.is_background,
+            );
+            pool.install(|| files.par_iter().try_for_each(compress_body))
+        } else {
+            files.par_iter().try_for_each(compress_body)
+        };
 
         result?;
+
+        let duration = start.elapsed();
+        let original = self.bytes_original.load(Ordering::Relaxed);
+        let duration_ms = duration.as_millis() as u64;
+        if duration_ms > 0 {
+            let throughput_mbps =
+                (original as f64 / (1024.0 * 1024.0)) / (duration_ms as f64 / 1000.0);
+            log::info!(
+                "[compression][throughput] {:.1} MB/s ({} bytes in {}ms)",
+                throughput_mbps,
+                original,
+                duration_ms,
+            );
+        }
 
         Ok(CompressionStats {
             original_bytes: self.bytes_original.load(Ordering::Relaxed),
@@ -139,11 +203,11 @@ impl CompressionEngine {
     }
 
     pub(super) fn decompress_impl(&self, folder: &Path) -> Result<(), CompressionError> {
-        self.files_total.store(0, Ordering::Relaxed);
+        self.reset_counters();
         let decompression_candidates = Arc::new(AtomicU64::new(0));
         let likely_uncompressed = Arc::new(AtomicU64::new(0));
 
-        let result = Self::file_iter(folder)?.par_bridge().try_for_each(|entry| {
+        let decompress_body = |entry: walkdir::DirEntry| -> Result<(), CompressionError> {
             if self.cancel_token.is_cancelled() {
                 return Err(CompressionError::Cancelled);
             }
@@ -200,7 +264,15 @@ impl CompressionEngine {
 
             self.files_processed.fetch_add(1, Ordering::Relaxed);
             Ok(())
-        });
+        };
+
+        let iter = Self::file_iter(folder)?;
+        let result = if let Some(policy) = &self.thread_policy {
+            let pool = get_or_create_thread_pool(policy.io_parallelism)?;
+            pool.install(|| iter.par_bridge().try_for_each(decompress_body))
+        } else {
+            iter.par_bridge().try_for_each(decompress_body)
+        };
 
         result?;
         log::info!(
@@ -218,17 +290,15 @@ impl CompressionEngine {
         let logical_total = AtomicU64::new(0);
         let physical_total = AtomicU64::new(0);
 
-        Self::file_iter(folder)?
-            .par_bridge()
-            .for_each(|entry| {
-                let path = entry.path();
-                if let Ok(metadata) = std::fs::metadata(path) {
-                    let logical = metadata.len();
-                    let physical = wof::get_physical_size(path).unwrap_or(logical);
-                    logical_total.fetch_add(logical, Ordering::Relaxed);
-                    physical_total.fetch_add(physical, Ordering::Relaxed);
-                }
-            });
+        Self::file_iter(folder)?.par_bridge().for_each(|entry| {
+            let path = entry.path();
+            if let Ok(metadata) = std::fs::metadata(path) {
+                let logical = metadata.len();
+                let physical = wof::get_physical_size(path).unwrap_or(logical);
+                logical_total.fetch_add(logical, Ordering::Relaxed);
+                physical_total.fetch_add(physical, Ordering::Relaxed);
+            }
+        });
 
         let logical = logical_total.load(Ordering::Relaxed);
         if logical == 0 {

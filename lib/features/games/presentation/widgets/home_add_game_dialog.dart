@@ -25,10 +25,11 @@ class _AddGameDialogState extends ConsumerState<_AddGameDialog> {
         constraints: const BoxConstraints(maxWidth: 620),
         child: SizedBox(
           width: double.maxFinite,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final inlineActions = constraints.maxWidth >= 560;
-              final field = TextField(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
                 key: _addGamePathFieldKey,
                 controller: _inputController,
                 autofocus: true,
@@ -36,48 +37,45 @@ class _AddGameDialogState extends ConsumerState<_AddGameDialog> {
                   hintText: r'C:\Games\MyGame or C:\Games\MyGame\game.exe',
                 ),
                 onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
-              );
-              final actionButtons = Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.end,
-                children: [
-                  _buildBrowseButton(
+              ),
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stackedButtons = constraints.maxWidth < 420;
+                  final folderButton = _buildBrowseButton(
                     key: _browseGameFolderButtonKey,
                     pickExecutable: false,
                     icon: LucideIcons.folderOpen,
                     label: 'Browse Folder',
-                  ),
-                  _buildBrowseButton(
+                  );
+                  final exeButton = _buildBrowseButton(
                     key: _browseGameExeButtonKey,
                     pickExecutable: true,
                     icon: LucideIcons.fileCode2,
                     label: 'Browse EXE',
-                  ),
-                ],
-              );
+                  );
 
-              if (inlineActions) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: field),
-                    const SizedBox(width: 8),
-                    actionButtons,
-                  ],
-                );
-              }
+                  if (stackedButtons) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        folderButton,
+                        const SizedBox(height: 8),
+                        exeButton,
+                      ],
+                    );
+                  }
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  field,
-                  const SizedBox(height: 10),
-                  Align(alignment: Alignment.centerRight, child: actionButtons),
-                ],
-              );
-            },
+                  return Row(
+                    children: [
+                      Expanded(child: folderButton),
+                      const SizedBox(width: 8),
+                      Expanded(child: exeButton),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ),

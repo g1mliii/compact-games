@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::discovery::cache::{self, CachedGameStats};
+use crate::discovery::index;
 use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform};
 
 use super::stats::{dir_stats, dir_stats_quick};
@@ -44,6 +45,7 @@ pub fn build_game_info_with_mode_and_stats_path(
 ) -> Option<GameInfo> {
     if !stats_path.exists() {
         cache::remove(&stats_path);
+        index::remove(&stats_path);
         log_candidate_decision(
             "skip",
             platform,
@@ -62,6 +64,7 @@ pub fn build_game_info_with_mode_and_stats_path(
         if let Some(cached) = cache::lookup(&stats_path, &token) {
             if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
                 cache::remove(&stats_path);
+                index::remove(&stats_path);
                 log_candidate_decision(
                     "skip",
                     platform,
@@ -88,6 +91,7 @@ pub fn build_game_info_with_mode_and_stats_path(
         if let Some(stale_cached) = cache::lookup_stale(&stats_path) {
             if !is_likely_installed_game(&stats_path, stale_cached.logical_size, platform) {
                 cache::remove(&stats_path);
+                index::remove(&stats_path);
                 log_candidate_decision(
                     "skip",
                     platform,
@@ -113,6 +117,7 @@ pub fn build_game_info_with_mode_and_stats_path(
         let stats = dir_stats_quick(&stats_path);
         if stats.logical_size == 0 {
             cache::remove(&stats_path);
+            index::remove(&stats_path);
             log_candidate_decision(
                 "skip",
                 platform,
@@ -126,6 +131,7 @@ pub fn build_game_info_with_mode_and_stats_path(
 
         if !is_likely_installed_game(&stats_path, stats.logical_size, platform) {
             cache::remove(&stats_path);
+            index::remove(&stats_path);
             log_candidate_decision(
                 "skip",
                 platform,
@@ -159,9 +165,42 @@ pub fn build_game_info_with_mode_and_stats_path(
 
     let include_probe = cache::has_entry(&stats_path);
     let token = cache::compute_change_token(&stats_path, include_probe);
-    if let Some(cached) = cache::lookup(&stats_path, &token) {
+    if let Some(mut indexed_game) = index::lookup(&stats_path, &token) {
+        if !is_likely_installed_game(&stats_path, indexed_game.size_bytes, platform) {
+            cache::remove(&stats_path);
+            index::remove(&stats_path);
+            log_candidate_decision(
+                "skip",
+                platform,
+                &name,
+                &stats_path,
+                mode,
+                "incremental index hit but candidate failed install probe",
+            );
+            return None;
+        }
+
+        indexed_game.name = name;
+        indexed_game.path = game_path;
+        indexed_game.platform = platform;
+        index::upsert(&stats_path, token.clone(), &indexed_game);
+        log_candidate_decision(
+            "accept",
+            platform,
+            &indexed_game.name,
+            &stats_path,
+            mode,
+            "incremental index hit",
+        );
+        return Some(indexed_game);
+    }
+
+    // Full scan uses TTL-aware lookup: entries older than 10 minutes are
+    // re-verified even when the change token still matches.
+    if let Some(cached) = cache::lookup_fresh(&stats_path, &token) {
         if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
             cache::remove(&stats_path);
+            index::remove(&stats_path);
             log_candidate_decision(
                 "skip",
                 platform,
@@ -180,12 +219,17 @@ pub fn build_game_info_with_mode_and_stats_path(
             mode,
             "full token cache hit",
         );
-        return game_info_from_cached(name, game_path, platform, cached);
+        if let Some(game) = game_info_from_cached(name, game_path, platform, cached) {
+            index::upsert(&stats_path, token.clone(), &game);
+            return Some(game);
+        }
+        return None;
     }
 
     let stats = dir_stats(&stats_path);
     if stats.logical_size == 0 {
         cache::remove(&stats_path);
+        index::remove(&stats_path);
         log_candidate_decision(
             "skip",
             platform,
@@ -199,6 +243,7 @@ pub fn build_game_info_with_mode_and_stats_path(
 
     if !is_likely_installed_game(&stats_path, stats.logical_size, platform) {
         cache::remove(&stats_path);
+        index::remove(&stats_path);
         log_candidate_decision(
             "skip",
             platform,
@@ -213,7 +258,7 @@ pub fn build_game_info_with_mode_and_stats_path(
     let is_directstorage = crate::safety::directstorage::is_directstorage_game(&stats_path);
     cache::upsert(
         &stats_path,
-        token,
+        token.clone(),
         CachedGameStats::from_parts(
             stats.logical_size,
             stats.physical_size,
@@ -231,7 +276,7 @@ pub fn build_game_info_with_mode_and_stats_path(
         "full stats refreshed cache",
     );
 
-    Some(game_info_from_parts(
+    let game = game_info_from_parts(
         name,
         game_path,
         platform,
@@ -239,7 +284,9 @@ pub fn build_game_info_with_mode_and_stats_path(
         stats.physical_size,
         stats.is_compressed,
         is_directstorage,
-    ))
+    );
+    index::upsert(&stats_path, token, &game);
+    Some(game)
 }
 
 fn game_info_from_cached(
@@ -333,12 +380,9 @@ fn has_unity_bootstrap_layout(path: &Path) -> bool {
                 return false;
             }
 
-            path.join(exe_name)
-                .metadata()
-                .ok()
-                .is_some_and(|meta| {
-                    meta.is_file() && meta.len() >= MIN_UNITY_BOOTSTRAP_EXE_SIZE_BYTES
-                })
+            path.join(exe_name).metadata().ok().is_some_and(|meta| {
+                meta.is_file() && meta.len() >= MIN_UNITY_BOOTSTRAP_EXE_SIZE_BYTES
+            })
         })
 }
 

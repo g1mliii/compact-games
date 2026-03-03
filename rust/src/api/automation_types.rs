@@ -189,6 +189,7 @@ pub struct FrbAutomationConfig {
     pub watch_paths: Vec<String>,
     pub excluded_paths: Vec<String>,
     pub algorithm: FrbCompressionAlgorithm,
+    pub io_parallelism_override: Option<u64>,
 }
 
 /// Watcher diagnostics for Flutter display.

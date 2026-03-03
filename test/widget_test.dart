@@ -12,6 +12,7 @@ import 'package:pressplay/features/games/presentation/home_screen.dart';
 import 'package:pressplay/features/games/presentation/widgets/compression_progress_indicator.dart';
 import 'package:pressplay/features/games/presentation/widgets/game_card.dart';
 import 'package:pressplay/features/games/presentation/widgets/home_game_grid.dart';
+import 'package:pressplay/models/app_settings.dart';
 import 'package:pressplay/models/automation_state.dart';
 import 'package:pressplay/models/compression_algorithm.dart';
 import 'package:pressplay/models/compression_estimate.dart';
@@ -21,6 +22,8 @@ import 'package:pressplay/models/watcher_event.dart';
 import 'package:pressplay/providers/compression/compression_provider.dart';
 import 'package:pressplay/providers/compression/compression_state.dart';
 import 'package:pressplay/providers/games/game_list_provider.dart';
+import 'package:pressplay/providers/settings/settings_persistence.dart';
+import 'package:pressplay/providers/settings/settings_provider.dart';
 import 'package:pressplay/providers/system/platform_shell_provider.dart';
 import 'package:pressplay/services/rust_bridge_service.dart';
 import 'package:pressplay/services/platform_shell_service.dart';
@@ -29,7 +32,7 @@ part 'support/rust_bridge_test_doubles.dart';
 part 'support/widget_progress_indicator_tests.dart';
 
 const int _oneGiB = 1024 * 1024 * 1024;
-const List<GameInfo> _sampleGames = <GameInfo>[
+final List<GameInfo> _sampleGames = <GameInfo>[
   GameInfo(
     name: 'Pixel Raider',
     path: r'C:\Games\pixel_raider',
@@ -97,7 +100,7 @@ void main() {
       ProviderScope(
         overrides: [
           rustBridgeServiceProvider.overrideWithValue(
-            const _StaticRustBridgeService(games: _sampleGames),
+            _StaticRustBridgeService(games: _sampleGames),
           ),
         ],
         child: const MaterialApp(home: HomeScreen()),
@@ -123,7 +126,7 @@ void main() {
       ProviderScope(
         overrides: [
           rustBridgeServiceProvider.overrideWithValue(
-            const _StaticRustBridgeService(games: _sampleGames),
+            _StaticRustBridgeService(games: _sampleGames),
           ),
         ],
         child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
@@ -135,8 +138,8 @@ void main() {
     final grid = tester.widget<GridView>(find.byType(GridView).first);
     final delegate =
         grid.gridDelegate as SliverGridDelegateWithMaxCrossAxisExtent;
-    expect(delegate.maxCrossAxisExtent, 320);
-    expect(delegate.childAspectRatio, inInclusiveRange(0.81, 0.83));
+    expect(delegate.maxCrossAxisExtent, 288);
+    expect(delegate.childAspectRatio, inInclusiveRange(0.55, 0.57));
     expect(tester.takeException(), isNull);
   });
 
@@ -167,7 +170,7 @@ void main() {
   testWidgets('Add game imports manual EXE target into the grid', (
     WidgetTester tester,
   ) async {
-    const manualGame = GameInfo(
+    final manualGame = GameInfo(
       name: 'Manual Entry',
       path: r'C:\Manual\Entry',
       platform: Platform.custom,
@@ -175,7 +178,7 @@ void main() {
     );
     final bridge = _RecordingRustBridgeService(
       games: _sampleGames,
-      scanCustomFolderGames: const <GameInfo>[manualGame],
+      scanCustomFolderGames: <GameInfo>[manualGame],
     );
 
     await tester.pumpWidget(
@@ -209,7 +212,7 @@ void main() {
   testWidgets('Add game supports browse-folder selection in dialog', (
     WidgetTester tester,
   ) async {
-    const manualGame = GameInfo(
+    final manualGame = GameInfo(
       name: 'Browsed Entry',
       path: r'C:\Manual\Entry',
       platform: Platform.custom,
@@ -217,7 +220,7 @@ void main() {
     );
     final bridge = _RecordingRustBridgeService(
       games: _sampleGames,
-      scanCustomFolderGames: const <GameInfo>[manualGame],
+      scanCustomFolderGames: <GameInfo>[manualGame],
     );
     final shell = _FakePlatformShellService(
       folderPath: r'C:\Manual\Entry',
@@ -251,6 +254,45 @@ void main() {
     expect(bridge.scanCustomFolderCalls, 1);
     expect(bridge.lastScanCustomFolderPath, r'C:\Manual\Entry');
     expect(find.text('Browsed Entry'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Add game browse buttons stay below the path field', (
+    WidgetTester tester,
+  ) async {
+    final bridge = _RecordingRustBridgeService(games: _sampleGames);
+    final shell = _FakePlatformShellService(
+      folderPath: r'C:\Manual\Entry',
+      executablePath: r'C:\Manual\Entry\game.exe',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          platformShellServiceProvider.overrideWithValue(shell),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Add game'));
+    await tester.pumpAndSettle();
+
+    final fieldRect = tester.getRect(
+      find.byKey(const ValueKey<String>('addGamePathField')),
+    );
+    final folderRect = tester.getRect(
+      find.byKey(const ValueKey<String>('browseGameFolderButton')),
+    );
+    final exeRect = tester.getRect(
+      find.byKey(const ValueKey<String>('browseGameExeButton')),
+    );
+
+    expect(folderRect.top, greaterThan(fieldRect.bottom));
+    expect((folderRect.top - exeRect.top).abs(), lessThanOrEqualTo(1));
+    expect(folderRect.left, lessThan(exeRect.left));
     expect(tester.takeException(), isNull);
   });
 
@@ -302,7 +344,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Card tap requires confirmation before compression starts', (
+  testWidgets('Card tap opens menu and compresses only after action select', (
     WidgetTester tester,
   ) async {
     final bridge = _RecordingRustBridgeService(games: _sampleGames);
@@ -318,26 +360,21 @@ void main() {
     await tester.tap(find.byType(GameCard).first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Confirm Compression'), findsOneWidget);
+    expect(find.text('Confirm Compression'), findsNothing);
+    expect(find.text('Compress Now'), findsOneWidget);
     expect(bridge.compressCalls, 0);
 
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(find.text('Compress Now'));
     await tester.pumpAndSettle();
-    expect(bridge.compressCalls, 0);
-
-    await tester.tap(find.byType(GameCard).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Compress'));
-    await tester.pump();
 
     expect(bridge.compressCalls, 1);
   });
 
-  testWidgets('Tapping compressed card starts decompression immediately', (
+  testWidgets('Tapping compressed card opens menu before decompression', (
     WidgetTester tester,
   ) async {
     final compressedGames = <GameInfo>[
-      const GameInfo(
+      GameInfo(
         name: 'Compressed Quest',
         path: r'C:\Games\compressed_quest',
         platform: Platform.steam,
@@ -360,14 +397,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Confirm Compression'), findsNothing);
+    expect(find.text('Decompress'), findsOneWidget);
+    expect(bridge.decompressCalls, 0);
+
+    await tester.tap(find.text('Decompress'));
+    await tester.pumpAndSettle();
     expect(bridge.decompressCalls, 1);
   });
 
-  testWidgets('Compressed DirectStorage card still allows decompression', (
+  testWidgets('Compressed DirectStorage card menu still allows decompression', (
     WidgetTester tester,
   ) async {
     final compressedDirectStorageGames = <GameInfo>[
-      const GameInfo(
+      GameInfo(
         name: 'DirectStorage Runner',
         path: r'C:\Games\ds_runner',
         platform: Platform.steam,
@@ -393,14 +435,60 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Confirm Compression'), findsNothing);
+    expect(find.text('Decompress'), findsOneWidget);
+    expect(bridge.decompressCalls, 0);
+
+    await tester.tap(find.text('Decompress'));
+    await tester.pumpAndSettle();
     expect(bridge.decompressCalls, 1);
+  });
+
+  testWidgets('DirectStorage override enables context-menu compression', (
+    WidgetTester tester,
+  ) async {
+    final directStorageGames = <GameInfo>[
+      GameInfo(
+        name: 'DirectStorage Override Candidate',
+        path: r'C:\Games\ds_override_candidate',
+        platform: Platform.steam,
+        sizeBytes: 58 * _oneGiB,
+        isDirectStorage: true,
+      ),
+    ];
+    final bridge = _RecordingRustBridgeService(games: directStorageGames);
+    final persistence = _FixedSettingsPersistence(
+      const AppSettings(directStorageOverrideEnabled: true),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(GameCard).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Compress Now'), findsOneWidget);
+    expect(bridge.compressCalls, 0);
+
+    await tester.tap(find.text('Compress Now'));
+    await tester.pumpAndSettle();
+
+    expect(bridge.compressCalls, 1);
+    expect(bridge.lastAllowDirectStorageOverride, isTrue);
   });
 
   testWidgets('Home banner shows Decompressing while decompression is active', (
     WidgetTester tester,
   ) async {
     final compressedGames = <GameInfo>[
-      const GameInfo(
+      GameInfo(
         name: 'Decompress Banner Test',
         path: r'C:\Games\decompress_banner_test',
         platform: Platform.steam,
@@ -420,6 +508,8 @@ void main() {
 
     await tester.pumpAndSettle();
     await tester.tap(find.byType(GameCard).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Decompress'));
     await tester.pump();
 
     expect(find.text('Decompressing'), findsOneWidget);
@@ -432,7 +522,7 @@ void main() {
 
   _registerProgressIndicatorWidgetTests();
 
-  testWidgets('Rapid card taps do not stack confirmation dialogs', (
+  testWidgets('Rapid card taps do not stack context menus', (
     WidgetTester tester,
   ) async {
     final bridge = _RecordingRustBridgeService(games: _sampleGames);
@@ -449,8 +539,9 @@ void main() {
     await tester.tap(find.byType(GameCard).first, warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    expect(find.text('Confirm Compression'), findsOneWidget);
-    await tester.tap(find.text('Cancel'));
+    expect(find.text('Confirm Compression'), findsNothing);
+    expect(find.text('Compress Now'), findsOneWidget);
+    await tester.tapAt(const Offset(8, 8));
     await tester.pumpAndSettle();
   });
 

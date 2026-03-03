@@ -1,9 +1,11 @@
 pub mod battlenet;
 pub mod cache;
+pub mod change_feed;
 pub mod custom;
 pub mod ea;
 pub mod epic;
 pub mod gog;
+pub mod index;
 pub mod platform;
 pub mod scan_error;
 pub mod steam;

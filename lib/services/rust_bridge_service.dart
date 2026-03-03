@@ -9,6 +9,7 @@ import '../models/compression_progress.dart';
 import '../models/compression_stats.dart';
 import '../models/watcher_event.dart';
 import '../src/rust/api/automation.dart' as rust_automation;
+import '../src/rust/api/automation_types.dart' as rust_automation_types;
 import '../src/rust/api/compression.dart' as rust_compression;
 import '../src/rust/api/discovery.dart' as rust_discovery;
 import '../src/rust/frb_generated.dart';
@@ -103,6 +104,8 @@ class RustBridgeService {
     required String gamePath,
     required String gameName,
     CompressionAlgorithm algorithm = CompressionAlgorithm.xpress8k,
+    bool allowDirectStorageOverride = false,
+    int? ioParallelismOverride,
   }) {
     final frbAlgorithm = _toFrbAlgorithm(algorithm);
     return rust_compression
@@ -110,6 +113,10 @@ class RustBridgeService {
           gamePath: gamePath,
           gameName: gameName,
           algorithm: frbAlgorithm,
+          allowDirectstorageOverride: allowDirectStorageOverride,
+          ioParallelismOverride: ioParallelismOverride == null
+              ? null
+              : BigInt.from(ioParallelismOverride),
         )
         .map(_mapFrbProgress);
   }
@@ -133,8 +140,16 @@ class RustBridgeService {
   }
 
   /// Decompress a game folder.
-  Future<void> decompressGame(String gamePath) {
-    return rust_compression.decompressGame(gamePath: gamePath);
+  Future<void> decompressGame(
+    String gamePath, {
+    int? ioParallelismOverride,
+  }) {
+    return rust_compression.decompressGame(
+      gamePath: gamePath,
+      ioParallelismOverride: ioParallelismOverride == null
+          ? null
+          : BigInt.from(ioParallelismOverride),
+    );
   }
 
   /// Get compression ratio for a folder.
@@ -220,15 +235,19 @@ class RustBridgeService {
     required List<String> watchPaths,
     required List<String> excludedPaths,
     required CompressionAlgorithm algorithm,
+    int? ioParallelismOverride,
   }) {
     return rust_automation.updateAutomationConfig(
-      config: rust_types.FrbAutomationConfig(
+      config: rust_automation_types.FrbAutomationConfig(
         cpuThresholdPercent: cpuThresholdPercent,
         idleDurationSeconds: BigInt.from(idleDurationSeconds),
         cooldownSeconds: BigInt.from(cooldownSeconds),
         watchPaths: watchPaths,
         excludedPaths: excludedPaths,
         algorithm: _toFrbAlgorithm(algorithm),
+        ioParallelismOverride: ioParallelismOverride == null
+            ? null
+            : BigInt.from(ioParallelismOverride),
       ),
     );
   }

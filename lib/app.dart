@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/navigation/app_routes.dart';
+import 'core/performance/perf_overlay.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/widgets/desktop_window_frame.dart';
@@ -26,13 +27,15 @@ class PressPlayApp extends StatelessWidget {
           // Effect-only watcher — zero pixels, never causes child rebuilds.
           const _EffectProviderHost(),
           Expanded(
-            child: MaterialApp(
-              title: AppConstants.appName,
-              debugShowCheckedModeBanner: false,
-              theme: _appTheme,
-              builder: _usesCustomDesktopFrame ? _wrapDesktopFrame : null,
-              initialRoute: AppRoutes.home,
-              onGenerateRoute: AppRoutes.onGenerateRoute,
+            child: PerfOverlayManager(
+              child: MaterialApp(
+                title: AppConstants.appName,
+                debugShowCheckedModeBanner: false,
+                theme: _appTheme,
+                builder: _usesCustomDesktopFrame ? _wrapDesktopFrame : null,
+                initialRoute: AppRoutes.home,
+                onGenerateRoute: AppRoutes.onGenerateRoute,
+              ),
             ),
           ),
         ],

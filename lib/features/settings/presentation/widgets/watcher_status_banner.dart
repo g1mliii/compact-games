@@ -5,6 +5,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/system/auto_compression_status_provider.dart';
 
+const ValueKey<String> _watcherStatusBannerKey = ValueKey<String>(
+  'settingsWatcherStatusBanner',
+);
+
 class WatcherStatusBanner extends ConsumerWidget {
   const WatcherStatusBanner({super.key});
 
@@ -16,6 +20,7 @@ class WatcherStatusBanner extends ConsumerWidget {
       ),
     );
     return DecoratedBox(
+      key: _watcherStatusBannerKey,
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(10),

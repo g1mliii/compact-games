@@ -2,7 +2,7 @@ import 'compression_algorithm.dart';
 
 /// Application settings with JSON persistence.
 class AppSettings {
-  static const int currentSchemaVersion = 2;
+  static const int currentSchemaVersion = 3;
 
   final int schemaVersion;
   final CompressionAlgorithm algorithm;
@@ -15,6 +15,7 @@ class AppSettings {
   final bool notificationsEnabled;
   final String themeVariant;
   final bool directStorageOverrideEnabled;
+  final int? ioParallelismOverride;
   final String? steamGridDbApiKey;
   final bool inventoryAdvancedScanEnabled;
   final bool minimizeToTray;
@@ -31,6 +32,7 @@ class AppSettings {
     this.notificationsEnabled = true,
     this.themeVariant = 'cinematicDesert',
     this.directStorageOverrideEnabled = false,
+    this.ioParallelismOverride,
     this.steamGridDbApiKey,
     this.inventoryAdvancedScanEnabled = false,
     this.minimizeToTray = true,
@@ -50,6 +52,7 @@ class AppSettings {
       notificationsEnabled: notificationsEnabled,
       themeVariant: themeVariant.isEmpty ? 'cinematicDesert' : themeVariant,
       directStorageOverrideEnabled: directStorageOverrideEnabled,
+      ioParallelismOverride: _validatedIoOverride(ioParallelismOverride),
       steamGridDbApiKey: _normalizedApiKey(steamGridDbApiKey),
       inventoryAdvancedScanEnabled: inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray,
@@ -67,6 +70,7 @@ class AppSettings {
     bool? notificationsEnabled,
     String? themeVariant,
     bool? directStorageOverrideEnabled,
+    int? Function()? ioParallelismOverride,
     String? Function()? steamGridDbApiKey,
     bool? inventoryAdvancedScanEnabled,
     bool? minimizeToTray,
@@ -84,6 +88,9 @@ class AppSettings {
       themeVariant: themeVariant ?? this.themeVariant,
       directStorageOverrideEnabled:
           directStorageOverrideEnabled ?? this.directStorageOverrideEnabled,
+      ioParallelismOverride: ioParallelismOverride != null
+          ? ioParallelismOverride()
+          : this.ioParallelismOverride,
       steamGridDbApiKey: steamGridDbApiKey != null
           ? steamGridDbApiKey()
           : this.steamGridDbApiKey,
@@ -105,6 +112,7 @@ class AppSettings {
     'notificationsEnabled': notificationsEnabled,
     'themeVariant': themeVariant,
     'directStorageOverrideEnabled': directStorageOverrideEnabled,
+    'ioParallelismOverride': ioParallelismOverride,
     'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
     'minimizeToTray': minimizeToTray,
   };
@@ -131,6 +139,7 @@ class AppSettings {
       themeVariant: json['themeVariant'] as String? ?? 'cinematicDesert',
       directStorageOverrideEnabled:
           json['directStorageOverrideEnabled'] as bool? ?? false,
+      ioParallelismOverride: _toIntOrNull(json['ioParallelismOverride']),
       steamGridDbApiKey: _normalizedApiKey(
         json['steamGridDbApiKey'] as String?,
       ),
@@ -146,5 +155,22 @@ class AppSettings {
       return null;
     }
     return trimmed;
+  }
+
+  static int? _toIntOrNull(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return null;
+  }
+
+  static int? _validatedIoOverride(int? value) {
+    if (value == null) {
+      return null;
+    }
+    return value.clamp(1, 16);
   }
 }

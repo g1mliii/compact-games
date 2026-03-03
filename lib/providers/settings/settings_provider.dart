@@ -117,6 +117,10 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     _updateSetting((s) => s.copyWith(directStorageOverrideEnabled: enabled));
   }
 
+  void setIoParallelismOverride(int? value) {
+    _updateSetting((s) => s.copyWith(ioParallelismOverride: () => value));
+  }
+
   void setSteamGridDbApiKey(String? key) {
     _updateSetting((s) => s.copyWith(steamGridDbApiKey: () => key));
   }

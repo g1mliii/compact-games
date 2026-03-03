@@ -38,12 +38,30 @@ class GameCard extends StatelessWidget {
   final VoidCallback? onTap;
   final GestureTapDownCallback? onSecondaryTapDown;
   static const Color _cardShellColor = Color(0xFF2A303C);
-  static final Color _surfaceVariantAlpha95 =
-      AppColors.surfaceVariant.withValues(alpha: 0.95);
-  static final Color _borderColor =
-      AppColors.desertGold.withValues(alpha: 0.26);
-  static const BorderRadius _cardBorderRadius =
-      BorderRadius.all(Radius.circular(12));
+  static final Color _surfaceVariantAlpha95 = AppColors.surfaceVariant
+      .withValues(alpha: 0.95);
+  static final Color _borderColor = AppColors.desertGold.withValues(
+    alpha: 0.26,
+  );
+  static const BorderRadius _cardBorderRadius = BorderRadius.all(
+    Radius.circular(12),
+  );
+  static final BoxDecoration _cardDecoration = BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_cardShellColor, _surfaceVariantAlpha95],
+    ),
+    borderRadius: _cardBorderRadius,
+    border: Border.all(color: _borderColor, width: 1),
+  );
+  static const BoxDecoration _placeholderDecoration = BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [AppColors.surfaceVariant, AppColors.surfaceElevated],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -53,22 +71,8 @@ class GameCard extends StatelessWidget {
         child: GestureDetector(
           onTap: onTap,
           onSecondaryTapDown: onSecondaryTapDown,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  _cardShellColor,
-                  _surfaceVariantAlpha95,
-                ],
-              ),
-              borderRadius: _cardBorderRadius,
-              border: Border.all(
-                color: _borderColor,
-                width: 1,
-              ),
-            ),
+          child: DecoratedBox(
+            decoration: _cardDecoration,
             child: assumeBoundedHeight
                 ? _buildBoundedBody(context)
                 : _buildAdaptiveBody(),
@@ -150,24 +154,11 @@ class GameCard extends StatelessWidget {
     final filterQuality = deferred ? FilterQuality.none : FilterQuality.low;
     return ColoredBox(
       color: AppColors.surfaceElevated,
-      child: Image(
-        image: ResizeImage(provider, width: decodeWidth),
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        alignment: Alignment.center,
-        // Keep quality lightweight in steady state, and drop to none when
-        // deferred loading is recommended (e.g. fast scrolling).
+      child: _CachedResizeImage(
+        provider: provider,
+        decodeWidth: decodeWidth,
         filterQuality: filterQuality,
-        isAntiAlias: true,
-        gaplessPlayback: true,
-        errorBuilder: (context, error, stackTrace) => _buildPlaceholderCover(),
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) {
-            return child;
-          }
-          return _buildPlaceholderCover();
-        },
+        placeholderBuilder: _buildPlaceholderCover,
       ),
     );
   }
@@ -181,14 +172,8 @@ class GameCard extends StatelessWidget {
 
   Widget _buildPlaceholderCover() {
     final icon = platformIcon(platform);
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.surfaceVariant, AppColors.surfaceElevated],
-        ),
-      ),
+    return DecoratedBox(
+      decoration: _placeholderDecoration,
       child: Center(child: Icon(icon, size: 48, color: AppColors.desertSand)),
     );
   }
@@ -322,28 +307,87 @@ class GameCard extends StatelessWidget {
   }
 }
 
+class _CachedResizeImage extends StatefulWidget {
+  const _CachedResizeImage({
+    required this.provider,
+    required this.decodeWidth,
+    required this.filterQuality,
+    required this.placeholderBuilder,
+  });
+
+  final ImageProvider provider;
+  final int decodeWidth;
+  final FilterQuality filterQuality;
+  final Widget Function() placeholderBuilder;
+
+  @override
+  State<_CachedResizeImage> createState() => _CachedResizeImageState();
+}
+
+class _CachedResizeImageState extends State<_CachedResizeImage> {
+  late ImageProvider _resizedProvider = ResizeImage(
+    widget.provider,
+    width: widget.decodeWidth,
+  );
+
+  @override
+  void didUpdateWidget(covariant _CachedResizeImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.provider, widget.provider) ||
+        oldWidget.decodeWidth != widget.decodeWidth) {
+      _resizedProvider = ResizeImage(
+        widget.provider,
+        width: widget.decodeWidth,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Image(
+      image: _resizedProvider,
+      fit: BoxFit.contain,
+      width: double.infinity,
+      height: double.infinity,
+      alignment: Alignment.center,
+      // Keep quality lightweight in steady state, and drop to none when
+      // deferred loading is recommended (e.g. fast scrolling).
+      filterQuality: widget.filterQuality,
+      isAntiAlias: true,
+      gaplessPlayback: true,
+      errorBuilder: (context, error, stackTrace) => widget.placeholderBuilder(),
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) {
+          return child;
+        }
+        return widget.placeholderBuilder();
+      },
+    );
+  }
+}
+
 class _CompressionBar extends StatelessWidget {
   const _CompressionBar({required this.ratio});
 
   final double ratio;
+  static const BorderRadius _barRadius = BorderRadius.all(Radius.circular(2));
+  static const BoxDecoration _fillDecoration = BoxDecoration(
+    gradient: AppColors.progressGradient,
+  );
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 4,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(2),
+        borderRadius: _barRadius,
         child: Stack(
           children: [
-            Container(color: AppColors.surfaceElevated),
+            const ColoredBox(color: AppColors.surfaceElevated),
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: ratio,
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: AppColors.progressGradient,
-                ),
-              ),
+              child: const DecoratedBox(decoration: _fillDecoration),
             ),
           ],
         ),

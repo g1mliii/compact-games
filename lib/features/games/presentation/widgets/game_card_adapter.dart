@@ -38,6 +38,79 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   CompressionEstimate? _cachedEstimate;
   CompressionAlgorithm? _cachedEstimateAlgorithm;
 
+  // Mutable references for the stable action callbacks below.
+  GameInfo? _currentGame;
+  bool _currentIsExcluded = false;
+  bool _currentDirectStorageOverride = false;
+
+  // Stable action map — created once per state, callbacks read mutable
+  // _currentGame/_currentIsExcluded so they always act on the latest values.
+  static const _shortcuts = <ShortcutActivator, Intent>{
+    SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+    SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true):
+        CompressIntent(),
+    SingleActivator(LogicalKeyboardKey.keyE, control: true, shift: true):
+        ExcludeIntent(),
+    SingleActivator(LogicalKeyboardKey.keyO, control: true, shift: true):
+        OpenFolderIntent(),
+    SingleActivator(LogicalKeyboardKey.keyD, control: true, shift: true):
+        OpenDetailsIntent(),
+    SingleActivator(LogicalKeyboardKey.f10, shift: true): ContextMenuIntent(),
+  };
+
+  late final Map<Type, Action<Intent>> _actions = <Type, Action<Intent>>{
+    ActivateIntent: CallbackAction<ActivateIntent>(
+      onInvoke: (_) {
+        final game = _currentGame;
+        if (game != null) unawaited(_onGameTap(game));
+        return null;
+      },
+    ),
+    CompressIntent: CallbackAction<CompressIntent>(
+      onInvoke: (_) {
+        final game = _currentGame;
+        if (game != null) unawaited(_onGameTap(game));
+        return null;
+      },
+    ),
+    ExcludeIntent: CallbackAction<ExcludeIntent>(
+      onInvoke: (_) {
+        final game = _currentGame;
+        if (game != null) _toggleExclusion(game);
+        return null;
+      },
+    ),
+    OpenFolderIntent: CallbackAction<OpenFolderIntent>(
+      onInvoke: (_) {
+        final game = _currentGame;
+        if (game != null) unawaited(_openFolder(game.path));
+        return null;
+      },
+    ),
+    OpenDetailsIntent: CallbackAction<OpenDetailsIntent>(
+      onInvoke: (_) {
+        final game = _currentGame;
+        if (game != null) _openDetails(game.path);
+        return null;
+      },
+    ),
+    ContextMenuIntent: CallbackAction<ContextMenuIntent>(
+      onInvoke: (_) {
+        final game = _currentGame;
+        if (game != null) {
+          unawaited(
+            _showContextMenu(
+              game: game,
+              isExcluded: _currentIsExcluded,
+              allowDirectStorageOverride: _currentDirectStorageOverride,
+            ),
+          );
+        }
+        return null;
+      },
+    ),
+  };
+
   @override
   void didUpdateWidget(covariant GameCardAdapter oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -56,9 +129,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   Widget build(BuildContext context) {
     final game = ref.watch(singleGameProvider(widget.gamePath));
     if (game == null) return const SizedBox.shrink();
-    final coverResult = ref
-        .watch(coverArtProvider(widget.gamePath))
-        .valueOrNull;
+    final coverResult = ref.watch(
+      coverArtProvider(widget.gamePath).select((v) => v.valueOrNull),
+    );
     final isExcluded = ref.watch(
       settingsProvider.select(
         (async) =>
@@ -68,64 +141,26 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
             false,
       ),
     );
+    final allowDirectStorageOverride = ref.watch(
+      settingsProvider.select(
+        (async) =>
+            async.valueOrNull?.settings.directStorageOverrideEnabled ?? false,
+      ),
+    );
+
+    // Update mutable references for the stable action callbacks.
+    _currentGame = game;
+    _currentIsExcluded = isExcluded;
+    _currentDirectStorageOverride = allowDirectStorageOverride;
 
     _scheduleHydrationRequest();
     if (_isEstimatePrefetchAllowed(context)) {
-      _scheduleEstimateFetch(game);
+      _scheduleEstimateFetch(game, allowDirectStorageOverride);
     }
 
     return FocusableActionDetector(
-      shortcuts: const <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true):
-            CompressIntent(),
-        SingleActivator(LogicalKeyboardKey.keyE, control: true, shift: true):
-            ExcludeIntent(),
-        SingleActivator(LogicalKeyboardKey.keyO, control: true, shift: true):
-            OpenFolderIntent(),
-        SingleActivator(LogicalKeyboardKey.keyD, control: true, shift: true):
-            OpenDetailsIntent(),
-        SingleActivator(LogicalKeyboardKey.f10, shift: true):
-            ContextMenuIntent(),
-      },
-      actions: <Type, Action<Intent>>{
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) {
-            unawaited(_onGameTap(game));
-            return null;
-          },
-        ),
-        CompressIntent: CallbackAction<CompressIntent>(
-          onInvoke: (_) {
-            unawaited(_onGameTap(game));
-            return null;
-          },
-        ),
-        ExcludeIntent: CallbackAction<ExcludeIntent>(
-          onInvoke: (_) {
-            _toggleExclusion(game);
-            return null;
-          },
-        ),
-        OpenFolderIntent: CallbackAction<OpenFolderIntent>(
-          onInvoke: (_) {
-            unawaited(_openFolder(game.path));
-            return null;
-          },
-        ),
-        OpenDetailsIntent: CallbackAction<OpenDetailsIntent>(
-          onInvoke: (_) {
-            _openDetails(game.path);
-            return null;
-          },
-        ),
-        ContextMenuIntent: CallbackAction<ContextMenuIntent>(
-          onInvoke: (_) {
-            unawaited(_showContextMenu(game: game, isExcluded: isExcluded));
-            return null;
-          },
-        ),
-      },
+      shortcuts: _shortcuts,
+      actions: _actions,
       child: GameCard(
         gameName: game.name,
         platform: game.platform,
@@ -133,15 +168,25 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
         compressedSizeBytes: game.compressedSize,
         isCompressed: game.isCompressed,
         isDirectStorage: game.isDirectStorage,
-        estimatedSavedBytes: _estimatedSavedBytesFor(game),
+        estimatedSavedBytes: _estimatedSavedBytesFor(
+          game,
+          allowDirectStorageOverride,
+        ),
         assumeBoundedHeight: true,
         coverImageProvider: imageProviderFromCover(coverResult),
         heroTag: null,
-        onTap: () => unawaited(_onGameTap(game)),
+        onTap: () => unawaited(
+          _showContextMenu(
+            game: game,
+            isExcluded: isExcluded,
+            allowDirectStorageOverride: allowDirectStorageOverride,
+          ),
+        ),
         onSecondaryTapDown: (details) => unawaited(
           _showContextMenu(
             game: game,
             isExcluded: isExcluded,
+            allowDirectStorageOverride: allowDirectStorageOverride,
             tapDown: details,
           ),
         ),
@@ -149,13 +194,15 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     );
   }
 
-  int? _estimatedSavedBytesFor(GameInfo game) {
-    if (game.isCompressed || game.isDirectStorage) return null;
+  int? _estimatedSavedBytesFor(GameInfo game, bool allowDirectStorageOverride) {
+    if (game.isCompressed) return null;
+    if (game.isDirectStorage && !allowDirectStorageOverride) return null;
     return _cachedEstimate?.estimatedSavedBytes;
   }
 
-  void _scheduleEstimateFetch(GameInfo game) {
-    if (game.isCompressed || game.isDirectStorage) return;
+  void _scheduleEstimateFetch(GameInfo game, bool allowDirectStorageOverride) {
+    if (game.isCompressed) return;
+    if (game.isDirectStorage && !allowDirectStorageOverride) return;
     if (_cachedEstimate != null) return;
     if (_estimateFetchScheduled) return;
     if (_estimateFetchInFlight) return;
@@ -193,20 +240,32 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   }
 
   Future<void> _onGameTap(GameInfo game) async {
+    final allowDirectStorageOverride =
+        ref
+            .read(settingsProvider)
+            .valueOrNull
+            ?.settings
+            .directStorageOverrideEnabled ??
+        false;
+
     if (game.isCompressed) {
       await ref
           .read(compressionProvider.notifier)
           .startDecompression(gamePath: game.path, gameName: game.name);
       return;
     }
-    if (game.isDirectStorage) return;
+    if (game.isDirectStorage && !allowDirectStorageOverride) return;
 
     final shouldCompress = await _confirmCompression(gameName: game.name);
     if (!mounted || !shouldCompress) return;
 
     await ref
         .read(compressionProvider.notifier)
-        .startCompression(gamePath: game.path, gameName: game.name);
+        .startCompression(
+          gamePath: game.path,
+          gameName: game.name,
+          allowDirectStorageOverride: allowDirectStorageOverride,
+        );
   }
 
   void _openDetails(String gamePath) {
@@ -224,6 +283,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   Future<void> _showContextMenu({
     required GameInfo game,
     required bool isExcluded,
+    required bool allowDirectStorageOverride,
     TapDownDetails? tapDown,
   }) async {
     final action = await showMenu<GameContextAction>(
@@ -237,7 +297,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
         ),
         PopupMenuItem(
           value: GameContextAction.compress,
-          enabled: !game.isCompressed && !game.isDirectStorage,
+          enabled:
+              !game.isCompressed &&
+              (!game.isDirectStorage || allowDirectStorageOverride),
           child: _buildMenuLabel('Compress Now', LucideIcons.archive),
         ),
         PopupMenuItem(
@@ -267,7 +329,11 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       case GameContextAction.compress:
         await ref
             .read(compressionProvider.notifier)
-            .startCompression(gamePath: game.path, gameName: game.name);
+            .startCompression(
+              gamePath: game.path,
+              gameName: game.name,
+              allowDirectStorageOverride: allowDirectStorageOverride,
+            );
         break;
       case GameContextAction.decompress:
         await ref
@@ -358,9 +424,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       final estimate = await ref
           .read(rustBridgeServiceProvider)
           .estimateCompressionSavings(gamePath: gamePath, algorithm: algorithm);
+      if (!mounted) return estimate;
       ref.read(coverArtServiceProvider).primeEstimateHints(gamePath, estimate);
       ref.invalidate(coverArtProvider(gamePath));
-      if (!mounted) return estimate;
       setState(() {
         _cachedEstimate = estimate;
         _cachedEstimateAlgorithm = algorithm;

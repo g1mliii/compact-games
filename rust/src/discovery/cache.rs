@@ -12,6 +12,9 @@ const MAX_CACHE_ENTRIES: usize = 8_192;
 const FLUSH_PENDING_THRESHOLD: usize = 256;
 const TOKEN_PROBE_MAX_DEPTH: usize = 6;
 const TOKEN_PROBE_MAX_FILES: usize = 96;
+/// Maximum age (in ms) for a cache entry before it's considered stale
+/// even when the change token matches. Forces periodic re-verification.
+const MAX_CACHE_AGE_MS: u64 = 10 * 60 * 1000; // 10 minutes
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ChangeToken {
@@ -138,12 +141,49 @@ pub fn has_entry(path: &Path) -> bool {
 }
 
 pub fn lookup(path: &Path, token: &ChangeToken) -> Option<CachedGameStats> {
+    lookup_inner(path, token, None)
+}
+
+/// Lookup with TTL enforcement. Returns `None` if the entry is older than
+/// `max_age_ms`, forcing a re-scan even when the change token still matches.
+pub fn lookup_with_ttl(
+    path: &Path,
+    token: &ChangeToken,
+    max_age_ms: u64,
+) -> Option<CachedGameStats> {
+    lookup_inner(path, token, Some(max_age_ms))
+}
+
+/// Default TTL-aware lookup (10-minute max cache age).
+pub fn lookup_fresh(path: &Path, token: &ChangeToken) -> Option<CachedGameStats> {
+    lookup_with_ttl(path, token, MAX_CACHE_AGE_MS)
+}
+
+fn lookup_inner(
+    path: &Path,
+    token: &ChangeToken,
+    max_age_ms: Option<u64>,
+) -> Option<CachedGameStats> {
     let key = normalize_path_key(path);
+    let now = unix_now_ms();
+
+    let filter_entry = |entry: &&CacheEntry| -> bool {
+        if entry.token != *token {
+            return false;
+        }
+        if let Some(max_age) = max_age_ms {
+            if now.saturating_sub(entry.stats.updated_at_ms) > max_age {
+                return false;
+            }
+        }
+        true
+    };
+
     if let Some(stats) = with_pending_read(|pending| {
         pending
             .entries
             .get(&key)
-            .filter(|entry| entry.token == *token)
+            .filter(filter_entry)
             .map(|entry| entry.stats.clone())
     }) {
         return Some(stats);
@@ -153,7 +193,7 @@ pub fn lookup(path: &Path, token: &ChangeToken) -> Option<CachedGameStats> {
         cache
             .entries
             .get(&key)
-            .filter(|entry| entry.token == *token)
+            .filter(filter_entry)
             .map(|entry| entry.stats.clone())
     })
 }
@@ -191,6 +231,9 @@ pub fn upsert(path: &Path, token: ChangeToken, stats: CachedGameStats) {
 }
 
 pub fn persist_if_dirty() {
+    // Best-effort persistence: concurrent `upsert` calls can set `CACHE_DIRTY = true`
+    // after this swap and miss the current flush/save cycle. Those updates remain in
+    // memory and are picked up by the next `persist_if_dirty` invocation.
     if !CACHE_DIRTY.swap(false, Ordering::Relaxed) {
         return;
     }

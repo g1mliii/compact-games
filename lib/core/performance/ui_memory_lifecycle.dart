@@ -7,6 +7,14 @@ enum UiMemoryTrimLevel { background, trayHide, pressure, shutdown }
 
 /// Centralized memory trim hooks for desktop lifecycle events.
 abstract final class UiMemoryLifecycle {
+  /// Current decoded image cache usage in bytes (for debug overlay).
+  static int get currentImageCacheBytes =>
+      PaintingBinding.instance.imageCache.currentSizeBytes;
+
+  /// Current decoded image cache entry count (for debug overlay).
+  static int get currentImageCacheCount =>
+      PaintingBinding.instance.imageCache.currentSize;
+
   static void trim(UiMemoryTrimLevel level) {
     final imageCache = PaintingBinding.instance.imageCache;
 

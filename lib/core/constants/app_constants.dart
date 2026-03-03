@@ -11,7 +11,7 @@ abstract final class AppConstants {
 
   // Grid layout
   static const double cardMinWidth = 240;
-  static const double cardMaxWidth = 320;
+  static const double cardMaxWidth = 288;
   static const double gridSpacing = 16;
 
   // Cover art

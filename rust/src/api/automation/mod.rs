@@ -24,7 +24,7 @@ struct ActiveAutoCompression {
 }
 
 /// Shared state snapshot updated by the auto_loop, read by sync getters.
-pub(super) struct SharedAutoState {
+pub struct SharedAutoState {
     pub scheduler_state: FrbSchedulerState,
     pub queue: Vec<FrbAutomationJob>,
     pub watched_path_count: u32,
@@ -318,6 +318,7 @@ mod tests {
             watch_paths: vec![],
             excluded_paths: vec![],
             algorithm: super::super::types::FrbCompressionAlgorithm::Xpress8K,
+            io_parallelism_override: None,
         });
         assert!(result.is_ok());
     }

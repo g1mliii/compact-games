@@ -121,7 +121,10 @@ fn quick_scan_clears_stale_cache_when_install_shrinks_to_stub() {
     let game_dir = temp.path().join("ShrinkingInstall");
     fs::create_dir_all(&game_dir).unwrap();
     let exe_path = game_dir.join("game.exe");
-    File::create(&exe_path).unwrap().set_len(3 * 1024 * 1024).unwrap();
+    File::create(&exe_path)
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
 
     let first_full = build_game_info_with_mode_and_stats_path(
         "Shrinking Install".to_owned(),

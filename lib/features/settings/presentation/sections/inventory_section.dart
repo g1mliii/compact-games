@@ -74,27 +74,38 @@ class _InventorySectionState extends ConsumerState<InventorySection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const WatcherStatusBanner(),
-          SizedBox(
-            width: double.infinity,
-            height: 40,
-            child: OutlinedButton.icon(
-              key: _watcherToggleButtonKey,
-              onPressed: () => ref
-                  .read(settingsProvider.notifier)
-                  .setAutoCompress(!autoCompress),
-              icon: Icon(
-                autoCompress ? LucideIcons.pause : LucideIcons.play,
-                size: 16,
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 200, maxWidth: 260),
+              child: SizedBox(
+                height: 40,
+                child: OutlinedButton.icon(
+                  key: _watcherToggleButtonKey,
+                  onPressed: () => ref
+                      .read(settingsProvider.notifier)
+                      .setAutoCompress(!autoCompress),
+                  icon: Icon(
+                    autoCompress ? LucideIcons.pause : LucideIcons.play,
+                    size: 16,
+                  ),
+                  label: Text(
+                    autoCompress ? 'Pause watcher' : 'Resume watcher',
+                  ),
+                ),
               ),
-              label: Text(autoCompress ? 'Pause watcher' : 'Resume watcher'),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            autoCompress
-                ? 'Watcher automation is enabled.'
-                : 'Watcher automation is disabled.',
-            style: AppTypography.bodySmall,
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            child: Text(
+              autoCompress
+                  ? 'Watcher automation is enabled.'
+                  : 'Watcher automation is disabled.',
+              style: AppTypography.bodySmall,
+            ),
           ),
           ScaledSwitchRow(
             key: _advancedToggleKey,
@@ -104,9 +115,13 @@ class _InventorySectionState extends ConsumerState<InventorySection> {
                 .read(settingsProvider.notifier)
                 .setInventoryAdvancedScanEnabled(enabled),
           ),
-          const Text(
-            'When enabled, Inventory shows a "Run Full Inventory Rescan" action that performs a deeper metadata pass.',
-            style: AppTypography.bodySmall,
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.only(left: 2, bottom: 12),
+            child: Text(
+              'When enabled, Inventory shows a "Run Full Inventory Rescan" action that performs a deeper metadata pass.',
+              style: AppTypography.bodySmall,
+            ),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -137,10 +152,13 @@ class _InventorySectionState extends ConsumerState<InventorySection> {
               child: const Text('Save API Key'),
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Used as fallback for Epic/GOG/Ubisoft when local art cannot be found.',
-            style: AppTypography.bodySmall,
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.only(left: 2),
+            child: Text(
+              'Used as fallback for Epic/GOG/Ubisoft when local art cannot be found.',
+              style: AppTypography.bodySmall,
+            ),
           ),
         ],
       ),

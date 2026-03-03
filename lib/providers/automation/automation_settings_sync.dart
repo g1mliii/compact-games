@@ -47,6 +47,11 @@ final automationSettingsSyncProvider = Provider<void>((ref) {
   final algorithm = ref.watch(
     settingsProvider.select((async) => async.valueOrNull?.settings.algorithm),
   );
+  final ioParallelismOverride = ref.watch(
+    settingsProvider.select(
+      (async) => async.valueOrNull?.settings.ioParallelismOverride,
+    ),
+  );
 
   if (autoCompress == null) return;
 
@@ -61,6 +66,7 @@ final automationSettingsSyncProvider = Provider<void>((ref) {
         watchPaths: customFolders ?? const [],
         excludedPaths: excludedPaths ?? const [],
         algorithm: algorithm ?? CompressionAlgorithm.xpress8k,
+        ioParallelismOverride: ioParallelismOverride,
       ),
       operation: 'update config',
     );
