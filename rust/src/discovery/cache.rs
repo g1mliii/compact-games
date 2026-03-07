@@ -354,7 +354,7 @@ fn load_cache_file() -> CacheFile {
 fn save_cache_file(cache: &CacheFile) -> Result<(), Box<dyn std::error::Error>> {
     let path = cache_path()?;
     let json = serde_json::to_string(cache)?;
-    fs::write(path, json)?;
+    crate::utils::atomic_write(&path, json.as_bytes())?;
     Ok(())
 }
 

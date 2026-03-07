@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::automation::scheduler::{AutoScheduler, JobStatus};
-use crate::compression::history::latest_compression_timestamps_by_path;
+use crate::compression::history::with_latest_compression_timestamps_by_path;
 use crate::discovery::cache::{
     compute_change_token, has_entry as has_discovery_cache_entry, normalize_path_key,
 };
@@ -184,29 +184,28 @@ pub(super) fn enqueue_startup_reconcile_candidate_batch(
     candidates: &mut VecDeque<ReconcileCandidate>,
     attempted_paths: &mut HashSet<String>,
 ) -> ReconcileEnqueueResult {
-    let history_by_path = latest_compression_timestamps_by_path();
-    if history_by_path.is_empty() {
-        candidates.clear();
-        return ReconcileEnqueueResult {
-            queued: 0,
-            hit_cap: false,
-        };
-    }
-
-    let mut queued = 0_usize;
-    while queued < MAX_RECONCILE_JOBS_PER_PASS {
-        let Some(candidate) = candidates.pop_front() else {
-            break;
-        };
-        if maybe_enqueue_reconcile_candidate(
-            scheduler,
-            &history_by_path,
-            attempted_paths,
-            candidate,
-        ) {
-            queued = queued.saturating_add(1);
+    let queued = with_latest_compression_timestamps_by_path(|history_by_path| {
+        if history_by_path.is_empty() {
+            candidates.clear();
+            return 0;
         }
-    }
+
+        let mut queued = 0_usize;
+        while queued < MAX_RECONCILE_JOBS_PER_PASS {
+            let Some(candidate) = candidates.pop_front() else {
+                break;
+            };
+            if maybe_enqueue_reconcile_candidate(
+                scheduler,
+                history_by_path,
+                attempted_paths,
+                candidate,
+            ) {
+                queued = queued.saturating_add(1);
+            }
+        }
+        queued
+    });
 
     let hit_cap = queued >= MAX_RECONCILE_JOBS_PER_PASS && !candidates.is_empty();
     if hit_cap {

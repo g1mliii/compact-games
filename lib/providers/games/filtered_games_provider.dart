@@ -112,7 +112,7 @@ bool _matchesCompressionFilter(GameInfo game, CompressionFilter filter) {
     CompressionFilter.all => true,
     CompressionFilter.compressed => game.isCompressed,
     CompressionFilter.uncompressed =>
-      !game.isCompressed && !game.isDirectStorage,
+      !game.isCompressed && !game.isDirectStorage && !game.isUnsupported,
   };
 }
 

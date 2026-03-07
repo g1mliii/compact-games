@@ -60,6 +60,9 @@ version = "0.11"
 [dependencies.dirs]
 version = "5"
 
+[dependencies.ureq]
+version = "3"
+
 [dependencies.num_cpus]
 version = "1"
 

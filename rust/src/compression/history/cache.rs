@@ -158,6 +158,21 @@ pub fn latest_compression_timestamps_by_path() -> HashMap<String, u64> {
     guard.as_ref().cloned().unwrap_or_default()
 }
 
+/// Borrow the latest compression timestamp index without cloning it.
+pub fn with_latest_compression_timestamps_by_path<R>(
+    f: impl FnOnce(&HashMap<String, u64>) -> R,
+) -> R {
+    flush_pending();
+    ensure_loaded();
+
+    let guard = LATEST_TIMESTAMP_INDEX.read().unwrap();
+    let empty = HashMap::new();
+    match guard.as_ref() {
+        Some(index) => f(index),
+        None => f(&empty),
+    }
+}
+
 /// Persist cache to disk.
 pub fn persist_if_dirty() {
     // Pending entries can exist below threshold; flush first to avoid data loss.
@@ -178,7 +193,7 @@ pub fn persist_if_dirty() {
     }
 
     if let Ok(json) = serde_json::to_string_pretty(cache) {
-        if std::fs::write(&path, json).is_ok() {
+        if crate::utils::atomic_write(&path, json.as_bytes()).is_ok() {
             *CACHE_DIRTY.lock().unwrap() = false;
         }
     }

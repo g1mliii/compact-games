@@ -30,6 +30,7 @@ class GameInfo {
   final int? compressedSize;
   final bool isCompressed;
   final bool isDirectStorage;
+  final bool isUnsupported;
   final bool excluded;
 
   /// Legacy timestamp field from older transports. Avoid using this for new UI.
@@ -52,6 +53,7 @@ class GameInfo {
     this.compressedSize,
     this.isCompressed = false,
     this.isDirectStorage = false,
+    this.isUnsupported = false,
     this.excluded = false,
     this.lastPlayed,
     this.lastCompressedAt,
@@ -83,6 +85,7 @@ class GameInfo {
     int? Function()? compressedSize,
     bool? isCompressed,
     bool? isDirectStorage,
+    bool? isUnsupported,
     bool? excluded,
     DateTime? Function()? lastPlayed,
     DateTime? Function()? lastCompressedAt,
@@ -97,6 +100,7 @@ class GameInfo {
           : this.compressedSize,
       isCompressed: isCompressed ?? this.isCompressed,
       isDirectStorage: isDirectStorage ?? this.isDirectStorage,
+      isUnsupported: isUnsupported ?? this.isUnsupported,
       excluded: excluded ?? this.excluded,
       lastPlayed: lastPlayed != null ? lastPlayed() : this.lastPlayed,
       lastCompressedAt: lastCompressedAt != null
@@ -117,6 +121,7 @@ class GameInfo {
           compressedSize == other.compressedSize &&
           isCompressed == other.isCompressed &&
           isDirectStorage == other.isDirectStorage &&
+          isUnsupported == other.isUnsupported &&
           excluded == other.excluded &&
           lastPlayed == other.lastPlayed &&
           lastCompressedAt == other.lastCompressedAt;
@@ -130,6 +135,7 @@ class GameInfo {
     compressedSize,
     isCompressed,
     isDirectStorage,
+    isUnsupported,
     excluded,
     lastPlayed,
     lastCompressedAt,

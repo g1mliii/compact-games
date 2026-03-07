@@ -101,6 +101,8 @@ pub struct GameInfo {
     pub is_compressed: bool,
     pub is_directstorage: bool,
     #[serde(default)]
+    pub is_unsupported: bool,
+    #[serde(default)]
     pub excluded: bool,
     #[serde(
         default,
@@ -155,6 +157,7 @@ mod tests {
             compressed_size: None,
             is_compressed: false,
             is_directstorage: false,
+            is_unsupported: false,
             excluded: false,
             last_played: None,
         };
@@ -172,6 +175,7 @@ mod tests {
             compressed_size: Some(6_000),
             is_compressed: true,
             is_directstorage: false,
+            is_unsupported: false,
             excluded: false,
             last_played: None,
         };
@@ -189,6 +193,7 @@ mod tests {
             compressed_size: Some(8_000_000_000),
             is_compressed: true,
             is_directstorage: false,
+            is_unsupported: false,
             excluded: false,
             last_played: None,
         };
@@ -209,6 +214,7 @@ mod tests {
             compressed_size: Some(0),
             is_compressed: true,
             is_directstorage: false,
+            is_unsupported: false,
             excluded: false,
             last_played: None,
         };
@@ -227,6 +233,7 @@ mod tests {
             compressed_size: Some(2_000), // Pathological: compressed is larger
             is_compressed: true,
             is_directstorage: false,
+            is_unsupported: false,
             excluded: false,
             last_played: None,
         };
@@ -248,6 +255,7 @@ mod tests {
             compressed_size: None,
             is_compressed: false,
             is_directstorage: false,
+            is_unsupported: false,
             excluded: false,
             last_played: Some(timestamp),
         };
@@ -274,6 +282,7 @@ mod tests {
             compressed_size: None,
             is_compressed: false,
             is_directstorage: false,
+            is_unsupported: false,
             excluded: false,
             last_played: None,
         };

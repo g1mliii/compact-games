@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/widgets/cinematic_background.dart';
 import 'widgets/home_compression_banner.dart';
+import 'widgets/home_cover_art_nudge.dart';
 import 'widgets/home_game_grid.dart';
 import 'widgets/home_header.dart';
 
@@ -20,6 +21,7 @@ class HomeScreen extends StatelessWidget {
                 child: HomeHeader(),
               ),
               const HomeCompressionBanner(),
+              const HomeCoverArtNudge(),
               const Expanded(child: HomeGameGrid()),
             ],
           ),

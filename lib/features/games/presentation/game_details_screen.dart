@@ -228,6 +228,10 @@ class _DetailsRightColumn extends StatelessWidget {
           const SizedBox(height: 12),
           const GameDetailsDirectStorageWarningCard(),
         ],
+        if (game.isUnsupported) ...[
+          const SizedBox(height: 12),
+          const GameDetailsUnsupportedWarningCard(),
+        ],
       ],
     );
   }

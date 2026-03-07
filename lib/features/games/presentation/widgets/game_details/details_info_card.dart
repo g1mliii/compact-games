@@ -66,6 +66,10 @@ class GameDetailsInfoCard extends ConsumerWidget {
               value: game.isDirectStorage ? 'Detected' : 'Not detected',
             ),
             _StatLine(
+              label: 'Unsupported',
+              value: game.isUnsupported ? 'Flagged' : 'Not flagged',
+            ),
+            _StatLine(
               label: 'Auto-compress',
               value: isExcluded ? 'Excluded' : 'Included',
             ),
@@ -210,7 +214,7 @@ class _StatusActionButtons extends ConsumerWidget {
 
     return FilledButton.icon(
       key: _detailsStatusPrimaryActionKey,
-      onPressed: game.isDirectStorage && !allowDirectStorageOverride
+      onPressed: (game.isDirectStorage || game.isUnsupported) && !allowDirectStorageOverride
           ? null
           : () => ref
                 .read(compressionProvider.notifier)

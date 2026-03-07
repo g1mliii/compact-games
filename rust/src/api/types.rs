@@ -31,6 +31,7 @@ pub struct FrbGameInfo {
     pub compressed_size: Option<u64>,
     pub is_compressed: bool,
     pub is_directstorage: bool,
+    pub is_unsupported: bool,
     pub excluded: bool,
     pub last_played: Option<i64>,
 }
@@ -45,6 +46,7 @@ impl From<GameInfo> for FrbGameInfo {
             compressed_size: g.compressed_size,
             is_compressed: g.is_compressed,
             is_directstorage: g.is_directstorage,
+            is_unsupported: g.is_unsupported,
             excluded: g.excluded,
             last_played: g.last_played.and_then(|t| {
                 t.duration_since(UNIX_EPOCH)

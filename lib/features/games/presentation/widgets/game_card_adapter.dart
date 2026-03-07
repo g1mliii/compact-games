@@ -170,6 +170,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
         compressedSizeBytes: game.compressedSize,
         isCompressed: game.isCompressed,
         isDirectStorage: game.isDirectStorage,
+        isUnsupported: game.isUnsupported,
         estimatedSavedBytes: _estimatedSavedBytesFor(
           game,
           allowDirectStorageOverride,
@@ -197,9 +198,13 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     );
   }
 
+  /// Whether safety flags (DirectStorage / unsupported) block compression.
+  static bool _isSafetyBlocked(GameInfo game, bool allowOverride) =>
+      (game.isDirectStorage || game.isUnsupported) && !allowOverride;
+
   int? _estimatedSavedBytesFor(GameInfo game, bool allowDirectStorageOverride) {
     if (game.isCompressed) return null;
-    if (game.isDirectStorage && !allowDirectStorageOverride) return null;
+    if (_isSafetyBlocked(game, allowDirectStorageOverride)) return null;
     return _cachedEstimate?.estimatedSavedBytes;
   }
 
@@ -213,7 +218,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
 
   void _scheduleEstimateFetch(GameInfo game, bool allowDirectStorageOverride) {
     if (game.isCompressed) return;
-    if (game.isDirectStorage && !allowDirectStorageOverride) return;
+    if (_isSafetyBlocked(game, allowDirectStorageOverride)) return;
     if (_cachedEstimate != null) return;
     if (_estimateFetchScheduled) return;
     if (_estimateFetchInFlight) return;
@@ -265,7 +270,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
           .startDecompression(gamePath: game.path, gameName: game.name);
       return;
     }
-    if (game.isDirectStorage && !allowDirectStorageOverride) return;
+    if (_isSafetyBlocked(game, allowDirectStorageOverride)) return;
 
     final shouldCompress = await _confirmCompression(gameName: game.name);
     if (!mounted || !shouldCompress) return;
@@ -310,7 +315,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
           value: GameContextAction.compress,
           enabled:
               !game.isCompressed &&
-              (!game.isDirectStorage || allowDirectStorageOverride),
+              !_isSafetyBlocked(game, allowDirectStorageOverride),
           child: _buildMenuLabel('Compress Now', LucideIcons.archive),
         ),
         PopupMenuItem(

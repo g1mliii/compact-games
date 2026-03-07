@@ -1360,6 +1360,7 @@ impl SseDecode for crate::api::types::FrbGameInfo {
         let mut var_compressedSize = <Option<u64>>::sse_decode(deserializer);
         let mut var_isCompressed = <bool>::sse_decode(deserializer);
         let mut var_isDirectstorage = <bool>::sse_decode(deserializer);
+        let mut var_isUnsupported = <bool>::sse_decode(deserializer);
         let mut var_excluded = <bool>::sse_decode(deserializer);
         let mut var_lastPlayed = <Option<i64>>::sse_decode(deserializer);
         return crate::api::types::FrbGameInfo {
@@ -1370,6 +1371,7 @@ impl SseDecode for crate::api::types::FrbGameInfo {
             compressed_size: var_compressedSize,
             is_compressed: var_isCompressed,
             is_directstorage: var_isDirectstorage,
+            is_unsupported: var_isUnsupported,
             excluded: var_excluded,
             last_played: var_lastPlayed,
         };
@@ -2079,6 +2081,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbGameInfo {
             self.compressed_size.into_into_dart().into_dart(),
             self.is_compressed.into_into_dart().into_dart(),
             self.is_directstorage.into_into_dart().into_dart(),
+            self.is_unsupported.into_into_dart().into_dart(),
             self.excluded.into_into_dart().into_dart(),
             self.last_played.into_into_dart().into_dart(),
         ]
@@ -2557,6 +2560,7 @@ impl SseEncode for crate::api::types::FrbGameInfo {
         <Option<u64>>::sse_encode(self.compressed_size, serializer);
         <bool>::sse_encode(self.is_compressed, serializer);
         <bool>::sse_encode(self.is_directstorage, serializer);
+        <bool>::sse_encode(self.is_unsupported, serializer);
         <bool>::sse_encode(self.excluded, serializer);
         <Option<i64>>::sse_encode(self.last_played, serializer);
     }

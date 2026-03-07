@@ -340,6 +340,7 @@ fn game_info_from_parts(
     is_compressed: bool,
     is_directstorage: bool,
 ) -> GameInfo {
+    let is_unsupported = crate::safety::unsupported_games::is_unsupported_game(&game_path);
     let last_compressed = compression_timestamp_for_game_path(&game_path, is_compressed);
     GameInfo {
         name,
@@ -349,6 +350,7 @@ fn game_info_from_parts(
         compressed_size: is_compressed.then_some(physical_size),
         is_compressed,
         is_directstorage,
+        is_unsupported,
         excluded: false,
         // Reuse `last_played` transport slot as "last compressed" timestamp.
         // The old last-played source is not currently populated.

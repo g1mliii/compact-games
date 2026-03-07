@@ -14,6 +14,7 @@ GameInfo _mapFrbGameInfo(rust_types.FrbGameInfo frb) {
     compressedSize: frb.compressedSize?.toInt(),
     isCompressed: frb.isCompressed,
     isDirectStorage: frb.isDirectstorage,
+    isUnsupported: frb.isUnsupported,
     excluded: frb.excluded,
     lastPlayed: lastPlayed,
     lastCompressedAt: lastPlayed,

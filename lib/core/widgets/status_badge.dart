@@ -35,6 +35,13 @@ class StatusBadge extends StatelessWidget {
       variant = StatusBadgeVariant.filled,
       toneAlpha = 1.0;
 
+  const StatusBadge.unsupported({super.key})
+    : label = 'Unsupported',
+      color = AppColors.warning,
+      icon = LucideIcons.ban,
+      variant = StatusBadgeVariant.filled,
+      toneAlpha = 1.0;
+
   const StatusBadge.compressing({super.key})
     : label = 'Compressing',
       color = AppColors.compressing,

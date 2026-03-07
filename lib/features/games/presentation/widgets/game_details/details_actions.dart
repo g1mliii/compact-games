@@ -31,3 +31,31 @@ class GameDetailsDirectStorageWarningCard extends StatelessWidget {
     );
   }
 }
+
+class GameDetailsUnsupportedWarningCard extends StatelessWidget {
+  const GameDetailsUnsupportedWarningCard({super.key});
+
+  static final _warningColor = AppColors.warning.withValues(alpha: 0.15);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: _warningColor,
+      child: const Padding(
+        padding: EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(LucideIcons.ban, size: 18),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'This game is known to have issues after WOF compression.',
+                style: AppTypography.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

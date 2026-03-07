@@ -49,6 +49,7 @@ mod tests {
             compressed_size: None,
             is_compressed: false,
             is_directstorage: false,
+            is_unsupported: false,
             excluded: false,
             last_played: None,
         }

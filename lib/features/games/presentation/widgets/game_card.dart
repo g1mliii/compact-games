@@ -17,6 +17,7 @@ class GameCard extends StatelessWidget {
     this.heroTag,
     this.isCompressed = false,
     this.isDirectStorage = false,
+    this.isUnsupported = false,
     this.estimatedSavedBytes,
     this.lastCompressedText,
     this.assumeBoundedHeight = true,
@@ -34,6 +35,7 @@ class GameCard extends StatelessWidget {
   final String? heroTag;
   final bool isCompressed;
   final bool isDirectStorage;
+  final bool isUnsupported;
   final int? estimatedSavedBytes;
   final String? lastCompressedText;
   final bool assumeBoundedHeight;
@@ -207,6 +209,9 @@ class GameCard extends StatelessWidget {
   Widget _buildStatusBadge() {
     if (isDirectStorage) {
       return const StatusBadge.directStorage();
+    }
+    if (isUnsupported) {
+      return const StatusBadge.unsupported();
     }
 
     if (isCompressed && compressedSizeBytes != null) {

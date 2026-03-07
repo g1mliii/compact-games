@@ -9,6 +9,7 @@ import 'widgets/scaled_switch_row.dart';
 import 'widgets/settings_section_card.dart';
 import 'widgets/settings_slider_row.dart';
 import 'sections/compression_section.dart';
+import 'sections/cover_art_section.dart';
 import 'sections/safety_section.dart';
 import 'sections/inventory_section.dart';
 
@@ -59,6 +60,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const _AutomationSection(),
                       const SizedBox(height: 14),
                       _PathsSection(folderController: _folderController),
+                      const SizedBox(height: 14),
+                      const CoverArtSection(),
                       const SizedBox(height: 14),
                       const SafetySection(),
                       const SizedBox(height: 14),

@@ -215,7 +215,7 @@ fn save_learned_games(games: &HashSet<String>) -> Result<(), Box<dyn std::error:
     let mut sorted: Vec<&String> = games.iter().collect();
     sorted.sort();
     let json = serde_json::to_string_pretty(&sorted)?;
-    fs::write(path, json)?;
+    crate::utils::atomic_write(&path, json.as_bytes())?;
     Ok(())
 }
 
