@@ -1,155 +1,301 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../providers/compression/compression_progress_provider.dart';
+
+enum CompressionActivityActionStyle { icon, button }
+
+class CompressionActivityAction {
+  const CompressionActivityAction.icon({
+    required this.label,
+    required this.onPressed,
+    this.icon = LucideIcons.x,
+  }) : style = CompressionActivityActionStyle.icon;
+
+  const CompressionActivityAction.button({
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  }) : style = CompressionActivityActionStyle.button;
+
+  final CompressionActivityActionStyle style;
+  final String label;
+  final VoidCallback onPressed;
+  final IconData? icon;
+}
 
 class CompressionProgressIndicator extends StatelessWidget {
   const CompressionProgressIndicator({
-    required this.gameName,
-    required this.filesProcessed,
-    required this.filesTotal,
-    required this.bytesSaved,
-    this.estimatedTimeRemainingSeconds,
-    this.onCancel,
+    required this.activity,
+    this.compact = false,
+    this.action,
     super.key,
   });
 
-  final String gameName;
-  final int filesProcessed;
-  final int filesTotal;
-  final int bytesSaved;
-  final int? estimatedTimeRemainingSeconds;
-  final VoidCallback? onCancel;
+  final CompressionActivityUiModel activity;
+  final bool compact;
+  final CompressionActivityAction? action;
 
-  static const LinearGradient _progressGradient = AppColors.progressGradient;
+  static const LinearGradient _compressionGradient = AppColors.progressGradient;
+  static const LinearGradient _decompressionGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [AppColors.info, AppColors.success],
+  );
+  static const BorderRadius _cardRadius = BorderRadius.all(Radius.circular(12));
+  static final BoxDecoration _cardDecoration = BoxDecoration(
+    gradient: AppColors.panelGradient,
+    borderRadius: _cardRadius,
+    border: Border.all(color: AppColors.border),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final hasKnownFileTotal = filesTotal > 0 || filesProcessed > 0;
-    final effectiveFilesTotal = filesTotal < filesProcessed
-        ? filesProcessed
-        : filesTotal;
-    final rawProgress = hasKnownFileTotal && effectiveFilesTotal > 0
-        ? filesProcessed / effectiveFilesTotal
+    final accentColor = activity.isCompression
+        ? AppColors.richGold
+        : AppColors.success;
+    final progress = activity.hasKnownFileTotal
+        ? (activity.percent / 100).clamp(0.0, 1.0).toDouble()
         : 0.0;
-    final progress = rawProgress.clamp(0.0, 1.0).toDouble();
+
     return RepaintBoundary(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: AppColors.panelGradient,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(
+          decoration: TextDecoration.none,
+          decorationColor: Colors.transparent,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 12),
-            _buildProgressBar(
-              progress: progress,
-              hasKnownFileTotal: hasKnownFileTotal,
+        child: DecoratedBox(
+          decoration: _cardDecoration,
+          child: Padding(
+            padding: EdgeInsets.all(compact ? 14 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ActivityHeader(
+                  activity: activity,
+                  compact: compact,
+                  accentColor: accentColor,
+                  action: action,
+                ),
+                SizedBox(height: compact ? 10 : 12),
+                _ActivityProgressBar(
+                  activity: activity,
+                  compact: compact,
+                  progress: progress,
+                  accentColor: accentColor,
+                  gradient: activity.isCompression
+                      ? _compressionGradient
+                      : _decompressionGradient,
+                ),
+                SizedBox(height: compact ? 10 : 12),
+                _ActivityStats(activity: activity, compact: compact),
+              ],
             ),
-            const SizedBox(height: 12),
-            _buildStats(
-              filesProcessed: filesProcessed,
-              filesTotal: effectiveFilesTotal,
-              hasKnownFileTotal: hasKnownFileTotal,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildHeader() {
+class _ActivityHeader extends StatelessWidget {
+  const _ActivityHeader({
+    required this.activity,
+    required this.compact,
+    required this.accentColor,
+    required this.action,
+  });
+
+  final CompressionActivityUiModel activity;
+  final bool compact;
+  final Color accentColor;
+  final CompressionActivityAction? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = compact
+        ? AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w700)
+        : AppTypography.headingSmall;
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.richGold,
-          ),
+        _ActivityLeadingIcon(
+          compact: compact,
+          accentColor: accentColor,
+          icon: activity.isCompression
+              ? LucideIcons.archive
+              : LucideIcons.archiveRestore,
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: compact ? 10 : 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Compressing',
-                style: AppTypography.label.copyWith(color: AppColors.richGold),
+                activity.statusLabel,
+                style: AppTypography.label.copyWith(color: accentColor),
               ),
               const SizedBox(height: 2),
               Text(
-                gameName,
-                style: AppTypography.headingSmall,
+                activity.gameName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                style: titleStyle,
               ),
             ],
           ),
         ),
-        if (onCancel != null)
-          IconButton(
-            icon: const Icon(LucideIcons.x, size: 20),
-            color: AppColors.textMuted,
-            onPressed: onCancel,
-            tooltip: 'Cancel compression',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
+        if (action != null)
+          _ActivityHeaderAction(action: action!, compact: compact),
       ],
     );
   }
+}
 
-  Widget _buildProgressBar({
-    required double progress,
-    required bool hasKnownFileTotal,
-  }) {
+class _ActivityHeaderAction extends StatelessWidget {
+  const _ActivityHeaderAction({required this.action, required this.compact});
+
+  final CompressionActivityAction action;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (action.style) {
+      case CompressionActivityActionStyle.icon:
+        return Semantics(
+          button: true,
+          label: action.label,
+          child: IconButton(
+            icon: Icon(action.icon ?? LucideIcons.x, size: 18),
+            color: AppColors.textMuted,
+            onPressed: action.onPressed,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            visualDensity: compact
+                ? VisualDensity.compact
+                : VisualDensity.standard,
+          ),
+        );
+      case CompressionActivityActionStyle.button:
+        return TextButton(
+          onPressed: action.onPressed,
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.textMuted,
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 10 : 12,
+              vertical: compact ? 6 : 8,
+            ),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: compact
+                ? VisualDensity.compact
+                : VisualDensity.standard,
+          ),
+          child: Text(
+            action.label,
+            style: AppTypography.label.copyWith(color: AppColors.textMuted),
+          ),
+        );
+    }
+  }
+}
+
+class _ActivityLeadingIcon extends StatelessWidget {
+  const _ActivityLeadingIcon({
+    required this.compact,
+    required this.accentColor,
+    required this.icon,
+  });
+
+  final bool compact;
+  final Color accentColor;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconSize = compact ? 12.0 : 14.0;
+    final containerSize = compact ? 24.0 : 28.0;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(compact ? 8 : 10),
+        border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+      ),
+      child: SizedBox(
+        width: containerSize,
+        height: containerSize,
+        child: Center(
+          child: Icon(icon, size: iconSize, color: accentColor),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityProgressBar extends StatelessWidget {
+  const _ActivityProgressBar({
+    required this.activity,
+    required this.compact,
+    required this.progress,
+    required this.accentColor,
+    required this.gradient,
+  });
+
+  final CompressionActivityUiModel activity;
+  final bool compact;
+  final double progress;
+  final Color accentColor;
+  final Gradient gradient;
+
+  @override
+  Widget build(BuildContext context) {
+    final trailingText =
+        activity.hasKnownFileTotal && activity.etaSeconds != null
+        ? _formatTimeRemaining(activity.etaSeconds!)
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              hasKnownFileTotal
-                  ? '${(progress * 100).toStringAsFixed(0)}%'
-                  : 'Preparing...',
-              style: AppTypography.monoMedium.copyWith(
-                color: AppColors.richGold,
+            Expanded(
+              child: Text(
+                activity.hasKnownFileTotal
+                    ? '${activity.percent}%'
+                    : 'Preparing...',
+                style: AppTypography.monoMedium.copyWith(color: accentColor),
               ),
             ),
-            if (hasKnownFileTotal && estimatedTimeRemainingSeconds != null)
-              Text(
-                _formatTimeRemaining(estimatedTimeRemainingSeconds!),
-                style: AppTypography.bodySmall,
-              ),
+            if (trailingText != null)
+              Text(trailingText, style: AppTypography.bodySmall),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: compact ? 6 : 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
+          clipBehavior: Clip.hardEdge,
           child: SizedBox(
-            height: 8,
+            height: compact ? 7 : 8,
             child: Stack(
+              fit: StackFit.expand,
               children: [
-                Container(color: AppColors.surfaceElevated),
-                FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: progress,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: _progressGradient,
+                const ColoredBox(color: AppColors.surfaceElevated),
+                if (activity.hasKnownFileTotal)
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progress,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(gradient: gradient),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -157,55 +303,78 @@ class CompressionProgressIndicator extends StatelessWidget {
       ],
     );
   }
+}
 
-  Widget _buildStats({
-    required int filesProcessed,
-    required int filesTotal,
-    required bool hasKnownFileTotal,
-  }) {
-    final savedMB = bytesSaved / (1024 * 1024);
-    final savedGB = bytesSaved / (1024 * 1024 * 1024);
+class _ActivityStats extends StatelessWidget {
+  const _ActivityStats({required this.activity, required this.compact});
 
-    if (!hasKnownFileTotal) {
-      return const Wrap(
-        spacing: 12,
-        runSpacing: 6,
+  final CompressionActivityUiModel activity;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = compact ? 10.0 : 12.0;
+    final runSpacing = compact ? 4.0 : 6.0;
+
+    if (!activity.hasKnownFileTotal) {
+      return Row(
         children: [
-          _StatChip(icon: LucideIcons.file, label: 'Scanning files...'),
+          const Icon(
+            LucideIcons.file,
+            size: 14,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              activity.isCompression
+                  ? 'Scanning files...'
+                  : 'Scanning compressed files...',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.label.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
         ],
       );
     }
 
     return Wrap(
-      spacing: 12,
-      runSpacing: 6,
+      spacing: spacing,
+      runSpacing: runSpacing,
       children: [
-        _StatChip(
-          icon: LucideIcons.file,
-          label: '$filesProcessed / $filesTotal files',
-        ),
+        _StatChip(icon: LucideIcons.file, label: _formatFileProgress(activity)),
         _StatChip(
           icon: LucideIcons.hardDrive,
-          label: savedGB >= 1.0
-              ? '${savedGB.toStringAsFixed(1)} GB saved'
-              : '${savedMB.toStringAsFixed(0)} MB saved',
-          color: AppColors.success,
+          label: _formatBytesDelta(activity),
+          color: activity.isCompression ? AppColors.success : AppColors.info,
         ),
       ],
     );
   }
 
-  String _formatTimeRemaining(int seconds) {
-    if (seconds < 60) {
-      return '${seconds}s remaining';
-    } else if (seconds < 3600) {
-      final minutes = seconds ~/ 60;
-      return '${minutes}m remaining';
-    } else {
-      final hours = seconds ~/ 3600;
-      final minutes = (seconds % 3600) ~/ 60;
-      return '${hours}h ${minutes}m remaining';
+  String _formatBytesDelta(CompressionActivityUiModel activity) {
+    final deltaBytes = activity.bytesDelta;
+    final deltaGiB = deltaBytes / (1024 * 1024 * 1024);
+    final deltaMiB = deltaBytes / (1024 * 1024);
+    final amountText = deltaGiB >= 1.0
+        ? '${deltaGiB.toStringAsFixed(1)} GB'
+        : '${deltaMiB.toStringAsFixed(0)} MB';
+
+    return activity.isCompression
+        ? '$amountText saved'
+        : '$amountText restoring';
+  }
+
+  String _formatFileProgress(CompressionActivityUiModel activity) {
+    final countLabel =
+        '${activity.filesProcessed} / ${activity.filesTotal} files';
+    if (!activity.isFileCountApproximate) {
+      return countLabel;
     }
+    return '~$countLabel';
   }
 }
 
@@ -229,4 +398,18 @@ class _StatChip extends StatelessWidget {
       ],
     );
   }
+}
+
+String _formatTimeRemaining(int seconds) {
+  if (seconds < 60) {
+    return '${seconds}s remaining';
+  }
+  if (seconds < 3600) {
+    final minutes = seconds ~/ 60;
+    return '${minutes}m remaining';
+  }
+
+  final hours = seconds ~/ 3600;
+  final minutes = (seconds % 3600) ~/ 60;
+  return '${hours}h ${minutes}m remaining';
 }

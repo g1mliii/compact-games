@@ -3,6 +3,9 @@ part of 'rust_bridge_service.dart';
 // ── Game & compression mappers ──────────────────────────────────────
 
 GameInfo _mapFrbGameInfo(rust_types.FrbGameInfo frb) {
+  final lastPlayed = frb.lastPlayed != null
+      ? DateTime.fromMillisecondsSinceEpoch(frb.lastPlayed!.toInt())
+      : null;
   return GameInfo(
     name: frb.name,
     path: frb.path,
@@ -12,9 +15,8 @@ GameInfo _mapFrbGameInfo(rust_types.FrbGameInfo frb) {
     isCompressed: frb.isCompressed,
     isDirectStorage: frb.isDirectstorage,
     excluded: frb.excluded,
-    lastPlayed: frb.lastPlayed != null
-        ? DateTime.fromMillisecondsSinceEpoch(frb.lastPlayed!.toInt())
-        : null,
+    lastPlayed: lastPlayed,
+    lastCompressedAt: lastPlayed,
   );
 }
 

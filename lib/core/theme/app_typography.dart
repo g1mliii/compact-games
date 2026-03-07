@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// PressPlay typography system using Inter and JetBrains Mono.
+/// PressPlay typography system using platform system fonts.
 abstract final class AppTypography {
   static const String bodyFontFamily = 'Segoe UI Variable Text';
-  static const String monoFontFamily = 'JetBrainsMono';
+  static const String monoFontFamily = 'Consolas';
   static const List<String> bodyFontFallback = <String>[
     'Segoe UI',
-    'Inter',
+    'SF Pro Text',
+    'Roboto',
     'sans-serif',
   ];
-  static const List<String> monoFontFallback = <String>['monospace'];
+  static const List<String> monoFontFallback = <String>[
+    'Cascadia Mono',
+    'SF Mono',
+    'Menlo',
+    'Roboto Mono',
+    'monospace',
+  ];
 
   static const TextStyle headingLarge = TextStyle(
     fontFamily: bodyFontFamily,

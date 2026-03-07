@@ -276,6 +276,92 @@ fn compress_with_progress_can_complete_without_progress_consumer() {
 }
 
 #[test]
+fn decompress_with_progress_empty_folder_sends_completion_snapshot() {
+    let dir = TempDir::new().unwrap();
+    let engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+
+    let streams = engine
+        .decompress_folder_with_progress(dir.path(), Arc::from("Empty Decompression"))
+        .unwrap();
+
+    let result = streams.result.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert!(result.is_ok(), "empty folder decompression should succeed");
+
+    let final_snapshot = streams
+        .progress
+        .recv_timeout(Duration::from_secs(1))
+        .unwrap();
+    assert!(
+        final_snapshot.is_complete,
+        "empty-folder decompression should still send a completion snapshot"
+    );
+    assert_eq!(final_snapshot.files_total, 0);
+    assert_eq!(final_snapshot.files_processed, 0);
+}
+
+#[test]
+fn decompress_with_progress_reports_stable_total_count() {
+    let dir = TempDir::new().unwrap();
+    const FILE_COUNT: usize = 24;
+    for i in 0..FILE_COUNT {
+        create_compressible_file(dir.path(), &format!("restore_{i}.dat"), 262_144);
+    }
+
+    let compress_engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+    compress_engine.compress_folder(dir.path()).unwrap();
+
+    let decompress_engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+    let streams = decompress_engine
+        .decompress_folder_with_progress(dir.path(), Arc::from("StableRestoreCount"))
+        .unwrap();
+
+    let first_progress = streams
+        .progress
+        .recv_timeout(Duration::from_secs(3))
+        .expect("should receive decompression progress snapshot");
+
+    assert_eq!(
+        first_progress.files_total, FILE_COUNT as u64,
+        "decompression progress should publish a stable denominator from operation start",
+    );
+    assert!(
+        first_progress.files_processed <= first_progress.files_total,
+        "decompression progress should stay within denominator bounds",
+    );
+
+    let result = streams
+        .result
+        .recv_timeout(Duration::from_secs(60))
+        .unwrap()
+        .expect("decompression should succeed");
+    assert_eq!(result.files_processed, FILE_COUNT as u64);
+}
+
+#[test]
+fn decompress_with_progress_can_complete_without_progress_consumer() {
+    let dir = TempDir::new().unwrap();
+    for i in 0..8 {
+        create_compressible_file(dir.path(), &format!("restore_drop_{i}.dat"), 131_072);
+    }
+
+    let compress_engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+    compress_engine.compress_folder(dir.path()).unwrap();
+
+    let decompress_engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+    let streams = decompress_engine
+        .decompress_folder_with_progress(dir.path(), Arc::from("NoDecompressProgressConsumer"))
+        .unwrap();
+    let CompressionProgressHandle { progress, result } = streams;
+    drop(progress);
+
+    let stats = result
+        .recv_timeout(Duration::from_secs(60))
+        .unwrap()
+        .expect("decompression should still complete when progress stream is dropped");
+    assert!(stats.files_processed > 0);
+}
+
+#[test]
 fn small_files_are_skipped() {
     let dir = TempDir::new().unwrap();
     // All files below 4096 bytes

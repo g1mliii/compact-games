@@ -18,7 +18,8 @@ class GameCard extends StatelessWidget {
     this.isCompressed = false,
     this.isDirectStorage = false,
     this.estimatedSavedBytes,
-    this.assumeBoundedHeight = false,
+    this.lastCompressedText,
+    this.assumeBoundedHeight = true,
     this.onTap,
     this.onSecondaryTapDown,
     super.key,
@@ -34,6 +35,7 @@ class GameCard extends StatelessWidget {
   final bool isCompressed;
   final bool isDirectStorage;
   final int? estimatedSavedBytes;
+  final String? lastCompressedText;
   final bool assumeBoundedHeight;
   final VoidCallback? onTap;
   final GestureTapDownCallback? onSecondaryTapDown;
@@ -46,6 +48,7 @@ class GameCard extends StatelessWidget {
   static const BorderRadius _cardBorderRadius = BorderRadius.all(
     Radius.circular(12),
   );
+  static const double _sizeInfoRegionHeight = 30;
   static final BoxDecoration _cardDecoration = BoxDecoration(
     gradient: LinearGradient(
       begin: Alignment.topLeft,
@@ -65,38 +68,28 @@ class GameCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: onTap,
-          onSecondaryTapDown: onSecondaryTapDown,
-          child: DecoratedBox(
-            decoration: _cardDecoration,
-            child: assumeBoundedHeight
-                ? _buildBoundedBody(context)
-                : _buildAdaptiveBody(),
-          ),
-        ),
+    return GestureDetector(
+      onTap: onTap,
+      onSecondaryTapDown: onSecondaryTapDown,
+      child: DecoratedBox(
+        decoration: _cardDecoration,
+        child: assumeBoundedHeight
+            ? _buildBoundedBody(context)
+            : _buildAdaptiveBody(),
       ),
     );
   }
 
   Widget _buildAdaptiveBody() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (!constraints.maxHeight.isFinite) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildCoverArt(context: context, useAspectRatio: true),
-              _buildGameInfo(),
-            ],
-          );
-        }
-        return _buildBoundedBody(context);
-      },
+    return Builder(
+      builder: (context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildCoverArt(context: context, useAspectRatio: true),
+          _buildGameInfo(),
+        ],
+      ),
     );
   }
 
@@ -180,7 +173,7 @@ class GameCard extends StatelessWidget {
 
   Widget _buildGameInfo() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -192,17 +185,21 @@ class GameCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: _buildStatusBadge(),
-            ),
-          ),
+          _buildStatusRow(),
           const SizedBox(height: 6),
           _buildSizeInfo(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusRow() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: _buildStatusBadge(),
       ),
     );
   }
@@ -234,16 +231,86 @@ class GameCard extends StatelessWidget {
           : 0.0;
       final ratio = rawRatio.clamp(0.0, 1.0).toDouble();
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
+      return SizedBox(
+        height: _sizeInfoRegionHeight,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildCompressedMetaRow(
+              compressedGB: compressedGB,
+              sizeGB: sizeGB,
+              lastCompressedText: lastCompressedText,
+            ),
+            const SizedBox(height: 2),
+            _CompressionBar(ratio: ratio),
+          ],
+        ),
+      );
+    }
+
+    final estimatedSaved = estimatedSavedBytes;
+    if (estimatedSaved != null && estimatedSaved > 0) {
+      final savedGB = estimatedSaved / (1024 * 1024 * 1024);
+      return SizedBox(
+        height: _sizeInfoRegionHeight,
+        child: Align(
+          alignment: Alignment.bottomLeft,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              children: [
+                Text(
+                  '${sizeGB.toStringAsFixed(1)} GB',
+                  style: AppTypography.monoSmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '~${savedGB.toStringAsFixed(1)} GB saveable',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.success,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: _sizeInfoRegionHeight,
+      child: Align(
+        alignment: Alignment.bottomLeft,
+        child: Text(
+          '${sizeGB.toStringAsFixed(1)} GB',
+          style: AppTypography.monoSmall.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompressedMetaRow({
+    required double compressedGB,
+    required double sizeGB,
+    required String? lastCompressedText,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Align(
             alignment: Alignment.centerLeft,
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     '${compressedGB.toStringAsFixed(1)} GB',
@@ -255,6 +322,7 @@ class GameCard extends StatelessWidget {
                   Text(
                     '/ ${sizeGB.toStringAsFixed(1)} GB',
                     style: AppTypography.bodySmall.copyWith(
+                      fontSize: 12,
                       fontFamilyFallback: AppTypography.monoFontFallback,
                       decoration: TextDecoration.lineThrough,
                       color: AppColors.textSecondary,
@@ -264,45 +332,29 @@ class GameCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 2),
-          _CompressionBar(ratio: ratio),
-        ],
-      );
-    }
-
-    final estimatedSaved = estimatedSavedBytes;
-    if (estimatedSaved != null && estimatedSaved > 0) {
-      final savedGB = estimatedSaved / (1024 * 1024 * 1024);
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            children: [
-              Text(
-                '${sizeGB.toStringAsFixed(1)} GB',
-                style: AppTypography.monoSmall.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '~${savedGB.toStringAsFixed(1)} GB saveable',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.success,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
         ),
-      );
-    }
-
-    return Text(
-      '${sizeGB.toStringAsFixed(1)} GB',
-      style: AppTypography.monoSmall.copyWith(fontWeight: FontWeight.w700),
+        if (lastCompressedText != null) ...[
+          const SizedBox(width: 6),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                lastCompressedText,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: AppTypography.label.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -347,13 +399,13 @@ class _CachedResizeImageState extends State<_CachedResizeImage> {
     return Image(
       image: _resizedProvider,
       fit: BoxFit.contain,
+      isAntiAlias: true,
       width: double.infinity,
       height: double.infinity,
       alignment: Alignment.center,
       // Keep quality lightweight in steady state, and drop to none when
       // deferred loading is recommended (e.g. fast scrolling).
       filterQuality: widget.filterQuality,
-      isAntiAlias: true,
       gaplessPlayback: true,
       errorBuilder: (context, error, stackTrace) => widget.placeholderBuilder(),
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
@@ -381,6 +433,7 @@ class _CompressionBar extends StatelessWidget {
       height: 4,
       child: ClipRRect(
         borderRadius: _barRadius,
+        clipBehavior: Clip.hardEdge,
         child: Stack(
           children: [
             const ColoredBox(color: AppColors.surfaceElevated),

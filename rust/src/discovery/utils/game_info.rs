@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use walkdir::WalkDir;
 
 use crate::discovery::cache::{self, CachedGameStats};
 use crate::discovery::index;
+use crate::discovery::install_history;
 use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform};
 
 use super::stats::{dir_stats, dir_stats_quick};
@@ -15,6 +17,9 @@ use self::logging::log_candidate_decision;
 const MIN_LIKELY_INSTALL_SIZE_BYTES: u64 = 512 * 1024 * 1024;
 const MIN_GAME_EXE_SIZE_BYTES: u64 = 2 * 1024 * 1024;
 const MIN_UNITY_BOOTSTRAP_EXE_SIZE_BYTES: u64 = 256 * 1024;
+const MIN_REMNANT_HISTORY_SIZE_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+const MAX_REMNANT_CURRENT_SIZE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+const REMNANT_SHRINK_RATIO_DEN: u64 = 5;
 const INSTALL_PROBE_MAX_DEPTH: usize = 3;
 const INSTALL_PROBE_MAX_FILES: usize = 256;
 const UNITY_DATA_SUFFIX: &str = "_data";
@@ -184,6 +189,7 @@ pub fn build_game_info_with_mode_and_stats_path(
         indexed_game.path = game_path;
         indexed_game.platform = platform;
         index::upsert(&stats_path, token.clone(), &indexed_game);
+        install_history::record_authoritative_size(&stats_path, indexed_game.size_bytes);
         log_candidate_decision(
             "accept",
             platform,
@@ -219,6 +225,7 @@ pub fn build_game_info_with_mode_and_stats_path(
             mode,
             "full token cache hit",
         );
+        install_history::record_authoritative_size(&stats_path, cached.logical_size);
         if let Some(game) = game_info_from_cached(name, game_path, platform, cached) {
             index::upsert(&stats_path, token.clone(), &game);
             return Some(game);
@@ -255,7 +262,22 @@ pub fn build_game_info_with_mode_and_stats_path(
         return None;
     }
 
+    if is_probable_uninstall_remnant(&stats_path, stats.logical_size) {
+        cache::remove(&stats_path);
+        index::remove(&stats_path);
+        log_candidate_decision(
+            "skip",
+            platform,
+            &name,
+            &stats_path,
+            mode,
+            "full stats indicate prior install shrank to remnant",
+        );
+        return None;
+    }
+
     let is_directstorage = crate::safety::directstorage::is_directstorage_game(&stats_path);
+    install_history::record_authoritative_size(&stats_path, stats.logical_size);
     cache::upsert(
         &stats_path,
         token.clone(),
@@ -318,6 +340,7 @@ fn game_info_from_parts(
     is_compressed: bool,
     is_directstorage: bool,
 ) -> GameInfo {
+    let last_compressed = compression_timestamp_for_game_path(&game_path, is_compressed);
     GameInfo {
         name,
         path: game_path,
@@ -327,8 +350,19 @@ fn game_info_from_parts(
         is_compressed,
         is_directstorage,
         excluded: false,
-        last_played: None,
+        // Reuse `last_played` transport slot as "last compressed" timestamp.
+        // The old last-played source is not currently populated.
+        last_played: last_compressed,
     }
+}
+
+fn compression_timestamp_for_game_path(path: &Path, is_compressed: bool) -> Option<SystemTime> {
+    if !is_compressed {
+        return None;
+    }
+
+    crate::compression::history::latest_compression_timestamp_ms(path)
+        .and_then(|millis| UNIX_EPOCH.checked_add(Duration::from_millis(millis)))
 }
 
 fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) -> bool {
@@ -350,6 +384,22 @@ fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) 
     }
 
     has_game_executable(path)
+}
+
+fn is_probable_uninstall_remnant(path: &Path, logical_size: u64) -> bool {
+    if logical_size == 0 || logical_size > MAX_REMNANT_CURRENT_SIZE_BYTES {
+        return false;
+    }
+
+    let Some(max_observed_size) = install_history::max_observed_size(path) else {
+        return false;
+    };
+
+    if max_observed_size < MIN_REMNANT_HISTORY_SIZE_BYTES {
+        return false;
+    }
+
+    logical_size.saturating_mul(REMNANT_SHRINK_RATIO_DEN) <= max_observed_size
 }
 
 fn has_unity_bootstrap_layout(path: &Path) -> bool {

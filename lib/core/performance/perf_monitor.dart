@@ -5,10 +5,10 @@ import 'package:flutter/scheduler.dart';
 
 import 'ui_memory_lifecycle.dart';
 
-/// Debug-only performance metrics collector.
+/// Non-release performance metrics collector.
 ///
 /// Tracks FPS (rolling 60-frame average), startup duration, and image cache
-/// usage. Gated behind [kDebugMode] — all methods are no-ops in release.
+/// usage. Gated behind non-release builds — all methods are no-ops in release.
 class PerfMonitor {
   PerfMonitor._();
   static final PerfMonitor instance = PerfMonitor._();
@@ -22,7 +22,7 @@ class PerfMonitor {
 
   /// Call at the very top of `main()`.
   static void markStartupBegin() {
-    if (!kDebugMode) return;
+    if (kReleaseMode) return;
     _startupWatch
       ..reset()
       ..start();
@@ -30,14 +30,14 @@ class PerfMonitor {
 
   /// Call right after `runApp()`.
   static void markStartupEnd() {
-    if (!kDebugMode) return;
+    if (kReleaseMode) return;
     _startupWatch.stop();
     instance._startupDuration = _startupWatch.elapsed;
   }
 
   /// Start collecting frame timing data.
   void beginFrameTracking() {
-    if (!kDebugMode) return;
+    if (kReleaseMode) return;
     if (_timingsCallbackRegistered) return;
     _timingsCallbackRegistered = true;
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
@@ -45,7 +45,7 @@ class PerfMonitor {
 
   /// Stop collecting frame timing data and clear rolling samples.
   void stopFrameTracking() {
-    if (!kDebugMode) return;
+    if (kReleaseMode) return;
     if (!_timingsCallbackRegistered) return;
     SchedulerBinding.instance.removeTimingsCallback(_onTimings);
     _timingsCallbackRegistered = false;

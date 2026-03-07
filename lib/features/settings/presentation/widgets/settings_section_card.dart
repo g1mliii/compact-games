@@ -79,22 +79,24 @@ class SettingsSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 16),
-                const SizedBox(width: 8),
-                Text(title, style: AppTypography.headingSmall),
-              ],
-            ),
-            const SizedBox(height: 10),
-            child,
-          ],
+    return RepaintBoundary(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 16),
+                  const SizedBox(width: 8),
+                  Text(title, style: AppTypography.headingSmall),
+                ],
+              ),
+              const SizedBox(height: 10),
+              child,
+            ],
+          ),
         ),
       ),
     );

@@ -19,54 +19,56 @@ class HomeGameGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch gameListProvider for loading/error states
-    final asyncState = ref.watch(gameListProvider);
-    // Only watch filteredGamesProvider once (it already depends on gameListProvider)
+    // Use .select() so the grid only rebuilds when loading/error state
+    // actually changes, not on every game-list data mutation.
+    final isLoading = ref.watch(
+      gameListProvider.select((s) => s.isLoading),
+    );
+    // Domain-level error stored inside GameListState (provider catches exceptions).
+    final loadError = ref.watch(
+      gameListProvider.select(
+        (s) => s.valueOrNull?.error,
+      ),
+    );
     final games = ref.watch(filteredGamesProvider);
 
-    return asyncState.when(
-      loading: () => const Center(
+    if (isLoading && games.isEmpty) {
+      return const Center(
         child: CircularProgressIndicator(color: AppColors.richGold),
-      ),
-      error: (error, _) => GameGridErrorView(
-        message: error.toString(),
+      );
+    }
+
+    if (loadError != null && games.isEmpty) {
+      return GameGridErrorView(
+        message: loadError,
         onRetry: () => ref.read(gameListProvider.notifier).refresh(),
-      ),
-      data: (gameListState) {
-        final loadError = gameListState.error;
-        if (loadError != null && gameListState.games.isEmpty) {
-          return GameGridErrorView(
-            message: loadError,
-            onRetry: () => ref.read(gameListProvider.notifier).refresh(),
-          );
-        }
+      );
+    }
 
-        if (games.isEmpty) {
-          return const GameGridEmptyView();
-        }
+    if (games.isEmpty) {
+      return const GameGridEmptyView();
+    }
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final cardAspectRatio = _cardAspectRatioForWidth(
-              constraints.maxWidth,
-            );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardAspectRatio = _cardAspectRatioForWidth(
+          constraints.maxWidth,
+        );
 
-            return GridView.builder(
-              padding: _gridPadding,
-              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: AppConstants.cardMaxWidth,
-                crossAxisSpacing: AppConstants.gridSpacing,
-                mainAxisSpacing: AppConstants.gridSpacing,
-                childAspectRatio: cardAspectRatio,
-              ),
-              addRepaintBoundaries: false,
-              itemCount: games.length,
-              itemBuilder: (context, index) => GameCardAdapter(
-                key: ValueKey(games[index].path),
-                gamePath: games[index].path,
-              ),
-            );
-          },
+        return GridView.builder(
+          padding: _gridPadding,
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: AppConstants.cardMaxWidth,
+            crossAxisSpacing: AppConstants.gridSpacing,
+            mainAxisSpacing: AppConstants.gridSpacing,
+            childAspectRatio: cardAspectRatio,
+          ),
+          addRepaintBoundaries: true,
+          itemCount: games.length,
+          itemBuilder: (context, index) => GameCardAdapter(
+            key: ValueKey(games[index].path),
+            gamePath: games[index].path,
+          ),
         );
       },
     );

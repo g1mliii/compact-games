@@ -9,6 +9,7 @@ enum CompressionJobType { compression, decompression }
 
 /// Immutable state for a single compression job.
 class CompressionJobState {
+  final int runId;
   final String gamePath;
   final String gameName;
   final CompressionJobType type;
@@ -19,6 +20,7 @@ class CompressionJobState {
   final String? error;
 
   const CompressionJobState({
+    required this.runId,
     required this.gamePath,
     required this.gameName,
     required this.type,
@@ -41,6 +43,7 @@ class CompressionJobState {
     String? Function()? error,
   }) {
     return CompressionJobState(
+      runId: runId,
       gamePath: gamePath,
       gameName: gameName,
       type: type ?? this.type,

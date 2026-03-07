@@ -4,6 +4,9 @@
 //! scheduler state, and automation queue streaming to Flutter.
 
 mod worker;
+mod worker_broadcast;
+mod worker_compression;
+mod worker_reconcile;
 
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Mutex, OnceLock};
@@ -162,7 +165,7 @@ pub fn watch_auto_compression_status(sink: StreamSink<bool>) -> Result<(), FrbAu
     });
 
     if guard.len() >= MAX_STREAM_SINKS {
-        guard.remove(0);
+        guard.swap_remove(0);
     }
     guard.push(sink);
     Ok(())
@@ -178,7 +181,7 @@ pub fn watch_watcher_events(sink: StreamSink<FrbWatcherEvent>) -> Result<(), Frb
         });
 
     if guard.len() >= MAX_STREAM_SINKS {
-        guard.remove(0);
+        guard.swap_remove(0);
     }
     guard.push(sink);
     Ok(())
@@ -196,7 +199,7 @@ pub fn watch_scheduler_state(
         });
 
     if guard.len() >= MAX_STREAM_SINKS {
-        guard.remove(0);
+        guard.swap_remove(0);
     }
     guard.push(sink);
     Ok(())
@@ -214,7 +217,7 @@ pub fn watch_automation_queue(
         });
 
     if guard.len() >= MAX_STREAM_SINKS {
-        guard.remove(0);
+        guard.swap_remove(0);
     }
     guard.push(sink);
     Ok(())
@@ -318,6 +321,7 @@ mod tests {
             watch_paths: vec![],
             excluded_paths: vec![],
             algorithm: super::super::types::FrbCompressionAlgorithm::Xpress8K,
+            allow_directstorage_override: false,
             io_parallelism_override: None,
         });
         assert!(result.is_ok());

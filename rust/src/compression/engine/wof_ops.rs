@@ -203,25 +203,54 @@ impl CompressionEngine {
     }
 
     pub(super) fn decompress_impl(&self, folder: &Path) -> Result<(), CompressionError> {
+        let files: Vec<ManifestFile> = Self::file_iter(folder)?
+            .map(|entry| {
+                let logical_size_hint = entry.metadata().ok().map(|m| m.len());
+                ManifestFile {
+                    path: entry.into_path(),
+                    logical_size_hint,
+                }
+            })
+            .collect();
+        self.decompress_impl_from_manifest(folder, files)
+    }
+
+    pub(super) fn decompress_impl_from_manifest(
+        &self,
+        folder: &Path,
+        files: Vec<ManifestFile>,
+    ) -> Result<(), CompressionError> {
         self.reset_counters();
         let decompression_candidates = Arc::new(AtomicU64::new(0));
         let likely_uncompressed = Arc::new(AtomicU64::new(0));
+        self.files_total
+            .store(files.len() as u64, Ordering::Relaxed);
 
-        let decompress_body = |entry: walkdir::DirEntry| -> Result<(), CompressionError> {
+        let decompress_body = |manifest_file: &ManifestFile| -> Result<(), CompressionError> {
             if self.cancel_token.is_cancelled() {
                 return Err(CompressionError::Cancelled);
             }
-            self.files_total.fetch_add(1, Ordering::Relaxed);
 
-            let path = entry.path();
-            let file_size = match entry.metadata() {
-                Ok(m) => m.len(),
-                Err(_) => {
-                    self.files_processed.fetch_add(1, Ordering::Relaxed);
-                    return Ok(());
-                }
+            let path = manifest_file.path.as_path();
+            let file_size = match manifest_file.logical_size_hint {
+                Some(size) => size,
+                None => match std::fs::metadata(path) {
+                    Ok(metadata) => metadata.len(),
+                    Err(_) => {
+                        self.files_processed.fetch_add(1, Ordering::Relaxed);
+                        return Ok(());
+                    }
+                },
             };
+            if file_size == 0 {
+                likely_uncompressed.fetch_add(1, Ordering::Relaxed);
+                self.files_processed.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
             if file_size < MIN_COMPRESSIBLE_SIZE {
+                self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                self.bytes_compressed
+                    .fetch_add(file_size, Ordering::Relaxed);
                 likely_uncompressed.fetch_add(1, Ordering::Relaxed);
                 self.files_processed.fetch_add(1, Ordering::Relaxed);
                 return Ok(());
@@ -229,12 +258,18 @@ impl CompressionEngine {
 
             let physical_size = wof::get_physical_size(path).unwrap_or(file_size);
             if physical_size >= file_size {
+                self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                self.bytes_compressed
+                    .fetch_add(file_size, Ordering::Relaxed);
                 likely_uncompressed.fetch_add(1, Ordering::Relaxed);
                 self.files_processed.fetch_add(1, Ordering::Relaxed);
                 return Ok(());
             }
 
             if has_multiple_links(path) {
+                self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                self.bytes_compressed
+                    .fetch_add(file_size, Ordering::Relaxed);
                 log::warn!(
                     "Skipping multi-linked file during decompression: {}",
                     path.display()
@@ -246,8 +281,15 @@ impl CompressionEngine {
             decompression_candidates.fetch_add(1, Ordering::Relaxed);
 
             match wof::wof_decompress_file(path) {
-                Ok(()) => {}
+                Ok(()) => {
+                    self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                    self.bytes_compressed
+                        .fetch_add(physical_size, Ordering::Relaxed);
+                }
                 Err(e) if Self::is_recoverable_file_error(&e) => {
+                    self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                    self.bytes_compressed
+                        .fetch_add(file_size, Ordering::Relaxed);
                     log::debug!(
                         "Skipping decompression of {}: locked or denied",
                         path.display()
@@ -266,12 +308,11 @@ impl CompressionEngine {
             Ok(())
         };
 
-        let iter = Self::file_iter(folder)?;
         let result = if let Some(policy) = &self.thread_policy {
             let pool = get_or_create_thread_pool(policy.io_parallelism)?;
-            pool.install(|| iter.par_bridge().try_for_each(decompress_body))
+            pool.install(|| files.par_iter().try_for_each(decompress_body))
         } else {
-            iter.par_bridge().try_for_each(decompress_body)
+            files.par_iter().try_for_each(decompress_body)
         };
 
         result?;

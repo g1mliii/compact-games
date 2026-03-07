@@ -48,21 +48,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             )
           : Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 920),
-                child: ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    const CompressionSection(),
-                    const SizedBox(height: 14),
-                    const _AutomationSection(),
-                    const SizedBox(height: 14),
-                    _PathsSection(folderController: _folderController),
-                    const SizedBox(height: 14),
-                    const SafetySection(),
-                    const SizedBox(height: 14),
-                    const InventorySection(),
-                  ],
+              child: RepaintBoundary(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 920),
+                  child: ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      const CompressionSection(),
+                      const SizedBox(height: 14),
+                      const _AutomationSection(),
+                      const SizedBox(height: 14),
+                      _PathsSection(folderController: _folderController),
+                      const SizedBox(height: 14),
+                      const SafetySection(),
+                      const SizedBox(height: 14),
+                      const InventorySection(),
+                    ],
+                  ),
                 ),
               ),
             ),

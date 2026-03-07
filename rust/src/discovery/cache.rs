@@ -389,26 +389,11 @@ fn max_optional_u64(lhs: Option<u64>, rhs: Option<u64>) -> Option<u64> {
 }
 
 fn unix_now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+    crate::utils::unix_now_ms()
 }
 
 pub fn normalize_path_key(path: &Path) -> String {
-    #[cfg(windows)]
-    {
-        let mut normalized = path.as_os_str().to_string_lossy().replace('/', "\\");
-        while normalized.len() > 3 && normalized.ends_with('\\') {
-            normalized.pop();
-        }
-        normalized.to_ascii_lowercase()
-    }
-
-    #[cfg(not(windows))]
-    {
-        path.to_string_lossy().into_owned()
-    }
+    crate::utils::normalize_path_key(path)
 }
 
 #[cfg(test)]

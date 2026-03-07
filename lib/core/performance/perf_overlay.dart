@@ -4,9 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_typography.dart';
 import 'perf_monitor.dart';
 
-/// Debug-only draggable performance overlay toggled with F12.
+/// Non-release diagnostics overlays toggled with F12 / Shift+F12.
 ///
 /// Shows FPS, frame time, image cache usage, and startup duration.
 /// Wrapped in [RepaintBoundary] to avoid affecting app paint performance.
@@ -20,43 +21,65 @@ class PerfOverlayManager extends StatefulWidget {
 
 class _PerfOverlayManagerState extends State<PerfOverlayManager> {
   bool _visible = false;
-  late final FocusNode _focusNode = FocusNode(debugLabel: 'PerfOverlayToggle');
+  bool _showFlutterOverlay = false;
 
   @override
   void dispose() {
     PerfMonitor.instance.stopFrameTracking();
-    _focusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!kDebugMode) return widget.child;
+    if (kReleaseMode) return widget.child;
     final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
 
     return Directionality(
       textDirection: textDirection,
-      child: KeyboardListener(
-        focusNode: _focusNode,
-        autofocus: true,
-        onKeyEvent: _onKey,
-        child: Stack(
-          alignment: Alignment.topLeft,
-          children: [widget.child, if (_visible) const _PerfOverlayPanel()],
+      child: CallbackShortcuts(
+        bindings: <ShortcutActivator, VoidCallback>{
+          const SingleActivator(LogicalKeyboardKey.f12): _toggleVisible,
+          const SingleActivator(LogicalKeyboardKey.f12, shift: true):
+              _toggleFlutterOverlay,
+        },
+        // Seed focus inside the overlay subtree so the shortcut works before
+        // any descendant claims focus, while still resolving for focused
+        // descendants such as text fields and buttons.
+        child: Focus(
+          autofocus: true,
+          child: Stack(
+            alignment: Alignment.topLeft,
+            children: [
+              widget.child,
+              if (_showFlutterOverlay)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(child: PerformanceOverlay.allEnabled()),
+                ),
+              if (_visible)
+                _PerfOverlayPanel(showFlutterOverlay: _showFlutterOverlay),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _onKey(KeyEvent event) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.f12) {
-      setState(() => _visible = !_visible);
-    }
+  void _toggleVisible() {
+    setState(() => _visible = !_visible);
+  }
+
+  void _toggleFlutterOverlay() {
+    setState(() => _showFlutterOverlay = !_showFlutterOverlay);
   }
 }
 
 class _PerfOverlayPanel extends StatefulWidget {
-  const _PerfOverlayPanel();
+  const _PerfOverlayPanel({required this.showFlutterOverlay});
+
+  final bool showFlutterOverlay;
 
   @override
   State<_PerfOverlayPanel> createState() => _PerfOverlayPanelState();
@@ -107,7 +130,8 @@ class _PerfOverlayPanelState extends State<_PerfOverlayPanel> {
             ),
             child: DefaultTextStyle(
               style: const TextStyle(
-                fontFamily: 'JetBrains Mono',
+                fontFamily: AppTypography.monoFontFamily,
+                fontFamilyFallback: AppTypography.monoFontFallback,
                 fontSize: 11,
                 color: Colors.white70,
                 height: 1.5,
@@ -129,6 +153,11 @@ class _PerfOverlayPanelState extends State<_PerfOverlayPanel> {
                   ),
                   Text('IMG: $cacheMb MB  (${_snap.imageCacheCount} items)'),
                   Text('Startup: $startupStr'),
+                  Text(
+                    'Flutter: '
+                    '${widget.showFlutterOverlay ? 'ON' : 'OFF'}'
+                    '  (Shift+F12)',
+                  ),
                 ],
               ),
             ),

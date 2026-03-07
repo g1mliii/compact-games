@@ -10,7 +10,8 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(not(test))]
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::{LazyLock, RwLock};
 
@@ -51,6 +52,7 @@ static SAVE_QUEUE: LazyLock<Option<SyncSender<()>>> = LazyLock::new(|| {
     }
 });
 
+#[cfg(not(test))]
 static CONFIG_DIR_CREATED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, PartialEq, Eq)]
@@ -61,24 +63,46 @@ enum LearnedInsertOutcome {
     CapacityReached,
 }
 
+fn normalize_learned_folder_name(folder_name: &str) -> Option<String> {
+    let normalized = folder_name.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return None;
+    }
+    if normalized.starts_with('.') {
+        return None;
+    }
+    Some(normalized)
+}
+
 fn insert_learned_entry(
     learned: &mut HashSet<String>,
     folder_name: &str,
     max_entries: usize,
 ) -> LearnedInsertOutcome {
+    if max_entries == 0 {
+        return LearnedInsertOutcome::CapacityReached;
+    }
     if learned.contains(folder_name) {
         return LearnedInsertOutcome::Duplicate;
     }
-    if learned.len() >= max_entries {
+
+    let mut first_evicted: Option<String> = None;
+    while learned.len() >= max_entries {
         if let Some(evicted) = learned.iter().next().cloned() {
             learned.remove(&evicted);
-            learned.insert(folder_name.to_owned());
-            return LearnedInsertOutcome::InsertedWithEviction(evicted);
+            if first_evicted.is_none() {
+                first_evicted = Some(evicted);
+            }
+            continue;
         }
         return LearnedInsertOutcome::CapacityReached;
     }
+
     learned.insert(folder_name.to_owned());
-    LearnedInsertOutcome::Inserted
+    match first_evicted {
+        Some(evicted) => LearnedInsertOutcome::InsertedWithEviction(evicted),
+        None => LearnedInsertOutcome::Inserted,
+    }
 }
 
 fn recv_save_signal(rx: &Receiver<()>) -> bool {
@@ -114,23 +138,76 @@ fn save_worker(rx: Receiver<()>) {
 }
 
 fn learned_games_path() -> Result<PathBuf, std::io::Error> {
-    let config_dir = dirs::config_dir()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    let pressplay_dir = config_dir.join("pressplay");
+    #[cfg(test)]
+    {
+        use std::time::{SystemTime, UNIX_EPOCH};
 
-    if !CONFIG_DIR_CREATED.load(Ordering::Relaxed) {
-        fs::create_dir_all(&pressplay_dir)?;
-        CONFIG_DIR_CREATED.store(true, Ordering::Relaxed);
+        static TEST_CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos();
+            std::env::temp_dir().join(format!("pressplay-tests-{}-{now}", std::process::id()))
+        });
+
+        fs::create_dir_all(&*TEST_CONFIG_DIR)?;
+        Ok(TEST_CONFIG_DIR.join("learned_directstorage_games.json"))
     }
 
-    Ok(pressplay_dir.join("learned_directstorage_games.json"))
+    #[cfg(not(test))]
+    {
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
+        let pressplay_dir = config_dir.join("pressplay");
+
+        if !CONFIG_DIR_CREATED.load(std::sync::atomic::Ordering::Relaxed) {
+            fs::create_dir_all(&pressplay_dir)?;
+            CONFIG_DIR_CREATED.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+
+        Ok(pressplay_dir.join("learned_directstorage_games.json"))
+    }
 }
 
 fn load_learned_games() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
     let path = learned_games_path()?;
     let contents = fs::read_to_string(path)?;
     let games: Vec<String> = serde_json::from_str(&contents)?;
-    Ok(games.into_iter().map(|s| s.to_ascii_lowercase()).collect())
+
+    let mut learned = HashSet::new();
+    let mut dropped_invalid = 0usize;
+    for game in games {
+        if let Some(normalized) = normalize_learned_folder_name(&game) {
+            learned.insert(normalized);
+        } else {
+            dropped_invalid = dropped_invalid.saturating_add(1);
+        }
+    }
+    if dropped_invalid > 0 {
+        log::warn!(
+            "Dropped {} invalid learned DirectStorage cache entries during load",
+            dropped_invalid
+        );
+    }
+
+    let mut dropped_over_capacity = 0usize;
+    while learned.len() > MAX_LEARNED_GAMES {
+        if let Some(evicted) = learned.iter().next().cloned() {
+            learned.remove(&evicted);
+            dropped_over_capacity = dropped_over_capacity.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+    if dropped_over_capacity > 0 {
+        log::warn!(
+            "Trimmed learned DirectStorage cache by {} entries to enforce cap ({})",
+            dropped_over_capacity,
+            MAX_LEARNED_GAMES
+        );
+    }
+
+    Ok(learned)
 }
 
 fn save_learned_games(games: &HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -163,11 +240,21 @@ pub fn is_known_directstorage_game(game_path: &Path) -> bool {
 
 pub fn learn_directstorage_game(game_path: &Path) {
     let folder_name = match game_path.file_name().and_then(|n| n.to_str()) {
-        Some(name) => name.to_ascii_lowercase(),
+        Some(name) => name,
         None => {
             log::debug!(
                 "Cannot learn game with invalid path: {}",
                 game_path.display()
+            );
+            return;
+        }
+    };
+    let folder_name = match normalize_learned_folder_name(folder_name) {
+        Some(name) => name,
+        None => {
+            log::debug!(
+                "Skipping learned game cache insert for invalid folder name '{}'",
+                folder_name
             );
             return;
         }
@@ -364,6 +451,35 @@ mod tests {
         assert_eq!(
             insert_learned_entry(&mut HashSet::new(), "brand_new", 0),
             LearnedInsertOutcome::CapacityReached
+        );
+    }
+
+    #[test]
+    fn insert_learned_entry_trims_oversized_cache_to_cap() {
+        let mut learned: HashSet<String> = (0..(MAX_LEARNED_GAMES + 128))
+            .map(|i| format!("game_{i}"))
+            .collect();
+
+        let result = insert_learned_entry(&mut learned, "brand_new", MAX_LEARNED_GAMES);
+        match result {
+            LearnedInsertOutcome::InsertedWithEviction(_) => {}
+            other => panic!("expected eviction insertion, got {other:?}"),
+        }
+
+        assert!(learned.contains("brand_new"));
+        assert_eq!(learned.len(), MAX_LEARNED_GAMES);
+    }
+
+    #[test]
+    fn normalize_learned_folder_name_rejects_dot_prefixed_names() {
+        assert_eq!(
+            normalize_learned_folder_name(".tmp123abc"),
+            None,
+            "dot-prefixed temp names should be ignored"
+        );
+        assert_eq!(
+            normalize_learned_folder_name(" Resident Evil Requiem "),
+            Some("resident evil requiem".to_string())
         );
     }
 }

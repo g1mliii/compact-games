@@ -132,19 +132,11 @@ impl AdaptiveEstimator {
 }
 
 fn current_epoch_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or_default()
+    crate::utils::unix_now_ms()
 }
 
 fn normalize_game_path(path: &Path) -> String {
-    let mut normalized = path.as_os_str().to_string_lossy().replace('/', "\\");
-    while normalized.len() > 3 && normalized.ends_with('\\') {
-        normalized.pop();
-    }
-    normalized.to_ascii_lowercase()
+    crate::utils::normalize_path_key(path)
 }
 
 #[cfg(test)]

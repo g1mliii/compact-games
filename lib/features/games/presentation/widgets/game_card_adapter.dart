@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/utils/cover_art_utils.dart';
+import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/navigation/app_routes.dart';
 import '../../../../models/compression_algorithm.dart';
 import '../../../../models/compression_estimate.dart';
@@ -161,6 +162,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     return FocusableActionDetector(
       shortcuts: _shortcuts,
       actions: _actions,
+      mouseCursor: SystemMouseCursors.click,
       child: GameCard(
         gameName: game.name,
         platform: game.platform,
@@ -172,6 +174,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
           game,
           allowDirectStorageOverride,
         ),
+        lastCompressedText: _lastCompressedText(game),
         assumeBoundedHeight: true,
         coverImageProvider: imageProviderFromCover(coverResult),
         heroTag: null,
@@ -198,6 +201,14 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     if (game.isCompressed) return null;
     if (game.isDirectStorage && !allowDirectStorageOverride) return null;
     return _cachedEstimate?.estimatedSavedBytes;
+  }
+
+  String? _lastCompressedText(GameInfo game) {
+    final lastCompressed = game.lastCompressed;
+    if (lastCompressed == null) {
+      return null;
+    }
+    return formatLocalMonthDayTime(lastCompressed);
   }
 
   void _scheduleEstimateFetch(GameInfo game, bool allowDirectStorageOverride) {

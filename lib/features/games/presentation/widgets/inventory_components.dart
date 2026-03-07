@@ -51,69 +51,71 @@ class _InventoryToolbarState extends State<InventoryToolbar> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < _compactBreakpoint;
-        _compact = compact;
+    return RepaintBoundary(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < _compactBreakpoint;
+          _compact = compact;
 
-        final searchField = SizedBox(
-          key: _inventorySearchFieldKey,
-          height: _inventoryControlHeight,
-          child: TextField(
-            controller: widget.searchController,
-            decoration: const InputDecoration(
-              hintText: 'Search inventory...',
-              prefixIcon: Icon(LucideIcons.search),
-              isDense: true,
-            ),
-            onChanged: widget.onSearchChanged,
-          ),
-        );
-        final sortFieldWidget = SizedBox(
-          key: _inventorySortFieldKey,
-          height: _inventoryControlHeight,
-          child: _SortFieldButton(
-            sortField: widget.sortField,
-            onSortChanged: widget.onSortChanged,
-          ),
-        );
-        final directionButton = IconButton(
-          tooltip: widget.descending ? 'Descending' : 'Ascending',
-          onPressed: widget.onToggleSortDirection,
-          icon: Icon(
-            widget.descending
-                ? LucideIcons.arrowDownWideNarrow
-                : LucideIcons.arrowUpNarrowWide,
-          ),
-        );
-
-        if (_compact) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              searchField,
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: sortFieldWidget),
-                  const SizedBox(width: 4),
-                  directionButton,
-                ],
+          final searchField = SizedBox(
+            key: _inventorySearchFieldKey,
+            height: _inventoryControlHeight,
+            child: TextField(
+              controller: widget.searchController,
+              decoration: const InputDecoration(
+                hintText: 'Search inventory...',
+                prefixIcon: Icon(LucideIcons.search),
+                isDense: true,
               ),
+              onChanged: widget.onSearchChanged,
+            ),
+          );
+          final sortFieldWidget = SizedBox(
+            key: _inventorySortFieldKey,
+            height: _inventoryControlHeight,
+            child: _SortFieldButton(
+              sortField: widget.sortField,
+              onSortChanged: widget.onSortChanged,
+            ),
+          );
+          final directionButton = IconButton(
+            tooltip: widget.descending ? 'Descending' : 'Ascending',
+            onPressed: widget.onToggleSortDirection,
+            icon: Icon(
+              widget.descending
+                  ? LucideIcons.arrowDownWideNarrow
+                  : LucideIcons.arrowUpNarrowWide,
+            ),
+          );
+
+          if (_compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                searchField,
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: sortFieldWidget),
+                    const SizedBox(width: 4),
+                    directionButton,
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(flex: 3, child: searchField),
+              const SizedBox(width: 8),
+              Expanded(flex: 3, child: sortFieldWidget),
+              const SizedBox(width: 8),
+              directionButton,
             ],
           );
-        }
-
-        return Row(
-          children: [
-            Expanded(flex: 3, child: searchField),
-            const SizedBox(width: 8),
-            Expanded(flex: 3, child: sortFieldWidget),
-            const SizedBox(width: 8),
-            directionButton,
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 }
@@ -234,18 +236,20 @@ class InventoryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final headerStyle = _headerStyle;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      child: Row(
-        children: [
-          Expanded(flex: 28, child: Text('GAME', style: headerStyle)),
-          Expanded(flex: 12, child: Text('PLATFORM', style: headerStyle)),
-          Expanded(flex: 12, child: Text('ORIGINAL', style: headerStyle)),
-          Expanded(flex: 12, child: Text('CURRENT', style: headerStyle)),
-          Expanded(flex: 10, child: Text('SAVINGS', style: headerStyle)),
-          Expanded(flex: 14, child: Text('LAST CHECKED', style: headerStyle)),
-          Expanded(flex: 12, child: Text('WATCHER', style: headerStyle)),
-        ],
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+        child: Row(
+          children: [
+            Expanded(flex: 28, child: Text('GAME', style: headerStyle)),
+            Expanded(flex: 12, child: Text('PLATFORM', style: headerStyle)),
+            Expanded(flex: 12, child: Text('ORIGINAL', style: headerStyle)),
+            Expanded(flex: 12, child: Text('CURRENT', style: headerStyle)),
+            Expanded(flex: 10, child: Text('SAVINGS', style: headerStyle)),
+            Expanded(flex: 14, child: Text('LAST CHECKED', style: headerStyle)),
+            Expanded(flex: 12, child: Text('WATCHER', style: headerStyle)),
+          ],
+        ),
       ),
     );
   }
@@ -255,14 +259,14 @@ class InventoryRow extends StatelessWidget {
   const InventoryRow({
     super.key,
     required this.game,
-    required this.watcherActive,
+    required this.watcherLabel,
     required this.lastCheckedLabel,
     required this.onOpenDetails,
     this.isStriped = false,
   });
 
   final GameInfo game;
-  final bool watcherActive;
+  final String watcherLabel;
   final String lastCheckedLabel;
   final VoidCallback onOpenDetails;
   final bool isStriped;
@@ -331,10 +335,7 @@ class InventoryRow extends StatelessWidget {
               ),
               Expanded(
                 flex: 12,
-                child: Text(
-                  watcherActive ? 'Monitored' : 'Paused',
-                  style: AppTypography.bodySmall,
-                ),
+                child: Text(watcherLabel, style: AppTypography.bodySmall),
               ),
             ],
           ),

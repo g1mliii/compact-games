@@ -354,6 +354,67 @@ impl CompressionEngine {
         })
     }
 
+    pub fn decompress_folder_with_progress(
+        &self,
+        folder: &Path,
+        game_name: Arc<str>,
+    ) -> Result<CompressionProgressHandle, CompressionError> {
+        let file_manifest = self.build_file_manifest(folder)?;
+        self.decompress_folder_with_progress_with_manifest(folder, game_name, file_manifest)
+    }
+
+    pub fn decompress_folder_with_progress_with_manifest(
+        &self,
+        folder: &Path,
+        game_name: Arc<str>,
+        file_manifest: Vec<ManifestFile>,
+    ) -> Result<CompressionProgressHandle, CompressionError> {
+        self.validate_path(folder)?;
+        let engine = self.clone();
+        let operation = self.begin_operation();
+        let folder = folder.to_path_buf();
+        let files_total = file_manifest.len() as u64;
+
+        let (progress_ready_tx, progress_ready_rx) = bounded(1);
+        let (result_tx, result_rx) = bounded(1);
+
+        self.files_total.store(files_total, Ordering::Relaxed);
+        std::thread::spawn(move || {
+            let _operation = operation;
+
+            let counters = engine.engine_counters();
+            let (mut reporter, progress_rx) =
+                ProgressReporter::new_with_baseline(counters, game_name, true);
+            if progress_ready_tx.send(progress_rx).is_err() {
+                reporter.mark_done();
+                reporter.stop();
+                return;
+            }
+
+            let start = std::time::Instant::now();
+            let result = engine
+                .decompress_impl_from_manifest(&folder, file_manifest)
+                .map(|()| engine.current_stats(start.elapsed().as_millis() as u64));
+
+            reporter.mark_done();
+            reporter.stop();
+
+            let _ = result_tx.send(result);
+        });
+
+        let progress_rx = progress_ready_rx.recv().map_err(|_| CompressionError::Io {
+            source: std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "failed to initialize decompression progress stream",
+            ),
+        })?;
+
+        Ok(CompressionProgressHandle {
+            progress: progress_rx,
+            result: result_rx,
+        })
+    }
+
     pub fn decompress_folder(&self, folder: &Path) -> Result<(), CompressionError> {
         self.validate_path(folder)?;
         let _operation = self.begin_operation();
@@ -372,6 +433,16 @@ impl CompressionEngine {
             Err(_) => Err(CompressionError::PathNotFound(path.to_path_buf())),
             Ok(m) if !m.is_dir() => Err(CompressionError::NotADirectory(path.to_path_buf())),
             Ok(_) => Ok(()),
+        }
+    }
+
+    fn current_stats(&self, duration_ms: u64) -> CompressionStats {
+        CompressionStats {
+            original_bytes: self.bytes_original.load(Ordering::Relaxed),
+            compressed_bytes: self.bytes_compressed.load(Ordering::Relaxed),
+            files_processed: self.files_processed.load(Ordering::Relaxed),
+            files_skipped: 0,
+            duration_ms,
         }
     }
 
@@ -402,6 +473,17 @@ impl CompressionEngine {
 
     #[cfg(not(windows))]
     fn decompress_impl(&self, _folder: &Path) -> Result<(), CompressionError> {
+        Err(CompressionError::WofApiError {
+            message: "WOF decompression requires Windows".into(),
+        })
+    }
+
+    #[cfg(not(windows))]
+    fn decompress_impl_from_manifest(
+        &self,
+        _folder: &Path,
+        _files: Vec<ManifestFile>,
+    ) -> Result<(), CompressionError> {
         Err(CompressionError::WofApiError {
             message: "WOF decompression requires Windows".into(),
         })

@@ -1,9 +1,14 @@
 use std::fs::{self, File};
+use std::path::Path;
 
+use crate::compression::algorithm::CompressionAlgorithm;
+use crate::compression::history::{
+    record_compression, ActualStats, CompressionHistoryEntry, EstimateSnapshot,
+};
 use crate::discovery::cache;
 use crate::discovery::platform::{DiscoveryScanMode, Platform};
 
-use super::build_game_info_with_mode_and_stats_path;
+use super::{build_game_info_with_mode_and_stats_path, compression_timestamp_for_game_path};
 
 #[test]
 fn quick_scan_ignores_stale_cache_for_deleted_path() {
@@ -203,4 +208,116 @@ fn quick_scan_keeps_authoritative_cached_size_when_token_drifts() {
     );
     let cached_after = cache::lookup_stale(&game_dir).expect("cache entry should remain");
     assert_eq!(cached_after.logical_size, full_size);
+}
+
+#[test]
+fn full_scan_rejects_large_install_that_shrank_to_remnant_after_refresh_clear() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("Resident Evil Requiem");
+    fs::create_dir_all(&game_dir).unwrap();
+
+    File::create(game_dir.join("game.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
+    File::create(game_dir.join("base.pak"))
+        .unwrap()
+        .set_len(6 * 1024 * 1024 * 1024)
+        .unwrap();
+
+    let first_full = build_game_info_with_mode_and_stats_path(
+        "Resident Evil Requiem".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    )
+    .expect("large install should be accepted on first full scan");
+    assert!(first_full.size_bytes >= 6 * 1024 * 1024 * 1024);
+
+    cache::clear_all();
+    crate::discovery::index::clear_all();
+
+    fs::remove_file(game_dir.join("game.exe")).unwrap();
+    fs::remove_file(game_dir.join("base.pak")).unwrap();
+    File::create(game_dir.join("leftover.bin"))
+        .unwrap()
+        .set_len(600 * 1024 * 1024)
+        .unwrap();
+
+    let second_full = build_game_info_with_mode_and_stats_path(
+        "Resident Evil Requiem".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    );
+
+    assert!(
+        second_full.is_none(),
+        "full refresh should reject paths that shrank from a large install to a remnant-sized leftover"
+    );
+}
+
+#[test]
+fn full_scan_accepts_medium_install_without_prior_history() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("Fresh Medium Install");
+    fs::create_dir_all(&game_dir).unwrap();
+    File::create(game_dir.join("content.bin"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
+
+    let full = build_game_info_with_mode_and_stats_path(
+        "Fresh Medium Install".to_owned(),
+        game_dir.clone(),
+        game_dir,
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    );
+
+    assert!(
+        full.is_some(),
+        "medium installs should still be accepted when there is no prior large-install shrink history"
+    );
+}
+
+#[test]
+fn compression_timestamp_only_exposed_for_compressed_games() {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let path_buf = std::path::PathBuf::from(format!(r"C:\Games\CompressionStamp_{nanos}"));
+    let path = Path::new(&path_buf);
+
+    record_compression(CompressionHistoryEntry {
+        game_path: path.to_string_lossy().into_owned(),
+        game_name: "Compression Stamp".to_string(),
+        timestamp_ms: 1_700_000_123_456,
+        estimate: EstimateSnapshot {
+            scanned_files: 0,
+            sampled_bytes: 0,
+            estimated_saved_bytes: 0,
+        },
+        actual_stats: ActualStats {
+            original_bytes: 10_000,
+            compressed_bytes: 8_000,
+            actual_saved_bytes: 2_000,
+            files_processed: 10,
+        },
+        algorithm: CompressionAlgorithm::Xpress8K,
+        duration_ms: 10,
+    });
+
+    assert!(
+        compression_timestamp_for_game_path(path, true).is_some(),
+        "compressed entries should expose last-compressed timestamp"
+    );
+    assert_eq!(
+        compression_timestamp_for_game_path(path, false),
+        None,
+        "non-compressed entries should hide last-compressed timestamp"
+    );
 }

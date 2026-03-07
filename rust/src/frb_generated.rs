@@ -212,13 +212,20 @@ fn wire__crate__api__compression__decompress_game_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_game_path = <String>::sse_decode(&mut deserializer);
+            let api_game_name = <String>::sse_decode(&mut deserializer);
             let api_io_parallelism_override = <Option<u64>>::sse_decode(&mut deserializer);
+            let api_sink = <StreamSink<
+                crate::api::types::FrbCompressionProgress,
+                flutter_rust_bridge::for_generated::SseCodec,
+            >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::types::FrbCompressionError>((move || {
                     let output_ok = crate::api::compression::decompress_game(
                         api_game_path,
+                        api_game_name,
                         api_io_parallelism_override,
+                        api_sink,
                     )?;
                     Ok(output_ok)
                 })(
@@ -1076,6 +1083,7 @@ impl SseDecode for crate::api::automation_types::FrbAutomationConfig {
         let mut var_excludedPaths = <Vec<String>>::sse_decode(deserializer);
         let mut var_algorithm =
             <crate::api::types::FrbCompressionAlgorithm>::sse_decode(deserializer);
+        let mut var_allowDirectstorageOverride = <bool>::sse_decode(deserializer);
         let mut var_ioParallelismOverride = <Option<u64>>::sse_decode(deserializer);
         return crate::api::automation_types::FrbAutomationConfig {
             cpu_threshold_percent: var_cpuThresholdPercent,
@@ -1084,6 +1092,7 @@ impl SseDecode for crate::api::automation_types::FrbAutomationConfig {
             watch_paths: var_watchPaths,
             excluded_paths: var_excludedPaths,
             algorithm: var_algorithm,
+            allow_directstorage_override: var_allowDirectstorageOverride,
             io_parallelism_override: var_ioParallelismOverride,
         };
     }
@@ -1750,6 +1759,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::automation_types::FrbAutomati
             self.watch_paths.into_into_dart().into_dart(),
             self.excluded_paths.into_into_dart().into_dart(),
             self.algorithm.into_into_dart().into_dart(),
+            self.allow_directstorage_override
+                .into_into_dart()
+                .into_dart(),
             self.io_parallelism_override.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -2323,6 +2335,7 @@ impl SseEncode for crate::api::automation_types::FrbAutomationConfig {
         <Vec<String>>::sse_encode(self.watch_paths, serializer);
         <Vec<String>>::sse_encode(self.excluded_paths, serializer);
         <crate::api::types::FrbCompressionAlgorithm>::sse_encode(self.algorithm, serializer);
+        <bool>::sse_encode(self.allow_directstorage_override, serializer);
         <Option<u64>>::sse_encode(self.io_parallelism_override, serializer);
     }
 }

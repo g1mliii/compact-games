@@ -15,11 +15,16 @@ class _InMemorySettingsPersistence implements SettingsPersistence {
 }
 
 class _TestRustBridgeService implements RustBridgeService {
-  _TestRustBridgeService({required this.games});
+  _TestRustBridgeService({
+    required this.games,
+    this.autoCompressionRunning = false,
+  });
 
   final List<GameInfo> games;
+  final bool autoCompressionRunning;
   int compressCalls = 0;
   int decompressCalls = 0;
+  bool? lastAllowDirectStorageOverride;
 
   @override
   void cancelCompression() {}
@@ -39,15 +44,18 @@ class _TestRustBridgeService implements RustBridgeService {
     int? ioParallelismOverride,
   }) {
     compressCalls += 1;
+    lastAllowDirectStorageOverride = allowDirectStorageOverride;
     return const Stream<CompressionProgress>.empty();
   }
 
   @override
-  Future<void> decompressGame(
+  Stream<CompressionProgress> decompressGame(
     String gamePath, {
+    required String gameName,
     int? ioParallelismOverride,
-  }) async {
+  }) {
     decompressCalls += 1;
+    return const Stream<CompressionProgress>.empty();
   }
 
   @override
@@ -105,12 +113,12 @@ class _TestRustBridgeService implements RustBridgeService {
 
   @override
   bool isAutoCompressionRunning() {
-    return false;
+    return autoCompressionRunning;
   }
 
   @override
   Stream<bool> watchAutoCompressionStatus() {
-    return Stream<bool>.value(false);
+    return Stream<bool>.value(autoCompressionRunning);
   }
 
   @override
@@ -155,6 +163,7 @@ class _TestRustBridgeService implements RustBridgeService {
     required List<String> watchPaths,
     required List<String> excludedPaths,
     required CompressionAlgorithm algorithm,
+    bool allowDirectStorageOverride = false,
     int? ioParallelismOverride,
   }) async {}
 
@@ -166,6 +175,82 @@ class _TestRustBridgeService implements RustBridgeService {
   @override
   List<AutomationJob> getAutomationQueue() {
     return const <AutomationJob>[];
+  }
+}
+
+class _DelayedActivityRustBridgeService extends _TestRustBridgeService {
+  _DelayedActivityRustBridgeService({required super.games})
+    : _compressionController = StreamController<CompressionProgress>(),
+      _decompressionController = StreamController<CompressionProgress>();
+
+  final StreamController<CompressionProgress> _compressionController;
+  final StreamController<CompressionProgress> _decompressionController;
+
+  @override
+  Stream<CompressionProgress> compressGame({
+    required String gamePath,
+    required String gameName,
+    CompressionAlgorithm algorithm = CompressionAlgorithm.xpress8k,
+    bool allowDirectStorageOverride = false,
+    int? ioParallelismOverride,
+  }) {
+    compressCalls += 1;
+    lastAllowDirectStorageOverride = allowDirectStorageOverride;
+    return _compressionController.stream;
+  }
+
+  @override
+  Stream<CompressionProgress> decompressGame(
+    String gamePath, {
+    required String gameName,
+    int? ioParallelismOverride,
+  }) {
+    decompressCalls += 1;
+    return _decompressionController.stream;
+  }
+
+  void emitCompressionProgress({
+    required String gameName,
+    required int filesProcessed,
+    required int filesTotal,
+    required int bytesOriginal,
+    required int bytesCompressed,
+    Duration? estimatedTimeRemaining,
+  }) {
+    if (_compressionController.isClosed) {
+      return;
+    }
+    _compressionController.add(
+      CompressionProgress(
+        gameName: gameName,
+        filesProcessed: filesProcessed,
+        filesTotal: filesTotal,
+        bytesOriginal: bytesOriginal,
+        bytesCompressed: bytesCompressed,
+        bytesSaved: bytesOriginal - bytesCompressed,
+        estimatedTimeRemaining: estimatedTimeRemaining,
+        isComplete: filesTotal > 0 && filesProcessed >= filesTotal,
+      ),
+    );
+  }
+
+  void finishCompression() {
+    if (_compressionController.isClosed) {
+      return;
+    }
+    unawaited(_compressionController.close());
+  }
+
+  void finishDecompression() {
+    if (_decompressionController.isClosed) {
+      return;
+    }
+    unawaited(_decompressionController.close());
+  }
+
+  void disposeStreams() {
+    finishCompression();
+    finishDecompression();
   }
 }
 

@@ -9,7 +9,8 @@ pub use game_info::{
     build_game_info, build_game_info_with_mode, build_game_info_with_mode_and_stats_path,
 };
 pub use scanning::{
-    build_games_from_candidates, scan_all_platforms, scan_all_platforms_with_mode,
-    scan_custom_paths, scan_custom_paths_with_mode, scan_game_subdirs,
+    build_games_from_candidates, evict_discovery_entry, scan_all_platforms,
+    scan_all_platforms_with_mode, scan_custom_paths, scan_custom_paths_with_mode,
+    scan_game_subdirs,
 };
 pub use stats::{dir_stats, dir_stats_quick, DirStats};

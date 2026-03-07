@@ -21,11 +21,12 @@ class FilmGrainOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: IgnorePointer(
-        child: CustomPaint(
-          painter: _FilmGrainPainter(opacity: opacity, density: density),
-          isComplex: true,
-          willChange: false,
-          size: Size.infinite,
+        child: SizedBox.expand(
+          child: CustomPaint(
+            painter: _FilmGrainPainter(opacity: opacity, density: density),
+            isComplex: true,
+            willChange: false,
+          ),
         ),
       ),
     );
@@ -65,8 +66,8 @@ class _FilmGrainPainter extends CustomPainter {
 
 abstract final class _NoisePointCache {
   static const int _step = 6;
-  static const int _sizeBucket = 96;
-  static const int _maxEntries = 12;
+  static const int _sizeBucket = 192;
+  static const int _maxEntries = 8;
   static final LinkedHashMap<_NoiseCacheKey, List<Offset>> _cache =
       LinkedHashMap<_NoiseCacheKey, List<Offset>>();
 

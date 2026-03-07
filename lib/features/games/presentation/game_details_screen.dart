@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/utils/cover_art_utils.dart';
+import '../../../core/utils/date_time_format.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../models/game_info.dart';
 import '../../../providers/cover_art/cover_art_provider.dart';
 import '../../../providers/games/single_game_provider.dart';
-import '../../../providers/settings/settings_provider.dart';
 import '../../../providers/system/platform_shell_provider.dart';
 import 'widgets/game_details/details_actions.dart';
 import 'widgets/game_details/details_info_card.dart';
@@ -28,8 +28,6 @@ class GameDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
-  bool _wide = false;
-
   @override
   Widget build(BuildContext context) {
     final game = ref.watch(singleGameProvider(widget.gamePath));
@@ -42,21 +40,17 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
       );
     }
 
-    final coverResult = ref.watch(coverArtProvider(widget.gamePath)).valueOrNull;
+    final coverResult = ref
+        .watch(coverArtProvider(widget.gamePath))
+        .valueOrNull;
     final coverProvider = imageProviderFromCover(coverResult);
-    final isExcluded = ref.watch(
-      settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.excludedPaths.contains(widget.gamePath) ??
-            false,
-      ),
-    );
 
     final currentSize = game.compressedSize ?? game.sizeBytes;
     final savedBytes = (game.sizeBytes - currentSize).clamp(0, game.sizeBytes);
     final savingsPercent = (game.savingsRatio * 100).toStringAsFixed(1);
-    final lastPlayedText = _formatLastPlayed(game.lastPlayed);
-    final deferred = Scrollable.recommendDeferredLoadingForContext(context);
+    final lastCompressedText = formatLocalMonthDayTimeOrNull(
+      game.lastCompressed,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -72,105 +66,115 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= GameDetailsScreen._wideLayoutBreakpoint;
-          _wide = wide;
-          final contentWidth = constraints.maxWidth > GameDetailsScreen._maxContentWidth
+          final wide =
+              constraints.maxWidth >= GameDetailsScreen._wideLayoutBreakpoint;
+          final contentWidth =
+              constraints.maxWidth > GameDetailsScreen._maxContentWidth
               ? GameDetailsScreen._maxContentWidth
               : constraints.maxWidth;
-          final coverWidth = _wide ? GameDetailsScreen._coverColumnWidth : GameDetailsScreen._compactCoverWidth;
+          final coverWidth = wide
+              ? GameDetailsScreen._coverColumnWidth
+              : GameDetailsScreen._compactCoverWidth;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: GameDetailsScreen._maxContentWidth),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    GameDetailsHeader(
-                      gameName: game.name,
-                      platform: game.platform,
-                      coverProvider: coverProvider,
-                      decodeWidth: _decodeWidth(
-                        context: context,
-                        logicalWidth: contentWidth,
-                        min: 384,
-                        max: 768,
-                        bucket: 128,
-                      ),
-                      deferred: deferred,
+            child: Builder(
+              builder: (scrollContext) {
+                final deferred = Scrollable.recommendDeferredLoadingForContext(
+                  scrollContext,
+                );
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: GameDetailsScreen._maxContentWidth,
                     ),
-                    const SizedBox(height: 16),
-                    if (_wide)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: GameDetailsScreen._coverColumnWidth,
-                            child: GameDetailsCover(
-                              platform: game.platform,
-                              coverProvider: coverProvider,
-                              decodeWidth: _decodeWidth(
-                                context: context,
-                                logicalWidth: GameDetailsScreen._coverColumnWidth,
-                                min: 224,
-                                max: 512,
-                              ),
-                              deferred: deferred,
-                            ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        GameDetailsHeader(
+                          gameName: game.name,
+                          platform: game.platform,
+                          coverProvider: coverProvider,
+                          decodeWidth: _decodeWidth(
+                            context: scrollContext,
+                            logicalWidth: contentWidth,
+                            min: 384,
+                            max: 768,
+                            bucket: 128,
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _DetailsRightColumn(
-                              game: game,
-                              isExcluded: isExcluded,
-                              currentSize: currentSize,
-                              savedBytes: savedBytes,
-                              savingsPercent: savingsPercent,
-                              lastPlayedText: lastPlayedText,
-                              centeredActions: false,
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Align(
-                            alignment: Alignment.center,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxWidth: GameDetailsScreen._compactCoverWidth,
-                              ),
-                              child: GameDetailsCover(
-                                platform: game.platform,
-                                coverProvider: coverProvider,
-                                decodeWidth: _decodeWidth(
-                                  context: context,
-                                  logicalWidth: coverWidth,
-                                  min: 224,
-                                  max: 512,
+                          deferred: deferred,
+                        ),
+                        const SizedBox(height: 16),
+                        if (wide)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: GameDetailsScreen._coverColumnWidth,
+                                child: GameDetailsCover(
+                                  platform: game.platform,
+                                  coverProvider: coverProvider,
+                                  decodeWidth: _decodeWidth(
+                                    context: scrollContext,
+                                    logicalWidth:
+                                        GameDetailsScreen._coverColumnWidth,
+                                    min: 224,
+                                    max: 512,
+                                  ),
+                                  deferred: deferred,
                                 ),
-                                deferred: deferred,
                               ),
-                            ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _DetailsRightColumn(
+                                  game: game,
+                                  currentSize: currentSize,
+                                  savedBytes: savedBytes,
+                                  savingsPercent: savingsPercent,
+                                  lastCompressedText: lastCompressedText,
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment: Alignment.center,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth:
+                                        GameDetailsScreen._compactCoverWidth,
+                                  ),
+                                  child: GameDetailsCover(
+                                    platform: game.platform,
+                                    coverProvider: coverProvider,
+                                    decodeWidth: _decodeWidth(
+                                      context: scrollContext,
+                                      logicalWidth: coverWidth,
+                                      min: 224,
+                                      max: 512,
+                                    ),
+                                    deferred: deferred,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _DetailsRightColumn(
+                                game: game,
+                                currentSize: currentSize,
+                                savedBytes: savedBytes,
+                                savingsPercent: savingsPercent,
+                                lastCompressedText: lastCompressedText,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          _DetailsRightColumn(
-                            game: game,
-                            isExcluded: isExcluded,
-                            currentSize: currentSize,
-                            savedBytes: savedBytes,
-                            savingsPercent: savingsPercent,
-                            lastPlayedText: lastPlayedText,
-                            centeredActions: true,
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           );
         },
@@ -191,39 +195,22 @@ class _GameDetailsScreenState extends ConsumerState<GameDetailsScreen> {
         .clamp(min.toInt(), max.toInt())
         .toInt();
   }
-
-  String _formatLastPlayed(DateTime? value) {
-    if (value == null) {
-      return 'Unknown';
-    }
-    final local = value.toLocal();
-    final y = local.year.toString().padLeft(4, '0');
-    final m = local.month.toString().padLeft(2, '0');
-    final d = local.day.toString().padLeft(2, '0');
-    final h = local.hour.toString().padLeft(2, '0');
-    final min = local.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d $h:$min';
-  }
 }
 
 class _DetailsRightColumn extends StatelessWidget {
   const _DetailsRightColumn({
     required this.game,
-    required this.isExcluded,
     required this.currentSize,
     required this.savedBytes,
     required this.savingsPercent,
-    required this.lastPlayedText,
-    required this.centeredActions,
+    required this.lastCompressedText,
   });
 
   final GameInfo game;
-  final bool isExcluded;
   final int currentSize;
   final int savedBytes;
   final String savingsPercent;
-  final String lastPlayedText;
-  final bool centeredActions;
+  final String? lastCompressedText;
 
   @override
   Widget build(BuildContext context) {
@@ -232,22 +219,15 @@ class _DetailsRightColumn extends StatelessWidget {
       children: [
         GameDetailsInfoCard(
           game: game,
-          isExcluded: isExcluded,
           currentSize: currentSize,
           savedBytes: savedBytes,
           savingsPercent: savingsPercent,
-          lastPlayedText: lastPlayedText,
+          lastCompressedText: lastCompressedText,
         ),
         if (game.isDirectStorage) ...[
           const SizedBox(height: 12),
           const GameDetailsDirectStorageWarningCard(),
         ],
-        const SizedBox(height: 14),
-        GameDetailsActionsCard(
-          game: game,
-          centered: centeredActions,
-          isExcluded: isExcluded,
-        ),
       ],
     );
   }

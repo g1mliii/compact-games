@@ -35,10 +35,13 @@ class _BaseRustBridgeService implements RustBridgeService {
   }
 
   @override
-  Future<void> decompressGame(
+  Stream<CompressionProgress> decompressGame(
     String gamePath, {
+    required String gameName,
     int? ioParallelismOverride,
-  }) async {}
+  }) {
+    return const Stream<CompressionProgress>.empty();
+  }
 
   @override
   Future<CompressionEstimate> estimateCompressionSavings({
@@ -136,6 +139,7 @@ class _BaseRustBridgeService implements RustBridgeService {
     required List<String> watchPaths,
     required List<String> excludedPaths,
     required CompressionAlgorithm algorithm,
+    bool allowDirectStorageOverride = false,
     int? ioParallelismOverride,
   }) async {}
 
@@ -200,9 +204,13 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   int clearDiscoveryCacheCalls = 0;
   int clearDiscoveryCacheEntryCalls = 0;
   int getAllGamesCalls = 0;
+  int getAllGamesQuickCalls = 0;
   int scanCustomFolderCalls = 0;
+  int startAutoCompressionCalls = 0;
+  int updateAutomationConfigCalls = 0;
   String? lastScanCustomFolderPath;
   bool? lastAllowDirectStorageOverride;
+  bool? lastAutomationAllowDirectStorageOverride;
   final List<GameInfo> scanCustomFolderGames;
 
   @override
@@ -229,11 +237,13 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   }
 
   @override
-  Future<void> decompressGame(
+  Stream<CompressionProgress> decompressGame(
     String gamePath, {
+    required String gameName,
     int? ioParallelismOverride,
-  }) async {
+  }) {
     decompressCalls += 1;
+    return const Stream<CompressionProgress>.empty();
   }
 
   @override
@@ -243,10 +253,62 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   }
 
   @override
+  Future<List<GameInfo>> getAllGamesQuick() async {
+    getAllGamesQuickCalls += 1;
+    return super.getAllGamesQuick();
+  }
+
+  @override
   Future<List<GameInfo>> scanCustomFolder(String path) async {
     scanCustomFolderCalls += 1;
     lastScanCustomFolderPath = path;
     return scanCustomFolderGames;
+  }
+
+  @override
+  Future<void> startAutoCompression() async {
+    startAutoCompressionCalls += 1;
+  }
+
+  @override
+  Future<void> updateAutomationConfig({
+    required double cpuThresholdPercent,
+    required int idleDurationSeconds,
+    required int cooldownSeconds,
+    required List<String> watchPaths,
+    required List<String> excludedPaths,
+    required CompressionAlgorithm algorithm,
+    bool allowDirectStorageOverride = false,
+    int? ioParallelismOverride,
+  }) async {
+    updateAutomationConfigCalls += 1;
+    lastAutomationAllowDirectStorageOverride = allowDirectStorageOverride;
+  }
+}
+
+class _WatcherRecordingRustBridgeService extends _RecordingRustBridgeService {
+  _WatcherRecordingRustBridgeService({required super.games});
+
+  final StreamController<WatcherEvent> _watcherController =
+      StreamController<WatcherEvent>.broadcast();
+
+  @override
+  Stream<WatcherEvent> watchWatcherEvents() {
+    return _watcherController.stream;
+  }
+
+  void emitWatcherEvent(WatcherEvent event) {
+    if (_watcherController.isClosed) {
+      return;
+    }
+    _watcherController.add(event);
+  }
+
+  void disposeWatcher() {
+    if (_watcherController.isClosed) {
+      return;
+    }
+    unawaited(_watcherController.close());
   }
 }
 
@@ -275,25 +337,106 @@ class _CancelledErrorRustBridgeService extends _BaseRustBridgeService {
   }
 }
 
-class _DelayedDecompressRustBridgeService extends _RecordingRustBridgeService {
-  _DelayedDecompressRustBridgeService({required super.games});
+class _DelayedActivityRustBridgeService extends _StaticRustBridgeService {
+  _DelayedActivityRustBridgeService({required super.games})
+    : _compressionController = StreamController<CompressionProgress>(),
+      _decompressionController = StreamController<CompressionProgress>();
 
-  final Completer<void> _decompressCompleter = Completer<void>();
+  final StreamController<CompressionProgress> _compressionController;
+  final StreamController<CompressionProgress> _decompressionController;
+  int compressCalls = 0;
+  int decompressCalls = 0;
+  bool? lastAllowDirectStorageOverride;
 
   @override
-  Future<void> decompressGame(
+  Stream<CompressionProgress> compressGame({
+    required String gamePath,
+    required String gameName,
+    CompressionAlgorithm algorithm = CompressionAlgorithm.xpress8k,
+    bool allowDirectStorageOverride = false,
+    int? ioParallelismOverride,
+  }) {
+    compressCalls += 1;
+    lastAllowDirectStorageOverride = allowDirectStorageOverride;
+    return _compressionController.stream;
+  }
+
+  @override
+  Stream<CompressionProgress> decompressGame(
     String gamePath, {
+    required String gameName,
     int? ioParallelismOverride,
   }) {
     decompressCalls += 1;
-    return _decompressCompleter.future;
+    return _decompressionController.stream;
+  }
+
+  void emitCompressionProgress({
+    required String gameName,
+    required int filesProcessed,
+    required int filesTotal,
+    required int bytesOriginal,
+    required int bytesCompressed,
+    Duration? estimatedTimeRemaining,
+  }) {
+    if (_compressionController.isClosed) {
+      return;
+    }
+    _compressionController.add(
+      CompressionProgress(
+        gameName: gameName,
+        filesProcessed: filesProcessed,
+        filesTotal: filesTotal,
+        bytesOriginal: bytesOriginal,
+        bytesCompressed: bytesCompressed,
+        bytesSaved: bytesOriginal - bytesCompressed,
+        estimatedTimeRemaining: estimatedTimeRemaining,
+        isComplete: filesTotal > 0 && filesProcessed >= filesTotal,
+      ),
+    );
+  }
+
+  void finishCompression() {
+    if (_compressionController.isClosed) {
+      return;
+    }
+    unawaited(_compressionController.close());
   }
 
   void finishDecompression() {
-    if (_decompressCompleter.isCompleted) {
+    if (_decompressionController.isClosed) {
       return;
     }
-    _decompressCompleter.complete();
+    unawaited(_decompressionController.close());
+  }
+
+  void disposeStreams() {
+    finishCompression();
+    finishDecompression();
+  }
+}
+
+class _DelayedDecompressRustBridgeService extends _RecordingRustBridgeService {
+  _DelayedDecompressRustBridgeService({required super.games});
+
+  final StreamController<CompressionProgress> _decompressController =
+      StreamController<CompressionProgress>();
+
+  @override
+  Stream<CompressionProgress> decompressGame(
+    String gamePath, {
+    required String gameName,
+    int? ioParallelismOverride,
+  }) {
+    decompressCalls += 1;
+    return _decompressController.stream;
+  }
+
+  void finishDecompression() {
+    if (_decompressController.isClosed) {
+      return;
+    }
+    _decompressController.close();
   }
 }
 

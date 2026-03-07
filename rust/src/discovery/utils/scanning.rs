@@ -6,6 +6,7 @@ use rayon::prelude::*;
 use crate::discovery::cache;
 use crate::discovery::change_feed::{self, ScanPath};
 use crate::discovery::index;
+use crate::discovery::install_history;
 use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use crate::discovery::storage::{
     has_any_hdd_disk, has_any_ssd_disk, storage_class_for_path, StorageClass,
@@ -58,8 +59,7 @@ pub fn scan_game_subdirs(
 
     let plan = change_feed::plan_subdir_scan(games_path, &candidates, mode);
     for deleted_path in &plan.deleted {
-        cache::remove(deleted_path);
-        index::remove(deleted_path);
+        evict_discovery_entry(deleted_path);
     }
 
     let mut results = Vec::with_capacity(candidates.len());
@@ -111,6 +111,13 @@ pub fn scan_game_subdirs(
 fn lookup_index_with_token(path: &Path) -> Option<GameInfo> {
     let token = cache::compute_change_token(path, cache::has_entry(path));
     index::lookup(path, &token)
+}
+
+pub fn evict_discovery_entry(path: &Path) {
+    cache::remove(path);
+    index::remove(path);
+    change_feed::remove(path);
+    install_history::remove(path);
 }
 
 pub fn build_games_from_candidates(
@@ -188,6 +195,7 @@ pub fn scan_all_platforms_with_mode(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     }
 
     cache::persist_if_dirty();
+    install_history::persist_if_dirty();
     if mode == DiscoveryScanMode::Full {
         index::mark_full_scan_success();
         change_feed::mark_full_scan_success();
@@ -394,6 +402,7 @@ pub fn scan_custom_paths_with_mode(
 
     let result = CustomScanner::new(paths).scan(mode);
     cache::persist_if_dirty();
+    install_history::persist_if_dirty();
     if mode == DiscoveryScanMode::Full {
         index::mark_full_scan_success();
         change_feed::mark_full_scan_success();
@@ -408,6 +417,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::discovery::install_history;
 
     #[test]
     fn common_custom_roots_detect_existing_games_folder() {
@@ -477,5 +487,29 @@ mod tests {
         assert_eq!(second.len(), 1);
         assert_eq!(second[0].size_bytes, baseline.size_bytes);
         assert_ne!(second[0].size_bytes, stale.size_bytes);
+    }
+
+    #[test]
+    fn deleted_paths_evict_install_history() {
+        let root = TempDir::new().unwrap();
+        let game_dir = root.path().join("GameA");
+        std::fs::create_dir_all(&game_dir).unwrap();
+        std::fs::write(game_dir.join("game.exe"), vec![0_u8; 3 * 1024 * 1024]).unwrap();
+
+        install_history::record_authoritative_size(&game_dir, 6 * 1024 * 1024 * 1024);
+        assert_eq!(
+            install_history::max_observed_size(&game_dir),
+            Some(6 * 1024 * 1024 * 1024)
+        );
+
+        let baseline = vec![("GameA".to_owned(), game_dir.clone())];
+        let first = change_feed::plan_subdir_scan(root.path(), &baseline, DiscoveryScanMode::Full);
+        first.commit();
+
+        std::fs::remove_dir_all(&game_dir).unwrap();
+        let second = scan_game_subdirs(root.path(), Platform::Custom, DiscoveryScanMode::Full);
+
+        assert!(second.is_empty());
+        assert_eq!(install_history::max_observed_size(&game_dir), None);
     }
 }

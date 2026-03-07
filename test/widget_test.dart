@@ -3,15 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:pressplay/app.dart';
 import 'package:pressplay/core/widgets/cinematic_background.dart';
 import 'package:pressplay/core/widgets/film_grain_overlay.dart';
 import 'package:pressplay/core/widgets/status_badge.dart';
 import 'package:pressplay/features/games/presentation/component_test_screen.dart';
 import 'package:pressplay/features/games/presentation/home_screen.dart';
+import 'package:pressplay/features/games/presentation/widgets/compression_activity_overlay.dart';
 import 'package:pressplay/features/games/presentation/widgets/compression_progress_indicator.dart';
 import 'package:pressplay/features/games/presentation/widgets/game_card.dart';
 import 'package:pressplay/features/games/presentation/widgets/home_game_grid.dart';
+import 'package:pressplay/features/games/presentation/widgets/home_compression_banner.dart';
 import 'package:pressplay/models/app_settings.dart';
 import 'package:pressplay/models/automation_state.dart';
 import 'package:pressplay/models/compression_algorithm.dart';
@@ -19,11 +22,13 @@ import 'package:pressplay/models/compression_estimate.dart';
 import 'package:pressplay/models/compression_progress.dart';
 import 'package:pressplay/models/game_info.dart';
 import 'package:pressplay/models/watcher_event.dart';
+import 'package:pressplay/providers/compression/compression_progress_provider.dart';
 import 'package:pressplay/providers/compression/compression_provider.dart';
 import 'package:pressplay/providers/compression/compression_state.dart';
 import 'package:pressplay/providers/games/game_list_provider.dart';
 import 'package:pressplay/providers/settings/settings_persistence.dart';
 import 'package:pressplay/providers/settings/settings_provider.dart';
+import 'package:pressplay/providers/system/route_state_provider.dart';
 import 'package:pressplay/providers/system/platform_shell_provider.dart';
 import 'package:pressplay/services/rust_bridge_service.dart';
 import 'package:pressplay/services/platform_shell_service.dart';
@@ -49,7 +54,7 @@ final List<GameInfo> _sampleGames = <GameInfo>[
 
 void main() {
   testWidgets('App loads without crashing', (WidgetTester tester) async {
-    await tester.pumpWidget(const PressPlayApp());
+    await tester.pumpWidget(const ProviderScope(child: PressPlayApp()));
     expect(find.text('PressPlay'), findsOneWidget);
     expect(find.byType(MaterialApp), findsOneWidget);
   });
@@ -484,6 +489,94 @@ void main() {
     expect(bridge.lastAllowDirectStorageOverride, isTrue);
   });
 
+  testWidgets(
+    'Automation settings sync forwards DirectStorage override to auto config',
+    (WidgetTester tester) async {
+      final bridge = _RecordingRustBridgeService(games: _sampleGames);
+      final persistence = _FixedSettingsPersistence(
+        const AppSettings(
+          autoCompress: true,
+          directStorageOverrideEnabled: true,
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            rustBridgeServiceProvider.overrideWithValue(bridge),
+            settingsPersistenceProvider.overrideWithValue(persistence),
+          ],
+          child: const PressPlayApp(),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(bridge.updateAutomationConfigCalls, greaterThan(0));
+      expect(bridge.startAutoCompressionCalls, greaterThan(0));
+      expect(bridge.lastAutomationAllowDirectStorageOverride, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Watcher uninstall removes card without triggering discovery refresh',
+    (WidgetTester tester) async {
+      final games = <GameInfo>[
+        ..._sampleGames,
+        GameInfo(
+          name: 'Resident Evil Requiem',
+          path: r'C:\Games\resident_evil_requiem',
+          platform: Platform.steam,
+          sizeBytes: 96 * _oneGiB,
+        ),
+      ];
+      final bridge = _WatcherRecordingRustBridgeService(games: games);
+      addTearDown(bridge.disposeWatcher);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const PressPlayApp(),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Resident Evil Requiem'), findsOneWidget);
+
+      final baselineFullCalls = bridge.getAllGamesCalls;
+      final baselineQuickCalls = bridge.getAllGamesQuickCalls;
+      final baselineClearCalls = bridge.clearDiscoveryCacheCalls;
+
+      bridge.emitWatcherEvent(
+        WatcherEvent(
+          type: WatcherEventType.uninstalled,
+          gamePath: r'C:\Games\resident_evil_requiem',
+          gameName: 'Resident Evil Requiem',
+          timestamp: DateTime(2026, 3, 7, 12, 0),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+
+      expect(
+        container
+            .read(gameListProvider)
+            .valueOrNull
+            ?.games
+            .any((game) => game.path == r'C:\Games\resident_evil_requiem'),
+        isFalse,
+      );
+      expect(find.text('Resident Evil Requiem'), findsNothing);
+      expect(bridge.getAllGamesCalls, baselineFullCalls);
+      expect(bridge.getAllGamesQuickCalls, baselineQuickCalls);
+      expect(bridge.clearDiscoveryCacheCalls, baselineClearCalls);
+    },
+  );
+
   testWidgets('Home banner shows Decompressing while decompression is active', (
     WidgetTester tester,
   ) async {
@@ -512,9 +605,45 @@ void main() {
     await tester.tap(find.text('Decompress'));
     await tester.pump();
 
-    expect(find.text('Decompressing'), findsOneWidget);
-    expect(find.text('Decompress Banner Test'), findsWidgets);
+    final inlineHost = find.byKey(compressionInlineActivityHostKey);
+    expect(inlineHost, findsOneWidget);
+    expect(
+      find.descendant(of: inlineHost, matching: find.text('Decompressing')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: inlineHost, matching: find.text('Cancel')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: inlineHost,
+        matching: find.text('Decompress Banner Test'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(compressionFloatingActivityHostKey),
+        matching: find.text('Decompressing'),
+      ),
+      findsNothing,
+    );
     expect(bridge.decompressCalls, 1);
+
+    await tester.tap(
+      find.descendant(of: inlineHost, matching: find.text('Cancel')),
+    );
+    await tester.pump();
+
+    expect(
+      find.descendant(of: inlineHost, matching: find.text('Decompressing')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: inlineHost, matching: find.text('Cancel')),
+      findsNothing,
+    );
 
     bridge.finishDecompression();
     await tester.pumpAndSettle();

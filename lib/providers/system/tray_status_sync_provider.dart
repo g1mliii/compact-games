@@ -59,12 +59,14 @@ final trayStatusSyncProvider = Provider<void>((ref) {
     ),
   );
 
-  // Watch only the derived percent — avoids rebuilds on every progress tick
-  // when the rounded percent hasn't actually changed.
+  // Reuse the shared bucketed activity model so the tray does not react
+  // more often than the visible compression/decompression UI.
   final progressPercent = ref.watch(
-    activeCompressionProgressProvider.select((p) {
-      if (p == null || p.filesTotal <= 0) return null;
-      return ((p.filesProcessed / p.filesTotal) * 100).round().clamp(0, 100);
+    activeCompressionUiModelProvider.select((activity) {
+      if (activity == null || !activity.hasKnownFileTotal) {
+        return null;
+      }
+      return activity.percent;
     }),
   );
 

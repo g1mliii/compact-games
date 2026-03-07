@@ -18,6 +18,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
   Timer? _historyTimer;
   bool _disposed = false;
   bool _cancelRequested = false;
+  int _nextRunId = 1;
 
   @override
   CompressionState build() {
@@ -52,6 +53,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
 
     state = state.copyWith(
       activeJob: () => CompressionJobState(
+        runId: _allocateRunId(),
         gamePath: gamePath,
         gameName: gameName,
         type: CompressionJobType.compression,
@@ -70,20 +72,13 @@ class CompressionNotifier extends Notifier<CompressionState> {
         allowDirectStorageOverride: dsOverride,
         ioParallelismOverride: ioParallelismOverride,
       );
-
-      _cancelSubscription();
-      _progressSubscription = stream.listen(
-        _onProgress,
-        onError: _onError,
-        onDone: _onDone,
-        cancelOnError: false,
-      );
+      _subscribeToProgressStream(stream);
     } catch (e) {
       _failJob('Failed to start: $e');
     }
   }
 
-  /// Cancel the active compression job.
+  /// Cancel the active manual compression/decompression job.
   void cancelCompression() {
     final job = state.activeJob;
     if (job == null || !job.isActive) return;
@@ -101,7 +96,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
     _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
   }
 
-  /// Start decompression (no progress stream).
+  /// Start decompression with progress streaming.
   Future<void> startDecompression({
     required String gamePath,
     required String gameName,
@@ -110,25 +105,29 @@ class CompressionNotifier extends Notifier<CompressionState> {
 
     state = state.copyWith(
       activeJob: () => CompressionJobState(
+        runId: _allocateRunId(),
         gamePath: gamePath,
         gameName: gameName,
         type: CompressionJobType.decompression,
         algorithm: CompressionAlgorithm.xpress4k,
         status: CompressionJobStatus.running,
+        progress: _initialProgress(gameName),
       ),
     );
 
     try {
       final bridge = ref.read(rustBridgeServiceProvider);
-      final ioParallelismOverride =
-          ref.read(settingsProvider).valueOrNull?.settings.ioParallelismOverride;
-      await bridge.decompressGame(
+      final ioParallelismOverride = ref
+          .read(settingsProvider)
+          .valueOrNull
+          ?.settings
+          .ioParallelismOverride;
+      final stream = bridge.decompressGame(
         gamePath,
+        gameName: gameName,
         ioParallelismOverride: ioParallelismOverride,
       );
-      if (_disposed) return;
-
-      _completeJob();
+      _subscribeToProgressStream(stream);
     } catch (e) {
       if (_disposed) return;
       _cancelRequested = false;
@@ -266,6 +265,22 @@ class CompressionNotifier extends Notifier<CompressionState> {
   void _cancelSubscription() {
     _progressSubscription?.cancel();
     _progressSubscription = null;
+  }
+
+  int _allocateRunId() {
+    final runId = _nextRunId;
+    _nextRunId += 1;
+    return runId;
+  }
+
+  void _subscribeToProgressStream(Stream<CompressionProgress> stream) {
+    _cancelSubscription();
+    _progressSubscription = stream.listen(
+      _onProgress,
+      onError: _onError,
+      onDone: _onDone,
+      cancelOnError: false,
+    );
   }
 
   Future<void> _refreshCompletedGame(CompressionJobState job) async {

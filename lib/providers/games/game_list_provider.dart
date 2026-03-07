@@ -376,6 +376,13 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     _updateState((s) => _applySingleGameUpdate(s, updatedGame));
   }
 
+  void removeGameByPath(String gamePath) {
+    if (gamePath.isEmpty) {
+      return;
+    }
+    _updateState((s) => _removeGameByPath(s, gamePath));
+  }
+
   void _updateState(GameListState Function(GameListState) updater) {
     final current = state.valueOrNull;
     if (current == null) return;
@@ -426,6 +433,27 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     }
 
     return snapshot.copyWith(games: updatedList);
+  }
+
+  GameListState _removeGameByPath(GameListState snapshot, String gamePath) {
+    final index = snapshot.games.indexWhere((g) => g.path == gamePath);
+    if (index < 0) {
+      return snapshot;
+    }
+
+    final updatedList = List<GameInfo>.from(snapshot.games)..removeAt(index);
+    _hydrationQueue.removeWhere((path) => path == gamePath);
+    _queuedHydrations.remove(gamePath);
+    _inFlightHydrations.remove(gamePath);
+    _fullyHydratedPaths.remove(gamePath);
+    _nextHydrationRetryAt.remove(gamePath);
+    _hydrationFailureCount.remove(gamePath);
+    _pendingHydratedUpdates.remove(gamePath);
+
+    return snapshot.copyWith(
+      games: updatedList,
+      lastRefreshed: () => DateTime.now(),
+    );
   }
 
   bool _isStaleRequest(int requestId) =>

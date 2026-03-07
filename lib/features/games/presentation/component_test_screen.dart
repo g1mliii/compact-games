@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../models/game_info.dart';
+import '../../../providers/compression/compression_progress_provider.dart';
+import '../../../providers/compression/compression_state.dart';
 import 'widgets/compression_progress_indicator.dart';
 import 'widgets/game_card.dart';
 
@@ -39,6 +41,7 @@ class ComponentTestScreen extends StatelessWidget {
                   platform: Platform.steam,
                   totalSizeBytes: 120 * _oneGiB,
                   isCompressed: false,
+                  assumeBoundedHeight: false,
                 ),
               ),
               SizedBox(
@@ -49,6 +52,7 @@ class ComponentTestScreen extends StatelessWidget {
                   totalSizeBytes: 200 * _oneGiB,
                   compressedSizeBytes: 176 * _oneGiB,
                   isCompressed: true,
+                  assumeBoundedHeight: false,
                 ),
               ),
               SizedBox(
@@ -58,19 +62,27 @@ class ComponentTestScreen extends StatelessWidget {
                   platform: Platform.xboxGamePass,
                   totalSizeBytes: 80 * _oneGiB,
                   isDirectStorage: true,
+                  assumeBoundedHeight: false,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          const SizedBox(
+          SizedBox(
             width: 420,
             child: CompressionProgressIndicator(
-              gameName: 'Racing Legends',
-              filesProcessed: 2400,
-              filesTotal: 6000,
-              bytesSaved: 26 * _oneGiB,
-              estimatedTimeRemainingSeconds: 190,
+              activity: CompressionActivityUiModel(
+                type: CompressionJobType.compression,
+                gameName: 'Racing Legends',
+                filesProcessed: 2400,
+                filesTotal: 6000,
+                percent: 40,
+                bytesDelta: 26 * _oneGiB,
+                hasKnownFileTotal: true,
+                isFileCountApproximate: false,
+                canCancel: true,
+                etaSeconds: 190,
+              ),
             ),
           ),
           const SizedBox(height: 20),

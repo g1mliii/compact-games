@@ -227,10 +227,11 @@ class _MinimalBridgeService implements RustBridgeService {
     int? ioParallelismOverride,
   }) => const Stream.empty();
   @override
-  Future<void> decompressGame(
+  Stream<CompressionProgress> decompressGame(
     String gamePath, {
+    required String gameName,
     int? ioParallelismOverride,
-  }) async {}
+  }) => const Stream.empty();
   @override
   Future<CompressionEstimate> estimateCompressionSavings({
     required String gamePath,
@@ -285,6 +286,7 @@ class _MinimalBridgeService implements RustBridgeService {
     required List<String> watchPaths,
     required List<String> excludedPaths,
     required CompressionAlgorithm algorithm,
+    bool allowDirectStorageOverride = false,
     int? ioParallelismOverride,
   }) async {}
   @override

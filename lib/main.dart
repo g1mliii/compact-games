@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
@@ -32,6 +34,11 @@ Future<void> main() async {
     PaintingBinding.shaderWarmUp = const PressPlayShaderWarmUp();
   }
   WidgetsFlutterBinding.ensureInitialized();
+  if (kDebugMode) {
+    // Baseline debug paint can persist across debug sessions and looks like
+    // a green underline under text-heavy widgets such as the activity card.
+    debugPaintBaselinesEnabled = false;
+  }
 
   // Cap decoded image memory at 50MB / 300 entries to stay under budget.
   final imageCache = PaintingBinding.instance.imageCache;
@@ -83,7 +90,7 @@ Future<void> main() async {
     }
   });
 
-  runApp(const PressPlayApp());
+  runApp(const _RustBridgeReloadHost(child: PressPlayApp()));
   PerfMonitor.markStartupEnd();
 }
 
@@ -94,8 +101,10 @@ const bool _enableShaderWarmUp = bool.fromEnvironment(
 
 const bool _preferDebugRustDll = bool.fromEnvironment(
   'PRESSPLAY_PREFER_DEBUG_RUST_DLL',
-  defaultValue: false,
+  defaultValue: true,
 );
+
+Future<void>? _debugHotReloadRustRestart;
 
 Future<void> _initRustBridge() async {
   final candidates = _rustLibraryCandidates();
@@ -118,6 +127,42 @@ Future<void> _initRustBridge() async {
   );
 }
 
+Future<void> _reloadRustBridgeForHotReload() async {
+  if (kReleaseMode || kIsWeb) {
+    return;
+  }
+
+  final existing = _debugHotReloadRustRestart;
+  if (existing != null) {
+    return existing;
+  }
+
+  final future = () async {
+    debugPrint('[rust] Hot reload detected; reloading Rust bridge');
+    try {
+      await RustBridgeService.instance.shutdownApp();
+    } catch (e) {
+      debugPrint('[rust] Hot reload shutdown failed: $e');
+    }
+
+    try {
+      await _initRustBridge();
+      RustBridgeService.instance.initApp();
+    } catch (e) {
+      debugPrint('[rust] Hot reload bridge reload failed: $e');
+    }
+  }();
+
+  _debugHotReloadRustRestart = future;
+  try {
+    await future;
+  } finally {
+    if (identical(_debugHotReloadRustRestart, future)) {
+      _debugHotReloadRustRestart = null;
+    }
+  }
+}
+
 void _safeDisposeRustLib() {
   try {
     RustLib.dispose();
@@ -137,6 +182,43 @@ List<String> _rustLibraryCandidates() {
   return _preferDebugRustDll
       ? const [debugDll, releaseDll]
       : const [releaseDll, debugDll];
+}
+
+class _RustBridgeReloadHost extends StatefulWidget {
+  const _RustBridgeReloadHost({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_RustBridgeReloadHost> createState() => _RustBridgeReloadHostState();
+}
+
+class _RustBridgeReloadHostState extends State<_RustBridgeReloadHost> {
+  int _providerScopeGeneration = 0;
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    if (kDebugMode) {
+      unawaited(() async {
+        await _reloadRustBridgeForHotReload();
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _providerScopeGeneration += 1;
+        });
+      }());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ProviderScope(
+      key: ValueKey<int>(_providerScopeGeneration),
+      child: widget.child,
+    );
+  }
 }
 
 class _PressPlayWindowListener extends WindowListener {

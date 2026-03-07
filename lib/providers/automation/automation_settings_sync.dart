@@ -52,6 +52,11 @@ final automationSettingsSyncProvider = Provider<void>((ref) {
       (async) => async.valueOrNull?.settings.ioParallelismOverride,
     ),
   );
+  final allowDirectStorageOverride = ref.watch(
+    settingsProvider.select(
+      (async) => async.valueOrNull?.settings.directStorageOverrideEnabled,
+    ),
+  );
 
   if (autoCompress == null) return;
 
@@ -66,6 +71,7 @@ final automationSettingsSyncProvider = Provider<void>((ref) {
         watchPaths: customFolders ?? const [],
         excludedPaths: excludedPaths ?? const [],
         algorithm: algorithm ?? CompressionAlgorithm.xpress8k,
+        allowDirectStorageOverride: allowDirectStorageOverride ?? false,
         ioParallelismOverride: ioParallelismOverride,
       ),
       operation: 'update config',

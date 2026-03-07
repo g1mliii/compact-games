@@ -31,10 +31,18 @@ class GameInfo {
   final bool isCompressed;
   final bool isDirectStorage;
   final bool excluded;
+
+  /// Legacy timestamp field from older transports. Avoid using this for new UI.
   final DateTime? lastPlayed;
+
+  /// Dedicated timestamp for last successful compression.
+  final DateTime? lastCompressedAt;
 
   /// Pre-lowered name for O(1) search filtering (avoids per-keystroke allocation).
   late final String normalizedName = name.toLowerCase();
+
+  /// Pre-lowered path for stable sort tiebreaking (avoids per-comparison allocation).
+  late final String normalizedPath = path.toLowerCase();
 
   GameInfo({
     required this.name,
@@ -46,6 +54,7 @@ class GameInfo {
     this.isDirectStorage = false,
     this.excluded = false,
     this.lastPlayed,
+    this.lastCompressedAt,
   });
 
   int get bytesSaved {
@@ -59,6 +68,13 @@ class GameInfo {
     return bytesSaved / sizeBytes;
   }
 
+  DateTime? get lastCompressed {
+    if (!isCompressed) {
+      return null;
+    }
+    return lastCompressedAt ?? lastPlayed;
+  }
+
   GameInfo copyWith({
     String? name,
     String? path,
@@ -69,6 +85,7 @@ class GameInfo {
     bool? isDirectStorage,
     bool? excluded,
     DateTime? Function()? lastPlayed,
+    DateTime? Function()? lastCompressedAt,
   }) {
     return GameInfo(
       name: name ?? this.name,
@@ -82,6 +99,9 @@ class GameInfo {
       isDirectStorage: isDirectStorage ?? this.isDirectStorage,
       excluded: excluded ?? this.excluded,
       lastPlayed: lastPlayed != null ? lastPlayed() : this.lastPlayed,
+      lastCompressedAt: lastCompressedAt != null
+          ? lastCompressedAt()
+          : this.lastCompressedAt,
     );
   }
 
@@ -98,7 +118,8 @@ class GameInfo {
           isCompressed == other.isCompressed &&
           isDirectStorage == other.isDirectStorage &&
           excluded == other.excluded &&
-          lastPlayed == other.lastPlayed;
+          lastPlayed == other.lastPlayed &&
+          lastCompressedAt == other.lastCompressedAt;
 
   @override
   int get hashCode => Object.hash(
@@ -111,6 +132,7 @@ class GameInfo {
     isDirectStorage,
     excluded,
     lastPlayed,
+    lastCompressedAt,
   );
 
   @override

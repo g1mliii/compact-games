@@ -31,6 +31,7 @@ class _SettingsSliderRowState extends State<SettingsSliderRow> {
   static const double _epsilon = 0.001;
   late double _draftValue;
   bool _dragging = false;
+  SliderThemeData? _cachedSliderTheme;
 
   @override
   void initState() {
@@ -52,7 +53,8 @@ class _SettingsSliderRowState extends State<SettingsSliderRow> {
   @override
   Widget build(BuildContext context) {
     final valueLabel = widget.valueLabelBuilder(_draftValue);
-    return Column(
+    return RepaintBoundary(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -63,7 +65,7 @@ class _SettingsSliderRowState extends State<SettingsSliderRow> {
           ],
         ),
         SliderTheme(
-          data: SliderTheme.of(context).copyWith(
+          data: _cachedSliderTheme ??= SliderTheme.of(context).copyWith(
             trackHeight: 2.5,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
@@ -96,6 +98,7 @@ class _SettingsSliderRowState extends State<SettingsSliderRow> {
           ),
         ),
       ],
+      ),
     );
   }
 }

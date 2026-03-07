@@ -440,10 +440,7 @@ fn max_optional_u64(lhs: Option<u64>, rhs: Option<u64>) -> Option<u64> {
 }
 
 fn unix_now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+    crate::utils::unix_now_ms()
 }
 
 #[cfg(test)]

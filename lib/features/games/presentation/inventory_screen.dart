@@ -31,6 +31,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   String _lastVisibleQuery = '';
   InventorySortField _lastVisibleSortField = InventorySortField.savingsPercent;
   bool _lastVisibleDescending = true;
+  String _lastVisibleExcludedSignature = '';
   List<GameInfo> _cachedVisibleGames = const <GameInfo>[];
 
   @override
@@ -48,16 +49,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final lastRefreshed = ref.watch(
       gameListProvider.select((s) => s.valueOrNull?.lastRefreshed),
     );
-    final isLoading = ref.watch(
-      gameListProvider.select((s) => s.isLoading),
-    );
-    final hasError = ref.watch(
-      gameListProvider.select((s) => s.hasError),
-    );
+    final isLoading = ref.watch(gameListProvider.select((s) => s.isLoading));
+    final hasError = ref.watch(gameListProvider.select((s) => s.hasError));
     final errorValue = ref.watch(
-      gameListProvider.select(
-        (s) => s.hasError ? s.error : null,
-      ),
+      gameListProvider.select((s) => s.hasError ? s.error : null),
     );
     final algorithmLabel = ref.watch(
       settingsProvider.select(
@@ -77,12 +72,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         (value) => value.valueOrNull?.settings.autoCompress ?? false,
       ),
     );
+    final excludedPaths = ref.watch(
+      settingsProvider.select(
+        (value) =>
+            value.valueOrNull?.settings.excludedPaths ?? const <String>[],
+      ),
+    );
     final watcherActive = ref.watch(
       autoCompressionRunningProvider.select(
         (value) => value.valueOrNull ?? false,
       ),
     );
     final refreshAllowed = !isLoading;
+    final excludedPathKeys = _normalizedExcludedPathKeys(excludedPaths);
 
     return Scaffold(
       appBar: AppBar(
@@ -108,81 +110,90 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           );
         }
         final gamesList = games ?? const <GameInfo>[];
-        final visibleGames = _computeVisibleGames(gamesList);
+        final visibleGames = _computeVisibleGames(gamesList, excludedPathKeys);
         final lastCheckedLabel = _formatLastChecked(lastRefreshed);
 
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: InventoryToolbar(
-                  searchController: _searchController,
-                  sortField: _sortField,
-                  descending: _descending,
-                  onSearchChanged: _onSearchChanged,
-                  onSortChanged: (next) => setState(() => _sortField = next),
-                  onToggleSortDirection: () =>
-                      setState(() => _descending = !_descending),
-                ),
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: InventoryToolbar(
+                searchController: _searchController,
+                sortField: _sortField,
+                descending: _descending,
+                onSearchChanged: _onSearchChanged,
+                onSortChanged: (next) => setState(() => _sortField = next),
+                onToggleSortDirection: () =>
+                    setState(() => _descending = !_descending),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: InventoryStatusRow(
-                  algorithmLabel: algorithmLabel,
-                  watcherActive: watcherActive,
-                  watcherEnabled: watcherEnabled,
-                  advancedEnabled: advancedEnabled,
-                  onWatcherEnabledChanged: (enabled) => ref
-                      .read(settingsProvider.notifier)
-                      .setAutoCompress(enabled),
-                  onAdvancedChanged: (enabled) => ref
-                      .read(settingsProvider.notifier)
-                      .setInventoryAdvancedScanEnabled(enabled),
-                  onRunFullRescan: () =>
-                      unawaited(refreshGamesAndInvalidateCovers(ref)),
-                  canRunFullRescan: refreshAllowed,
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: InventoryStatusRow(
+                algorithmLabel: algorithmLabel,
+                watcherActive: watcherActive,
+                watcherEnabled: watcherEnabled,
+                advancedEnabled: advancedEnabled,
+                onWatcherEnabledChanged: (enabled) => ref
+                    .read(settingsProvider.notifier)
+                    .setAutoCompress(enabled),
+                onAdvancedChanged: (enabled) => ref
+                    .read(settingsProvider.notifier)
+                    .setInventoryAdvancedScanEnabled(enabled),
+                onRunFullRescan: () =>
+                    unawaited(refreshGamesAndInvalidateCovers(ref)),
+                canRunFullRescan: refreshAllowed,
               ),
-              const SizedBox(height: 10),
-              const InventoryHeader(),
-              const SizedBox(height: 4),
-              Expanded(
-                child: visibleGames.isEmpty
-                    ? const InventoryEmpty()
-                    : RepaintBoundary(
-                        child: ListView.builder(
-                          itemExtent: 52,
-                          addAutomaticKeepAlives: false,
-                          addRepaintBoundaries: false,
-                          itemCount: visibleGames.length,
-                          itemBuilder: (context, index) {
-                            final game = visibleGames[index];
-                            return InventoryRow(
-                              key: ValueKey(game.path),
-                              game: game,
+            ),
+            const SizedBox(height: 10),
+            const InventoryHeader(),
+            const SizedBox(height: 4),
+            Expanded(
+              child: visibleGames.isEmpty
+                  ? const InventoryEmpty()
+                  : RepaintBoundary(
+                      child: ListView.builder(
+                        itemExtent: 52,
+                        addAutomaticKeepAlives: false,
+                        addRepaintBoundaries: true,
+                        itemCount: visibleGames.length,
+                        itemBuilder: (context, index) {
+                          final game = visibleGames[index];
+                          return InventoryRow(
+                            key: ValueKey(game.path),
+                            game: game,
+                            watcherLabel: _watcherLabelFor(
+                              game,
                               watcherActive: watcherActive,
-                              lastCheckedLabel: lastCheckedLabel,
-                              isStriped: index.isOdd,
-                              onOpenDetails: () => Navigator.of(
-                                context,
-                              ).pushNamed(AppRoutes.gameDetails(game.path)),
-                            );
-                          },
-                        ),
+                              excludedPathKeys: excludedPathKeys,
+                            ),
+                            lastCheckedLabel: lastCheckedLabel,
+                            isStriped: index.isOdd,
+                            onOpenDetails: () => Navigator.of(
+                              context,
+                            ).pushNamed(AppRoutes.gameDetails(game.path)),
+                          );
+                        },
                       ),
-              ),
-            ],
-          );
+                    ),
+            ),
+          ],
+        );
       }(),
     );
   }
 
-  List<GameInfo> _computeVisibleGames(List<GameInfo> games) {
+  List<GameInfo> _computeVisibleGames(
+    List<GameInfo> games,
+    Set<String> excludedPathKeys,
+  ) {
     final query = _debouncedQuery;
+    final excludedSignature = _excludedSignature(excludedPathKeys);
     if (identical(games, _lastVisibleSource) &&
         query == _lastVisibleQuery &&
         _sortField == _lastVisibleSortField &&
-        _descending == _lastVisibleDescending) {
+        _descending == _lastVisibleDescending &&
+        excludedSignature == _lastVisibleExcludedSignature) {
       return _cachedVisibleGames;
     }
 
@@ -193,8 +204,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               .toList(growable: false);
     final sorted = List<GameInfo>.from(filtered);
     sorted.sort((a, b) {
+      final watchGroupCmp = _watchGroupRank(
+        a,
+        excludedPathKeys,
+      ).compareTo(_watchGroupRank(b, excludedPathKeys));
+      if (watchGroupCmp != 0) {
+        return watchGroupCmp;
+      }
+
       final cmp = switch (_sortField) {
-        InventorySortField.name => a.name.compareTo(b.name),
+        InventorySortField.name => a.normalizedName.compareTo(b.normalizedName),
         InventorySortField.originalSize => a.sizeBytes.compareTo(b.sizeBytes),
         InventorySortField.savingsPercent => a.savingsRatio.compareTo(
           b.savingsRatio,
@@ -203,14 +222,53 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           b.platform.displayName,
         ),
       };
-      return _descending ? -cmp : cmp;
+      if (cmp != 0) {
+        return _descending ? -cmp : cmp;
+      }
+
+      final tieBreakCmp = a.normalizedName.compareTo(b.normalizedName);
+      if (tieBreakCmp != 0) {
+        return tieBreakCmp;
+      }
+
+      return a.normalizedPath.compareTo(b.normalizedPath);
     });
     _lastVisibleSource = games;
     _lastVisibleQuery = query;
     _lastVisibleSortField = _sortField;
     _lastVisibleDescending = _descending;
+    _lastVisibleExcludedSignature = excludedSignature;
     _cachedVisibleGames = sorted;
     return _cachedVisibleGames;
+  }
+
+  Set<String> _normalizedExcludedPathKeys(List<String> paths) {
+    return paths.map((path) => path.toLowerCase()).toSet();
+  }
+
+  String _excludedSignature(Set<String> excludedPathKeys) {
+    final normalized = excludedPathKeys.toList()..sort();
+    return normalized.join('|');
+  }
+
+  bool _isWatchedGame(GameInfo game, Set<String> excludedPathKeys) {
+    return game.isCompressed &&
+        !excludedPathKeys.contains(game.path.toLowerCase());
+  }
+
+  int _watchGroupRank(GameInfo game, Set<String> excludedPathKeys) {
+    return _isWatchedGame(game, excludedPathKeys) ? 0 : 1;
+  }
+
+  String _watcherLabelFor(
+    GameInfo game, {
+    required bool watcherActive,
+    required Set<String> excludedPathKeys,
+  }) {
+    if (!_isWatchedGame(game, excludedPathKeys)) {
+      return 'Not watched';
+    }
+    return watcherActive ? 'Watched' : 'Paused';
   }
 
   String _formatLastChecked(DateTime? lastChecked) {
@@ -240,5 +298,4 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       setState(() => _debouncedQuery = normalized);
     });
   }
-
 }

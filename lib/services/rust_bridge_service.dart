@@ -139,17 +139,21 @@ class RustBridgeService {
     return _mapFrbProgress(progress);
   }
 
-  /// Decompress a game folder.
-  Future<void> decompressGame(
+  /// Decompress a game folder with streamed progress updates.
+  Stream<CompressionProgress> decompressGame(
     String gamePath, {
+    required String gameName,
     int? ioParallelismOverride,
   }) {
-    return rust_compression.decompressGame(
-      gamePath: gamePath,
-      ioParallelismOverride: ioParallelismOverride == null
-          ? null
-          : BigInt.from(ioParallelismOverride),
-    );
+    return rust_compression
+        .decompressGame(
+          gamePath: gamePath,
+          gameName: gameName,
+          ioParallelismOverride: ioParallelismOverride == null
+              ? null
+              : BigInt.from(ioParallelismOverride),
+        )
+        .map(_mapFrbProgress);
   }
 
   /// Get compression ratio for a folder.
@@ -235,6 +239,7 @@ class RustBridgeService {
     required List<String> watchPaths,
     required List<String> excludedPaths,
     required CompressionAlgorithm algorithm,
+    bool allowDirectStorageOverride = false,
     int? ioParallelismOverride,
   }) {
     return rust_automation.updateAutomationConfig(
@@ -245,6 +250,7 @@ class RustBridgeService {
         watchPaths: watchPaths,
         excludedPaths: excludedPaths,
         algorithm: _toFrbAlgorithm(algorithm),
+        allowDirectstorageOverride: allowDirectStorageOverride,
         ioParallelismOverride: ioParallelismOverride == null
             ? null
             : BigInt.from(ioParallelismOverride),

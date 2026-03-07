@@ -49,86 +49,90 @@ class InventoryStatusRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final watcherLabel = watcherActive ? 'Watcher active' : 'Watcher paused';
-    return Container(
-      key: _inventoryStatusPanelKey,
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: _panelDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _InventoryInfoBadge(
-                icon: LucideIcons.cpu,
-                label: 'Algorithm',
-                value: algorithmLabel,
-              ),
-              _InventoryInfoBadge(
-                icon: watcherActive
-                    ? LucideIcons.radioTower
-                    : LucideIcons.pauseCircle,
-                label: 'Watcher',
-                value: watcherActive ? 'Active' : 'Paused',
-                color: watcherActive ? AppColors.success : AppColors.warning,
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                key: _inventoryWatcherToggleButtonKey,
-                onPressed: () => onWatcherEnabledChanged(!watcherEnabled),
-                icon: Icon(
-                  watcherEnabled ? LucideIcons.pause : LucideIcons.play,
-                  size: 16,
+    return RepaintBoundary(
+      child: Container(
+        key: _inventoryStatusPanelKey,
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: _panelDecoration,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InventoryInfoBadge(
+                  icon: LucideIcons.cpu,
+                  label: 'Algorithm',
+                  value: algorithmLabel,
                 ),
-                label: Text(
-                  watcherEnabled ? 'Pause watcher' : 'Resume watcher',
+                _InventoryInfoBadge(
+                  icon: watcherActive
+                      ? LucideIcons.radioTower
+                      : LucideIcons.pauseCircle,
+                  label: 'Watcher',
+                  value: watcherActive ? 'Active' : 'Paused',
+                  color: watcherActive ? AppColors.success : AppColors.warning,
                 ),
-              ),
-              FilledButton.tonalIcon(
-                key: _inventoryAdvancedScanToggleButtonKey,
-                onPressed: () => onAdvancedChanged(!advancedEnabled),
-                icon: Icon(
-                  advancedEnabled ? LucideIcons.toggleRight : LucideIcons.scan,
-                  size: 16,
-                ),
-                label: Text(
-                  advancedEnabled
-                      ? 'Advanced metadata scan: on'
-                      : 'Advanced metadata scan: off',
-                ),
-              ),
-            ],
-          ),
-          if (advancedEnabled) ...[
+              ],
+            ),
             const SizedBox(height: 10),
-            SizedBox(
-              height: _statusActionHeight,
-              child: FilledButton.icon(
-                key: _inventoryFullRescanButtonKey,
-                onPressed: canRunFullRescan ? onRunFullRescan : null,
-                icon: const Icon(LucideIcons.scan, size: 16),
-                label: Text(
-                  canRunFullRescan
-                      ? 'Run full inventory rescan'
-                      : 'Rescan unavailable while loading',
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  key: _inventoryWatcherToggleButtonKey,
+                  onPressed: () => onWatcherEnabledChanged(!watcherEnabled),
+                  icon: Icon(
+                    watcherEnabled ? LucideIcons.pause : LucideIcons.play,
+                    size: 16,
+                  ),
+                  label: Text(
+                    watcherEnabled ? 'Pause watcher' : 'Resume watcher',
+                  ),
+                ),
+                FilledButton.tonalIcon(
+                  key: _inventoryAdvancedScanToggleButtonKey,
+                  onPressed: () => onAdvancedChanged(!advancedEnabled),
+                  icon: Icon(
+                    advancedEnabled
+                        ? LucideIcons.toggleRight
+                        : LucideIcons.scan,
+                    size: 16,
+                  ),
+                  label: Text(
+                    advancedEnabled
+                        ? 'Advanced metadata scan: on'
+                        : 'Advanced metadata scan: off',
+                  ),
+                ),
+              ],
+            ),
+            if (advancedEnabled) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                height: _statusActionHeight,
+                child: FilledButton.icon(
+                  key: _inventoryFullRescanButtonKey,
+                  onPressed: canRunFullRescan ? onRunFullRescan : null,
+                  icon: const Icon(LucideIcons.scan, size: 16),
+                  label: Text(
+                    canRunFullRescan
+                        ? 'Run full inventory rescan'
+                        : 'Rescan unavailable while loading',
+                  ),
                 ),
               ),
+            ],
+            const SizedBox(height: 6),
+            Text(
+              '$watcherLabel. Interactive controls are shown as buttons below.',
+              style: AppTypography.bodySmall,
             ),
           ],
-          const SizedBox(height: 6),
-          Text(
-            '$watcherLabel. Interactive controls are shown as buttons below.',
-            style: AppTypography.bodySmall,
-          ),
-        ],
+        ),
       ),
     );
   }

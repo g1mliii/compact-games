@@ -1,7 +1,7 @@
 //! Compression API exposed to Flutter via FRB.
 //!
 //! Uses a module-level `OnceLock<Mutex<..>>` to track the active
-//! compression job so it can be cancelled from Dart.
+//! manual compression/decompression operation so it can be cancelled from Dart.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -16,17 +16,18 @@ use super::types::{
     FrbCompressionStats,
 };
 use crate::compression::algorithm::CompressionAlgorithm;
-use crate::compression::engine::{CancellationToken, CompressionEngine};
+use crate::compression::engine::{CancellationToken, CompressionEngine, CompressionProgressHandle};
 use crate::compression::error::CompressionError;
 use crate::compression::history::{
-    persist_if_dirty, record_compression, ActualStats, CompressionHistoryEntry, EstimateSnapshot,
+    persist_if_dirty, record_compression, CompressionHistoryEntry, EstimateSnapshot,
 };
+
 use crate::compression::thread_policy::compute_thread_policy;
 use crate::frb_generated::StreamSink;
 use crate::progress::tracker::CompressionProgress;
 use crate::safety::directstorage::is_directstorage_game;
 
-// ── Active compression tracking ───────────────────────────────────────
+// ── Active manual-operation tracking ──────────────────────────────────
 
 struct ActiveCompression {
     cancel_token: CancellationToken,
@@ -59,6 +60,66 @@ fn cancelled_stats() -> FrbCompressionStats {
         files_skipped: 0,
         duration_ms: 0,
     }
+}
+
+fn install_active_operation(cancel_token: &CancellationToken) -> Result<(), FrbCompressionError> {
+    let mut guard = active_lock().lock().unwrap_or_else(|e| {
+        log::warn!("ACTIVE manual-operation lock was poisoned; recovering");
+        e.into_inner()
+    });
+    if guard.is_some() {
+        return Err(FrbCompressionError::IoError {
+            message: "A compression or decompression operation is already in progress".into(),
+        });
+    }
+    *guard = Some(ActiveCompression {
+        cancel_token: cancel_token.clone(),
+    });
+    Ok(())
+}
+
+fn clear_active_operation() {
+    let mut guard = active_lock().lock().unwrap_or_else(|e| {
+        log::warn!("ACTIVE manual-operation lock was poisoned during cleanup; recovering");
+        e.into_inner()
+    });
+    *guard = None;
+}
+
+fn rollback_active_operation() {
+    let mut guard = active_lock().lock().unwrap_or_else(|poisoned| {
+        log::warn!("ACTIVE manual-operation lock was poisoned during rollback; recovering");
+        poisoned.into_inner()
+    });
+    *guard = None;
+    drop(guard);
+    set_active_progress(None);
+}
+
+fn drain_progress_stream(
+    handle: CompressionProgressHandle,
+    cancel_token: &CancellationToken,
+    sink: StreamSink<FrbCompressionProgress>,
+) -> Option<Result<crate::compression::engine::CompressionStats, CompressionError>> {
+    let CompressionProgressHandle { progress, result } = handle;
+    let mut sink_is_open = true;
+
+    loop {
+        match progress.recv_timeout(Duration::from_millis(200)) {
+            Ok(progress) => {
+                set_active_progress(Some(progress.clone()));
+                let frb_progress: FrbCompressionProgress = progress.into();
+                if sink_is_open && sink.add(frb_progress).is_err() {
+                    cancel_token.cancel();
+                    sink_is_open = false;
+                }
+            }
+            Err(RecvTimeoutError::Timeout) => continue,
+            Err(RecvTimeoutError::Disconnected) => break,
+        }
+    }
+
+    result.recv().ok()
 }
 
 // ── Public API ────────────────────────────────────────────────────────
@@ -106,21 +167,7 @@ pub fn compress_game(
             Err(_) => None,
         };
 
-    // Store cancel token for external cancellation access
-    {
-        let mut guard = active_lock().lock().unwrap_or_else(|e| {
-            log::warn!("ACTIVE compression lock was poisoned; recovering");
-            e.into_inner()
-        });
-        if guard.is_some() {
-            return Err(FrbCompressionError::IoError {
-                message: "A compression operation is already in progress".into(),
-            });
-        }
-        *guard = Some(ActiveCompression {
-            cancel_token: cancel_token.clone(),
-        });
-    }
+    install_active_operation(&cancel_token)?;
     set_active_progress(None);
 
     let handle = match engine.compress_folder_with_progress_with_manifest(
@@ -130,52 +177,14 @@ pub fn compress_game(
     ) {
         Ok(handle) => handle,
         Err(e) => {
-            let mut guard = active_lock().lock().unwrap_or_else(|poisoned| {
-                log::warn!(
-                    "ACTIVE compression lock was poisoned during start rollback; recovering"
-                );
-                poisoned.into_inner()
-            });
-            *guard = None;
-            drop(guard);
-            set_active_progress(None);
+            rollback_active_operation();
             return Err(e.into());
         }
     };
 
-    // Forward progress from crossbeam channel to FRB StreamSink
-    let mut sink_is_open = true;
-    loop {
-        match handle.progress.recv_timeout(Duration::from_millis(200)) {
-            Ok(progress) => {
-                // Clone progress (cheap, Arc<str> for game_name) for storage
-                set_active_progress(Some(progress.clone()));
-                // Convert to FRB type only when sending to Dart
-                let frb_progress: FrbCompressionProgress = progress.into();
-                if sink_is_open && sink.add(frb_progress).is_err() {
-                    // Dart side closed the stream — cancel compression but keep
-                    // draining until the worker thread exits to avoid orphan work.
-                    cancel_token.cancel();
-                    sink_is_open = false;
-                }
-            }
-            Err(RecvTimeoutError::Timeout) => continue,
-            Err(RecvTimeoutError::Disconnected) => break,
-        }
-    }
+    let result = drain_progress_stream(handle, &cancel_token, sink);
 
-    // Read final result from worker before cleanup to avoid detached
-    // compression work continuing after API return.
-    let result = handle.result.recv().ok();
-
-    // Cleanup
-    {
-        let mut guard = active_lock().lock().unwrap_or_else(|e| {
-            log::warn!("ACTIVE compression lock was poisoned during cleanup; recovering");
-            e.into_inner()
-        });
-        *guard = None;
-    }
+    clear_active_operation();
     set_active_progress(None);
 
     match result {
@@ -198,29 +207,13 @@ pub fn compress_game(
                 saved_ratio
             );
 
-            // Record compression history for adaptive learning
-            if let Some(est) = estimate_snapshot {
-                let history_entry = CompressionHistoryEntry {
-                    game_path: game_path.clone(),
-                    game_name: game_name.clone(),
-                    timestamp_ms: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .ok()
-                        .map(|d| d.as_millis() as u64)
-                        .unwrap_or_default(),
-                    estimate: est,
-                    actual_stats: ActualStats {
-                        original_bytes: stats.original_bytes,
-                        compressed_bytes: stats.compressed_bytes,
-                        actual_saved_bytes: stats.bytes_saved(),
-                        files_processed: stats.files_processed,
-                    },
-                    algorithm: algo,
-                    duration_ms: stats.duration_ms,
-                };
-
-                record_compression(history_entry);
-            }
+            record_compression(CompressionHistoryEntry::from_compression_stats(
+                game_path.clone(),
+                game_name.clone(),
+                estimate_snapshot,
+                &stats,
+                algo,
+            ));
 
             Ok(stats.into())
         }
@@ -233,11 +226,11 @@ pub fn compress_game(
     }
 }
 
-/// Cancel the active compression job.
+/// Cancel the active manual compression/decompression job.
 #[frb(sync)]
 pub fn cancel_compression() {
     let guard = active_lock().lock().unwrap_or_else(|e| {
-        log::warn!("ACTIVE compression lock was poisoned during cancel; recovering");
+        log::warn!("ACTIVE manual-operation lock was poisoned during cancel; recovering");
         e.into_inner()
     });
     if let Some(active) = guard.as_ref() {
@@ -245,7 +238,7 @@ pub fn cancel_compression() {
     }
 }
 
-/// Return the latest known progress for the active compression job.
+/// Return the latest known progress for the active manual operation.
 #[frb(sync)]
 pub fn get_compression_progress() -> Option<FrbCompressionProgress> {
     let guard = active_progress_lock().lock().unwrap_or_else(|e| {
@@ -256,10 +249,12 @@ pub fn get_compression_progress() -> Option<FrbCompressionProgress> {
     guard.clone().map(Into::into)
 }
 
-/// Decompress a game folder (no progress streaming needed).
+/// Decompress a game folder with progress streaming.
 pub fn decompress_game(
     game_path: String,
+    game_name: String,
     io_parallelism_override: Option<u64>,
+    sink: StreamSink<FrbCompressionProgress>,
 ) -> Result<(), FrbCompressionError> {
     let path = PathBuf::from(&game_path);
     // User-initiated decompression: full parallelism
@@ -270,7 +265,44 @@ pub fn decompress_game(
         io_override_to_usize(io_parallelism_override),
     );
     let engine = CompressionEngine::new(CompressionAlgorithm::default()).with_thread_policy(policy);
-    engine.decompress_folder(&path).map_err(Into::into)
+    let cancel_token = engine.cancel_token();
+
+    install_active_operation(&cancel_token)?;
+    set_active_progress(None);
+
+    let handle = match engine.decompress_folder_with_progress(&path, Arc::from(game_name)) {
+        Ok(handle) => handle,
+        Err(e) => {
+            rollback_active_operation();
+            return Err(e.into());
+        }
+    };
+
+    let result = drain_progress_stream(handle, &cancel_token, sink);
+
+    clear_active_operation();
+    set_active_progress(None);
+
+    match result {
+        Some(Ok(stats)) => {
+            let restored = stats.original_bytes.saturating_sub(stats.compressed_bytes);
+            log::info!(
+                "[decompression][summary] game=\"{}\" processed={} original={} compressed={} restored={}",
+                game_path,
+                stats.files_processed,
+                stats.original_bytes,
+                stats.compressed_bytes,
+                restored
+            );
+            Ok(())
+        }
+        Some(Err(CompressionError::Cancelled)) => Ok(()),
+        Some(Err(e)) => Err(e.into()),
+        None if cancel_token.is_cancelled() => Ok(()),
+        None => Err(FrbCompressionError::IoError {
+            message: "Decompression ended without a result".into(),
+        }),
+    }
 }
 
 /// Get the compression ratio for a folder.
@@ -342,5 +374,5 @@ fn current_cpu_usage_percent() -> Option<f32> {
 }
 
 fn io_override_to_usize(io_parallelism_override: Option<u64>) -> Option<usize> {
-    io_parallelism_override.and_then(|value| usize::try_from(value).ok())
+    crate::utils::io_parallelism_override_to_usize(io_parallelism_override)
 }

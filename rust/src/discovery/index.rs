@@ -1,12 +1,10 @@
+use crate::discovery::cache::{normalize_path_key, ChangeToken};
+use crate::discovery::platform::GameInfo;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LazyLock, RwLock};
-use std::time::UNIX_EPOCH;
-
-use crate::discovery::cache::{normalize_path_key, ChangeToken};
-use crate::discovery::platform::GameInfo;
 
 const INDEX_FILE_NAME: &str = "discovery_index.json";
 const INDEX_SCHEMA_VERSION: u32 = 1;
@@ -225,10 +223,7 @@ fn prune_if_needed(index: &mut IndexFile, incoming_key: &str) {
 }
 
 fn unix_now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+    crate::utils::unix_now_ms()
 }
 
 #[cfg(test)]

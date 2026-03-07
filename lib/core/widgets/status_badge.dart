@@ -51,6 +51,10 @@ class StatusBadge extends StatelessWidget {
   static const BorderRadius _borderRadius = BorderRadius.all(
     Radius.circular(8),
   );
+  static const EdgeInsets _padding = EdgeInsets.symmetric(
+    horizontal: 8,
+    vertical: 4,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -58,39 +62,33 @@ class StatusBadge extends StatelessWidget {
     final backgroundColor = effectiveColor.withValues(alpha: 0.1);
     final borderColor = effectiveColor.withValues(alpha: 0.3);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: variant == StatusBadgeVariant.filled
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  backgroundColor,
-                  backgroundColor.withValues(alpha: 0.04),
-                ],
-              )
-            : null,
-        color: variant == StatusBadgeVariant.filled ? null : Colors.transparent,
+        color: variant == StatusBadgeVariant.filled
+            ? backgroundColor
+            : Colors.transparent,
         borderRadius: _borderRadius,
         border: Border.all(color: borderColor, width: 1),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 14, color: effectiveColor),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            label,
-            style: AppTypography.label.copyWith(
-              color: effectiveColor,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
+      child: Padding(
+        padding: _padding,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: effectiveColor),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: AppTypography.label.copyWith(
+                color: effectiveColor,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

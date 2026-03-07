@@ -7,101 +7,26 @@
 //! can continue processing stop signals, config updates, watcher events,
 //! and state broadcasts during long-running compression operations.
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::mpsc::RecvTimeoutError;
 use std::time::Duration;
 
 use super::{
-    auto_status_sinks_lock, automation_queue_sinks_lock, scheduler_state_sinks_lock,
-    shared_state_lock, watcher_event_sinks_lock,
+    shared_state_lock, worker_broadcast, worker_compression::join_compression_worker,
+    worker_compression::spawn_compression_job, worker_compression::ActiveCompressionJob,
+    worker_compression::CompressionResult, worker_reconcile,
 };
-use crate::api::automation_types::{
-    FrbAutomationConfig, FrbAutomationJob, FrbSchedulerState, FrbWatcherEvent,
-};
+use crate::api::automation_types::{FrbAutomationConfig, FrbSchedulerState};
 use crate::automation::idle::{IdleConfig, IdleDetector};
 use crate::automation::journal::JournalWriter;
 use crate::automation::scheduler::{AutoScheduler, SchedulerAction, SchedulerConfig};
-use crate::automation::watcher::{GameWatcher, WatcherConfig};
+use crate::automation::watcher::{GameWatcher, WatchEvent, WatcherConfig};
 use crate::compression::algorithm::CompressionAlgorithm;
-use crate::compression::engine::{CancellationToken, CompressionEngine};
-use crate::compression::thread_policy::compute_thread_policy;
-use crate::safety::directstorage::is_directstorage_game;
 use crate::safety::process::ProcessChecker;
 
 pub(super) fn broadcast_auto_status(is_running: bool) {
-    let mut guard = auto_status_sinks_lock().lock().unwrap_or_else(|poisoned| {
-        log::warn!("AUTO status sinks lock poisoned during broadcast; recovering");
-        poisoned.into_inner()
-    });
-    guard.retain(|sink| sink.add(is_running).is_ok());
-}
-
-fn broadcast_watcher_event(event: &crate::automation::watcher::WatchEvent) {
-    let frb_event: FrbWatcherEvent = event.clone().into();
-    let mut guard = watcher_event_sinks_lock()
-        .lock()
-        .unwrap_or_else(|poisoned| {
-            log::warn!("Watcher event sinks lock poisoned; recovering");
-            poisoned.into_inner()
-        });
-    guard.retain(|sink| sink.add(frb_event.clone()).is_ok());
-}
-
-fn broadcast_scheduler_state(state: crate::automation::scheduler::SchedulerState) {
-    let frb_state: FrbSchedulerState = state.into();
-    let mut guard = scheduler_state_sinks_lock()
-        .lock()
-        .unwrap_or_else(|poisoned| {
-            log::warn!("Scheduler state sinks lock poisoned; recovering");
-            poisoned.into_inner()
-        });
-    guard.retain(|sink| sink.add(frb_state).is_ok());
-}
-
-fn broadcast_automation_queue(jobs: Vec<crate::automation::scheduler::AutomationJob>) {
-    let frb_jobs: Vec<FrbAutomationJob> = jobs.into_iter().map(|j| j.into()).collect();
-    let mut guard = automation_queue_sinks_lock()
-        .lock()
-        .unwrap_or_else(|poisoned| {
-            log::warn!("Automation queue sinks lock poisoned; recovering");
-            poisoned.into_inner()
-        });
-    guard.retain(|sink| sink.add(frb_jobs.clone()).is_ok());
-}
-
-fn update_shared_state(scheduler: &AutoScheduler, watcher: &GameWatcher) {
-    let mut guard = shared_state_lock().lock().unwrap_or_else(|poisoned| {
-        log::warn!("Shared state lock poisoned during update; recovering");
-        poisoned.into_inner()
-    });
-    guard.scheduler_state = scheduler.state().into();
-    guard.queue = scheduler
-        .queue_snapshot()
-        .into_iter()
-        .map(|j| j.into())
-        .collect();
-    guard.watched_path_count = watcher.watched_path_count() as u32;
-    guard.queue_depth = scheduler.pending_queue_len() as u32;
-}
-
-enum CompressionResult {
-    Success {
-        idempotency_key: String,
-    },
-    Failed {
-        idempotency_key: String,
-        error: String,
-    },
-    Skipped {
-        idempotency_key: String,
-        reason: String,
-    },
-}
-
-struct ActiveCompressionJob {
-    result_rx: crossbeam_channel::Receiver<CompressionResult>,
-    cancel_token: CancellationToken,
+    worker_broadcast::broadcast_auto_status(is_running);
 }
 
 pub(super) fn auto_loop(
@@ -130,72 +55,139 @@ pub(super) fn auto_loop(
     let mut last_state = scheduler.state();
     let mut active_compression: Option<ActiveCompressionJob> = None;
     let mut current_algorithm = CompressionAlgorithm::Xpress8K;
+    let mut current_allow_directstorage_override = false;
     let mut current_io_parallelism_override: Option<usize> = None;
+    let mut last_startup_reconcile_watch_paths: Vec<String> = Vec::new();
+    let mut startup_reconcile_pending_watch_paths: Option<Vec<String>> = None;
+    let mut startup_reconcile_pending_normalized_watch_paths: Vec<String> = Vec::new();
+    let mut startup_reconcile_pending_candidates: Option<
+        VecDeque<worker_reconcile::ReconcileCandidate>,
+    > = None;
+    let mut startup_reconcile_attempted_paths: HashSet<String> = HashSet::new();
 
     loop {
         match stop_rx.recv_timeout(Duration::from_secs(2)) {
             Ok(()) | Err(RecvTimeoutError::Disconnected) => {
-                if let Some(ref job) = active_compression {
+                if let Some(mut job) = active_compression.take() {
                     job.cancel_token.cancel();
-                    let _ = job.result_rx.recv_timeout(Duration::from_secs(5));
+                    if job.result_rx.recv_timeout(Duration::from_secs(5)).is_err() {
+                        log::warn!(
+                            "Timed out waiting for auto-compression cancellation result; waiting for worker thread join"
+                        );
+                    }
+                    join_compression_worker(&mut job, "shutdown");
                 }
                 break;
             }
             Err(RecvTimeoutError::Timeout) => {}
         }
 
-        // Check config updates
-        while let Ok(new_config) = config_rx.try_recv() {
+        // Check config updates (coalesce bursts to keep loop responsive).
+        let mut newest_config: Option<FrbAutomationConfig> = None;
+        let mut drained_updates = 0_usize;
+        while let Ok(config) = config_rx.try_recv() {
+            newest_config = Some(config);
+            drained_updates = drained_updates.saturating_add(1);
+        }
+        if let Some(new_config) = newest_config {
+            if drained_updates > 1 {
+                log::debug!(
+                    "Coalesced {} pending automation config updates into latest snapshot",
+                    drained_updates
+                );
+            }
             log::info!("Received automation config update");
             current_algorithm = frb_algorithm_to_internal(&new_config.algorithm);
-            current_io_parallelism_override = new_config
-                .io_parallelism_override
-                .map(|value| value as usize);
+            current_allow_directstorage_override = new_config.allow_directstorage_override;
+            current_io_parallelism_override =
+                io_parallelism_override_to_usize(new_config.io_parallelism_override);
+            let normalized_watch_paths =
+                worker_reconcile::normalize_watch_paths(&new_config.watch_paths);
             apply_config(
                 &new_config,
                 &mut idle_detector,
                 &mut scheduler,
                 &mut watcher,
             );
+            let has_pending_startup_reconcile = startup_reconcile_pending_watch_paths.is_some();
+            let pending_paths_changed = has_pending_startup_reconcile
+                && normalized_watch_paths != startup_reconcile_pending_normalized_watch_paths;
+            let completed_paths_changed =
+                normalized_watch_paths != last_startup_reconcile_watch_paths;
+
+            // Avoid restarting a pending reconcile cycle on repeated config updates
+            // unless the watched-path target actually changed.
+            if pending_paths_changed && !completed_paths_changed {
+                startup_reconcile_pending_watch_paths = None;
+                startup_reconcile_pending_normalized_watch_paths.clear();
+                startup_reconcile_pending_candidates = None;
+                startup_reconcile_attempted_paths.clear();
+            } else if completed_paths_changed
+                && (!has_pending_startup_reconcile || pending_paths_changed)
+            {
+                startup_reconcile_pending_watch_paths = Some(new_config.watch_paths.clone());
+                startup_reconcile_pending_normalized_watch_paths = normalized_watch_paths;
+                startup_reconcile_pending_candidates = None;
+                startup_reconcile_attempted_paths.clear();
+            }
         }
 
-        if let Some(ref active_job) = active_compression {
+        let mut finished_result: Option<CompressionResult> = None;
+        let mut worker_disconnected = false;
+        if let Some(active_job) = active_compression.as_mut() {
             match active_job.result_rx.try_recv() {
-                Ok(result) => {
-                    match result {
-                        CompressionResult::Success { idempotency_key } => {
-                            scheduler.job_completed(&idempotency_key);
-                        }
-                        CompressionResult::Failed {
-                            idempotency_key,
-                            error,
-                        } => {
-                            scheduler.job_failed(&idempotency_key, error);
-                        }
-                        CompressionResult::Skipped {
-                            idempotency_key,
-                            reason,
-                        } => {
-                            scheduler.job_skipped(&idempotency_key, reason);
-                        }
-                    }
-                    active_compression = None;
-                    broadcast_automation_queue(scheduler.queue_snapshot());
-                }
+                Ok(result) => finished_result = Some(result),
                 Err(crossbeam_channel::TryRecvError::Empty) => {}
-                Err(crossbeam_channel::TryRecvError::Disconnected) => {
-                    log::error!("Compression worker thread disconnected unexpectedly");
-                    active_compression = None;
+                Err(crossbeam_channel::TryRecvError::Disconnected) => worker_disconnected = true,
+            }
+        }
+
+        if let Some(result) = finished_result {
+            if let Some(mut finished_job) = active_compression.take() {
+                join_compression_worker(&mut finished_job, "completion");
+            }
+            match result {
+                CompressionResult::Success { idempotency_key } => {
+                    scheduler.job_completed(&idempotency_key);
                 }
+                CompressionResult::Failed {
+                    idempotency_key,
+                    error,
+                } => {
+                    scheduler.job_failed(&idempotency_key, error);
+                }
+                CompressionResult::Skipped {
+                    idempotency_key,
+                    reason,
+                } => {
+                    scheduler.job_skipped(&idempotency_key, reason);
+                }
+            }
+            worker_broadcast::broadcast_automation_queue(scheduler.queue_snapshot());
+        } else if worker_disconnected {
+            log::error!("Compression worker thread disconnected unexpectedly");
+            if let Some(mut disconnected_job) = active_compression.take() {
+                join_compression_worker(&mut disconnected_job, "disconnect");
             }
         }
 
         if let Some(rx) = watcher.event_channel() {
             while let Ok(event) = rx.try_recv() {
-                broadcast_watcher_event(&event);
+                on_watcher_event(&event);
+                worker_broadcast::broadcast_watcher_event(&event);
                 scheduler.on_event(event);
             }
         }
+
+        maybe_run_startup_reconcile(
+            &mut scheduler,
+            &active_compression,
+            &mut startup_reconcile_pending_watch_paths,
+            &mut startup_reconcile_pending_normalized_watch_paths,
+            &mut startup_reconcile_pending_candidates,
+            &mut last_startup_reconcile_watch_paths,
+            &mut startup_reconcile_attempted_paths,
+        );
 
         let is_idle = idle_detector.is_idle();
         let cpu_usage_percent = idle_detector.cpu_usage();
@@ -213,6 +205,7 @@ pub(super) fn auto_loop(
                         &job,
                         &process_checker,
                         current_algorithm,
+                        current_allow_directstorage_override,
                         cpu_usage_percent,
                         current_io_parallelism_override,
                     ));
@@ -227,11 +220,11 @@ pub(super) fn auto_loop(
 
         let current_state = scheduler.state();
         if current_state != last_state {
-            broadcast_scheduler_state(current_state);
-            broadcast_automation_queue(scheduler.queue_snapshot());
+            worker_broadcast::broadcast_scheduler_state(current_state);
+            worker_broadcast::broadcast_automation_queue(scheduler.queue_snapshot());
             last_state = current_state;
         }
-        update_shared_state(&scheduler, &watcher);
+        worker_broadcast::update_shared_state(&scheduler, &watcher);
     }
 
     watcher.stop();
@@ -283,122 +276,64 @@ fn apply_config(
     });
 }
 
-/// Spawn compression on a dedicated thread so auto_loop stays responsive.
-fn spawn_compression_job(
-    job: &crate::automation::scheduler::AutomationJob,
-    process_checker: &ProcessChecker,
-    algorithm: CompressionAlgorithm,
-    cpu_usage_percent: f32,
-    io_parallelism_override: Option<usize>,
-) -> ActiveCompressionJob {
-    let game_path = job.game_path.clone();
-    let game_name = job.game_name.clone();
-    let idempotency_key = job.idempotency_key.clone();
-    let (result_tx, result_rx) = crossbeam_channel::bounded::<CompressionResult>(1);
-    let cancel_token = CancellationToken::new();
+fn maybe_run_startup_reconcile(
+    scheduler: &mut AutoScheduler,
+    active_compression: &Option<ActiveCompressionJob>,
+    pending_watch_paths: &mut Option<Vec<String>>,
+    pending_normalized_watch_paths: &mut Vec<String>,
+    pending_candidates: &mut Option<VecDeque<worker_reconcile::ReconcileCandidate>>,
+    last_completed_normalized_watch_paths: &mut Vec<String>,
+    attempted_paths: &mut HashSet<String>,
+) {
+    if pending_watch_paths.is_none() {
+        return;
+    }
 
-    if is_directstorage_game(&game_path) {
-        log::info!("Skipping DirectStorage game: {}", game_path.display());
-        let _ = result_tx.send(CompressionResult::Skipped {
-            idempotency_key,
-            reason: "DirectStorage detected".to_string(),
-        });
-        return ActiveCompressionJob {
-            result_rx,
-            cancel_token,
+    // Keep startup reconcile lightweight: only scan when no compression is active
+    // and the scheduler queue has drained from prior reconcile batches.
+    if active_compression.is_some() || scheduler.pending_queue_len() > 0 {
+        return;
+    }
+
+    if pending_candidates.is_none() {
+        let Some(watch_paths) = pending_watch_paths.as_ref() else {
+            return;
         };
+        *pending_candidates = Some(worker_reconcile::build_startup_reconcile_candidates(
+            watch_paths,
+        ));
     }
 
-    if process_checker.is_game_running(&game_path) {
-        log::info!("Game is running, deferring: {}", game_path.display());
-        let _ = result_tx.send(CompressionResult::Failed {
-            idempotency_key,
-            error: "Game is currently running".to_string(),
-        });
-        return ActiveCompressionJob {
-            result_rx,
-            cancel_token,
+    let result = {
+        let Some(candidates) = pending_candidates.as_mut() else {
+            return;
         };
+        worker_reconcile::enqueue_startup_reconcile_candidate_batch(
+            scheduler,
+            candidates,
+            attempted_paths,
+        )
+    };
+
+    if result.queued > 0 {
+        log::info!(
+            "Queued {} startup reconcile job(s) for changes detected while app was closed",
+            result.queued
+        );
+        worker_broadcast::broadcast_automation_queue(scheduler.queue_snapshot());
     }
 
-    if !game_path.is_dir() {
-        log::warn!("Game path no longer exists: {}", game_path.display());
-        let _ = result_tx.send(CompressionResult::Skipped {
-            idempotency_key,
-            reason: "Path not found".to_string(),
-        });
-        return ActiveCompressionJob {
-            result_rx,
-            cancel_token,
-        };
+    if result.hit_cap {
+        log::debug!(
+            "Startup reconcile hit per-pass cap; remaining candidates will be queued in next drain cycle"
+        );
+        return;
     }
 
-    let token = cancel_token.clone();
-    let spawn_fail_tx = result_tx.clone();
-    let spawn_fail_key = idempotency_key.clone();
-    let spawn_result = std::thread::Builder::new()
-        .name("pressplay-auto-compress".to_owned())
-        .spawn(move || {
-            let policy = compute_thread_policy(
-                &game_path,
-                true,
-                Some(cpu_usage_percent),
-                io_parallelism_override,
-            );
-            let engine = CompressionEngine::new(algorithm)
-                .with_thread_policy(policy)
-                .with_cancel_token(token.clone());
-
-            log::info!(
-                "Auto-compressing: {} ({}) with {:?}",
-                game_name.as_deref().unwrap_or("unknown"),
-                game_path.display(),
-                algorithm,
-            );
-
-            let result = engine.compress_folder(&game_path);
-
-            let compression_result = match result {
-                Ok(stats) => {
-                    log::info!(
-                        "Auto-compression complete: {} saved {:.1}% ({} bytes)",
-                        game_path.display(),
-                        stats.savings_ratio() * 100.0,
-                        stats.bytes_saved()
-                    );
-                    CompressionResult::Success { idempotency_key }
-                }
-                Err(crate::compression::error::CompressionError::Cancelled) => {
-                    log::info!("Auto-compression cancelled for: {}", game_path.display());
-                    CompressionResult::Failed {
-                        idempotency_key,
-                        error: "Cancelled due to user activity".to_string(),
-                    }
-                }
-                Err(e) => {
-                    log::error!("Auto-compression failed for {}: {e}", game_path.display());
-                    CompressionResult::Failed {
-                        idempotency_key,
-                        error: e.to_string(),
-                    }
-                }
-            };
-
-            let _ = result_tx.send(compression_result);
-        });
-
-    if let Err(e) = spawn_result {
-        log::error!("Failed to spawn auto-compression thread: {e}");
-        let _ = spawn_fail_tx.send(CompressionResult::Failed {
-            idempotency_key: spawn_fail_key,
-            error: format!("Thread spawn failed: {e}"),
-        });
-    }
-
-    ActiveCompressionJob {
-        result_rx,
-        cancel_token,
-    }
+    *last_completed_normalized_watch_paths = std::mem::take(pending_normalized_watch_paths);
+    *pending_watch_paths = None;
+    *pending_candidates = None;
+    attempted_paths.clear();
 }
 
 fn frb_algorithm_to_internal(
@@ -410,5 +345,19 @@ fn frb_algorithm_to_internal(
         FrbCompressionAlgorithm::Xpress8K => CompressionAlgorithm::Xpress8K,
         FrbCompressionAlgorithm::Xpress16K => CompressionAlgorithm::Xpress16K,
         FrbCompressionAlgorithm::Lzx => CompressionAlgorithm::Lzx,
+    }
+}
+
+fn io_parallelism_override_to_usize(io_parallelism_override: Option<u64>) -> Option<usize> {
+    crate::utils::io_parallelism_override_to_usize(io_parallelism_override)
+}
+
+fn on_watcher_event(event: &WatchEvent) {
+    if let WatchEvent::GameUninstalled { path, .. } = event {
+        crate::discovery::utils::evict_discovery_entry(path);
+        crate::discovery::cache::persist_if_dirty();
+        crate::discovery::index::persist_if_dirty();
+        crate::discovery::change_feed::persist_if_dirty();
+        crate::discovery::install_history::persist_if_dirty();
     }
 }

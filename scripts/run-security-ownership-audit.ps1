@@ -8,7 +8,18 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$skillScripts = "C:/Users/subai/.codex/skills/security-ownership-map/scripts"
+$codexHome = $env:CODEX_HOME
+if ([string]::IsNullOrWhiteSpace($codexHome)) {
+  $homeDir = $HOME
+  if ([string]::IsNullOrWhiteSpace($homeDir)) {
+    $homeDir = $env:USERPROFILE
+  }
+  if ([string]::IsNullOrWhiteSpace($homeDir)) {
+    throw "Unable to resolve Codex home directory. Set CODEX_HOME or ensure HOME/USERPROFILE is available."
+  }
+  $codexHome = Join-Path $homeDir ".codex"
+}
+$skillScripts = Join-Path $codexHome "skills/security-ownership-map/scripts"
 $runScript = Join-Path $skillScripts "run_ownership_map.py"
 $queryScript = Join-Path $skillScripts "query_ownership.py"
 $sensitiveConfig = Join-Path $repoRoot "tasks/security_sensitive_rules.csv"
@@ -27,19 +38,33 @@ function Invoke-PreferredPython {
     [Parameter(Mandatory = $true)][string[]]$Arguments
   )
 
-  $pyLauncher = Get-Command "py" -ErrorAction SilentlyContinue
-  if ($pyLauncher) {
-    & $pyLauncher.Source -3 @Arguments
-    return $LASTEXITCODE
+  $windowsDir = $env:WINDIR
+  if ([string]::IsNullOrWhiteSpace($windowsDir)) {
+    $windowsDir = $env:SystemRoot
   }
 
-  $python = Get-Command "python" -ErrorAction SilentlyContinue
-  if ($python) {
-    & $python.Source @Arguments
-    return $LASTEXITCODE
+  if ([string]::IsNullOrWhiteSpace($windowsDir)) {
+    throw "Windows directory environment variables are unavailable; cannot resolve trusted Python launcher."
   }
 
-  throw "Python interpreter not found. Install Python 3 and ensure `py` or `python` is available."
+  $trustedPyCandidates = @(
+    (Join-Path $windowsDir "py.exe")
+  )
+  if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    $trustedPyCandidates += Join-Path $env:LOCALAPPDATA "Programs\Python\Launcher\py.exe"
+  }
+
+  $trustedPyLauncher = $trustedPyCandidates |
+    Select-Object -Unique |
+    Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+    Select-Object -First 1
+  if (-not $trustedPyLauncher) {
+    $searched = $trustedPyCandidates -join ", "
+    throw "Trusted Python launcher not found in approved locations: $searched. Install the Windows Python launcher and retry."
+  }
+
+  & $trustedPyLauncher -3 @Arguments
+  return $LASTEXITCODE
 }
 
 if (-not (Test-Path $runScript)) {
