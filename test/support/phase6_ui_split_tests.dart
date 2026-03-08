@@ -1,6 +1,157 @@
 part of '../phase6_ui_test.dart';
 
 void runPhase6OversizeSplitTests() {
+  testWidgets('Home header reflows actions below search at very narrow width', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(300, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(
+            body: Padding(
+              padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: HomeHeader(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+
+    final searchRect = tester.getRect(find.byType(TextField).first);
+    final refreshRect = tester.getRect(find.byTooltip('Refresh games'));
+    expect(refreshRect.top, greaterThan(searchRect.bottom));
+  });
+
+  testWidgets('Home cover-art nudge reflows actions at very narrow width', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(300, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeCoverArtNudge()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+
+    final messageRect = tester.getRect(
+      find.textContaining('SteamGridDB API key'),
+    );
+    final settingsRect = tester.getRect(find.text('Go to Settings'));
+    expect(settingsRect.top, greaterThan(messageRect.bottom));
+  });
+
+  testWidgets('Home list view stacks details below the list at narrow width', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(300, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeGameListView()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+
+    final listRowRect = tester.getRect(find.text('Pixel Raider'));
+    final detailHintRect = tester.getRect(
+      find.text('Select a game to view details'),
+    );
+    expect(detailHintRect.top, greaterThan(listRowRect.bottom));
+
+    await tester.tap(find.text('Pixel Raider'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('STATUS'), findsOneWidget);
+    final statusRect = tester.getRect(find.text('STATUS'));
+    expect(statusRect.top, greaterThan(listRowRect.bottom));
+  });
+
+  testWidgets('Home screen stays stable at very narrow width in list mode', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(300, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final persistence = _InMemorySettingsPersistence();
+    await persistence.save(const AppSettings(homeViewMode: HomeViewMode.list));
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Go to Settings'), findsOneWidget);
+    expect(find.text('Select a game to view details'), findsOneWidget);
+
+    await tester.tap(find.text('Pixel Raider'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('STATUS'), findsOneWidget);
+  });
+
   testWidgets(
     'Settings inventory layout keeps spacing and avoids overly wide controls',
     (WidgetTester tester) async {
@@ -320,6 +471,113 @@ void runPhase6OversizeSplitTests() {
       expect(bridge.lastAllowDirectStorageOverride, isTrue);
     },
   );
+
+  testWidgets(
+    'Game details compress action allows unsupported games without DirectStorage override',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Details Unsupported Compression',
+        path: r'C:\Games\details_unsupported_compression',
+        platform: Platform.steam,
+        sizeBytes: 96 * _oneGiB,
+        isUnsupported: true,
+      );
+      final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          settingsPersistenceProvider.overrideWithValue(
+            _InMemorySettingsPersistence(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: GameDetailsScreen(gamePath: game.path),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final primaryAction = find.byKey(
+        const ValueKey<String>('detailsStatusPrimaryAction'),
+      );
+      await tester.ensureVisible(primaryAction);
+      await tester.tap(primaryAction);
+      await tester.pump();
+
+      expect(bridge.compressCalls, 1);
+      expect(bridge.lastAllowDirectStorageOverride, isFalse);
+    },
+  );
+
+  testWidgets('Game details can mark and unmark unsupported state', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final game = GameInfo(
+      name: 'Details Unsupported Toggle',
+      path: r'C:\Games\details_unsupported_toggle',
+      platform: Platform.steam,
+      sizeBytes: 96 * _oneGiB,
+    );
+    final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: GameDetailsScreen(gamePath: game.path),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final unsupportedAction = find.byKey(
+      const ValueKey<String>('detailsStatusUnsupportedAction'),
+    );
+    await tester.ensureVisible(unsupportedAction);
+    expect(find.text('Mark as Unsupported'), findsOneWidget);
+
+    await tester.tap(unsupportedAction);
+    await tester.pumpAndSettle();
+
+    expect(bridge.reportUnsupportedGameCalls, 1);
+    expect(bridge.lastReportedUnsupportedGamePath, game.path);
+    expect(
+      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      isTrue,
+    );
+    expect(find.text('Mark as Supported'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('detailsStatusUnsupportedAction')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(bridge.unreportUnsupportedGameCalls, 1);
+    expect(bridge.lastUnreportedUnsupportedGamePath, game.path);
+    expect(
+      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      isFalse,
+    );
+    expect(find.text('Mark as Unsupported'), findsOneWidget);
+  });
 
   testWidgets('Refresh retries only placeholder cover entries', (
     WidgetTester tester,

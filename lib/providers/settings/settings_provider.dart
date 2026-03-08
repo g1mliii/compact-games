@@ -133,6 +133,10 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     _updateSetting((s) => s.copyWith(minimizeToTray: enabled));
   }
 
+  void setHomeViewMode(HomeViewMode mode) {
+    _updateSetting((s) => s.copyWith(homeViewMode: mode));
+  }
+
   void _updateSetting(AppSettings Function(AppSettings) updater) {
     final current = state.valueOrNull;
     if (current == null) return;

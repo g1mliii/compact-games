@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1193670539;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 469378877;
 
 // Section: executor
 
@@ -269,6 +269,38 @@ fn wire__crate__api__compression__estimate_compression_savings_impl(
                     Ok(output_ok)
                 })(
                 ))
+            }
+        },
+    )
+}
+fn wire__crate__api__unsupported__fetch_community_unsupported_list_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "fetch_community_unsupported_list",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::unsupported::fetch_community_unsupported_list()?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -620,6 +652,37 @@ fn wire__crate__api__compression__is_directstorage_impl(
         },
     )
 }
+fn wire__crate__api__unsupported__is_unsupported_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "is_unsupported",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_game_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::unsupported::is_unsupported(api_game_path))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__compression__persist_compression_history_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -645,6 +708,38 @@ fn wire__crate__api__compression__persist_compression_history_impl(
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok({
                     crate::api::compression::persist_compression_history();
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__unsupported__report_unsupported_game_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "report_unsupported_game",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::unsupported::report_unsupported_game(api_path);
                 })?;
                 Ok(output_ok)
             })())
@@ -780,6 +875,73 @@ fn wire__crate__api__automation__stop_auto_compression_impl(
                     Ok(output_ok)
                 })(),
             )
+        },
+    )
+}
+fn wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "sync_unsupported_report_collection",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_app_version = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::unsupported::sync_unsupported_report_collection(
+                        api_app_version,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__unsupported__unreport_unsupported_game_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "unreport_unsupported_game",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::unsupported::unreport_unsupported_game(api_path);
+                })?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -1647,57 +1809,69 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        7 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
-        8 => {
+        7 => wire__crate__api__unsupported__fetch_community_unsupported_list_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        8 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
+        9 => {
             wire__crate__api__discovery__get_all_games_quick_impl(port, ptr, rust_vec_len, data_len)
         }
-        11 => wire__crate__api__compression__get_compression_ratio_impl(
+        12 => wire__crate__api__compression__get_compression_ratio_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        14 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
-        19 => {
+        15 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
+        22 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        20 => wire__crate__api__automation__shared_auto_state_default_impl(
+        23 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__automation__start_auto_compression_impl(
+        24 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__automation__update_automation_config_impl(
+        26 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        28 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => wire__crate__api__automation__watch_automation_queue_impl(
+        29 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__api__automation__watch_scheduler_state_impl(
+        30 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__automation__watch_watcher_events_impl(
+        31 => wire__crate__api__automation__watch_scheduler_state_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        32 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1722,29 +1896,38 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        9 => wire__crate__api__automation__get_automation_queue_impl(ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__compression__get_compression_progress_impl(
+        10 => wire__crate__api__automation__get_automation_queue_impl(ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__compression__get_compression_progress_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        12 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
-        13 => {
+        13 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
+        14 => {
             wire__crate__api__automation__get_watcher_diagnostics_impl(ptr, rust_vec_len, data_len)
         }
-        15 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__automation__is_auto_compression_running_impl(
+        16 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__automation__is_auto_compression_running_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        17 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__compression__persist_compression_history_impl(
+        18 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__compression__persist_compression_history_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        22 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        21 => {
+            wire__crate__api__unsupported__report_unsupported_game_impl(ptr, rust_vec_len, data_len)
+        }
+        25 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }

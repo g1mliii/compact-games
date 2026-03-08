@@ -30,10 +30,19 @@ pub fn is_unsupported(game_path: String) -> bool {
     unsupported_games::is_unsupported_game(Path::new(&game_path))
 }
 
+/// Prepare the local unsupported-report payload and best-effort submit it when
+/// an ingest endpoint is configured.
+///
+/// Returns the number of stable local report candidates currently included.
+pub fn sync_unsupported_report_collection(app_version: String) -> Result<u32, String> {
+    unsupported_games::sync_report_collection(&app_version)
+}
+
 /// Fetch the community unsupported games list from GitHub and update the local cache.
 /// Returns the number of games in the updated list, or an error message.
 pub fn fetch_community_unsupported_list() -> Result<u32, String> {
-    const URL: &str = "https://raw.githubusercontent.com/ImminentFate/CompactGUI/master/unsupported_games.json";
+    const URL: &str =
+        "https://raw.githubusercontent.com/ImminentFate/CompactGUI/master/unsupported_games.json";
     const TIMEOUT_SECS: u64 = 15;
 
     let agent = ureq::Agent::new_with_config(

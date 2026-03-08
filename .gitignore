@@ -48,10 +48,13 @@ Thumbs.db
 ownership-map-out/
 ownership-map-out-pressplay-sensitive/
 ownership-map-out-pressplay-sensitive-*/
+dist/unsupported-community/
 
 # Environment
 .env
 .env.local
+cloudflare/**/.dev.vars
+cloudflare/**/.dev.vars.*
 
 # Build artifacts
 *.exe
@@ -66,6 +69,8 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+cloudflare/**/.wrangler/
+cloudflare/**/node_modules/
 
 # Windows specific
 *.obj

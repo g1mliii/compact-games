@@ -16,7 +16,7 @@ import '../../../../providers/games/game_list_provider.dart';
 import '../../../../providers/games/single_game_provider.dart';
 import '../../../../providers/settings/settings_provider.dart';
 import '../../../../providers/system/platform_shell_provider.dart';
-
+import 'game_actions.dart';
 import 'game_card.dart';
 import 'game_card_adapter_intents.dart';
 
@@ -198,13 +198,13 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     );
   }
 
-  /// Whether safety flags (DirectStorage / unsupported) block compression.
-  static bool _isSafetyBlocked(GameInfo game, bool allowOverride) =>
-      (game.isDirectStorage || game.isUnsupported) && !allowOverride;
+  /// Whether DirectStorage protection blocks compression.
+  static bool _isDirectStorageBlocked(GameInfo game, bool allowOverride) =>
+      game.isDirectStorage && !allowOverride;
 
   int? _estimatedSavedBytesFor(GameInfo game, bool allowDirectStorageOverride) {
     if (game.isCompressed) return null;
-    if (_isSafetyBlocked(game, allowDirectStorageOverride)) return null;
+    if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) return null;
     return _cachedEstimate?.estimatedSavedBytes;
   }
 
@@ -218,7 +218,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
 
   void _scheduleEstimateFetch(GameInfo game, bool allowDirectStorageOverride) {
     if (game.isCompressed) return;
-    if (_isSafetyBlocked(game, allowDirectStorageOverride)) return;
+    if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) return;
     if (_cachedEstimate != null) return;
     if (_estimateFetchScheduled) return;
     if (_estimateFetchInFlight) return;
@@ -270,7 +270,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
           .startDecompression(gamePath: game.path, gameName: game.name);
       return;
     }
-    if (_isSafetyBlocked(game, allowDirectStorageOverride)) return;
+    if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) return;
 
     final shouldCompress = await _confirmCompression(gameName: game.name);
     if (!mounted || !shouldCompress) return;
@@ -296,6 +296,12 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     ref.read(settingsProvider.notifier).toggleGameExclusion(game.path);
   }
 
+  void _setUnsupportedStatus(GameInfo game, {required bool isUnsupported}) {
+    toggleGameUnsupportedStatus(
+      ref, context, game, markUnsupported: isUnsupported,
+    );
+  }
+
   Future<void> _showContextMenu({
     required GameInfo game,
     required bool isExcluded,
@@ -315,7 +321,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
           value: GameContextAction.compress,
           enabled:
               !game.isCompressed &&
-              !_isSafetyBlocked(game, allowDirectStorageOverride),
+              !_isDirectStorageBlocked(game, allowDirectStorageOverride),
           child: _buildMenuLabel('Compress Now', LucideIcons.archive),
         ),
         PopupMenuItem(
@@ -324,9 +330,18 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
           child: _buildMenuLabel('Decompress', LucideIcons.archiveRestore),
         ),
         PopupMenuItem(
+          value: game.isUnsupported
+              ? GameContextAction.markSupported
+              : GameContextAction.markUnsupported,
+          child: _buildMenuLabel(
+            game.isUnsupported ? 'Mark as Supported' : 'Mark as Unsupported',
+            game.isUnsupported ? LucideIcons.checkCircle2 : LucideIcons.ban,
+          ),
+        ),
+        PopupMenuItem(
           value: GameContextAction.exclude,
           child: _buildMenuLabel(
-            isExcluded ? 'Include In Auto-Compression' : 'Exclude',
+            isExcluded ? 'Include In Auto-Compression' : 'Exclude From Auto-Compression',
             isExcluded ? LucideIcons.checkCircle2 : LucideIcons.ban,
           ),
         ),
@@ -355,6 +370,12 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
         await ref
             .read(compressionProvider.notifier)
             .startDecompression(gamePath: game.path, gameName: game.name);
+        break;
+      case GameContextAction.markUnsupported:
+        _setUnsupportedStatus(game, isUnsupported: true);
+        break;
+      case GameContextAction.markSupported:
+        _setUnsupportedStatus(game, isUnsupported: false);
         break;
       case GameContextAction.exclude:
         _toggleExclusion(game);
@@ -388,9 +409,17 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   }
 
   Widget _buildMenuLabel(String text, IconData icon) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [Icon(icon, size: 16), const SizedBox(width: 8), Text(text)],
+    return SizedBox(
+      width: double.infinity,
+      child: Row(
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
     );
   }
 

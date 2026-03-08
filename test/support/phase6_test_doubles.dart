@@ -25,6 +25,12 @@ class _TestRustBridgeService implements RustBridgeService {
   int compressCalls = 0;
   int decompressCalls = 0;
   bool? lastAllowDirectStorageOverride;
+  int reportUnsupportedGameCalls = 0;
+  String? lastReportedUnsupportedGamePath;
+  int unreportUnsupportedGameCalls = 0;
+  String? lastUnreportedUnsupportedGamePath;
+  int syncUnsupportedReportCollectionCalls = 0;
+  String? lastSyncUnsupportedReportAppVersion;
 
   @override
   void cancelCompression() {}
@@ -124,6 +130,27 @@ class _TestRustBridgeService implements RustBridgeService {
   @override
   bool isDirectStorage(String gamePath) {
     return false;
+  }
+
+  @override
+  void reportUnsupportedGame(String gamePath) {
+    reportUnsupportedGameCalls += 1;
+    lastReportedUnsupportedGamePath = gamePath;
+  }
+
+  @override
+  void unreportUnsupportedGame(String gamePath) {
+    unreportUnsupportedGameCalls += 1;
+    lastUnreportedUnsupportedGamePath = gamePath;
+  }
+
+  @override
+  Future<int> syncUnsupportedReportCollection({
+    required String appVersion,
+  }) async {
+    syncUnsupportedReportCollectionCalls += 1;
+    lastSyncUnsupportedReportAppVersion = appVersion;
+    return 0;
   }
 
   @override

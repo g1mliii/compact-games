@@ -32,6 +32,7 @@ import 'package:pressplay/providers/system/route_state_provider.dart';
 import 'package:pressplay/providers/system/platform_shell_provider.dart';
 import 'package:pressplay/services/rust_bridge_service.dart';
 import 'package:pressplay/services/platform_shell_service.dart';
+import 'package:pressplay/services/unsupported_report_sync_service.dart';
 
 part 'support/rust_bridge_test_doubles.dart';
 part 'support/widget_progress_indicator_tests.dart';
@@ -490,6 +491,150 @@ void main() {
   });
 
   testWidgets(
+    'Unsupported games can compress from card menu without DirectStorage override',
+    (WidgetTester tester) async {
+      final unsupportedGames = <GameInfo>[
+        GameInfo(
+          name: 'Unsupported Compression Candidate',
+          path: r'C:\Games\unsupported_compression_candidate',
+          platform: Platform.steam,
+          sizeBytes: 58 * _oneGiB,
+          isUnsupported: true,
+        ),
+      ];
+      final bridge = _RecordingRustBridgeService(games: unsupportedGames);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+          child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(GameCard).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Compress Now'), findsOneWidget);
+
+      await tester.tap(find.text('Compress Now'));
+      await tester.pumpAndSettle();
+
+      expect(bridge.compressCalls, 1);
+      expect(bridge.lastAllowDirectStorageOverride, isFalse);
+    },
+  );
+
+  testWidgets('Card menu can mark and unmark unsupported state', (
+    WidgetTester tester,
+  ) async {
+    final game = GameInfo(
+      name: 'Unsupported Candidate',
+      path: r'C:\Games\unsupported_candidate',
+      platform: Platform.steam,
+      sizeBytes: 42 * _oneGiB,
+    );
+    final bridge = _RecordingRustBridgeService(games: <GameInfo>[game]);
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(
+      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      isFalse,
+    );
+
+    await tester.tap(find.byType(GameCard).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mark as Unsupported'), findsOneWidget);
+
+    await tester.tap(find.text('Mark as Unsupported'));
+    await tester.pumpAndSettle();
+
+    expect(bridge.reportUnsupportedGameCalls, 1);
+    expect(bridge.lastReportedUnsupportedGamePath, game.path);
+    expect(
+      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      isTrue,
+    );
+    expect(find.textContaining('marked as unsupported'), findsOneWidget);
+
+    await tester.tap(find.byType(GameCard).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mark as Supported'), findsOneWidget);
+
+    await tester.tap(find.text('Mark as Supported'));
+    await tester.pumpAndSettle();
+
+    expect(bridge.unreportUnsupportedGameCalls, 1);
+    expect(bridge.lastUnreportedUnsupportedGamePath, game.path);
+    expect(
+      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      isFalse,
+    );
+    expect(find.textContaining('marked as supported'), findsOneWidget);
+  });
+
+  testWidgets('Marking unsupported preserves fresher game state updates', (
+    WidgetTester tester,
+  ) async {
+    final game = GameInfo(
+      name: 'Unsupported Merge Candidate',
+      path: r'C:\Games\unsupported_merge_candidate',
+      platform: Platform.steam,
+      sizeBytes: 42 * _oneGiB,
+    );
+    final bridge = _RecordingRustBridgeService(games: <GameInfo>[game]);
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(GameCard).first);
+    await tester.pumpAndSettle();
+
+    final hydratedGame = game.copyWith(
+      isCompressed: true,
+      compressedSize: () => 30 * _oneGiB,
+      lastCompressedAt: () => DateTime(2026, 3, 8, 12, 0),
+    );
+    container.read(gameListProvider.notifier).updateGame(hydratedGame);
+    await tester.pump();
+
+    await tester.tap(find.text('Mark as Unsupported'));
+    await tester.pumpAndSettle();
+
+    final updatedGame = container
+        .read(gameListProvider)
+        .valueOrNull!
+        .games
+        .first;
+    expect(updatedGame.isUnsupported, isTrue);
+    expect(updatedGame.isCompressed, isTrue);
+    expect(updatedGame.compressedSize, 30 * _oneGiB);
+    expect(updatedGame.lastCompressed, DateTime(2026, 3, 8, 12, 0));
+  });
+
+  testWidgets(
     'Automation settings sync forwards DirectStorage override to auto config',
     (WidgetTester tester) async {
       final bridge = _RecordingRustBridgeService(games: _sampleGames);
@@ -699,6 +844,40 @@ void main() {
       expect(state.activeJob, isNull);
       expect(state.history, isNotEmpty);
       expect(state.history.first.status, CompressionJobStatus.cancelled);
+    },
+  );
+
+  test(
+    'Unsupported report sync queues a follow-up run after mid-flight changes',
+    () async {
+      final bridge = _QueuedSyncRustBridgeService();
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+      addTearDown(UnsupportedReportSyncService.instance.resetForTest);
+
+      final service = UnsupportedReportSyncService.instance;
+      service.resetForTest();
+
+      final firstRun = service.sync(container);
+      expect(bridge.syncUnsupportedReportCollectionCalls, 1);
+      expect(bridge.pendingSyncCount, 1);
+
+      service.notePotentialChange(container);
+      expect(bridge.syncUnsupportedReportCollectionCalls, 1);
+
+      bridge.completeNextSync();
+      await firstRun;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bridge.syncUnsupportedReportCollectionCalls, 2);
+      expect(bridge.pendingSyncCount, 1);
+
+      bridge.completeNextSync();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bridge.pendingSyncCount, 0);
     },
   );
 }

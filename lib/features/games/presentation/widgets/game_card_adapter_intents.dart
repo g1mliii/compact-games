@@ -4,6 +4,8 @@ enum GameContextAction {
   viewDetails,
   compress,
   decompress,
+  markUnsupported,
+  markSupported,
   exclude,
   openFolder,
 }

@@ -6,9 +6,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/navigation/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../models/app_settings.dart';
 import '../../../../providers/games/filtered_games_provider.dart';
 import '../../../../providers/games/game_list_provider.dart';
 import '../../../../providers/games/refresh_games_helper.dart';
+import '../../../../providers/settings/settings_provider.dart';
 import '../../../../providers/system/platform_shell_provider.dart';
 part 'home_add_game_dialog.dart';
 
@@ -32,6 +34,9 @@ class HomeHeader extends ConsumerWidget {
     Radius.circular(16),
   );
   static const double _compactHeaderBreakpoint = 720;
+  static const double _compactSearchMinWidth = 160;
+  static const double _headerActionButtonWidth = 44;
+  static const double _headerActionSpacing = 8;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,6 +59,27 @@ class HomeHeader extends ConsumerWidget {
       icon: LucideIcons.refreshCw,
       tooltip: 'Refresh games',
       onPressed: () => unawaited(refreshGamesAndInvalidateCovers(ref)),
+    );
+    final viewMode = ref.watch(
+      settingsProvider.select(
+        (async) =>
+            async.valueOrNull?.settings.homeViewMode ?? HomeViewMode.grid,
+      ),
+    );
+    final viewToggleButton = _HeaderActionIconButton(
+      icon: viewMode == HomeViewMode.grid
+          ? LucideIcons.layoutList
+          : LucideIcons.layoutGrid,
+      tooltip: viewMode == HomeViewMode.grid
+          ? 'Switch to list view'
+          : 'Switch to grid view',
+      onPressed: () => ref
+          .read(settingsProvider.notifier)
+          .setHomeViewMode(
+            viewMode == HomeViewMode.grid
+                ? HomeViewMode.list
+                : HomeViewMode.grid,
+          ),
     );
     final inventoryButton = _HeaderActionIconButton(
       icon: LucideIcons.list,
@@ -83,6 +109,7 @@ class HomeHeader extends ConsumerWidget {
           child: _HeaderResponsiveLayout(
             breakpoint: _compactHeaderBreakpoint,
             savedBadgeWidgets: savedBadgeWidgets,
+            viewToggleButton: viewToggleButton,
             addGameButton: addGameButton,
             inventoryButton: inventoryButton,
             settingsButton: settingsButton,
@@ -158,6 +185,7 @@ class _HeaderResponsiveLayout extends StatefulWidget {
   const _HeaderResponsiveLayout({
     required this.breakpoint,
     required this.savedBadgeWidgets,
+    required this.viewToggleButton,
     required this.addGameButton,
     required this.inventoryButton,
     required this.settingsButton,
@@ -166,6 +194,7 @@ class _HeaderResponsiveLayout extends StatefulWidget {
 
   final double breakpoint;
   final List<Widget> savedBadgeWidgets;
+  final Widget viewToggleButton;
   final Widget addGameButton;
   final Widget inventoryButton;
   final Widget settingsButton;
@@ -177,18 +206,21 @@ class _HeaderResponsiveLayout extends StatefulWidget {
 }
 
 class _HeaderResponsiveLayoutState extends State<_HeaderResponsiveLayout> {
-  bool _compact = false;
+  bool? _compact;
+  bool? _innerSingleRow;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < widget.breakpoint;
-        // Update cached breakpoint synchronously — no setState needed since
-        // we use the value in the same builder call.  Between breakpoints the
-        // returned subtree is identical, so Flutter reconciliation is a no-op.
+        if (compact == _compact) {
+          // Layout mode unchanged — return identical subtree for reconciliation.
+          return compact ? _buildCompact() : _buildWide();
+        }
         _compact = compact;
-        return _compact ? _buildCompact() : _buildWide();
+        _innerSingleRow = null; // reset inner cache on mode change
+        return compact ? _buildCompact() : _buildWide();
       },
     );
   }
@@ -206,7 +238,18 @@ class _HeaderResponsiveLayoutState extends State<_HeaderResponsiveLayout> {
     ],
   );
 
+  List<Widget> _actionsList() => <Widget>[
+    widget.viewToggleButton,
+    widget.addGameButton,
+    widget.inventoryButton,
+    widget.settingsButton,
+    widget.refreshButton,
+  ];
+
   Widget _buildCompact() {
+    // Build actions list once for both inner layouts.
+    final actions = _actionsList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -221,18 +264,59 @@ class _HeaderResponsiveLayoutState extends State<_HeaderResponsiveLayout> {
           ],
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            const Expanded(child: _SearchField()),
-            const SizedBox(width: 8),
-            widget.addGameButton,
-            const SizedBox(width: 8),
-            widget.inventoryButton,
-            const SizedBox(width: 8),
-            widget.settingsButton,
-            const SizedBox(width: 8),
-            widget.refreshButton,
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final actionsWidth =
+                (actions.length * HomeHeader._headerActionButtonWidth) +
+                ((actions.length - 1) * HomeHeader._headerActionSpacing);
+            final singleRow =
+                constraints.maxWidth >=
+                actionsWidth + HomeHeader._compactSearchMinWidth;
+
+            // Only rebuild when the inner layout mode changes.
+            if (singleRow == _innerSingleRow) {
+              return singleRow
+                  ? _buildCompactSingleRow(actions)
+                  : _buildCompactWrapped(actions);
+            }
+            _innerSingleRow = singleRow;
+            return singleRow
+                ? _buildCompactSingleRow(actions)
+                : _buildCompactWrapped(actions);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactSingleRow(List<Widget> actions) {
+    return Row(
+      children: [
+        const Expanded(child: _SearchField()),
+        const SizedBox(width: HomeHeader._headerActionSpacing),
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0)
+            const SizedBox(width: HomeHeader._headerActionSpacing),
+          actions[i],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCompactWrapped(List<Widget> actions) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SearchField(),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(
+            spacing: HomeHeader._headerActionSpacing,
+            runSpacing: HomeHeader._headerActionSpacing,
+            alignment: WrapAlignment.end,
+            children: actions,
+          ),
         ),
       ],
     );
@@ -246,6 +330,8 @@ class _HeaderResponsiveLayoutState extends State<_HeaderResponsiveLayout> {
         ...widget.savedBadgeWidgets,
         const Spacer(),
         const SizedBox(width: 240, child: _SearchField()),
+        const SizedBox(width: 8),
+        widget.viewToggleButton,
         const SizedBox(width: 8),
         widget.addGameButton,
         const SizedBox(width: 8),

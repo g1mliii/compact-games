@@ -1,5 +1,8 @@
 import 'compression_algorithm.dart';
 
+/// Layout mode for the home screen game library.
+enum HomeViewMode { grid, list }
+
 /// Application settings with JSON persistence.
 class AppSettings {
   static const int currentSchemaVersion = 3;
@@ -19,6 +22,7 @@ class AppSettings {
   final String? steamGridDbApiKey;
   final bool inventoryAdvancedScanEnabled;
   final bool minimizeToTray;
+  final HomeViewMode homeViewMode;
 
   const AppSettings({
     this.schemaVersion = currentSchemaVersion,
@@ -36,6 +40,7 @@ class AppSettings {
     this.steamGridDbApiKey,
     this.inventoryAdvancedScanEnabled = false,
     this.minimizeToTray = true,
+    this.homeViewMode = HomeViewMode.grid,
   });
 
   /// Clamp values to safe ranges.
@@ -56,6 +61,7 @@ class AppSettings {
       steamGridDbApiKey: _normalizedApiKey(steamGridDbApiKey),
       inventoryAdvancedScanEnabled: inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray,
+      homeViewMode: homeViewMode,
     );
   }
 
@@ -74,6 +80,7 @@ class AppSettings {
     String? Function()? steamGridDbApiKey,
     bool? inventoryAdvancedScanEnabled,
     bool? minimizeToTray,
+    HomeViewMode? homeViewMode,
   }) {
     return AppSettings(
       schemaVersion: schemaVersion,
@@ -97,6 +104,7 @@ class AppSettings {
       inventoryAdvancedScanEnabled:
           inventoryAdvancedScanEnabled ?? this.inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray ?? this.minimizeToTray,
+      homeViewMode: homeViewMode ?? this.homeViewMode,
     );
   }
 
@@ -113,8 +121,10 @@ class AppSettings {
     'themeVariant': themeVariant,
     'directStorageOverrideEnabled': directStorageOverrideEnabled,
     'ioParallelismOverride': ioParallelismOverride,
+    'steamGridDbApiKey': steamGridDbApiKey,
     'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
     'minimizeToTray': minimizeToTray,
+    'homeViewMode': homeViewMode.name,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -146,6 +156,10 @@ class AppSettings {
       inventoryAdvancedScanEnabled:
           json['inventoryAdvancedScanEnabled'] as bool? ?? false,
       minimizeToTray: json['minimizeToTray'] as bool? ?? true,
+      homeViewMode: HomeViewMode.values.firstWhere(
+        (v) => v.name == json['homeViewMode'],
+        orElse: () => HomeViewMode.grid,
+      ),
     ).validated();
   }
 

@@ -1,0 +1,10 @@
+name = "pressplay-unsupported-report-ingest"
+main = "src/index.js"
+compatibility_date = "2026-03-08"
+workers_dev = true
+preview_urls = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pressplay-unsupported-reports"
+database_id = "920fcb7e-dbf0-4afd-8ad0-7f76f91054b3"

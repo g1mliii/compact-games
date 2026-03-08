@@ -12,6 +12,7 @@ import '../src/rust/api/automation.dart' as rust_automation;
 import '../src/rust/api/automation_types.dart' as rust_automation_types;
 import '../src/rust/api/compression.dart' as rust_compression;
 import '../src/rust/api/discovery.dart' as rust_discovery;
+import '../src/rust/api/unsupported.dart' as rust_unsupported;
 import '../src/rust/frb_generated.dart';
 import '../src/rust/api/minimal.dart' as rust_minimal;
 import '../src/rust/api/types.dart' as rust_types;
@@ -194,6 +195,24 @@ class RustBridgeService {
   /// Check if a game uses DirectStorage.
   bool isDirectStorage(String gamePath) {
     return rust_compression.isDirectstorage(gamePath: gamePath);
+  }
+
+  /// Persist a local unsupported-game report for a path.
+  void reportUnsupportedGame(String gamePath) {
+    rust_unsupported.reportUnsupportedGame(path: gamePath);
+  }
+
+  /// Remove a local unsupported-game report for a path.
+  void unreportUnsupportedGame(String gamePath) {
+    rust_unsupported.unreportUnsupportedGame(path: gamePath);
+  }
+
+  /// Prepare the local unsupported-report payload and best-effort submit it
+  /// when an ingest endpoint is configured.
+  Future<int> syncUnsupportedReportCollection({required String appVersion}) {
+    return rust_unsupported.syncUnsupportedReportCollection(
+      appVersion: appVersion,
+    );
   }
 
   Future<void> startAutoCompression() {

@@ -8,6 +8,8 @@ import '../../../../../core/theme/app_typography.dart';
 import '../../../../../models/game_info.dart';
 import '../../../../../providers/compression/compression_provider.dart';
 import '../../../../../providers/settings/settings_provider.dart';
+import '../../../../../providers/system/platform_shell_provider.dart';
+import '../game_actions.dart';
 
 const ValueKey<String> _detailsStatusActionRowKey = ValueKey<String>(
   'detailsStatusActionRow',
@@ -20,6 +22,9 @@ const ValueKey<String> _detailsStatusPrimaryActionKey = ValueKey<String>(
 );
 const ValueKey<String> _detailsStatusExcludeActionKey = ValueKey<String>(
   'detailsStatusExcludeAction',
+);
+const ValueKey<String> _detailsStatusUnsupportedActionKey = ValueKey<String>(
+  'detailsStatusUnsupportedAction',
 );
 
 class GameDetailsInfoCard extends ConsumerWidget {
@@ -110,7 +115,7 @@ class GameDetailsInfoCard extends ConsumerWidget {
   }
 }
 
-class _StatusSectionHeader extends StatelessWidget {
+class _StatusSectionHeader extends StatefulWidget {
   const _StatusSectionHeader({required this.game, required this.isExcluded});
 
   static const double _compactBreakpoint = 720;
@@ -119,42 +124,64 @@ class _StatusSectionHeader extends StatelessWidget {
   final bool isExcluded;
 
   @override
+  State<_StatusSectionHeader> createState() => _StatusSectionHeaderState();
+}
+
+class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
+  bool? _compact;
+
+  @override
   Widget build(BuildContext context) {
+    // Build actions widget once, outside the LayoutBuilder.
+    final actions = Align(
+      alignment: Alignment.centerRight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: _StatusActionButtons(
+          game: widget.game,
+          isExcluded: widget.isExcluded,
+        ),
+      ),
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < _compactBreakpoint;
-        final actions = Align(
-          alignment: Alignment.centerRight,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: _StatusActionButtons(game: game, isExcluded: isExcluded),
-          ),
-        );
-
-        if (compact) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _InfoGroupTitle(title: 'Status'),
-              const SizedBox(height: 6),
-              actions,
-              const SizedBox(height: 2),
-            ],
-          );
+        final compact =
+            constraints.maxWidth < _StatusSectionHeader._compactBreakpoint;
+        if (compact == _compact) {
+          return compact
+              ? _buildCompact(actions)
+              : _buildWide(actions);
         }
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Expanded(child: _InfoGroupTitle(title: 'Status')),
-              const SizedBox(width: 10),
-              Expanded(flex: 3, child: actions),
-            ],
-          ),
-        );
+        _compact = compact;
+        return compact ? _buildCompact(actions) : _buildWide(actions);
       },
+    );
+  }
+
+  Widget _buildCompact(Widget actions) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _InfoGroupTitle(title: 'Status'),
+        const SizedBox(height: 6),
+        actions,
+        const SizedBox(height: 2),
+      ],
+    );
+  }
+
+  Widget _buildWide(Widget actions) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Expanded(child: _InfoGroupTitle(title: 'Status')),
+          const SizedBox(width: 10),
+          Expanded(flex: 3, child: actions),
+        ],
+      ),
     );
   }
 }
@@ -181,6 +208,13 @@ class _StatusActionButtons extends ConsumerWidget {
       runSpacing: 8,
       children: [
         _buildCompressionButton(ref, allowDirectStorageOverride),
+        _buildUnsupportedButton(context, ref),
+        OutlinedButton.icon(
+          onPressed: () =>
+              ref.read(platformShellServiceProvider).openFolder(game.path),
+          icon: const Icon(LucideIcons.folderOpen, size: 16),
+          label: const Text('Open Folder'),
+        ),
         OutlinedButton.icon(
           key: _detailsStatusExcludeActionKey,
           onPressed: () => ref
@@ -214,7 +248,7 @@ class _StatusActionButtons extends ConsumerWidget {
 
     return FilledButton.icon(
       key: _detailsStatusPrimaryActionKey,
-      onPressed: (game.isDirectStorage || game.isUnsupported) && !allowDirectStorageOverride
+      onPressed: game.isDirectStorage && !allowDirectStorageOverride
           ? null
           : () => ref
                 .read(compressionProvider.notifier)
@@ -225,6 +259,23 @@ class _StatusActionButtons extends ConsumerWidget {
                 ),
       icon: const Icon(LucideIcons.archive, size: 16),
       label: const Text('Compress Now'),
+    );
+  }
+
+  Widget _buildUnsupportedButton(BuildContext context, WidgetRef ref) {
+    final nextUnsupported = !game.isUnsupported;
+    return OutlinedButton.icon(
+      key: _detailsStatusUnsupportedActionKey,
+      onPressed: () => toggleGameUnsupportedStatus(
+        ref, context, game, markUnsupported: nextUnsupported,
+      ),
+      icon: Icon(
+        nextUnsupported ? LucideIcons.ban : LucideIcons.checkCircle2,
+        size: 16,
+      ),
+      label: Text(
+        nextUnsupported ? 'Mark as Unsupported' : 'Mark as Supported',
+      ),
     );
   }
 }

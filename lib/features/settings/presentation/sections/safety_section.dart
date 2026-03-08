@@ -41,7 +41,7 @@ class _SafetySectionState extends ConsumerState<SafetySection> {
             onChanged: _onDirectStorageOverrideChanged,
           ),
           const Text(
-            'Warning: overriding DirectStorage and unsupported game protection may cause issues.',
+            'Warning: overriding DirectStorage protection may cause issues.',
             style: AppTypography.bodySmall,
           ),
         ],

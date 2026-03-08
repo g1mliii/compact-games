@@ -1,0 +1,56 @@
+name: Export Unsupported Community List
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_reporters:
+        description: "Minimum unique reporters required"
+        required: false
+        default: "3"
+      min_repeat_reporters:
+        description: "Minimum reporters with report_count >= 2"
+        required: false
+        default: "1"
+      max_age_days:
+        description: "Ignore submissions older than this many days"
+        required: false
+        default: "180"
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Export unsupported community bundle
+        env:
+          PRESSPLAY_UNSUPPORTED_WORKER_URL: ${{ vars.PRESSPLAY_UNSUPPORTED_WORKER_URL || 'https://pressplay-unsupported-report-ingest.pressplay-subai.workers.dev' }}
+          PRESSPLAY_UNSUPPORTED_MIN_REPORTERS: ${{ github.event.inputs.min_reporters || vars.PRESSPLAY_UNSUPPORTED_MIN_REPORTERS || '3' }}
+          PRESSPLAY_UNSUPPORTED_MIN_REPEAT_REPORTERS: ${{ github.event.inputs.min_repeat_reporters || vars.PRESSPLAY_UNSUPPORTED_MIN_REPEAT_REPORTERS || '1' }}
+          PRESSPLAY_UNSUPPORTED_MAX_AGE_DAYS: ${{ github.event.inputs.max_age_days || vars.PRESSPLAY_UNSUPPORTED_MAX_AGE_DAYS || '180' }}
+        run: node ./scripts/export-unsupported-community-list.mjs
+
+      - name: Upload export artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsupported-community-list
+          path: dist/unsupported-community/
+
+      - name: Attach unsupported list bundle to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/unsupported-community/unsupported_games.json
+            dist/unsupported-community/unsupported_games.bundle.json

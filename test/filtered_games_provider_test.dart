@@ -256,6 +256,14 @@ class _MinimalBridgeService implements RustBridgeService {
   @override
   bool isDirectStorage(String gamePath) => false;
   @override
+  void reportUnsupportedGame(String gamePath) {}
+  @override
+  void unreportUnsupportedGame(String gamePath) {}
+  @override
+  Future<int> syncUnsupportedReportCollection({
+    required String appVersion,
+  }) async => 0;
+  @override
   void persistCompressionHistory() {}
   @override
   Future<List<GameInfo>> scanCustomFolder(String path) async => const [];

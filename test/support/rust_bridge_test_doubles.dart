@@ -106,6 +106,19 @@ class _BaseRustBridgeService implements RustBridgeService {
   }
 
   @override
+  void reportUnsupportedGame(String gamePath) {}
+
+  @override
+  void unreportUnsupportedGame(String gamePath) {}
+
+  @override
+  Future<int> syncUnsupportedReportCollection({
+    required String appVersion,
+  }) async {
+    return 0;
+  }
+
+  @override
   Future<List<GameInfo>> scanCustomFolder(String path) async {
     return const <GameInfo>[];
   }
@@ -211,6 +224,12 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   String? lastScanCustomFolderPath;
   bool? lastAllowDirectStorageOverride;
   bool? lastAutomationAllowDirectStorageOverride;
+  int reportUnsupportedGameCalls = 0;
+  String? lastReportedUnsupportedGamePath;
+  int unreportUnsupportedGameCalls = 0;
+  String? lastUnreportedUnsupportedGamePath;
+  int syncUnsupportedReportCollectionCalls = 0;
+  String? lastSyncUnsupportedReportAppVersion;
   final List<GameInfo> scanCustomFolderGames;
 
   @override
@@ -266,6 +285,27 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   }
 
   @override
+  void reportUnsupportedGame(String gamePath) {
+    reportUnsupportedGameCalls += 1;
+    lastReportedUnsupportedGamePath = gamePath;
+  }
+
+  @override
+  void unreportUnsupportedGame(String gamePath) {
+    unreportUnsupportedGameCalls += 1;
+    lastUnreportedUnsupportedGamePath = gamePath;
+  }
+
+  @override
+  Future<int> syncUnsupportedReportCollection({
+    required String appVersion,
+  }) async {
+    syncUnsupportedReportCollectionCalls += 1;
+    lastSyncUnsupportedReportAppVersion = appVersion;
+    return 0;
+  }
+
+  @override
   Future<void> startAutoCompression() async {
     startAutoCompressionCalls += 1;
   }
@@ -283,6 +323,35 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   }) async {
     updateAutomationConfigCalls += 1;
     lastAutomationAllowDirectStorageOverride = allowDirectStorageOverride;
+  }
+}
+
+class _QueuedSyncRustBridgeService extends _BaseRustBridgeService {
+  final List<Completer<int>> _syncCompleters = <Completer<int>>[];
+
+  int syncUnsupportedReportCollectionCalls = 0;
+  String? lastSyncUnsupportedReportAppVersion;
+
+  @override
+  Future<int> syncUnsupportedReportCollection({required String appVersion}) {
+    syncUnsupportedReportCollectionCalls += 1;
+    lastSyncUnsupportedReportAppVersion = appVersion;
+    final completer = Completer<int>();
+    _syncCompleters.add(completer);
+    return completer.future;
+  }
+
+  int get pendingSyncCount =>
+      _syncCompleters.where((completer) => !completer.isCompleted).length;
+
+  void completeNextSync([int result = 0]) {
+    final nextIndex = _syncCompleters.indexWhere(
+      (completer) => !completer.isCompleted,
+    );
+    if (nextIndex < 0) {
+      throw StateError('No pending unsupported-report sync to complete.');
+    }
+    _syncCompleters[nextIndex].complete(result);
   }
 }
 

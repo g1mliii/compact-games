@@ -14,6 +14,7 @@ import 'models/watcher_event.dart';
 import 'providers/games/game_list_provider.dart';
 import 'providers/system/route_state_provider.dart';
 import 'providers/system/tray_status_sync_provider.dart';
+import 'services/unsupported_report_sync_service.dart';
 
 /// Cached theme — buildAppTheme() is pure with no dynamic inputs,
 /// so it only needs to run once.
@@ -36,8 +37,9 @@ class _PressPlayRoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final routeObserver =
-        ProviderScope.containerOf(context).read(routeStateObserverProvider);
+    final routeObserver = ProviderScope.containerOf(
+      context,
+    ).read(routeStateObserverProvider);
     return Column(
       children: [
         // Effect-only watcher — zero pixels, never causes child rebuilds.
@@ -101,6 +103,14 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
       // Tests and partially initialized startup paths may not have FRB ready.
       _watcherEventsSub = null;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      UnsupportedReportSyncService.instance.notePotentialChange(
+        ProviderScope.containerOf(context, listen: false),
+      );
+    });
   }
 
   @override

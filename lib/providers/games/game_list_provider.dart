@@ -376,6 +376,13 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     _updateState((s) => _applySingleGameUpdate(s, updatedGame));
   }
 
+  void updateGameByPath(
+    String gamePath,
+    GameInfo Function(GameInfo current) updater,
+  ) {
+    _updateState((s) => _applyGameUpdateByPath(s, gamePath, updater));
+  }
+
   void removeGameByPath(String gamePath) {
     if (gamePath.isEmpty) {
       return;
@@ -395,12 +402,25 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     GameListState snapshot,
     GameInfo updatedGame,
   ) {
-    final index = snapshot.games.indexWhere((g) => g.path == updatedGame.path);
+    return _applyGameUpdateByPath(
+      snapshot,
+      updatedGame.path,
+      (_) => updatedGame,
+    );
+  }
+
+  GameListState _applyGameUpdateByPath(
+    GameListState snapshot,
+    String gamePath,
+    GameInfo Function(GameInfo current) updater,
+  ) {
+    final index = snapshot.games.indexWhere((g) => g.path == gamePath);
     if (index < 0) {
       return snapshot;
     }
 
     final existing = snapshot.games[index];
+    final updatedGame = updater(existing);
     if (existing == updatedGame) {
       return snapshot;
     }
