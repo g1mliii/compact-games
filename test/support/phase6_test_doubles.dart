@@ -29,6 +29,8 @@ class _TestRustBridgeService implements RustBridgeService {
   String? lastReportedUnsupportedGamePath;
   int unreportUnsupportedGameCalls = 0;
   String? lastUnreportedUnsupportedGamePath;
+  int removeGameFromDiscoveryCalls = 0;
+  String? lastRemovedGamePath;
   int syncUnsupportedReportCollectionCalls = 0;
   String? lastSyncUnsupportedReportAppVersion;
 
@@ -40,6 +42,14 @@ class _TestRustBridgeService implements RustBridgeService {
 
   @override
   void clearDiscoveryCacheEntry(String path) {}
+  @override
+  Future<void> removeGameFromDiscovery({
+    required String path,
+    required Platform platform,
+  }) async {
+    removeGameFromDiscoveryCalls += 1;
+    lastRemovedGamePath = path;
+  }
 
   @override
   Stream<CompressionProgress> compressGame({
@@ -203,6 +213,9 @@ class _TestRustBridgeService implements RustBridgeService {
   List<AutomationJob> getAutomationQueue() {
     return const <AutomationJob>[];
   }
+
+  @override
+  Future<int> fetchCommunityUnsupportedList() async => 0;
 }
 
 class _DelayedActivityRustBridgeService extends _TestRustBridgeService {
@@ -281,6 +294,29 @@ class _DelayedActivityRustBridgeService extends _TestRustBridgeService {
   }
 }
 
+class _DeferredRemoveRustBridgeService extends _TestRustBridgeService {
+  _DeferredRemoveRustBridgeService({required super.games});
+
+  final Completer<void> _removeCompleter = Completer<void>();
+
+  @override
+  Future<void> removeGameFromDiscovery({
+    required String path,
+    required Platform platform,
+  }) async {
+    removeGameFromDiscoveryCalls += 1;
+    lastRemovedGamePath = path;
+    return _removeCompleter.future;
+  }
+
+  void completeRemoval() {
+    if (_removeCompleter.isCompleted) {
+      return;
+    }
+    _removeCompleter.complete();
+  }
+}
+
 class _RecordingCoverArtService extends CoverArtService {
   _RecordingCoverArtService({required this.placeholders});
 
@@ -314,5 +350,28 @@ class _RecordingCoverArtService extends CoverArtService {
     String? steamGridDbApiKey,
   }) async {
     return const CoverArtResult.none();
+  }
+}
+
+class _VersionedSameUriCoverArtService extends CoverArtService {
+  _VersionedSameUriCoverArtService({required this.coverUri});
+
+  final String coverUri;
+  final Map<String, int> _revisions = <String, int>{};
+
+  @override
+  Future<CoverArtResult> resolveCover(
+    GameInfo game, {
+    String? steamGridDbApiKey,
+  }) async {
+    return CoverArtResult(
+      uri: coverUri,
+      source: CoverArtSource.cache,
+      revision: _revisions[game.path] ?? 1,
+    );
+  }
+
+  void rewriteCover(String gamePath) {
+    _revisions[gamePath] = (_revisions[gamePath] ?? 1) + 1;
   }
 }

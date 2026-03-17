@@ -79,6 +79,18 @@ class RustBridgeService {
     rust_discovery.clearDiscoveryCacheEntry(path: path);
   }
 
+  /// Fully remove a game from discovery and hide the current install snapshot
+  /// until the on-disk folder changes.
+  Future<void> removeGameFromDiscovery({
+    required String path,
+    required Platform platform,
+  }) {
+    return rust_discovery.removeGameFromDiscovery(
+      path: path,
+      platform: _toFrbPlatform(platform),
+    );
+  }
+
   Future<List<GameInfo>> scanCustomFolder(String path) async {
     final frbGames = await rust_discovery.scanCustomFolder(path: path);
     return frbGames.map(_mapFrbGameInfo).toList();
@@ -213,6 +225,10 @@ class RustBridgeService {
     return rust_unsupported.syncUnsupportedReportCollection(
       appVersion: appVersion,
     );
+  }
+
+  Future<int> fetchCommunityUnsupportedList() {
+    return rust_unsupported.fetchCommunityUnsupportedList();
   }
 
   Future<void> startAutoCompression() {

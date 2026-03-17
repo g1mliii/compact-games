@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../localization/locale_provider.dart';
 import '../../services/tray_service.dart';
 import '../compression/compression_progress_provider.dart';
 import '../compression/compression_state.dart';
@@ -58,6 +59,7 @@ final trayStatusSyncProvider = Provider<void>((ref) {
       (s) => s.valueOrNull?.settings.autoCompress ?? false,
     ),
   );
+  final l10n = ref.watch(appLocalizationsProvider);
 
   // Reuse the shared bucketed activity model so the tray does not react
   // more often than the visible compression/decompression UI.
@@ -96,6 +98,15 @@ final trayStatusSyncProvider = Provider<void>((ref) {
       activeGameName: gameName,
       progressPercent: progressPercent,
       autoCompressionEnabled: autoCompressionEnabled,
+      strings: TrayStrings(
+        openAppLabel: l10n.trayOpenApp,
+        pauseAutoCompressionLabel: l10n.trayPauseAutoCompression,
+        resumeAutoCompressionLabel: l10n.trayResumeAutoCompression,
+        quitLabel: l10n.commonQuit,
+        compressingLabel: l10n.trayCompressing,
+        pausedStatusLabel: l10n.trayPaused,
+        errorStatusLabel: l10n.trayError,
+      ),
     ),
   );
 });

@@ -1,0 +1,1123 @@
+{
+  "@@locale": "es",
+  "algorithmXpress4k": "XPRESS 4K (Rápido)",
+  "@algorithmXpress4k": {
+    "description": "Localized message for algorithm xpress4k."
+  },
+  "algorithmXpress8k": "XPRESS 8K (Equilibrado)",
+  "@algorithmXpress8k": {
+    "description": "Localized message for algorithm xpress8k."
+  },
+  "algorithmXpress16k": "XPRESS 16K (Mejor compresión)",
+  "@algorithmXpress16k": {
+    "description": "Localized message for algorithm xpress16k."
+  },
+  "algorithmLzx": "LZX (Máximo)",
+  "@algorithmLzx": {
+    "description": "Localized message for algorithm lzx."
+  },
+  "platformSteam": "Steam",
+  "@platformSteam": {
+    "description": "Localized message for platform steam."
+  },
+  "platformEpicGames": "Epic Games",
+  "@platformEpicGames": {
+    "description": "Localized message for platform epic games."
+  },
+  "platformGogGalaxy": "GOG Galaxy",
+  "@platformGogGalaxy": {
+    "description": "Localized message for platform gog galaxy."
+  },
+  "platformUbisoftConnect": "Ubisoft Connect",
+  "@platformUbisoftConnect": {
+    "description": "Localized message for platform ubisoft connect."
+  },
+  "platformEaApp": "EA App",
+  "@platformEaApp": {
+    "description": "Localized message for platform ea app."
+  },
+  "platformBattleNet": "Battle.net",
+  "@platformBattleNet": {
+    "description": "Localized message for platform battle net."
+  },
+  "platformXboxGamePass": "Xbox Game Pass",
+  "@platformXboxGamePass": {
+    "description": "Localized message for platform xbox game pass."
+  },
+  "platformCustom": "Personalizado",
+  "@platformCustom": {
+    "description": "Localized message for platform custom."
+  },
+  "commonAdd": "Agregar",
+  "@commonAdd": {
+    "description": "Localized message for common add."
+  },
+  "commonCancel": "Cancelar",
+  "@commonCancel": {
+    "description": "Localized message for common cancel."
+  },
+  "commonDismissTooltip": "Descartar",
+  "@commonDismissTooltip": {
+    "description": "Localized message for common dismiss tooltip."
+  },
+  "commonEnable": "Activar",
+  "@commonEnable": {
+    "description": "Localized message for common enable."
+  },
+  "commonOpenFolder": "Abrir carpeta",
+  "@commonOpenFolder": {
+    "description": "Localized message for common open folder."
+  },
+  "commonQuit": "Salir",
+  "@commonQuit": {
+    "description": "Localized message for common quit."
+  },
+  "commonRetry": "Reintentar",
+  "@commonRetry": {
+    "description": "Localized message for common retry."
+  },
+  "commonNotAvailable": "N/D",
+  "@commonNotAvailable": {
+    "description": "Localized message for common not available."
+  },
+  "commonGigabytes": "{value} GB",
+  "@commonGigabytes": {
+    "description": "Localized message for common gigabytes.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "commonMegabytes": "{count} MB",
+  "@commonMegabytes": {
+    "description": "Localized message for common megabytes.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "routeNotFoundTitle": "Ruta no encontrada",
+  "@routeNotFoundTitle": {
+    "description": "Localized message for route not found title."
+  },
+  "routeNotFoundMessage": "La ruta solicitada no existe.",
+  "@routeNotFoundMessage": {
+    "description": "Localized message for route not found message."
+  },
+  "settingsTitle": "Configuración",
+  "@settingsTitle": {
+    "description": "Localized message for settings title."
+  },
+  "settingsLoadFailed": "No se pudo cargar la configuración: {errorMessage}",
+  "@settingsLoadFailed": {
+    "description": "Localized message for settings load failed.",
+    "placeholders": {
+      "errorMessage": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAutomationSectionTitle": "Automatización",
+  "@settingsAutomationSectionTitle": {
+    "description": "Localized message for settings automation section title."
+  },
+  "settingsIdleThresholdLabel": "Umbral de inactividad",
+  "@settingsIdleThresholdLabel": {
+    "description": "Localized message for settings idle threshold label."
+  },
+  "settingsMinutesShort": "{minutes} min",
+  "@settingsMinutesShort": {
+    "description": "Localized message for settings minutes short.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsCpuThresholdLabel": "Umbral de CPU",
+  "@settingsCpuThresholdLabel": {
+    "description": "Localized message for settings cpu threshold label."
+  },
+  "settingsPercentShort": "{percent}%",
+  "@settingsPercentShort": {
+    "description": "Localized message for settings percent short.",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsMinimizeToTrayOnCloseLabel": "Minimizar a la bandeja al cerrar",
+  "@settingsMinimizeToTrayOnCloseLabel": {
+    "description": "Localized message for settings minimize to tray on close label."
+  },
+  "settingsPathsSectionTitle": "Rutas personalizadas",
+  "@settingsPathsSectionTitle": {
+    "description": "Localized message for settings paths section title."
+  },
+  "settingsPathsHint": "Agrega una ruta extra de biblioteca",
+  "@settingsPathsHint": {
+    "description": "Localized message for settings paths hint."
+  },
+  "settingsNoCustomPaths": "No hay rutas personalizadas configuradas.",
+  "@settingsNoCustomPaths": {
+    "description": "Localized message for settings no custom paths."
+  },
+  "settingsRemovePathTooltip": "Quitar ruta",
+  "@settingsRemovePathTooltip": {
+    "description": "Localized message for settings remove path tooltip."
+  },
+  "settingsCompressionSectionTitle": "Compresión",
+  "@settingsCompressionSectionTitle": {
+    "description": "Localized message for settings compression section title."
+  },
+  "settingsAlgorithmLabel": "Algoritmo",
+  "@settingsAlgorithmLabel": {
+    "description": "Localized message for settings algorithm label."
+  },
+  "settingsAlgorithmTooltip": "Selecciona el algoritmo de compresión.",
+  "@settingsAlgorithmTooltip": {
+    "description": "Localized message for settings algorithm tooltip."
+  },
+  "settingsAlgorithmRecommendedHint": "XPRESS 8K es la opción recomendada para la mayoría de los juegos.",
+  "@settingsAlgorithmRecommendedHint": {
+    "description": "Localized message for settings algorithm recommended hint."
+  },
+  "settingsIoThreadsTooltip": "Sobrescribe la cantidad de hilos de E/S en paralelo.",
+  "@settingsIoThreadsTooltip": {
+    "description": "Localized message for settings io threads tooltip."
+  },
+  "settingsIoThreadsLabel": "Hilos de E/S",
+  "@settingsIoThreadsLabel": {
+    "description": "Localized message for settings io threads label."
+  },
+  "settingsIoThreadsAuto": "Automático",
+  "@settingsIoThreadsAuto": {
+    "description": "Localized message for settings io threads auto."
+  },
+  "settingsIoThreadsCount": "{count} hilos",
+  "@settingsIoThreadsCount": {
+    "description": "Localized message for settings io threads count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsIoThreadsHelp": "Automático usa la recomendación actual del hardware.",
+  "@settingsIoThreadsHelp": {
+    "description": "Localized message for settings io threads help."
+  },
+  "settingsInventorySectionTitle": "Inventario",
+  "@settingsInventorySectionTitle": {
+    "description": "Localized message for settings inventory section title."
+  },
+  "settingsPauseWatcher": "Pausar monitor",
+  "@settingsPauseWatcher": {
+    "description": "Localized message for settings pause watcher."
+  },
+  "settingsResumeWatcher": "Reanudar monitor",
+  "@settingsResumeWatcher": {
+    "description": "Localized message for settings resume watcher."
+  },
+  "settingsWatcherAutomationEnabled": "La automatización está supervisando el inventario de compresión.",
+  "@settingsWatcherAutomationEnabled": {
+    "description": "Localized message for settings watcher automation enabled."
+  },
+  "settingsWatcherAutomationDisabled": "La automatización está pausada para el inventario de compresión.",
+  "@settingsWatcherAutomationDisabled": {
+    "description": "Localized message for settings watcher automation disabled."
+  },
+  "settingsEnableFullMetadataInventoryScan": "Activar escaneo completo de metadatos",
+  "@settingsEnableFullMetadataInventoryScan": {
+    "description": "Localized message for settings enable full metadata inventory scan."
+  },
+  "settingsInventoryAdvancedDescription": "Recopila metadatos más ricos para la tabla del inventario. Puede tardar más durante los escaneos.",
+  "@settingsInventoryAdvancedDescription": {
+    "description": "Localized message for settings inventory advanced description."
+  },
+  "settingsSteamGridDbManagedOnce": "Las portadas de SteamGridDB solo se obtienen una vez por juego, salvo que las actualices.",
+  "@settingsSteamGridDbManagedOnce": {
+    "description": "Localized message for settings steam grid db managed once."
+  },
+  "settingsLanguageSectionTitle": "Idioma",
+  "@settingsLanguageSectionTitle": {
+    "description": "Localized message for settings language section title."
+  },
+  "settingsLanguageSelectorLabel": "Idioma de la aplicación",
+  "@settingsLanguageSelectorLabel": {
+    "description": "Localized message for settings language selector label."
+  },
+  "settingsLanguageSelectorTooltip": "Elige el idioma de la aplicación.",
+  "@settingsLanguageSelectorTooltip": {
+    "description": "Localized message for settings language selector tooltip."
+  },
+  "settingsLanguageSystemDefault": "Predeterminado del sistema",
+  "@settingsLanguageSystemDefault": {
+    "description": "Localized message for settings language system default."
+  },
+  "settingsLanguageEnglish": "Inglés",
+  "@settingsLanguageEnglish": {
+    "description": "Localized message for settings language english."
+  },
+  "settingsLanguageSpanish": "Español",
+  "@settingsLanguageSpanish": {
+    "description": "Localized message for settings language spanish."
+  },
+  "settingsLanguageChineseSimplified": "Chino simplificado",
+  "@settingsLanguageChineseSimplified": {
+    "description": "Localized message for settings language chinese simplified."
+  },
+  "settingsIntegrationsSectionTitle": "Integraciones",
+  "@settingsIntegrationsSectionTitle": {
+    "description": "Localized message for settings integrations section title."
+  },
+  "settingsApiKeySavedMessage": "Clave API guardada.",
+  "@settingsApiKeySavedMessage": {
+    "description": "Localized message for settings api key saved message."
+  },
+  "settingsApiKeyCopiedMessage": "Clave API copiada.",
+  "@settingsApiKeyCopiedMessage": {
+    "description": "Localized message for settings api key copied message."
+  },
+  "settingsSteamGridDbConnectedStatus": "Clave API de SteamGridDB conectada",
+  "@settingsSteamGridDbConnectedStatus": {
+    "description": "Localized message for settings steam grid db connected status."
+  },
+  "settingsSteamGridDbMissingStatus": "Falta la clave API de SteamGridDB",
+  "@settingsSteamGridDbMissingStatus": {
+    "description": "Localized message for settings steam grid db missing status."
+  },
+  "settingsSteamGridDbExplanation": "SteamGridDB mejora la calidad de las portadas para juegos agregados manualmente o difíciles de identificar.",
+  "@settingsSteamGridDbExplanation": {
+    "description": "Localized message for settings steam grid db explanation."
+  },
+  "settingsSteamGridDbStep1": "Abre la página de preferencias de tu cuenta de SteamGridDB.",
+  "@settingsSteamGridDbStep1": {
+    "description": "Localized message for settings steam grid db step1."
+  },
+  "settingsSteamGridDbStep2": "Genera o copia tu clave API personal.",
+  "@settingsSteamGridDbStep2": {
+    "description": "Localized message for settings steam grid db step2."
+  },
+  "settingsSteamGridDbStep3": "Pégala aquí para habilitar búsquedas de portadas más completas.",
+  "@settingsSteamGridDbStep3": {
+    "description": "Localized message for settings steam grid db step3."
+  },
+  "settingsSteamGridDbOpenButton": "Abrir página API de SteamGridDB",
+  "@settingsSteamGridDbOpenButton": {
+    "description": "Localized message for settings steam grid db open button."
+  },
+  "settingsSteamGridDbApiKeyLabel": "Clave API de SteamGridDB",
+  "@settingsSteamGridDbApiKeyLabel": {
+    "description": "Localized message for settings steam grid db api key label."
+  },
+  "settingsSteamGridDbApiKeyHint": "Pega tu clave API de SteamGridDB",
+  "@settingsSteamGridDbApiKeyHint": {
+    "description": "Localized message for settings steam grid db api key hint."
+  },
+  "settingsSteamGridDbShowKeyTooltip": "Mostrar clave",
+  "@settingsSteamGridDbShowKeyTooltip": {
+    "description": "Localized message for settings steam grid db show key tooltip."
+  },
+  "settingsSteamGridDbHideKeyTooltip": "Ocultar clave",
+  "@settingsSteamGridDbHideKeyTooltip": {
+    "description": "Localized message for settings steam grid db hide key tooltip."
+  },
+  "settingsSteamGridDbCopyKeyTooltip": "Copiar clave",
+  "@settingsSteamGridDbCopyKeyTooltip": {
+    "description": "Localized message for settings steam grid db copy key tooltip."
+  },
+  "settingsSteamGridDbSaveButton": "Guardar clave",
+  "@settingsSteamGridDbSaveButton": {
+    "description": "Localized message for settings steam grid db save button."
+  },
+  "settingsSteamGridDbRemoveButton": "Quitar clave",
+  "@settingsSteamGridDbRemoveButton": {
+    "description": "Localized message for settings steam grid db remove button."
+  },
+  "settingsSafetySectionTitle": "Seguridad",
+  "@settingsSafetySectionTitle": {
+    "description": "Localized message for settings safety section title."
+  },
+  "settingsAllowDirectStorageOverride": "Permitir anulación de DirectStorage",
+  "@settingsAllowDirectStorageOverride": {
+    "description": "Localized message for settings allow direct storage override."
+  },
+  "settingsDirectStorageWarningLead": "Úsalo solo si entiendes el riesgo.",
+  "@settingsDirectStorageWarningLead": {
+    "description": "Localized message for settings direct storage warning lead."
+  },
+  "settingsDirectStorageWarningBody": "Los juegos con DirectStorage pueden cargar más lento o comportarse de forma impredecible tras la compresión.",
+  "@settingsDirectStorageWarningBody": {
+    "description": "Localized message for settings direct storage warning body."
+  },
+  "settingsEnableDirectStorageOverrideTitle": "¿Activar anulación de DirectStorage?",
+  "@settingsEnableDirectStorageOverrideTitle": {
+    "description": "Localized message for settings enable direct storage override title."
+  },
+  "settingsEnableDirectStorageOverrideMessage": "Esto permite comprimir juegos marcados con DirectStorage. Puede afectar el rendimiento de carga y la estabilidad.",
+  "@settingsEnableDirectStorageOverrideMessage": {
+    "description": "Localized message for settings enable direct storage override message."
+  },
+  "settingsWatcherStatusActive": "Monitor activo",
+  "@settingsWatcherStatusActive": {
+    "description": "Localized message for settings watcher status active."
+  },
+  "settingsWatcherStatusPaused": "Monitor pausado",
+  "@settingsWatcherStatusPaused": {
+    "description": "Localized message for settings watcher status paused."
+  },
+  "homeRefreshGamesTooltip": "Actualizar juegos",
+  "@homeRefreshGamesTooltip": {
+    "description": "Localized message for home refresh games tooltip."
+  },
+  "homeCompressionInventoryTooltip": "Abrir inventario de compresión",
+  "@homeCompressionInventoryTooltip": {
+    "description": "Localized message for home compression inventory tooltip."
+  },
+  "homeAddGameTooltip": "Agregar juego",
+  "@homeAddGameTooltip": {
+    "description": "Localized message for home add game tooltip."
+  },
+  "homeSettingsTooltip": "Abrir configuración",
+  "@homeSettingsTooltip": {
+    "description": "Localized message for home settings tooltip."
+  },
+  "homeSwitchToListViewTooltip": "Cambiar a vista de lista",
+  "@homeSwitchToListViewTooltip": {
+    "description": "Localized message for home switch to list view tooltip."
+  },
+  "homeSwitchToGridViewTooltip": "Cambiar a vista de cuadrícula",
+  "@homeSwitchToGridViewTooltip": {
+    "description": "Localized message for home switch to grid view tooltip."
+  },
+  "homeHeaderTagline": "Compacta tu biblioteca sin perder el control.",
+  "@homeHeaderTagline": {
+    "description": "Localized message for home header tagline."
+  },
+  "homeHeaderReadyLine": "{count} juegos están listos para recuperar espacio.",
+  "@homeHeaderReadyLine": {
+    "description": "Localized message for home header ready line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeSearchGamesHint": "Buscar juegos...",
+  "@homeSearchGamesHint": {
+    "description": "Localized message for home search games hint."
+  },
+  "homePrimaryReviewEligible": "Revisar juegos elegibles",
+  "@homePrimaryReviewEligible": {
+    "description": "Localized message for home primary review eligible action."
+  },
+  "homePrimaryOpenInventory": "Abrir inventario",
+  "@homePrimaryOpenInventory": {
+    "description": "Localized message for home primary open inventory action."
+  },
+  "homePrimaryAddGame": "Agregar juego",
+  "@homePrimaryAddGame": {
+    "description": "Localized message for home primary add game action."
+  },
+  "homeEmptyTitle": "No hay juegos en esta vista",
+  "@homeEmptyTitle": {
+    "description": "Localized message for home empty title."
+  },
+  "homeEmptyMessage": "Los juegos de Steam, Epic, GOG y otros lanzadores aparecerán aquí automáticamente.",
+  "@homeEmptyMessage": {
+    "description": "Localized message for home empty message."
+  },
+  "homeEmptyGuidance": "Actualiza el descubrimiento o agrega manualmente una carpeta de juego para empezar a revisar oportunidades de compresión.",
+  "@homeEmptyGuidance": {
+    "description": "Localized message for home empty guidance."
+  },
+  "homeLoadErrorTitle": "No se pudo cargar tu biblioteca",
+  "@homeLoadErrorTitle": {
+    "description": "Localized message for home load error title."
+  },
+  "homeLoadErrorGuidance": "Vuelve a intentar el descubrimiento. Si sigue fallando, revisa las rutas de los lanzadores o agrega manualmente una carpeta de juego.",
+  "@homeLoadErrorGuidance": {
+    "description": "Localized message for home load error guidance."
+  },
+  "homeListEmptyTitle": "Nada coincide con esta vista",
+  "@homeListEmptyTitle": {
+    "description": "Localized message for home list empty title."
+  },
+  "homeListEmptyMessage": "Limpia la búsqueda o los filtros actuales, o agrega manualmente una carpeta de juego.",
+  "@homeListEmptyMessage": {
+    "description": "Localized message for home list empty message."
+  },
+  "homeSelectGameTitle": "Elige un juego",
+  "@homeSelectGameTitle": {
+    "description": "Localized message for home select game title."
+  },
+  "homeSelectGameMessage": "Selecciona un título para revisar su tamaño, historial de compresión y próximas acciones.",
+  "@homeSelectGameMessage": {
+    "description": "Localized message for home select game message."
+  },
+  "homeStatusReadyToCompress": "Listo para comprimir",
+  "@homeStatusReadyToCompress": {
+    "description": "Localized message for home ready-to-compress status."
+  },
+  "homeAddedToLibraryMessage": "\"{gameName}\" se agregó a la biblioteca.",
+  "@homeAddedToLibraryMessage": {
+    "description": "Localized message for home added to library message.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "homeUpdatedInLibraryMessage": "\"{gameName}\" se actualizó en la biblioteca.",
+  "@homeUpdatedInLibraryMessage": {
+    "description": "Localized message for home updated in library message.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "homeFailedToAddGameMessage": "No se pudo agregar el juego: {errorMessage}",
+  "@homeFailedToAddGameMessage": {
+    "description": "Localized message for home failed to add game message.",
+    "placeholders": {
+      "errorMessage": {
+        "type": "String"
+      }
+    }
+  },
+  "homeInvalidPathMessage": "La ruta seleccionada no es válida.",
+  "@homeInvalidPathMessage": {
+    "description": "Localized message for home invalid path message."
+  },
+  "homeAddGameDialogTitle": "Agregar juego",
+  "@homeAddGameDialogTitle": {
+    "description": "Localized message for home add game dialog title."
+  },
+  "homeAddGamePathHint": "Elige una carpeta de juego o un ejecutable",
+  "@homeAddGamePathHint": {
+    "description": "Localized message for home add game path hint."
+  },
+  "homeBrowseFolder": "Explorar carpeta",
+  "@homeBrowseFolder": {
+    "description": "Localized message for home browse folder."
+  },
+  "homeBrowseExe": "Explorar .exe",
+  "@homeBrowseExe": {
+    "description": "Localized message for home browse exe."
+  },
+  "homeCoverArtNudgeMessage": "Conecta SteamGridDB en Configuración para mejorar la coincidencia de portadas.",
+  "@homeCoverArtNudgeMessage": {
+    "description": "Localized message for home cover art nudge message."
+  },
+  "homeGoToSettingsButton": "Ir a Configuración",
+  "@homeGoToSettingsButton": {
+    "description": "Localized message for home go to settings button."
+  },
+  "homeOverviewEyebrow": "LISTOS PARA COMPRIMIR",
+  "@homeOverviewEyebrow": {
+    "description": "Localized message for home overview eyebrow."
+  },
+  "homeOverviewEmptyHeadline": "Trae tu biblioteca. Luego haz espacio rápido.",
+  "@homeOverviewEmptyHeadline": {
+    "description": "Localized message for home overview empty headline."
+  },
+  "homeOverviewEmptySubtitle": "Escanea tus lanzadores o agrega manualmente una carpeta de juego para empezar a mostrar espacio recuperable.",
+  "@homeOverviewEmptySubtitle": {
+    "description": "Localized message for home overview empty subtitle."
+  },
+  "homeOverviewReadyHeadline": "{count} juegos están listos para recuperar espacio.",
+  "@homeOverviewReadyHeadline": {
+    "description": "Localized message for home overview ready headline.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeOverviewReadySubtitle": "Empieza por las oportunidades de ahorro más claras. Espacio recuperable estimado: {value}.",
+  "@homeOverviewReadySubtitle": {
+    "description": "Localized message for home overview ready subtitle.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "homeOverviewProtectedHeadline": "La biblioteca ya está detectada, pero estos títulos siguen protegidos.",
+  "@homeOverviewProtectedHeadline": {
+    "description": "Localized message for home overview protected headline."
+  },
+  "homeOverviewProtectedSubtitle": "Revisa los juegos con DirectStorage o incompatibles en el inventario antes de forzar la compresión.",
+  "@homeOverviewProtectedSubtitle": {
+    "description": "Localized message for home overview protected subtitle."
+  },
+  "homeOverviewManagedHeadline": "Tu biblioteca comprimida está aguantando la línea.",
+  "@homeOverviewManagedHeadline": {
+    "description": "Localized message for home overview managed headline."
+  },
+  "homeOverviewManagedSubtitle": "Consulta el inventario para ver el espacio ahorrado y revisar títulos nuevos cuando aparezcan.",
+  "@homeOverviewManagedSubtitle": {
+    "description": "Localized message for home overview managed subtitle."
+  },
+  "homeOverviewReadyCountLabel": "Listos",
+  "@homeOverviewReadyCountLabel": {
+    "description": "Localized message for home overview ready count label."
+  },
+  "homeOverviewCompressedCountLabel": "Comprimidos",
+  "@homeOverviewCompressedCountLabel": {
+    "description": "Localized message for home overview compressed count label."
+  },
+  "homeOverviewProtectedCountLabel": "Protegidos",
+  "@homeOverviewProtectedCountLabel": {
+    "description": "Localized message for home overview protected count label."
+  },
+  "homeOverviewReclaimableLabel": "Espacio potencial",
+  "@homeOverviewReclaimableLabel": {
+    "description": "Localized message for home overview reclaimable label."
+  },
+  "inventoryTitle": "Inventario de compresión",
+  "@inventoryTitle": {
+    "description": "Localized message for inventory title."
+  },
+  "inventoryRefreshTooltip": "Actualizar inventario",
+  "@inventoryRefreshTooltip": {
+    "description": "Localized message for inventory refresh tooltip."
+  },
+  "inventoryLoadFailed": "No se pudo cargar el inventario: {errorMessage}",
+  "@inventoryLoadFailed": {
+    "description": "Localized message for inventory load failed.",
+    "placeholders": {
+      "errorMessage": {
+        "type": "String"
+      }
+    }
+  },
+  "inventorySearchHint": "Buscar en el inventario...",
+  "@inventorySearchHint": {
+    "description": "Localized message for inventory search hint."
+  },
+  "inventorySortDirectionDescending": "Descendente",
+  "@inventorySortDirectionDescending": {
+    "description": "Localized message for inventory sort direction descending."
+  },
+  "inventorySortDirectionAscending": "Ascendente",
+  "@inventorySortDirectionAscending": {
+    "description": "Localized message for inventory sort direction ascending."
+  },
+  "inventorySortLabel": "Ordenar por",
+  "@inventorySortLabel": {
+    "description": "Localized message for inventory sort label."
+  },
+  "inventorySortSavingsPercent": "Ahorro %",
+  "@inventorySortSavingsPercent": {
+    "description": "Localized message for inventory sort savings percent."
+  },
+  "inventorySortOriginalSize": "Tamaño original",
+  "@inventorySortOriginalSize": {
+    "description": "Localized message for inventory sort original size."
+  },
+  "inventorySortName": "Nombre",
+  "@inventorySortName": {
+    "description": "Localized message for inventory sort name."
+  },
+  "inventorySortPlatform": "Plataforma",
+  "@inventorySortPlatform": {
+    "description": "Localized message for inventory sort platform."
+  },
+  "inventoryHeaderGame": "JUEGO",
+  "@inventoryHeaderGame": {
+    "description": "Localized message for inventory header game."
+  },
+  "inventoryHeaderPlatform": "PLATAFORMA",
+  "@inventoryHeaderPlatform": {
+    "description": "Localized message for inventory header platform."
+  },
+  "inventoryHeaderOriginal": "ORIGINAL",
+  "@inventoryHeaderOriginal": {
+    "description": "Localized message for inventory header original."
+  },
+  "inventoryHeaderCurrent": "ACTUAL",
+  "@inventoryHeaderCurrent": {
+    "description": "Localized message for inventory header current."
+  },
+  "inventoryHeaderSavings": "AHORRO",
+  "@inventoryHeaderSavings": {
+    "description": "Localized message for inventory header savings."
+  },
+  "inventoryHeaderLastChecked": "ÚLTIMA REVISIÓN",
+  "@inventoryHeaderLastChecked": {
+    "description": "Localized message for inventory header last checked."
+  },
+  "inventoryHeaderWatcher": "MONITOR",
+  "@inventoryHeaderWatcher": {
+    "description": "Localized message for inventory header watcher."
+  },
+  "inventoryEmpty": "Ningún juego coincide con los filtros actuales del inventario.",
+  "@inventoryEmpty": {
+    "description": "Localized message for inventory empty."
+  },
+  "inventoryWatcherNotWatched": "Sin monitor",
+  "@inventoryWatcherNotWatched": {
+    "description": "Localized message for inventory watcher not watched."
+  },
+  "inventoryWatcherWatched": "Supervisado",
+  "@inventoryWatcherWatched": {
+    "description": "Localized message for inventory watcher watched."
+  },
+  "inventoryWatcherPaused": "Pausado",
+  "@inventoryWatcherPaused": {
+    "description": "Localized message for inventory watcher paused."
+  },
+  "inventoryWatcherActive": "Monitor activo",
+  "@inventoryWatcherActive": {
+    "description": "Localized message for inventory watcher active."
+  },
+  "inventoryAlgorithmBadgeLabel": "Algoritmo",
+  "@inventoryAlgorithmBadgeLabel": {
+    "description": "Localized message for inventory algorithm badge label."
+  },
+  "inventoryWatcherBadgeLabel": "Monitor",
+  "@inventoryWatcherBadgeLabel": {
+    "description": "Localized message for inventory watcher badge label."
+  },
+  "inventoryWatcherBadgeActive": "Activo",
+  "@inventoryWatcherBadgeActive": {
+    "description": "Localized message for inventory watcher badge active."
+  },
+  "inventoryWatcherBadgePaused": "Pausado",
+  "@inventoryWatcherBadgePaused": {
+    "description": "Localized message for inventory watcher badge paused."
+  },
+  "inventoryPauseWatcher": "Pausar monitor",
+  "@inventoryPauseWatcher": {
+    "description": "Localized message for inventory pause watcher."
+  },
+  "inventoryResumeWatcher": "Reanudar monitor",
+  "@inventoryResumeWatcher": {
+    "description": "Localized message for inventory resume watcher."
+  },
+  "inventoryAdvancedMetadataScanOn": "Escaneo avanzado de metadatos: activado",
+  "@inventoryAdvancedMetadataScanOn": {
+    "description": "Localized message for inventory advanced metadata scan on."
+  },
+  "inventoryAdvancedMetadataScanOff": "Escaneo avanzado de metadatos: desactivado",
+  "@inventoryAdvancedMetadataScanOff": {
+    "description": "Localized message for inventory advanced metadata scan off."
+  },
+  "inventoryRunFullRescan": "Ejecutar reescaneo completo del inventario",
+  "@inventoryRunFullRescan": {
+    "description": "Localized message for inventory run full rescan."
+  },
+  "inventoryRescanUnavailableWhileLoading": "Reescaneo no disponible mientras carga",
+  "@inventoryRescanUnavailableWhileLoading": {
+    "description": "Localized message for inventory rescan unavailable while loading."
+  },
+  "inventoryWatcherSummary": "{status}. Los controles interactivos aparecen abajo.",
+  "@inventoryWatcherSummary": {
+    "description": "Localized message for inventory watcher summary.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "activityDismissMonitor": "Cerrar monitor",
+  "@activityDismissMonitor": {
+    "description": "Localized message for activity dismiss monitor."
+  },
+  "activityCompressing": "Comprimiendo",
+  "@activityCompressing": {
+    "description": "Localized message for activity compressing."
+  },
+  "activityDecompressing": "Descomprimiendo",
+  "@activityDecompressing": {
+    "description": "Localized message for activity decompressing."
+  },
+  "activityPreparing": "Preparando...",
+  "@activityPreparing": {
+    "description": "Localized message for activity preparing."
+  },
+  "activityScanningFiles": "Escaneando archivos...",
+  "@activityScanningFiles": {
+    "description": "Localized message for activity scanning files."
+  },
+  "activityScanningCompressedFiles": "Escaneando archivos comprimidos...",
+  "@activityScanningCompressedFiles": {
+    "description": "Localized message for activity scanning compressed files."
+  },
+  "activityAmountSaved": "Ahorra {value}",
+  "@activityAmountSaved": {
+    "description": "Localized message for activity amount saved.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "activityAmountRestoring": "Restaurando {value}",
+  "@activityAmountRestoring": {
+    "description": "Localized message for activity amount restoring.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "activityApproxFileProgress": "~{processed}/{total} archivos",
+  "@activityApproxFileProgress": {
+    "description": "Localized message for activity approx file progress.",
+    "placeholders": {
+      "processed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "activityFileProgress": "{processed}/{total} archivos",
+  "@activityFileProgress": {
+    "description": "Localized message for activity file progress.",
+    "placeholders": {
+      "processed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "activitySecondsRemaining": "Quedan {seconds}s",
+  "@activitySecondsRemaining": {
+    "description": "Localized message for activity seconds remaining.",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "activityMinutesRemaining": "Quedan {minutes} min",
+  "@activityMinutesRemaining": {
+    "description": "Localized message for activity minutes remaining.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "activityHoursMinutesRemaining": "Quedan {hours} h {minutes} min",
+  "@activityHoursMinutesRemaining": {
+    "description": "Localized message for activity hours minutes remaining.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "gameStatusDirectStorage": "DirectStorage",
+  "@gameStatusDirectStorage": {
+    "description": "Localized message for game status direct storage."
+  },
+  "gameStatusUnsupported": "No compatible",
+  "@gameStatusUnsupported": {
+    "description": "Localized message for game status unsupported."
+  },
+  "gameStatusNotCompressed": "Sin comprimir",
+  "@gameStatusNotCompressed": {
+    "description": "Localized message for game status not compressed."
+  },
+  "gameSavedGigabytes": "Ahorra {gigabytes} GB",
+  "@gameSavedGigabytes": {
+    "description": "Localized message for game saved gigabytes.",
+    "placeholders": {
+      "gigabytes": {
+        "type": "String"
+      }
+    }
+  },
+  "gameEstimatedSaveableGigabytes": "{gigabytes} GB ahorrables",
+  "@gameEstimatedSaveableGigabytes": {
+    "description": "Localized message for game estimated saveable gigabytes.",
+    "placeholders": {
+      "gigabytes": {
+        "type": "String"
+      }
+    }
+  },
+  "gameMarkedUnsupported": "\"{gameName}\" se marcó como no compatible.",
+  "@gameMarkedUnsupported": {
+    "description": "Localized message for game marked unsupported.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameMarkedSupported": "\"{gameName}\" se marcó como compatible.",
+  "@gameMarkedSupported": {
+    "description": "Localized message for game marked supported.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameMenuViewDetails": "Ver detalles",
+  "@gameMenuViewDetails": {
+    "description": "Localized message for game menu view details."
+  },
+  "gameMenuCompressNow": "Comprimir ahora",
+  "@gameMenuCompressNow": {
+    "description": "Localized message for game menu compress now."
+  },
+  "gameMenuDecompress": "Descomprimir",
+  "@gameMenuDecompress": {
+    "description": "Localized message for game menu decompress."
+  },
+  "gameMenuMarkUnsupported": "Marcar como no compatible",
+  "@gameMenuMarkUnsupported": {
+    "description": "Localized message for game menu mark unsupported."
+  },
+  "gameMenuMarkSupported": "Marcar como compatible",
+  "@gameMenuMarkSupported": {
+    "description": "Localized message for game menu mark supported."
+  },
+  "gameMenuExcludeFromAutoCompression": "Excluir de la compresión automática",
+  "@gameMenuExcludeFromAutoCompression": {
+    "description": "Localized message for game menu exclude from auto compression."
+  },
+  "gameMenuIncludeInAutoCompression": "Incluir en la compresión automática",
+  "@gameMenuIncludeInAutoCompression": {
+    "description": "Localized message for game menu include in auto compression."
+  },
+  "gameMenuRemoveFromLibrary": "Quitar de la biblioteca",
+  "@gameMenuRemoveFromLibrary": {
+    "description": "Localized message for game menu remove from library."
+  },
+  "gameRemovedFromLibrary": "\"{gameName}\" se quitó de la biblioteca.",
+  "@gameRemovedFromLibrary": {
+    "description": "Localized message for game removed from library.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameRemovalPersistFailed": "No se pudo guardar la eliminación de \"{gameName}\". Actualizando la biblioteca.",
+  "@gameRemovalPersistFailed": {
+    "description": "Localized message for game removal persist failed.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameConfirmCompressionTitle": "Confirmar compresión",
+  "@gameConfirmCompressionTitle": {
+    "description": "Localized message for game confirm compression title."
+  },
+  "gameConfirmCompressionMessage": "¿Comprimir \"{gameName}\"? Esto puede afectar el uso del disco y el rendimiento en ejecución.",
+  "@gameConfirmCompressionMessage": {
+    "description": "Localized message for game confirm compression message.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameConfirmCompressionAction": "Comprimir",
+  "@gameConfirmCompressionAction": {
+    "description": "Localized message for game confirm compression action."
+  },
+  "gameDetailsTitleFallback": "Detalles del juego",
+  "@gameDetailsTitleFallback": {
+    "description": "Localized message for game details title fallback."
+  },
+  "gameDetailsNotFound": "Juego no encontrado.",
+  "@gameDetailsNotFound": {
+    "description": "Localized message for game details not found."
+  },
+  "gameDetailsActivityCompressingNow": "Comprimiendo ahora",
+  "@gameDetailsActivityCompressingNow": {
+    "description": "Localized message for game details activity compressing now."
+  },
+  "gameDetailsActivityDecompressingNow": "Descomprimiendo ahora",
+  "@gameDetailsActivityDecompressingNow": {
+    "description": "Localized message for game details activity decompressing now."
+  },
+  "gameDetailsLastCompressedBadge": "Última compresión {value}",
+  "@gameDetailsLastCompressedBadge": {
+    "description": "Localized message for game details last compressed badge.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "gameDetailsStatusCompressed": "Comprimido",
+  "@gameDetailsStatusCompressed": {
+    "description": "Localized message for game details status compressed."
+  },
+  "gameDetailsStatusReady": "Listo",
+  "@gameDetailsStatusReady": {
+    "description": "Localized message for game details status ready."
+  },
+  "gameDetailsDirectStorageWarning": "Se detectó DirectStorage. La compresión puede afectar el rendimiento en ejecución.",
+  "@gameDetailsDirectStorageWarning": {
+    "description": "Localized message for game details direct storage warning."
+  },
+  "gameDetailsUnsupportedWarning": "Se sabe que este juego presenta problemas después de la compresión WOF.",
+  "@gameDetailsUnsupportedWarning": {
+    "description": "Localized message for game details unsupported warning."
+  },
+  "gameDetailsStatusGroupTitle": "Estado",
+  "@gameDetailsStatusGroupTitle": {
+    "description": "Localized message for game details status group title."
+  },
+  "gameDetailsPlatformLabel": "Plataforma",
+  "@gameDetailsPlatformLabel": {
+    "description": "Localized message for game details platform label."
+  },
+  "gameDetailsCompressionLabel": "Compresión",
+  "@gameDetailsCompressionLabel": {
+    "description": "Localized message for game details compression label."
+  },
+  "gameDetailsCompressionCompressed": "Comprimido",
+  "@gameDetailsCompressionCompressed": {
+    "description": "Localized message for game details compression compressed."
+  },
+  "gameDetailsCompressionNotCompressed": "Sin comprimir",
+  "@gameDetailsCompressionNotCompressed": {
+    "description": "Localized message for game details compression not compressed."
+  },
+  "gameDetailsDirectStorageLabel": "DirectStorage",
+  "@gameDetailsDirectStorageLabel": {
+    "description": "Localized message for game details direct storage label."
+  },
+  "gameDetailsDirectStorageDetected": "Detectado",
+  "@gameDetailsDirectStorageDetected": {
+    "description": "Localized message for game details direct storage detected."
+  },
+  "gameDetailsDirectStorageNotDetected": "No detectado",
+  "@gameDetailsDirectStorageNotDetected": {
+    "description": "Localized message for game details direct storage not detected."
+  },
+  "gameDetailsUnsupportedLabel": "Compatibilidad",
+  "@gameDetailsUnsupportedLabel": {
+    "description": "Localized message for game details unsupported label."
+  },
+  "gameDetailsUnsupportedFlagged": "Marcado",
+  "@gameDetailsUnsupportedFlagged": {
+    "description": "Localized message for game details unsupported flagged."
+  },
+  "gameDetailsUnsupportedNotFlagged": "Sin marcar",
+  "@gameDetailsUnsupportedNotFlagged": {
+    "description": "Localized message for game details unsupported not flagged."
+  },
+  "gameDetailsAutoCompressLabel": "Compresión automática",
+  "@gameDetailsAutoCompressLabel": {
+    "description": "Localized message for game details auto compress label."
+  },
+  "gameDetailsAutoCompressExcluded": "Excluido",
+  "@gameDetailsAutoCompressExcluded": {
+    "description": "Localized message for game details auto compress excluded."
+  },
+  "gameDetailsAutoCompressIncluded": "Incluido",
+  "@gameDetailsAutoCompressIncluded": {
+    "description": "Localized message for game details auto compress included."
+  },
+  "gameDetailsStorageGroupTitle": "Almacenamiento",
+  "@gameDetailsStorageGroupTitle": {
+    "description": "Localized message for game details storage group title."
+  },
+  "gameDetailsOriginalSizeLabel": "Tamaño original",
+  "@gameDetailsOriginalSizeLabel": {
+    "description": "Localized message for game details original size label."
+  },
+  "gameDetailsCurrentSizeLabel": "Tamaño actual",
+  "@gameDetailsCurrentSizeLabel": {
+    "description": "Localized message for game details current size label."
+  },
+  "gameDetailsSpaceSavedLabel": "Espacio ahorrado",
+  "@gameDetailsSpaceSavedLabel": {
+    "description": "Localized message for game details space saved label."
+  },
+  "gameDetailsSavingsLabel": "Ahorro",
+  "@gameDetailsSavingsLabel": {
+    "description": "Localized message for game details savings label."
+  },
+  "gameDetailsInstallPathGroupTitle": "Ruta de instalación",
+  "@gameDetailsInstallPathGroupTitle": {
+    "description": "Localized message for game details install path group title."
+  },
+  "gameDetailsCompressedAt": "Comprimido {value}",
+  "@gameDetailsCompressedAt": {
+    "description": "Localized message for game details compressed at.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "gameDetailsRemovedFromLibrary": "Se quitó \"{gameName}\" de la biblioteca. No volverá a aparecer salvo que se reinstale.",
+  "@gameDetailsRemovedFromLibrary": {
+    "description": "Localized message for game details removed from library.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameDetailsCopyPathTooltip": "Copiar ruta",
+  "@gameDetailsCopyPathTooltip": {
+    "description": "Localized message for game details copy path tooltip."
+  },
+  "gameDetailsInstallPathCopied": "Ruta de instalación copiada.",
+  "@gameDetailsInstallPathCopied": {
+    "description": "Localized message for game details install path copied."
+  },
+  "gameDetailsStorageLegendCurrent": "Actual",
+  "@gameDetailsStorageLegendCurrent": {
+    "description": "Localized message for game details storage legend current."
+  },
+  "gameDetailsStorageLegendOriginal": "Original",
+  "@gameDetailsStorageLegendOriginal": {
+    "description": "Localized message for game details storage legend original."
+  },
+  "gameDetailsStorageLegendSaved": "Ahorrado",
+  "@gameDetailsStorageLegendSaved": {
+    "description": "Localized message for game details storage legend saved."
+  },
+  "trayOpenApp": "Abrir PressPlay",
+  "@trayOpenApp": {
+    "description": "Localized message for tray open app."
+  },
+  "trayPauseAutoCompression": "Pausar compresión automática",
+  "@trayPauseAutoCompression": {
+    "description": "Localized message for tray pause auto compression."
+  },
+  "trayResumeAutoCompression": "Reanudar compresión automática",
+  "@trayResumeAutoCompression": {
+    "description": "Localized message for tray resume auto compression."
+  },
+  "trayCompressing": "Comprimiendo",
+  "@trayCompressing": {
+    "description": "Localized message for tray compressing."
+  },
+  "trayPaused": "Pausado",
+  "@trayPaused": {
+    "description": "Localized message for tray paused."
+  },
+  "trayError": "Error",
+  "@trayError": {
+    "description": "Localized message for tray error."
+  }
+}

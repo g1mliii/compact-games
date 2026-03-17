@@ -1,22 +1,27 @@
 import 'dart:async';
-import 'dart:typed_data';
-
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:pressplay/core/navigation/app_routes.dart';
+import 'package:pressplay/core/theme/app_colors.dart';
 import 'package:pressplay/core/theme/app_theme.dart';
-import 'package:pressplay/core/widgets/status_badge.dart';
 import 'package:pressplay/features/games/presentation/game_details_screen.dart';
 import 'package:pressplay/features/games/presentation/home_screen.dart';
 import 'package:pressplay/features/games/presentation/widgets/compression_activity_overlay.dart';
 import 'package:pressplay/features/games/presentation/widgets/game_card.dart';
+import 'package:pressplay/features/games/presentation/widgets/game_card_adapter.dart';
+import 'package:pressplay/features/games/presentation/widgets/game_card_adapter_intents.dart';
+import 'package:pressplay/features/games/presentation/widgets/game_details/details_media.dart';
 import 'package:pressplay/features/games/presentation/widgets/home_compression_banner.dart';
 import 'package:pressplay/features/games/presentation/widgets/home_cover_art_nudge.dart';
+import 'package:pressplay/features/games/presentation/widgets/home_game_grid.dart';
 import 'package:pressplay/features/games/presentation/widgets/home_game_list_view.dart';
 import 'package:pressplay/features/games/presentation/widgets/home_header.dart';
+import 'package:pressplay/features/games/presentation/widgets/home_overview_panel.dart';
+import 'package:pressplay/features/games/presentation/widgets/inventory_components.dart';
+import 'package:pressplay/features/settings/presentation/sections/compression_section.dart';
 import 'package:pressplay/models/app_settings.dart';
 import 'package:pressplay/models/automation_state.dart';
 import 'package:pressplay/models/compression_algorithm.dart';
@@ -27,6 +32,7 @@ import 'package:pressplay/models/watcher_event.dart';
 import 'package:pressplay/providers/cover_art/cover_art_provider.dart';
 import 'package:pressplay/providers/compression/compression_provider.dart';
 import 'package:pressplay/providers/games/game_list_provider.dart';
+import 'package:pressplay/providers/games/selected_game_provider.dart';
 import 'package:pressplay/providers/settings/settings_persistence.dart';
 import 'package:pressplay/providers/settings/settings_provider.dart';
 import 'package:pressplay/providers/system/route_state_provider.dart';
@@ -51,6 +57,10 @@ final List<GameInfo> _sampleGames = <GameInfo>[
     sizeBytes: 48 * _oneGiB,
   ),
 ];
+
+String _sameUriCoverFixture(String name) {
+  return Uri.file('C:\\PressPlayCoverFixtures\\$name.png').toString();
+}
 
 Widget _buildRouteAwareTestApp({
   required ProviderContainer container,
@@ -105,10 +115,62 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Compression inventory'));
+    await tester.tap(find.byTooltip('Open compression inventory'));
     await tester.pumpAndSettle();
     expect(find.text('Compression Inventory'), findsOneWidget);
   });
+
+  testWidgets(
+    'Header suppresses duplicate inventory primary action when inventory icon is present',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final inventoryOnlyGames = <GameInfo>[
+        GameInfo(
+          name: 'Already Packed',
+          path: r'C:\Games\already_packed',
+          platform: Platform.steam,
+          sizeBytes: 64 * _oneGiB,
+          isCompressed: true,
+        ),
+        GameInfo(
+          name: 'DirectStorage Guarded',
+          path: r'C:\Games\directstorage_guarded',
+          platform: Platform.epicGames,
+          sizeBytes: 72 * _oneGiB,
+          isDirectStorage: true,
+        ),
+      ];
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: inventoryOnlyGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(
+              body: Padding(
+                padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+                child: HomeHeader(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Open compression inventory'), findsOneWidget);
+      expect(find.text('Open inventory'), findsNothing);
+    },
+  );
 
   testWidgets('Header route button navigates to settings', (
     WidgetTester tester,
@@ -134,8 +196,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Settings'), findsOneWidget);
-    await tester.tap(find.byTooltip('Settings'));
+    expect(find.byTooltip('Open settings'), findsOneWidget);
+    await tester.tap(find.byTooltip('Open settings'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.text('Settings'), findsOneWidget);
@@ -162,13 +224,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final center = tester.getCenter(find.byType(GameCard).first);
-    final gesture = await tester.startGesture(
-      center,
-      kind: PointerDeviceKind.mouse,
-      buttons: kSecondaryMouseButton,
-    );
-    await gesture.up();
+    final firstCard = find.byType(GameCard).first;
+    await tester.ensureVisible(firstCard);
+    await tester.pumpAndSettle();
+    final firstCardTapPoint =
+        tester.getTopLeft(firstCard) + const Offset(24, 24);
+    await tester.tapAt(firstCardTapPoint);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Compress Now'));
@@ -198,21 +259,24 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final center = tester.getCenter(find.byType(GameCard).first);
-    final gesture = await tester.startGesture(
-      center,
-      kind: PointerDeviceKind.mouse,
-      buttons: kSecondaryMouseButton,
-    );
-    await gesture.up();
+    final firstCard = find.byType(GameCard).first;
+    await tester.ensureVisible(firstCard);
+    await tester.pumpAndSettle();
+    final firstCardTapPoint =
+        tester.getTopLeft(firstCard) + const Offset(24, 24);
+    await tester.tapAt(firstCardTapPoint);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('View Details'));
     await tester.pumpAndSettle();
 
     expect(find.byType(GameDetailsScreen), findsOneWidget);
-    expect(find.byTooltip('Open directory'), findsOneWidget);
     expect(find.byTooltip('Copy path'), findsOneWidget);
+    final backButtonFinder = find.byKey(
+      const ValueKey<String>('gameDetailsBackButton'),
+    );
+    expect(backButtonFinder, findsOneWidget);
+    expect(tester.getSize(backButtonFinder).width, greaterThanOrEqualTo(56));
   });
 
   testWidgets(
@@ -261,6 +325,11 @@ void main() {
         find.descendant(of: floatingHost, matching: find.text(game.name)),
         findsOneWidget,
       );
+      expect(
+        find.byKey(const ValueKey<String>('detailsHeaderActivityBadge')),
+        findsOneWidget,
+      );
+      expect(find.text('Compressing now'), findsOneWidget);
       expect(find.byKey(compressionInlineActivityHostKey), findsNothing);
       expect(bridge.compressCalls, 1);
 
@@ -409,6 +478,67 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Details route reuses inner details widgets within a small resize bucket',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Details Resize Bucket',
+        path: r'C:\Games\details_resize_bucket',
+        platform: Platform.steam,
+        sizeBytes: 96 * _oneGiB,
+        compressedSize: 72 * _oneGiB,
+        isCompressed: true,
+      );
+      final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: GameDetailsScreen(gamePath: game.path),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final initialHeader = tester.widget<GameDetailsHeader>(
+        find.byType(GameDetailsHeader),
+      );
+      final initialInfoCard = tester.widget<Card>(
+        find.byKey(const ValueKey<String>('detailsInfoCard')),
+      );
+
+      await tester.binding.setSurfaceSize(const Size(912, 900));
+      await tester.pumpAndSettle();
+
+      final withinBucketHeader = tester.widget<GameDetailsHeader>(
+        find.byType(GameDetailsHeader),
+      );
+      final withinBucketInfoCard = tester.widget<Card>(
+        find.byKey(const ValueKey<String>('detailsInfoCard')),
+      );
+      expect(identical(withinBucketHeader, initialHeader), isTrue);
+      expect(identical(withinBucketInfoCard, initialInfoCard), isTrue);
+
+      await tester.binding.setSurfaceSize(const Size(944, 900));
+      await tester.pumpAndSettle();
+
+      final nextBucketHeader = tester.widget<GameDetailsHeader>(
+        find.byType(GameDetailsHeader),
+      );
+      expect(identical(nextBucketHeader, withinBucketHeader), isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Progress ticks do not rebuild the routed page subtree', (
     WidgetTester tester,
   ) async {
@@ -490,6 +620,48 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   });
 
+  testWidgets('Game card context menu stays narrower than the card', (
+    WidgetTester tester,
+  ) async {
+    final bridge = _TestRustBridgeService(games: _sampleGames);
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          initialRoute: AppRoutes.home,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final firstCard = find.byType(GameCard).first;
+    await tester.ensureVisible(firstCard);
+    await tester.pumpAndSettle();
+    final cardRect = tester.getRect(firstCard);
+    final firstCardTapPoint =
+        tester.getTopLeft(firstCard) + const Offset(24, 24);
+    await tester.tapAt(firstCardTapPoint);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('gameCardDangerDivider')),
+      findsOneWidget,
+    );
+
+    final firstMenuItem = find.byType(PopupMenuItem<GameContextAction>).first;
+    final menuItemRect = tester.getRect(firstMenuItem);
+
+    expect(menuItemRect.width, lessThan(cardRect.width - 24));
+    expect(menuItemRect.width, lessThanOrEqualTo(260));
+  });
+
   testWidgets('Game details status card hosts right-side action buttons', (
     WidgetTester tester,
   ) async {
@@ -542,8 +714,12 @@ void main() {
     expect(find.byKey(excludeActionKey), findsOneWidget);
     expect(find.text('Decompress'), findsOneWidget);
     expect(find.text('Exclude From Auto-Compression'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('detailsStorageComparisonBar')),
+      findsOneWidget,
+    );
 
-    final statusRect = tester.getRect(find.text('STATUS'));
+    final statusRect = tester.getRect(find.text('Status'));
     final actionRect = tester.getRect(actionRowFinder);
     expect(actionRect.center.dx, greaterThan(statusRect.center.dx + 120));
 
@@ -552,6 +728,7 @@ void main() {
     expect(bridge.decompressCalls, 1);
 
     await tester.tap(find.byKey(excludeActionKey));
+    await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
     expect(
       container
@@ -604,7 +781,7 @@ void main() {
     const excludeActionKey = ValueKey<String>('detailsStatusExcludeAction');
     final actionRowFinder = find.byKey(actionRowKey);
 
-    final wideStatusRect = tester.getRect(find.text('STATUS'));
+    final wideStatusRect = tester.getRect(find.text('Status'));
     final wideActionRect = tester.getRect(actionRowFinder);
     expect(
       wideActionRect.center.dx,
@@ -617,13 +794,105 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(actionRowFinder, findsOneWidget);
 
-    final compactStatusRect = tester.getRect(find.text('STATUS'));
+    final compactStatusRect = tester.getRect(find.text('Status'));
     final compactActionRect = tester.getRect(actionRowFinder);
     expect(compactActionRect.top, greaterThan(compactStatusRect.bottom));
 
     await tester.tap(find.byKey(excludeActionKey));
+    await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
     expect(find.text('Include In Auto-Compression'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Game details storage comparison bar renders visible current and saved segments for compressed games',
+    (WidgetTester tester) async {
+      final game = GameInfo(
+        name: 'Details Storage Bar',
+        path: r'C:\Games\details_storage_bar',
+        platform: Platform.steam,
+        sizeBytes: 96 * _oneGiB,
+        compressedSize: 72 * _oneGiB,
+        isCompressed: true,
+      );
+      final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: GameDetailsScreen(gamePath: game.path),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final barFinder = find.byKey(
+        const ValueKey<String>('detailsStorageComparisonBar'),
+      );
+      final currentFillFinder = find.byKey(
+        const ValueKey<String>('detailsStorageCurrentFill'),
+      );
+      final savedFillFinder = find.byKey(
+        const ValueKey<String>('detailsStorageSavedFill'),
+      );
+
+      expect(barFinder, findsOneWidget);
+      expect(currentFillFinder, findsOneWidget);
+      expect(savedFillFinder, findsOneWidget);
+
+      final barWidth = tester.getSize(barFinder).width;
+      final currentWidth = tester.getSize(currentFillFinder).width;
+      final savedWidth = tester.getSize(savedFillFinder).width;
+
+      expect(currentWidth, closeTo(barWidth * 0.75, 1.5));
+      expect(savedWidth, closeTo(barWidth * 0.25, 1.5));
+      expect(currentWidth, greaterThan(savedWidth));
+    },
+  );
+
+  testWidgets('Game details install path stays overflow-free at narrow width', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(300, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final game = GameInfo(
+      name: 'Details Narrow Path',
+      path:
+          r'C:\Program Files\Epic Games\rocketleague\Very\Long\Nested\Folder\Path\To\Game',
+      platform: Platform.epicGames,
+      sizeBytes: 96 * _oneGiB,
+      compressedSize: 70 * _oneGiB,
+      isCompressed: true,
+    );
+    final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: GameDetailsScreen(gamePath: game.path),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Copy path'), findsOneWidget);
   });
 
   testWidgets('Game details shows last compressed when timestamp exists', (
@@ -657,6 +926,22 @@ void main() {
 
     expect(find.text('Compressed Mar 4, 16:05'), findsOneWidget);
     expect(find.text('Last compressed'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('detailsHeaderStatusBadge')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('detailsHeaderStatusBadge')),
+        matching: find.text('Compressed'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('detailsHeaderLastCompressedBadge')),
+      findsOneWidget,
+    );
+    expect(find.text('Last compressed Mar 4, 16:05'), findsOneWidget);
   });
 
   testWidgets(
@@ -689,6 +974,117 @@ void main() {
 
       expect(find.text('Last compressed'), findsNothing);
       expect(find.text('Compressed Mar 4, 16:05'), findsNothing);
+    },
+  );
+
+  testWidgets('Game cards stay stable when exclusion settings change', (
+    WidgetTester tester,
+  ) async {
+    final persistence = _InMemorySettingsPersistence();
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          initialRoute: AppRoutes.home,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final initialCard = tester.widget<GameCard>(find.byType(GameCard).first);
+
+    container
+        .read(settingsProvider.notifier)
+        .toggleGameExclusion(_sampleGames.first.path);
+    await tester.pump();
+
+    final afterToggleCard = tester.widget<GameCard>(
+      find.byType(GameCard).first,
+    );
+    expect(identical(afterToggleCard, initialCard), isTrue);
+
+    await tester.pump(const Duration(milliseconds: 600));
+  });
+
+  testWidgets(
+    'Settings screen uses a single shared SteamGridDB field and inline key actions',
+    (WidgetTester tester) async {
+      final persistence = _InMemorySettingsPersistence();
+      await persistence.save(
+        const AppSettings(
+          steamGridDbApiKey: 'pressplay-demo-key',
+          idleDurationMinutes: 23,
+          cpuThreshold: 19,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            initialRoute: AppRoutes.settings,
+            onGenerateRoute: AppRoutes.onGenerateRoute,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final idleLabel = tester.widget<Text>(find.text('23 min'));
+      final cpuLabel = tester.widget<Text>(find.text('19%'));
+      expect(idleLabel.style?.color, AppColors.success);
+      expect(cpuLabel.style?.color, AppColors.error);
+
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -900));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('settingsSteamGridDbField')),
+        findsOneWidget,
+      );
+      expect(find.text('SteamGridDB API key'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('settingsSteamGridDbSaveButton')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('settingsSteamGridDbRemoveButton')),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Show key'), findsOneWidget);
+      expect(find.byTooltip('Copy key'), findsOneWidget);
+      expect(
+        find.text(
+          'SteamGridDB artwork is only fetched once per game unless you refresh it.',
+        ),
+        findsOneWidget,
+      );
+
+      final saveButtonSize = tester.getSize(
+        find.byKey(const ValueKey<String>('settingsSteamGridDbSaveButton')),
+      );
+      expect(saveButtonSize.height, greaterThanOrEqualTo(40));
     },
   );
 
@@ -727,8 +1123,13 @@ void main() {
       await tester.tap(selectorFinder);
       await tester.pumpAndSettle();
 
-      final firstMenuItem = find.byType(PopupMenuItem<int>).first;
-      expect(tester.getSize(firstMenuItem).height, lessThan(40));
+      final firstMenuItem = find.ancestor(
+        of: find.text('Auto').last,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is PopupMenuEntry<dynamic>,
+        ),
+      );
+      expect(tester.getSize(firstMenuItem).height, greaterThanOrEqualTo(38));
 
       await tester.tap(find.text('4 threads').last);
       await tester.pumpAndSettle();
@@ -753,6 +1154,53 @@ void main() {
             .ioParallelismOverride,
         isNull,
       );
+
+      await tester.pump(const Duration(milliseconds: 600));
+    },
+  );
+
+  testWidgets(
+    'Compression section shell stays stable while selector leaves update',
+    (WidgetTester tester) async {
+      final persistence = _InMemorySettingsPersistence();
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: CompressionSection()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final initialCard = tester.widget<Card>(find.byType(Card));
+
+      container
+          .read(settingsProvider.notifier)
+          .updateAlgorithm(CompressionAlgorithm.lzx);
+      await tester.pump();
+
+      final afterAlgorithmCard = tester.widget<Card>(find.byType(Card));
+      expect(identical(afterAlgorithmCard, initialCard), isTrue);
+      expect(find.text(CompressionAlgorithm.lzx.displayName), findsOneWidget);
+
+      container.read(settingsProvider.notifier).setIoParallelismOverride(4);
+      await tester.pump();
+
+      final afterIoCard = tester.widget<Card>(find.byType(Card));
+      expect(identical(afterIoCard, initialCard), isTrue);
+      expect(find.text('4 threads'), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 600));
     },
@@ -788,6 +1236,117 @@ void main() {
     expect(find.text('Dustline'), findsOneWidget);
     expect(find.text('Pixel Raider'), findsNothing);
   });
+
+  testWidgets(
+    'Inventory route reuses the list shell for header-only settings updates',
+    (WidgetTester tester) async {
+      final persistence = _InMemorySettingsPersistence();
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            initialRoute: AppRoutes.inventory,
+            onGenerateRoute: AppRoutes.onGenerateRoute,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final initialListBoundary = tester.widget<RepaintBoundary>(
+        find.byKey(inventoryListBoundaryKey),
+      );
+
+      container
+          .read(settingsProvider.notifier)
+          .updateAlgorithm(CompressionAlgorithm.lzx);
+      await tester.pump();
+
+      final updatedListBoundary = tester.widget<RepaintBoundary>(
+        find.byKey(inventoryListBoundaryKey),
+      );
+      expect(identical(updatedListBoundary, initialListBoundary), isTrue);
+      expect(
+        container.read(settingsProvider).valueOrNull?.settings.algorithm,
+        CompressionAlgorithm.lzx,
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+    },
+  );
+
+  testWidgets(
+    'Inventory route reuses the list shell for metadata-only row updates when path order is unchanged',
+    (WidgetTester tester) async {
+      final inventoryGames = <GameInfo>[
+        GameInfo(
+          name: 'Higher Savings',
+          path: r'C:\Games\higher_savings',
+          platform: Platform.steam,
+          sizeBytes: 100 * _oneGiB,
+          compressedSize: 50 * _oneGiB,
+          isCompressed: true,
+        ),
+        GameInfo(
+          name: 'Lower Savings',
+          path: r'C:\Games\lower_savings',
+          platform: Platform.steam,
+          sizeBytes: 100 * _oneGiB,
+          compressedSize: 90 * _oneGiB,
+          isCompressed: true,
+        ),
+      ];
+      final persistence = _InMemorySettingsPersistence();
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: inventoryGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            initialRoute: AppRoutes.inventory,
+            onGenerateRoute: AppRoutes.onGenerateRoute,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final initialListBoundary = tester.widget<RepaintBoundary>(
+        find.byKey(inventoryListBoundaryKey),
+      );
+
+      container
+          .read(gameListProvider.notifier)
+          .updateGameByPath(
+            inventoryGames.first.path,
+            (game) => game.copyWith(name: 'Higher Savings Updated'),
+          );
+      await tester.pump();
+
+      final updatedListBoundary = tester.widget<RepaintBoundary>(
+        find.byKey(inventoryListBoundaryKey),
+      );
+      expect(identical(updatedListBoundary, initialListBoundary), isTrue);
+      expect(find.text('Higher Savings Updated'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'Inventory watcher column only marks compressed eligible games as watched',
@@ -990,6 +1549,7 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey<String>('settingsWatcherToggleButton')),
     );
+    await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
 
     expect(

@@ -82,9 +82,15 @@ fn configured_submission_endpoint() -> Option<String> {
             }
         }
 
-        let path = report_submission_endpoint_path().ok()?;
-        let contents = fs::read_to_string(path).ok()?;
-        trimmed_non_empty(&contents)
+        if let Ok(path) = report_submission_endpoint_path() {
+            if let Ok(contents) = fs::read_to_string(path) {
+                if let Some(endpoint) = trimmed_non_empty(&contents) {
+                    return Some(endpoint);
+                }
+            }
+        }
+
+        Some(super::DEFAULT_REPORT_SUBMISSION_ENDPOINT.to_string())
     }
 }
 

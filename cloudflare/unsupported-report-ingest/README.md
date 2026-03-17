@@ -30,6 +30,10 @@ The Worker stores data in Cloudflare D1:
 - `client_submission_history`
   - Append-only recent submission history per install ID.
   - Used for rolling per-reporter rate limiting on the ingest endpoint.
+- `ip_submission_history`
+  - Append-only recent submission history per source IP.
+  - Used for per-IP rate limiting (including limiting mass "new reporter ID"
+    registration from a single IP).
 
 Absence of a report is intentionally not treated as a negative vote, because we
 do not know whether another install even has that game. Thresholding is based on
@@ -43,7 +47,7 @@ The Worker no longer trusts client-reported counters or timestamps as release
 verification signals. It issues or reuses an authoritative reporter token on the
 server side and derives repeat-observation metrics from server-seen submissions.
 It also enforces a rolling per-reporter submission limit from server-side
-submission history.
+submission history, plus a per-IP submission cap.
 
 ## API
 
@@ -54,6 +58,8 @@ submission history.
   - Returns a server-issued/reused `reporterId` that the desktop client stores
     and reuses on later submissions.
   - Rejects bursts above the recent per-reporter submission window with `429`.
+  - Rejects bursts above the recent per-IP submission window with `429`.
+  - Rejects excessive "new reporter registrations" from one IP with `429`.
 - `GET /community-candidates?min_reporters=3&min_repeat_reporters=1&max_age_days=180`
   - Returns aggregated candidate metadata.
 - `GET /community-list?min_reporters=3&min_repeat_reporters=1&max_age_days=180`
@@ -112,6 +118,7 @@ The regression suite covers:
 - current-snapshot ingestion behavior
 - reporter token reuse and legacy `install_id` spoof protection
 - rolling rate limiting
+- per-IP rate limiting (including new reporter caps)
 - community candidates/list/release-bundle responses
 - required rate-limit schema artifacts
 
@@ -129,6 +136,28 @@ The client only submits:
 
 - Stable reports that have remained active for at least 7 days
 - At most once per 7-day submission interval when the stable payload changed
+
+## Cloudflare WAF / Rate Limiting (recommended)
+
+The Worker includes a server-side IP guard, but you should still configure a
+Cloudflare Rate Limiting rule so bursts never reach the Worker/D1 in the first
+place.
+
+Suggested Cloudflare rule (tune to your usage):
+
+- Expression: `http.request.method eq "POST" and http.request.uri.path eq "/unsupported-reports"`
+- Characteristics: `IP`
+- Rate: `15 requests per 1 minute`
+- Action: `Block` (or `Managed Challenge` if you expect false positives)
+
+## Optional: anonymize stored IPs (recommended)
+
+The Worker can anonymize IP addresses before storing them in D1 (it will store a
+stable HMAC instead of the raw IP). To enable this, set the secret:
+
+```bash
+npx wrangler secret put IP_HASH_SECRET
+```
 
 ## Suggested release flow
 

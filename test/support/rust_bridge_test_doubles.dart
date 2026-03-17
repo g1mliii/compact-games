@@ -13,6 +13,11 @@ class _BaseRustBridgeService implements RustBridgeService {
 
   @override
   void clearDiscoveryCacheEntry(String path) {}
+  @override
+  Future<void> removeGameFromDiscovery({
+    required String path,
+    required Platform platform,
+  }) async {}
 
   @override
   void clearDiscoveryCache() {}
@@ -117,6 +122,9 @@ class _BaseRustBridgeService implements RustBridgeService {
   }) async {
     return 0;
   }
+
+  @override
+  Future<int> fetchCommunityUnsupportedList() async => 0;
 
   @override
   Future<List<GameInfo>> scanCustomFolder(String path) async {
@@ -323,6 +331,45 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   }) async {
     updateAutomationConfigCalls += 1;
     lastAutomationAllowDirectStorageOverride = allowDirectStorageOverride;
+  }
+}
+
+class _QuickThenFullRustBridgeService extends _BaseRustBridgeService {
+  _QuickThenFullRustBridgeService({
+    required this.quickGames,
+    required this.fullGames,
+  });
+
+  final List<GameInfo> quickGames;
+  final List<GameInfo> fullGames;
+  final Completer<void> _fullLoadCompleter = Completer<void>();
+  int clearDiscoveryCacheCalls = 0;
+  int getAllGamesCalls = 0;
+  int getAllGamesQuickCalls = 0;
+
+  @override
+  void clearDiscoveryCache() {
+    clearDiscoveryCacheCalls += 1;
+  }
+
+  @override
+  Future<List<GameInfo>> getAllGames() async {
+    getAllGamesCalls += 1;
+    await _fullLoadCompleter.future;
+    return fullGames;
+  }
+
+  @override
+  Future<List<GameInfo>> getAllGamesQuick() async {
+    getAllGamesQuickCalls += 1;
+    return quickGames;
+  }
+
+  void releaseFullLoad() {
+    if (_fullLoadCompleter.isCompleted) {
+      return;
+    }
+    _fullLoadCompleter.complete();
   }
 }
 

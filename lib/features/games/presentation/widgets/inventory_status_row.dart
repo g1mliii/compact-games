@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/status_badge.dart';
 
 const double _statusActionHeight = 40;
 const ValueKey<String> _inventoryStatusPanelKey = ValueKey<String>(
@@ -16,6 +18,12 @@ const ValueKey<String> _inventoryAdvancedScanToggleButtonKey = ValueKey<String>(
 );
 const ValueKey<String> _inventoryFullRescanButtonKey = ValueKey<String>(
   'inventoryFullRescanButton',
+);
+const ValueKey<String> _inventoryAlgorithmBadgeKey = ValueKey<String>(
+  'inventoryAlgorithmBadge',
+);
+const ValueKey<String> _inventoryWatcherBadgeKey = ValueKey<String>(
+  'inventoryWatcherBadge',
 );
 
 class InventoryStatusRow extends StatelessWidget {
@@ -46,9 +54,22 @@ class InventoryStatusRow extends StatelessWidget {
     border: Border.all(color: AppColors.borderSubtle),
   );
 
+  static final _secondaryActionStyle = OutlinedButton.styleFrom(
+    foregroundColor: AppColors.textPrimary,
+    backgroundColor: AppColors.surfaceElevated.withValues(alpha: 0.16),
+    side: const BorderSide(color: AppColors.borderSubtle),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  );
+
   @override
   Widget build(BuildContext context) {
-    final watcherLabel = watcherActive ? 'Watcher active' : 'Watcher paused';
+    final l10n = context.l10n;
+    final watcherLabel = watcherActive
+        ? l10n.inventoryWatcherActive
+        : l10n.inventoryWatcherPaused;
     return RepaintBoundary(
       child: Container(
         key: _inventoryStatusPanelKey,
@@ -63,16 +84,20 @@ class InventoryStatusRow extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _InventoryInfoBadge(
+                  badgeKey: _inventoryAlgorithmBadgeKey,
                   icon: LucideIcons.cpu,
-                  label: 'Algorithm',
+                  label: l10n.inventoryAlgorithmBadgeLabel,
                   value: algorithmLabel,
                 ),
                 _InventoryInfoBadge(
+                  badgeKey: _inventoryWatcherBadgeKey,
                   icon: watcherActive
                       ? LucideIcons.radioTower
                       : LucideIcons.pauseCircle,
-                  label: 'Watcher',
-                  value: watcherActive ? 'Active' : 'Paused',
+                  label: l10n.inventoryWatcherBadgeLabel,
+                  value: watcherActive
+                      ? l10n.inventoryWatcherBadgeActive
+                      : l10n.inventoryWatcherBadgePaused,
                   color: watcherActive ? AppColors.success : AppColors.warning,
                 ),
               ],
@@ -84,16 +109,20 @@ class InventoryStatusRow extends StatelessWidget {
               children: [
                 OutlinedButton.icon(
                   key: _inventoryWatcherToggleButtonKey,
+                  style: _watcherActionStyle(watcherActive),
                   onPressed: () => onWatcherEnabledChanged(!watcherEnabled),
                   icon: Icon(
                     watcherEnabled ? LucideIcons.pause : LucideIcons.play,
                     size: 16,
                   ),
                   label: Text(
-                    watcherEnabled ? 'Pause watcher' : 'Resume watcher',
+                    watcherEnabled
+                        ? l10n.inventoryPauseWatcher
+                        : l10n.inventoryResumeWatcher,
                   ),
                 ),
-                FilledButton.tonalIcon(
+                OutlinedButton.icon(
+                  style: _secondaryActionStyle,
                   key: _inventoryAdvancedScanToggleButtonKey,
                   onPressed: () => onAdvancedChanged(!advancedEnabled),
                   icon: Icon(
@@ -104,8 +133,8 @@ class InventoryStatusRow extends StatelessWidget {
                   ),
                   label: Text(
                     advancedEnabled
-                        ? 'Advanced metadata scan: on'
-                        : 'Advanced metadata scan: off',
+                        ? l10n.inventoryAdvancedMetadataScanOn
+                        : l10n.inventoryAdvancedMetadataScanOff,
                   ),
                 ),
               ],
@@ -120,15 +149,15 @@ class InventoryStatusRow extends StatelessWidget {
                   icon: const Icon(LucideIcons.scan, size: 16),
                   label: Text(
                     canRunFullRescan
-                        ? 'Run full inventory rescan'
-                        : 'Rescan unavailable while loading',
+                        ? l10n.inventoryRunFullRescan
+                        : l10n.inventoryRescanUnavailableWhileLoading,
                   ),
                 ),
               ),
             ],
             const SizedBox(height: 6),
             Text(
-              '$watcherLabel. Interactive controls are shown as buttons below.',
+              l10n.inventoryWatcherSummary(watcherLabel),
               style: AppTypography.bodySmall,
             ),
           ],
@@ -136,16 +165,39 @@ class InventoryStatusRow extends StatelessWidget {
       ),
     );
   }
+
+  static ButtonStyle _watcherActionStyle(bool watcherActive) {
+    final borderColor = watcherActive
+        ? AppColors.richGold.withValues(alpha: 0.85)
+        : AppColors.border;
+    return OutlinedButton.styleFrom(
+      foregroundColor: AppColors.textPrimary,
+      backgroundColor: watcherActive
+          ? AppColors.richGold.withValues(alpha: 0.08)
+          : AppColors.surfaceElevated.withValues(alpha: 0.18),
+      side: BorderSide(color: borderColor, width: watcherActive ? 1.6 : 1),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      shadowColor: watcherActive
+          ? AppColors.richGold.withValues(alpha: 0.22)
+          : Colors.transparent,
+      elevation: watcherActive ? 1 : 0,
+    );
+  }
 }
 
 class _InventoryInfoBadge extends StatelessWidget {
   const _InventoryInfoBadge({
+    required this.badgeKey,
     required this.icon,
     required this.label,
     required this.value,
     this.color = AppColors.info,
   });
 
+  final Key badgeKey;
   final IconData icon;
   final String label;
   final String value;
@@ -153,29 +205,11 @@ class _InventoryInfoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: const BorderRadius.all(Radius.circular(10)),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            '$label: $value',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.label.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+    return StatusBadge(
+      key: badgeKey,
+      icon: icon,
+      label: '$label: $value',
+      color: color,
     );
   }
 }

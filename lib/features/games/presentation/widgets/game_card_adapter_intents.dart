@@ -8,6 +8,7 @@ enum GameContextAction {
   markSupported,
   exclude,
   openFolder,
+  removeFromLibrary,
 }
 
 class CompressIntent extends Intent {

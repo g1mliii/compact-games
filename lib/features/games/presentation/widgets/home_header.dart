@@ -3,112 +3,66 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+
+import '../../../../core/localization/app_localization.dart';
 import '../../../../core/navigation/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../models/app_settings.dart';
-import '../../../../providers/games/filtered_games_provider.dart';
 import '../../../../providers/games/game_list_provider.dart';
 import '../../../../providers/games/refresh_games_helper.dart';
 import '../../../../providers/settings/settings_provider.dart';
-import '../../../../providers/system/platform_shell_provider.dart';
-part 'home_add_game_dialog.dart';
-
-const ValueKey<String> _addGamePathFieldKey = ValueKey<String>(
-  'addGamePathField',
-);
-const ValueKey<String> _confirmAddGameButtonKey = ValueKey<String>(
-  'confirmAddGameButton',
-);
-const ValueKey<String> _browseGameFolderButtonKey = ValueKey<String>(
-  'browseGameFolderButton',
-);
-const ValueKey<String> _browseGameExeButtonKey = ValueKey<String>(
-  'browseGameExeButton',
-);
+import 'home_actions.dart';
 
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
 
   static const BorderRadius _panelRadius = BorderRadius.all(
-    Radius.circular(16),
+    Radius.circular(20),
   );
-  static const double _compactHeaderBreakpoint = 720;
-  static const double _compactSearchMinWidth = 160;
-  static const double _headerActionButtonWidth = 44;
+  static const double _compactHeaderBreakpoint = 860;
+  static const double _wideSearchWidth = 240;
   static const double _headerActionSpacing = 8;
+  static const double _primaryButtonMinWidth = 176;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final savedBytes = ref.watch(
-      totalSavingsProvider.select((s) => s.savedBytes),
-    );
-    final savedGB = savedBytes / (1024 * 1024 * 1024);
-    final savedBadgeWidgets = savedBytes > 0
-        ? <Widget>[
-            Text(
-              '${savedGB.toStringAsFixed(1)} GB saved',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.desertGold,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ]
-        : const <Widget>[];
+    final l10n = context.l10n;
     final refreshButton = _HeaderActionIconButton(
       icon: LucideIcons.refreshCw,
-      tooltip: 'Refresh games',
+      tooltip: l10n.homeRefreshGamesTooltip,
       onPressed: () => unawaited(refreshGamesAndInvalidateCovers(ref)),
     );
-    final viewMode = ref.watch(
-      settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.homeViewMode ?? HomeViewMode.grid,
-      ),
-    );
-    final viewToggleButton = _HeaderActionIconButton(
-      icon: viewMode == HomeViewMode.grid
-          ? LucideIcons.layoutList
-          : LucideIcons.layoutGrid,
-      tooltip: viewMode == HomeViewMode.grid
-          ? 'Switch to list view'
-          : 'Switch to grid view',
-      onPressed: () => ref
-          .read(settingsProvider.notifier)
-          .setHomeViewMode(
-            viewMode == HomeViewMode.grid
-                ? HomeViewMode.list
-                : HomeViewMode.grid,
-          ),
-    );
+    const viewToggleButton = _HeaderViewToggleButton();
     final inventoryButton = _HeaderActionIconButton(
       icon: LucideIcons.list,
-      tooltip: 'Compression inventory',
+      tooltip: l10n.homeCompressionInventoryTooltip,
       onPressed: () => Navigator.of(context).pushNamed(AppRoutes.inventory),
     );
     final addGameButton = _HeaderActionIconButton(
       icon: LucideIcons.folderPlus,
-      tooltip: 'Add game',
-      onPressed: () => unawaited(_promptAddGame(context, ref)),
+      tooltip: l10n.homeAddGameTooltip,
+      onPressed: () => unawaited(promptAddGame(context, ref)),
     );
     final settingsButton = _HeaderActionIconButton(
       icon: LucideIcons.settings,
-      tooltip: 'Settings',
+      tooltip: l10n.homeSettingsTooltip,
       onPressed: () => Navigator.of(context).pushNamed(AppRoutes.settings),
     );
 
     return RepaintBoundary(
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: AppColors.panelGradient,
-          border: Border.all(color: AppColors.border),
+          color: AppColors.surface.withValues(alpha: 0.82),
+          border: Border.all(color: AppColors.borderSubtle),
           borderRadius: _panelRadius,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: _HeaderResponsiveLayout(
             breakpoint: _compactHeaderBreakpoint,
-            savedBadgeWidgets: savedBadgeWidgets,
+            primaryActionButton: null,
             viewToggleButton: viewToggleButton,
             addGameButton: addGameButton,
             inventoryButton: inventoryButton,
@@ -119,72 +73,43 @@ class HomeHeader extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Future<void> _promptAddGame(BuildContext context, WidgetRef ref) async {
-    final inputValue = await showDialog<String>(
-      context: context,
-      builder: (_) => const _AddGameDialog(),
+class _HeaderViewToggleButton extends ConsumerWidget {
+  const _HeaderViewToggleButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final viewMode = ref.watch(
+      settingsProvider.select(
+        (async) =>
+            async.valueOrNull?.settings.homeViewMode ?? HomeViewMode.grid,
+      ),
     );
 
-    final value = inputValue?.trim() ?? '';
-    if (value.isEmpty) {
-      return;
-    }
-    if (!context.mounted) {
-      return;
-    }
-
-    await _submitManualGame(context, ref, value);
-  }
-
-  Future<void> _submitManualGame(
-    BuildContext context,
-    WidgetRef ref,
-    String pathOrExe,
-  ) async {
-    try {
-      final result = await ref
-          .read(gameListProvider.notifier)
-          .addGameFromPathOrExe(pathOrExe);
-      if (!context.mounted) {
-        return;
-      }
-
-      final message = result.wasAdded
-          ? 'Added "${result.game.name}" to your library.'
-          : 'Updated "${result.game.name}" in your library.';
-      _showHeaderMessage(context, message);
-    } on ArgumentError catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      _showHeaderMessage(context, error.message?.toString() ?? 'Invalid path.');
-    } on StateError catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      _showHeaderMessage(context, error.message);
-    } catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      _showHeaderMessage(context, 'Failed to add game: $error');
-    }
-  }
-
-  void _showHeaderMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    return _HeaderActionIconButton(
+      icon: viewMode == HomeViewMode.grid
+          ? LucideIcons.layoutList
+          : LucideIcons.layoutGrid,
+      tooltip: viewMode == HomeViewMode.grid
+          ? l10n.homeSwitchToListViewTooltip
+          : l10n.homeSwitchToGridViewTooltip,
+      onPressed: () => ref
+          .read(settingsProvider.notifier)
+          .setHomeViewMode(
+            viewMode == HomeViewMode.grid
+                ? HomeViewMode.list
+                : HomeViewMode.grid,
+          ),
+    );
   }
 }
 
-/// Caches the compact/wide breakpoint so that window resize only rebuilds the
-/// subtree when the layout mode actually changes.
 class _HeaderResponsiveLayout extends StatefulWidget {
   const _HeaderResponsiveLayout({
     required this.breakpoint,
-    required this.savedBadgeWidgets,
+    required this.primaryActionButton,
     required this.viewToggleButton,
     required this.addGameButton,
     required this.inventoryButton,
@@ -193,7 +118,7 @@ class _HeaderResponsiveLayout extends StatefulWidget {
   });
 
   final double breakpoint;
-  final List<Widget> savedBadgeWidgets;
+  final Widget? primaryActionButton;
   final Widget viewToggleButton;
   final Widget addGameButton;
   final Widget inventoryButton;
@@ -206,39 +131,75 @@ class _HeaderResponsiveLayout extends StatefulWidget {
 }
 
 class _HeaderResponsiveLayoutState extends State<_HeaderResponsiveLayout> {
-  bool? _compact;
-  bool? _innerSingleRow;
+  static const double _hidePrimaryActionBreakpoint = 360;
+  _HeaderLayoutVariant? _cachedVariant;
+  Widget? _cachedChild;
+
+  @override
+  void didUpdateWidget(covariant _HeaderResponsiveLayout oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _cachedVariant = null;
+    _cachedChild = null;
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < widget.breakpoint;
-        if (compact == _compact) {
-          // Layout mode unchanged — return identical subtree for reconciliation.
-          return compact ? _buildCompact() : _buildWide();
+        final actions = _utilityActions();
+        final showPrimaryAction =
+            constraints.maxWidth >= _hidePrimaryActionBreakpoint &&
+            widget.primaryActionButton != null;
+        final variant = _resolveVariant(
+          maxWidth: constraints.maxWidth,
+          actionCount: actions.length,
+          showPrimaryAction: showPrimaryAction,
+        );
+
+        if (_cachedVariant == variant && _cachedChild != null) {
+          return _cachedChild!;
         }
-        _compact = compact;
-        _innerSingleRow = null; // reset inner cache on mode change
-        return compact ? _buildCompact() : _buildWide();
+
+        final primary = showPrimaryAction ? widget.primaryActionButton : null;
+        final showStatusLine = constraints.maxWidth >= 260;
+        final child = switch (variant) {
+          _HeaderLayoutVariant.wideWithPrimary => _buildWide(
+            actions: actions,
+            primary: primary,
+            showStatusLine: showStatusLine,
+          ),
+          _HeaderLayoutVariant.wideUtilityOnly => _buildWide(
+            actions: actions,
+            primary: null,
+            showStatusLine: showStatusLine,
+          ),
+          _HeaderLayoutVariant.compactInline => _buildCompact(
+            actions: actions,
+            primary: primary,
+            canInline: true,
+            showStatusLine: showStatusLine,
+          ),
+          _HeaderLayoutVariant.compactStacked => _buildCompact(
+            actions: actions,
+            primary: primary,
+            canInline: false,
+            showStatusLine: showStatusLine,
+          ),
+          _HeaderLayoutVariant.compactUtilityOnly => _buildCompact(
+            actions: actions,
+            primary: null,
+            canInline: false,
+            showStatusLine: showStatusLine,
+          ),
+        };
+        _cachedVariant = variant;
+        _cachedChild = child;
+        return child;
       },
     );
   }
 
-  static const _titleBlock = Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text('PressPlay', style: AppTypography.headingMedium),
-      Text(
-        'Cinematic compression control',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: AppTypography.bodySmall,
-      ),
-    ],
-  );
-
-  List<Widget> _actionsList() => <Widget>[
+  List<Widget> _utilityActions() => <Widget>[
     widget.viewToggleButton,
     widget.addGameButton,
     widget.inventoryButton,
@@ -246,103 +207,140 @@ class _HeaderResponsiveLayoutState extends State<_HeaderResponsiveLayout> {
     widget.refreshButton,
   ];
 
-  Widget _buildCompact() {
-    // Build actions list once for both inner layouts.
-    final actions = _actionsList();
+  _HeaderLayoutVariant _resolveVariant({
+    required double maxWidth,
+    required int actionCount,
+    required bool showPrimaryAction,
+  }) {
+    if (maxWidth >= widget.breakpoint) {
+      return showPrimaryAction
+          ? _HeaderLayoutVariant.wideWithPrimary
+          : _HeaderLayoutVariant.wideUtilityOnly;
+    }
+    if (!showPrimaryAction) {
+      return _HeaderLayoutVariant.compactUtilityOnly;
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            const Expanded(child: _titleBlock),
-            if (widget.savedBadgeWidgets.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              ...widget.savedBadgeWidgets,
-            ],
-          ],
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final actionsWidth =
-                (actions.length * HomeHeader._headerActionButtonWidth) +
-                ((actions.length - 1) * HomeHeader._headerActionSpacing);
-            final singleRow =
-                constraints.maxWidth >=
-                actionsWidth + HomeHeader._compactSearchMinWidth;
-
-            // Only rebuild when the inner layout mode changes.
-            if (singleRow == _innerSingleRow) {
-              return singleRow
-                  ? _buildCompactSingleRow(actions)
-                  : _buildCompactWrapped(actions);
-            }
-            _innerSingleRow = singleRow;
-            return singleRow
-                ? _buildCompactSingleRow(actions)
-                : _buildCompactWrapped(actions);
-          },
-        ),
-      ],
-    );
+    final actionsWidth =
+        (actionCount * appDesktopFrequentActionMin) +
+        ((actionCount - 1) * HomeHeader._headerActionSpacing);
+    final canInline =
+        maxWidth >=
+        actionsWidth +
+            HomeHeader._primaryButtonMinWidth +
+            HomeHeader._headerActionSpacing;
+    return canInline
+        ? _HeaderLayoutVariant.compactInline
+        : _HeaderLayoutVariant.compactStacked;
   }
 
-  Widget _buildCompactSingleRow(List<Widget> actions) {
-    return Row(
-      children: [
-        const Expanded(child: _SearchField()),
-        const SizedBox(width: HomeHeader._headerActionSpacing),
-        for (var i = 0; i < actions.length; i++) ...[
-          if (i > 0)
-            const SizedBox(width: HomeHeader._headerActionSpacing),
-          actions[i],
+  Widget _buildCompact({
+    required List<Widget> actions,
+    required Widget? primary,
+    required bool canInline,
+    required bool showStatusLine,
+  }) {
+    return KeyedSubtree(
+      key: ValueKey<String>(
+        'homeHeaderLayout:${primary == null
+            ? 'utility'
+            : canInline
+            ? 'inline'
+            : 'stacked'}',
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _TitleBlock(showStatusLine: showStatusLine),
+          SizedBox(height: primary == null ? 10 : 14),
+          const _SearchField(),
+          const SizedBox(height: 8),
+          if (primary == null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                spacing: HomeHeader._headerActionSpacing,
+                runSpacing: HomeHeader._headerActionSpacing,
+                alignment: WrapAlignment.end,
+                children: actions,
+              ),
+            )
+          else if (canInline)
+            Row(
+              children: [
+                Expanded(child: primary),
+                const SizedBox(width: HomeHeader._headerActionSpacing),
+                for (var i = 0; i < actions.length; i++) ...[
+                  if (i > 0)
+                    const SizedBox(width: HomeHeader._headerActionSpacing),
+                  actions[i],
+                ],
+              ],
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                primary,
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: HomeHeader._headerActionSpacing,
+                    runSpacing: HomeHeader._headerActionSpacing,
+                    alignment: WrapAlignment.end,
+                    children: actions,
+                  ),
+                ),
+              ],
+            ),
         ],
-      ],
+      ),
     );
   }
 
-  Widget _buildCompactWrapped(List<Widget> actions) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _SearchField(),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Wrap(
-            spacing: HomeHeader._headerActionSpacing,
-            runSpacing: HomeHeader._headerActionSpacing,
-            alignment: WrapAlignment.end,
-            children: actions,
+  Widget _buildWide({
+    required List<Widget> actions,
+    required Widget? primary,
+    required bool showStatusLine,
+  }) {
+    return KeyedSubtree(
+      key: ValueKey<String>(
+        'homeHeaderLayout:${primary == null ? 'wide-utility' : 'wide-primary'}',
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _TitleBlock(showStatusLine: showStatusLine)),
+          const SizedBox(
+            width: HomeHeader._wideSearchWidth,
+            child: _SearchField(),
           ),
-        ),
-      ],
+          if (primary != null) ...[
+            const SizedBox(width: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: HomeHeader._primaryButtonMinWidth,
+              ),
+              child: primary,
+            ),
+          ],
+          const SizedBox(width: 12),
+          for (var i = 0; i < actions.length; i++) ...[
+            if (i > 0) const SizedBox(width: HomeHeader._headerActionSpacing),
+            actions[i],
+          ],
+        ],
+      ),
     );
   }
+}
 
-  Widget _buildWide() {
-    return Row(
-      children: [
-        _titleBlock,
-        const SizedBox(width: 18),
-        ...widget.savedBadgeWidgets,
-        const Spacer(),
-        const SizedBox(width: 240, child: _SearchField()),
-        const SizedBox(width: 8),
-        widget.viewToggleButton,
-        const SizedBox(width: 8),
-        widget.addGameButton,
-        const SizedBox(width: 8),
-        widget.inventoryButton,
-        const SizedBox(width: 8),
-        widget.settingsButton,
-        const SizedBox(width: 8),
-        widget.refreshButton,
-      ],
-    );
-  }
+enum _HeaderLayoutVariant {
+  wideWithPrimary,
+  wideUtilityOnly,
+  compactInline,
+  compactStacked,
+  compactUtilityOnly,
 }
 
 class _HeaderActionIconButton extends StatelessWidget {
@@ -356,22 +354,24 @@ class _HeaderActionIconButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback onPressed;
 
-  static final _bgColor = AppColors.surfaceElevated.withValues(alpha: 0.65);
-  static const _borderRadius = BorderRadius.all(Radius.circular(10));
+  static const _borderRadius = BorderRadius.all(Radius.circular(12));
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _bgColor,
+        color: AppColors.surfaceCard.withValues(alpha: 0.72),
         borderRadius: _borderRadius,
         border: Border.all(color: AppColors.borderSubtle),
       ),
       child: IconButton(
-        constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+        constraints: const BoxConstraints.tightFor(
+          width: appDesktopFrequentActionMin,
+          height: appDesktopFrequentActionMin,
+        ),
         padding: const EdgeInsets.all(12),
         icon: Icon(icon, size: 18),
-        color: AppColors.richGold,
+        color: AppColors.textSecondary,
         onPressed: onPressed,
         tooltip: tooltip,
       ),
@@ -400,26 +400,27 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return SizedBox(
-      height: 40,
+      height: appDesktopFrequentActionMin,
       child: TextField(
         controller: _controller,
         style: AppTypography.bodySmall,
         decoration: InputDecoration(
-          hintText: 'Search games...',
+          hintText: l10n.homeSearchGamesHint,
           hintStyle: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondary.withValues(alpha: 0.9),
           ),
           prefixIcon: const Icon(
             LucideIcons.search,
             size: 16,
-            color: AppColors.desertSand,
+            color: AppColors.info,
           ),
           prefixIconConstraints: const BoxConstraints(
-            minWidth: 36,
-            minHeight: 36,
+            minWidth: 40,
+            minHeight: 40,
           ),
-          fillColor: AppColors.surfaceElevated.withValues(alpha: 0.8),
+          fillColor: AppColors.surfaceCard.withValues(alpha: 0.84),
         ),
         onChanged: _onSearchChanged,
       ),
@@ -432,5 +433,34 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
       if (!mounted) return;
       ref.read(gameListProvider.notifier).setSearchQuery(value);
     });
+  }
+}
+
+class _TitleBlock extends ConsumerWidget {
+  const _TitleBlock({this.showStatusLine = true});
+
+  final bool showStatusLine;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('PressPlay', style: AppTypography.headingMedium),
+        if (showStatusLine) ...[
+          const SizedBox(height: 2),
+          Text(
+            l10n.homeHeaderTagline,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }

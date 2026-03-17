@@ -177,6 +177,34 @@ void main() {
         ]),
       );
     });
+
+    test(
+      'filteredGamePathsProvider reuses the same path list when order is unchanged',
+      () async {
+        await waitForLoad();
+        final initialPaths = container.read(filteredGamePathsProvider);
+
+        container
+            .read(gameListProvider.notifier)
+            .updateGame(
+              _games.first.copyWith(
+                isCompressed: true,
+                compressedSize: () => 8 * _gib,
+              ),
+            );
+
+        final updatedPaths = container.read(filteredGamePathsProvider);
+        expect(identical(updatedPaths, initialPaths), isTrue);
+        expect(
+          updatedPaths,
+          equals(<String>[
+            r'C:\Games\alpha',
+            r'C:\Games\beta',
+            r'C:\Games\gamma',
+          ]),
+        );
+      },
+    );
   });
 
   group('GameInfo.normalizedName', () {
@@ -218,6 +246,11 @@ class _MinimalBridgeService implements RustBridgeService {
   void clearDiscoveryCache() {}
   @override
   void clearDiscoveryCacheEntry(String path) {}
+  @override
+  Future<void> removeGameFromDiscovery({
+    required String path,
+    required Platform platform,
+  }) async {}
   @override
   Stream<CompressionProgress> compressGame({
     required String gamePath,
@@ -279,6 +312,8 @@ class _MinimalBridgeService implements RustBridgeService {
   Future<void> startAutoCompression() async {}
   @override
   void stopAutoCompression() {}
+  @override
+  Future<int> fetchCommunityUnsupportedList() async => 0;
   @override
   Stream<WatcherEvent> watchWatcherEvents() => const Stream.empty();
   @override

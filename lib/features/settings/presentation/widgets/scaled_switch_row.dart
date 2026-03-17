@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_typography.dart';
+
 class ScaledSwitchRow extends StatelessWidget {
   const ScaledSwitchRow({
     super.key,
@@ -11,30 +15,47 @@ class ScaledSwitchRow extends StatelessWidget {
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
+  static const BorderRadius _radius = BorderRadius.all(Radius.circular(12));
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Expanded(child: Text(label)),
-            SizedBox(
-              width: 42,
-              height: 28,
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: Switch(
-                  value: value,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  onChanged: onChanged,
-                ),
+    return MergeSemantics(
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: value ? AppColors.selectionSurface : Colors.transparent,
+            borderRadius: _radius,
+            border: Border.all(
+              color: value ? AppColors.selectionBorder : Colors.transparent,
+            ),
+          ),
+          child: InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: _radius,
+            overlayColor: appFocusInteractionOverlay,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(label, style: AppTypography.bodyMedium),
+                  ),
+                  const SizedBox(width: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: 52,
+                      minHeight: appDesktopControlMin,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Switch(value: value, onChanged: onChanged),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

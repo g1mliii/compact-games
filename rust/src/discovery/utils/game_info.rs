@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
 
 use crate::discovery::cache::{self, CachedGameStats};
+use crate::discovery::hidden_paths;
 use crate::discovery::index;
 use crate::discovery::install_history;
 use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform};
@@ -15,6 +16,10 @@ mod logging;
 use self::logging::log_candidate_decision;
 
 const MIN_LIKELY_INSTALL_SIZE_BYTES: u64 = 512 * 1024 * 1024;
+/// Folders above this threshold are accepted as games without an exe probe.
+/// Between MIN_LIKELY_INSTALL_SIZE_BYTES and this value an exe probe is required,
+/// which filters out sub-2 GB uninstall remnants that left no game binary behind.
+const LARGE_GAME_THRESHOLD_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const MIN_GAME_EXE_SIZE_BYTES: u64 = 2 * 1024 * 1024;
 const MIN_UNITY_BOOTSTRAP_EXE_SIZE_BYTES: u64 = 256 * 1024;
 const MIN_REMNANT_HISTORY_SIZE_BYTES: u64 = 4 * 1024 * 1024 * 1024;
@@ -36,7 +41,8 @@ pub fn build_game_info_with_mode(
     platform: Platform,
     mode: DiscoveryScanMode,
 ) -> Option<GameInfo> {
-    build_game_info_with_mode_and_stats_path(name, game_path.clone(), game_path, platform, mode)
+    let stats_path = game_path.clone();
+    build_game_info_with_mode_and_stats_path(name, game_path, stats_path, platform, mode)
 }
 
 /// Build a GameInfo where metadata should be read from `stats_path` but
@@ -62,10 +68,25 @@ pub fn build_game_info_with_mode_and_stats_path(
         return None;
     }
 
-    if mode == DiscoveryScanMode::Quick {
-        let include_probe = cache::has_entry(&stats_path);
-        let token = cache::compute_change_token(&stats_path, include_probe);
+    let hidden_token = cache::compute_change_token(&stats_path, false);
+    if hidden_paths::should_hide(&stats_path, &hidden_token) {
+        cache::remove(&stats_path);
+        index::remove(&stats_path);
+        log_candidate_decision(
+            "skip",
+            platform,
+            &name,
+            &stats_path,
+            mode,
+            "path hidden by user until install changes",
+        );
+        return None;
+    }
 
+    let include_probe = cache::has_entry(&stats_path);
+    let token = cache::compute_change_token(&stats_path, include_probe);
+
+    if mode == DiscoveryScanMode::Quick {
         if let Some(cached) = cache::lookup(&stats_path, &token) {
             if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
                 cache::remove(&stats_path);
@@ -94,7 +115,10 @@ pub fn build_game_info_with_mode_and_stats_path(
         // Keep quick mode stable: if authoritative cache exists but token drifted,
         // use stale cached stats until hydration/full scan refreshes this entry.
         if let Some(stale_cached) = cache::lookup_stale(&stats_path) {
-            if !is_likely_installed_game(&stats_path, stale_cached.logical_size, platform) {
+            let current_sample_logical_size = token
+                .probe_total_size
+                .unwrap_or_else(|| dir_stats_quick(&stats_path).logical_size);
+            if current_sample_logical_size == 0 {
                 cache::remove(&stats_path);
                 index::remove(&stats_path);
                 log_candidate_decision(
@@ -103,7 +127,39 @@ pub fn build_game_info_with_mode_and_stats_path(
                     &name,
                     &stats_path,
                     mode,
-                    "stale cache fallback failed install probe",
+                    "stale cache fallback quick stats reported zero logical size",
+                );
+                return None;
+            }
+
+            if !is_plausible_current_install_for_stale_cache(
+                &stats_path,
+                current_sample_logical_size,
+                platform,
+            ) {
+                cache::remove(&stats_path);
+                index::remove(&stats_path);
+                log_candidate_decision(
+                    "skip",
+                    platform,
+                    &name,
+                    &stats_path,
+                    mode,
+                    "stale cache fallback current quick stats failed install probe",
+                );
+                return None;
+            }
+
+            if is_probable_uninstall_remnant(&stats_path, current_sample_logical_size) {
+                cache::remove(&stats_path);
+                index::remove(&stats_path);
+                log_candidate_decision(
+                    "skip",
+                    platform,
+                    &name,
+                    &stats_path,
+                    mode,
+                    "stale cache fallback current quick stats indicate prior install shrank to remnant",
                 );
                 return None;
             }
@@ -168,8 +224,6 @@ pub fn build_game_info_with_mode_and_stats_path(
         ));
     }
 
-    let include_probe = cache::has_entry(&stats_path);
-    let token = cache::compute_change_token(&stats_path, include_probe);
     if let Some(mut indexed_game) = index::lookup(&stats_path, &token) {
         if !is_likely_installed_game(&stats_path, indexed_game.size_bytes, platform) {
             cache::remove(&stats_path);
@@ -372,12 +426,8 @@ fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) 
         return false;
     }
 
-    if logical_size >= MIN_LIKELY_INSTALL_SIZE_BYTES {
-        return true;
-    }
-
-    // Xbox UWP layouts may not expose a direct game executable at root.
-    if platform == Platform::XboxGamePass && logical_size >= (256 * 1024 * 1024) {
+    // Very large folders are almost certainly real game installs; skip exe probe.
+    if logical_size >= LARGE_GAME_THRESHOLD_BYTES {
         return true;
     }
 
@@ -385,7 +435,38 @@ fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) 
         return true;
     }
 
+    if platform == Platform::XboxGamePass && logical_size >= (256 * 1024 * 1024) {
+        return true;
+    }
+
+    if logical_size < MIN_LIKELY_INSTALL_SIZE_BYTES {
+        return false;
+    }
+
     has_game_executable(path)
+}
+
+/// Validates stale-cache fallback against the *current* filesystem view.
+///
+/// Quick stats are intentionally shallow, so a legitimate install may still
+/// look "small" when most content sits deeper than the quick-scan depth.
+/// For stale authoritative cache entries, allow an executable-backed install to
+/// remain plausible even when the current quick sample falls below the normal
+/// size floor.
+fn is_plausible_current_install_for_stale_cache(
+    path: &Path,
+    logical_size: u64,
+    platform: Platform,
+) -> bool {
+    if logical_size == 0 {
+        return false;
+    }
+
+    if is_likely_installed_game(path, logical_size, platform) {
+        return true;
+    }
+
+    has_unity_bootstrap_layout(path) || has_game_executable(path)
 }
 
 fn is_probable_uninstall_remnant(path: &Path, logical_size: u64) -> bool {

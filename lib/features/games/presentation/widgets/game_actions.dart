@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/localization/app_localization.dart';
 import '../../../../models/game_info.dart';
 import '../../../../providers/games/game_list_provider.dart';
 import '../../../../services/unsupported_report_sync_service.dart';
@@ -34,8 +35,8 @@ void toggleGameUnsupportedStatus(
     SnackBar(
       content: Text(
         markUnsupported
-            ? '"${game.name}" marked as unsupported.'
-            : '"${game.name}" marked as supported.',
+            ? context.l10n.gameMarkedUnsupported(game.name)
+            : context.l10n.gameMarkedSupported(game.name),
       ),
       duration: const Duration(seconds: 2),
     ),

@@ -17,6 +17,13 @@ abstract final class AppColors {
   static const Color surface = Color(0xFF192532);
   static const Color surfaceVariant = Color(0xFF223243);
   static const Color surfaceElevated = Color(0xFF2A3B4E);
+  static const Color surfaceHero = Color(0xFF172230);
+  static const Color surfaceCard = Color(0xFF202A36);
+  static final Color hoverSurface = surfaceElevated.withValues(alpha: 0.5);
+  static final Color focusFill = info.withValues(alpha: 0.14);
+  static final Color focusRing = info.withValues(alpha: 0.65);
+  static final Color selectionSurface = info.withValues(alpha: 0.12);
+  static final Color selectionBorder = info.withValues(alpha: 0.28);
 
   // Borders
   static const Color border = Color(0x66D8C3A0);
@@ -37,9 +44,10 @@ abstract final class AppColors {
   static const Color warning = Color(0xFFD7A14D);
   static const Color error = Color(0xFFDA7453);
   static const Color info = Color(0xFF8CB6D8);
+  static const Color protected = Color(0xFFCE9A60);
 
   // Compression-specific
-  static const Color compressed = desertGold;
+  static const Color compressed = Color(0xFF93C28A);
   static const Color notCompressed = Color(0xFF9B8B73);
   static const Color directStorage = burntSienna;
   static const Color compressing = richGold;
@@ -55,6 +63,13 @@ abstract final class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [surfaceVariant, surface],
+  );
+
+  static const LinearGradient heroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    stops: [0, 0.52, 1],
+    colors: [deepHorizonBlue, surfaceHero, nightDune],
   );
 
   static const LinearGradient progressGradient = LinearGradient(

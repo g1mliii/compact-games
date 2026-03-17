@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../localization/app_localization.dart';
 import '../../features/games/presentation/game_details_screen.dart';
 import '../../features/games/presentation/home_screen.dart';
 import '../../features/games/presentation/inventory_screen.dart';
@@ -71,9 +72,10 @@ class _UnknownRouteScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Not Found')),
-      body: const Center(child: Text('Requested route was not found.')),
+      appBar: AppBar(title: Text(l10n.routeNotFoundTitle)),
+      body: Center(child: Text(l10n.routeNotFoundMessage)),
     );
   }
 }

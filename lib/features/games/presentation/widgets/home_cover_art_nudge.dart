@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/localization/app_localization.dart';
 import '../../../../core/navigation/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/settings/settings_provider.dart';
 
@@ -54,12 +56,18 @@ class HomeCoverArtNudge extends ConsumerWidget {
 
 /// Extracted so constraint-independent widgets (message, buttons) are built
 /// once in the outer build, and only the Row/Column layout switches inside
-/// the LayoutBuilder.
-class _NudgeContent extends StatelessWidget {
+/// the LayoutBuilder. Caches the stacked boolean so the child tree only
+/// rebuilds when the breakpoint actually flips.
+class _NudgeContent extends StatefulWidget {
   const _NudgeContent({required this.onDismiss});
 
   final VoidCallback onDismiss;
 
+  @override
+  State<_NudgeContent> createState() => _NudgeContentState();
+}
+
+class _NudgeContentState extends State<_NudgeContent> {
   static final _messageStyle = AppTypography.bodySmall.copyWith(
     color: AppColors.textSecondary,
   );
@@ -68,13 +76,14 @@ class _NudgeContent extends StatelessWidget {
     fontWeight: FontWeight.w600,
   );
 
+  bool? _stacked;
+  Widget? _cached;
+
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final message = Expanded(
-      child: Text(
-        'Game covers are unavailable — add a free SteamGridDB API key in Settings to load them.',
-        style: _messageStyle,
-      ),
+      child: Text(l10n.homeCoverArtNudgeMessage, style: _messageStyle),
     );
     final settingsButton = TextButton(
       style: TextButton.styleFrom(
@@ -83,20 +92,28 @@ class _NudgeContent extends StatelessWidget {
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       onPressed: () => Navigator.of(context).pushNamed(AppRoutes.settings),
-      child: Text('Go to Settings', style: _settingsLabelStyle),
+      child: Text(l10n.homeGoToSettingsButton, style: _settingsLabelStyle),
     );
     final dismissButton = IconButton(
-      tooltip: 'Dismiss',
+      tooltip: l10n.commonDismissTooltip,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      constraints: const BoxConstraints(
+        minWidth: appDesktopControlMin,
+        minHeight: appDesktopControlMin,
+      ),
       icon: const Icon(LucideIcons.x, size: 14, color: AppColors.textMuted),
-      onPressed: onDismiss,
+      onPressed: widget.onDismiss,
     );
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < HomeCoverArtNudge._stackedBreakpoint) {
-          return Column(
+        final stacked =
+            constraints.maxWidth < HomeCoverArtNudge._stackedBreakpoint;
+        if (stacked == _stacked && _cached != null) return _cached!;
+        _stacked = stacked;
+
+        if (stacked) {
+          _cached = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -127,23 +144,24 @@ class _NudgeContent extends StatelessWidget {
               ),
             ],
           );
+        } else {
+          _cached = Row(
+            children: [
+              const Icon(
+                LucideIcons.imageOff,
+                size: 15,
+                color: AppColors.warning,
+              ),
+              const SizedBox(width: 10),
+              message,
+              const SizedBox(width: 10),
+              settingsButton,
+              const SizedBox(width: 4),
+              dismissButton,
+            ],
+          );
         }
-
-        return Row(
-          children: [
-            const Icon(
-              LucideIcons.imageOff,
-              size: 15,
-              color: AppColors.warning,
-            ),
-            const SizedBox(width: 10),
-            message,
-            const SizedBox(width: 10),
-            settingsButton,
-            const SizedBox(width: 4),
-            dismissButton,
-          ],
-        );
+        return _cached!;
       },
     );
   }

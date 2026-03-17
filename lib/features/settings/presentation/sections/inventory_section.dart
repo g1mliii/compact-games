@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/settings/settings_provider.dart';
 import '../widgets/scaled_switch_row.dart';
@@ -15,46 +16,12 @@ const ValueKey<String> _advancedToggleKey = ValueKey<String>(
   'settingsInventoryAdvancedToggle',
 );
 
-/// Inventory section owns its own local state (API key reveal toggle,
-/// controller, seeding) so that toggling reveal never rebuilds the
-/// parent SettingsScreen or sibling sections.
-class InventorySection extends ConsumerStatefulWidget {
+class InventorySection extends ConsumerWidget {
   const InventorySection({super.key});
 
   @override
-  ConsumerState<InventorySection> createState() => _InventorySectionState();
-}
-
-class _InventorySectionState extends ConsumerState<InventorySection> {
-  final TextEditingController _apiKeyController = TextEditingController();
-  ProviderSubscription<String?>? _apiKeySub;
-  bool _apiKeySeeded = false;
-  bool _revealApiKey = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _apiKeySub = ref.listenManual(
-      settingsProvider.select((s) => s.valueOrNull?.settings.steamGridDbApiKey),
-      (prev, next) {
-        if (!_apiKeySeeded && next != null) {
-          _apiKeyController.text = next;
-          _apiKeySeeded = true;
-        }
-      },
-      fireImmediately: true,
-    );
-  }
-
-  @override
-  void dispose() {
-    _apiKeySub?.close();
-    _apiKeyController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final autoCompress = ref.watch(
       settingsProvider.select((s) => s.valueOrNull?.settings.autoCompress),
     );
@@ -69,7 +36,7 @@ class _InventorySectionState extends ConsumerState<InventorySection> {
 
     return SettingsSectionCard(
       icon: LucideIcons.slidersHorizontal,
-      title: 'Inventory',
+      title: l10n.settingsInventorySectionTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -91,7 +58,9 @@ class _InventorySectionState extends ConsumerState<InventorySection> {
                     size: 16,
                   ),
                   label: Text(
-                    autoCompress ? 'Pause watcher' : 'Resume watcher',
+                    autoCompress
+                        ? l10n.settingsPauseWatcher
+                        : l10n.settingsResumeWatcher,
                   ),
                 ),
               ),
@@ -102,77 +71,36 @@ class _InventorySectionState extends ConsumerState<InventorySection> {
             padding: const EdgeInsets.only(left: 2, bottom: 12),
             child: Text(
               autoCompress
-                  ? 'Watcher automation is enabled.'
-                  : 'Watcher automation is disabled.',
+                  ? l10n.settingsWatcherAutomationEnabled
+                  : l10n.settingsWatcherAutomationDisabled,
               style: AppTypography.bodySmall,
             ),
           ),
           ScaledSwitchRow(
             key: _advancedToggleKey,
-            label: 'Enable full metadata inventory scan',
+            label: l10n.settingsEnableFullMetadataInventoryScan,
             value: advancedScan,
             onChanged: (enabled) => ref
                 .read(settingsProvider.notifier)
                 .setInventoryAdvancedScanEnabled(enabled),
           ),
           const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.only(left: 2, bottom: 12),
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 12),
             child: Text(
-              'When enabled, Inventory shows a "Run Full Inventory Rescan" action that performs a deeper metadata pass.',
+              l10n.settingsInventoryAdvancedDescription,
               style: AppTypography.bodySmall,
             ),
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _apiKeyController,
-            obscureText: !_revealApiKey,
-            enableSuggestions: false,
-            autocorrect: false,
-            decoration:
-                const InputDecoration(
-                  labelText: 'SteamGridDB API key (optional)',
-                  isDense: true,
-                ).copyWith(
-                  suffixIcon: IconButton(
-                    tooltip: _revealApiKey ? 'Hide key' : 'Show key',
-                    icon: Icon(
-                      _revealApiKey ? LucideIcons.eyeOff : LucideIcons.eye,
-                    ),
-                    onPressed: _toggleReveal,
-                  ),
-                ),
-            onSubmitted: (_) => _saveApiKey(),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton(
-              onPressed: _saveApiKey,
-              child: const Text('Save API Key'),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.only(left: 2),
+          Padding(
+            padding: const EdgeInsets.only(left: 2, top: 2),
             child: Text(
-              'Used as fallback for Epic/GOG/Ubisoft when local art cannot be found.',
+              l10n.settingsSteamGridDbManagedOnce,
               style: AppTypography.bodySmall,
             ),
           ),
         ],
       ),
     );
-  }
-
-  void _toggleReveal() {
-    setState(() => _revealApiKey = !_revealApiKey);
-  }
-
-  void _saveApiKey() {
-    final value = _apiKeyController.text.trim();
-    ref
-        .read(settingsProvider.notifier)
-        .setSteamGridDbApiKey(value.isEmpty ? null : value);
   }
 }

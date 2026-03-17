@@ -7,6 +7,8 @@ import 'package:pressplay/services/tray_service.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUp(() {
     TrayService.instance.resetForTest();
   });

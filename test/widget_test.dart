@@ -89,9 +89,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Failed to load games'), findsOneWidget);
+    expect(find.text("Couldn't load your library"), findsOneWidget);
     expect(find.textContaining('discovery boom'), findsOneWidget);
-    expect(find.text('No games found'), findsNothing);
+    expect(find.text('No games in view'), findsNothing);
   });
 
   testWidgets('Home screen renders at constrained width without overflow', (
@@ -118,6 +118,44 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(GameCard), findsAtLeastNWidgets(1));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home screen only shows one ready-to-reclaim summary message', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _StaticRustBridgeService(games: _sampleGames),
+          ),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 games are ready to reclaim space.'), findsOneWidget);
+  });
+
+  testWidgets('Home screen keeps only the overview review-eligible action', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _StaticRustBridgeService(games: _sampleGames),
+          ),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Review eligible games'), findsOneWidget);
   });
 
   testWidgets('Home grid avoids over-packed columns around 1024px width', (
@@ -149,10 +187,138 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Refresh button clears cache and requests full discovery', (
+  testWidgets(
+    'Home grid keeps card width stable within a small resize bucket',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            rustBridgeServiceProvider.overrideWithValue(
+              _StaticRustBridgeService(games: _sampleGames),
+            ),
+          ],
+          child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final initialWidth = tester.getSize(find.byType(GameCard).first).width;
+
+      await tester.binding.setSurfaceSize(const Size(1212, 900));
+      await tester.pumpAndSettle();
+
+      final withinBucketWidth = tester
+          .getSize(find.byType(GameCard).first)
+          .width;
+      expect(withinBucketWidth, closeTo(initialWidth, 0.01));
+
+      await tester.binding.setSurfaceSize(const Size(1248, 900));
+      await tester.pumpAndSettle();
+
+      final nextBucketWidth = tester.getSize(find.byType(GameCard).first).width;
+      expect(nextBucketWidth, greaterThan(withinBucketWidth));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Home grid reuses the same grid subtree within a resize bucket', (
     WidgetTester tester,
   ) async {
-    final bridge = _RecordingRustBridgeService(games: _sampleGames);
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _StaticRustBridgeService(games: _sampleGames),
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    final initialGrid = tester.widget<GridView>(find.byType(GridView).first);
+
+    await tester.binding.setSurfaceSize(const Size(1212, 900));
+    await tester.pumpAndSettle();
+
+    final withinBucketGrid = tester.widget<GridView>(
+      find.byType(GridView).first,
+    );
+    expect(identical(withinBucketGrid, initialGrid), isTrue);
+
+    await tester.binding.setSurfaceSize(const Size(1248, 900));
+    await tester.pumpAndSettle();
+
+    final nextBucketGrid = tester.widget<GridView>(find.byType(GridView).first);
+    expect(identical(nextBucketGrid, withinBucketGrid), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Home grid reuses the same grid subtree for metadata-only game updates',
+    (WidgetTester tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _StaticRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final initialGrid = tester.widget<GridView>(find.byType(GridView).first);
+
+      container
+          .read(gameListProvider.notifier)
+          .updateGame(
+            _sampleGames.first.copyWith(
+              isCompressed: true,
+              compressedSize: () => 72 * _oneGiB,
+              lastCompressedAt: () => DateTime(2026, 3, 10, 11, 30),
+            ),
+          );
+      await tester.pump();
+
+      final updatedGrid = tester.widget<GridView>(find.byType(GridView).first);
+      expect(identical(updatedGrid, initialGrid), isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Startup quick discovery promotes itself to a full scan', (
+    WidgetTester tester,
+  ) async {
+    final fullGame = GameInfo(
+      name: 'Night Circuit',
+      path: r'C:\Games\night_circuit',
+      platform: Platform.gogGalaxy,
+      sizeBytes: 36 * _oneGiB,
+    );
+    final bridge = _QuickThenFullRustBridgeService(
+      quickGames: <GameInfo>[_sampleGames.first],
+      fullGames: <GameInfo>[_sampleGames.first, fullGame],
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -161,17 +327,47 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
-    expect(bridge.clearDiscoveryCacheCalls, 0);
-    expect(bridge.getAllGamesCalls, 0);
+    await tester.pump();
+    expect(find.text('Pixel Raider'), findsOneWidget);
+    expect(find.text('Night Circuit'), findsNothing);
 
-    await tester.tap(find.byTooltip('Refresh games'));
-    await tester.pumpAndSettle();
-
-    expect(bridge.clearDiscoveryCacheCalls, 1);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(bridge.getAllGamesQuickCalls, 1);
     expect(bridge.getAllGamesCalls, 1);
+    expect(bridge.clearDiscoveryCacheCalls, 0);
+
+    bridge.releaseFullLoad();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pixel Raider'), findsOneWidget);
+    expect(find.text('Night Circuit'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Refresh button clears cache and requests another full discovery',
+    (WidgetTester tester) async {
+      final bridge = _RecordingRustBridgeService(games: _sampleGames);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(bridge.clearDiscoveryCacheCalls, 0);
+      expect(bridge.getAllGamesCalls, 1);
+
+      await tester.tap(find.byTooltip('Refresh games'));
+      await tester.pumpAndSettle();
+
+      expect(bridge.clearDiscoveryCacheCalls, 1);
+      expect(bridge.getAllGamesCalls, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Add game imports manual EXE target into the grid', (
     WidgetTester tester,
@@ -745,7 +941,9 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(GameCard).first);
+    await tester.ensureVisible(find.text('Decompress Banner Test'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Decompress Banner Test'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Decompress'));
     await tester.pump();

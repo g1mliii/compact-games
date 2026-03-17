@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../../../core/localization/app_localization.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/cover_art_utils.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/navigation/app_routes.dart';
@@ -16,6 +18,7 @@ import '../../../../providers/games/game_list_provider.dart';
 import '../../../../providers/games/single_game_provider.dart';
 import '../../../../providers/settings/settings_provider.dart';
 import '../../../../providers/system/platform_shell_provider.dart';
+import '../../../../services/cover_art_service.dart';
 import 'game_actions.dart';
 import 'game_card.dart';
 import 'game_card_adapter_intents.dart';
@@ -30,6 +33,14 @@ class GameCardAdapter extends ConsumerStatefulWidget {
 }
 
 class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
+  static const double _contextMenuMinWidth = 184;
+  static const double _contextMenuMaxWidth = 208;
+  static const ValueKey<String> _dangerDividerKey = ValueKey<String>(
+    'gameCardDangerDivider',
+  );
+  static const ValueKey<String> _cardContentKey = ValueKey<String>(
+    'gameCardAdapterContent',
+  );
   bool _hydrationRequested = false;
   bool _hydrationRequestScheduled = false;
   bool _estimateFetchScheduled = false;
@@ -38,14 +49,15 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   DateTime _nextEstimateAttemptAt = DateTime.fromMillisecondsSinceEpoch(0);
   CompressionEstimate? _cachedEstimate;
   CompressionAlgorithm? _cachedEstimateAlgorithm;
+  String? _cachedCoverUri;
+  int _cachedCoverRevision = 0;
+  ImageProvider<Object>? _cachedCoverImageProvider;
 
-  // Mutable references for the stable action callbacks below.
+  // Mutable reference for the stable action callbacks below.
   GameInfo? _currentGame;
-  bool _currentIsExcluded = false;
-  bool _currentDirectStorageOverride = false;
 
-  // Stable action map — created once per state, callbacks read mutable
-  // _currentGame/_currentIsExcluded so they always act on the latest values.
+  // Stable action map — created once per state, callbacks read the latest
+  // selected game and fetch any dynamic settings at invoke time.
   static const _shortcuts = <ShortcutActivator, Intent>{
     SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
     SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true):
@@ -99,13 +111,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       onInvoke: (_) {
         final game = _currentGame;
         if (game != null) {
-          unawaited(
-            _showContextMenu(
-              game: game,
-              isExcluded: _currentIsExcluded,
-              allowDirectStorageOverride: _currentDirectStorageOverride,
-            ),
-          );
+          unawaited(_showContextMenu(game: game));
         }
         return null;
       },
@@ -123,24 +129,44 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       _nextEstimateAttemptAt = DateTime.fromMillisecondsSinceEpoch(0);
       _cachedEstimate = null;
       _cachedEstimateAlgorithm = null;
+      _cachedCoverUri = null;
+      _cachedCoverRevision = 0;
+      _cachedCoverImageProvider = null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final game = ref.watch(singleGameProvider(widget.gamePath));
-    if (game == null) return const SizedBox.shrink();
-    final coverResult = ref.watch(
-      coverArtProvider(widget.gamePath).select((v) => v.valueOrNull),
+    // Select only the fields actually rendered on the card so this widget does
+    // not rebuild when unrelated GameInfo fields (e.g. excluded, lastPlayed)
+    // change. A null selector result means the game was removed from the list.
+    final cardData = ref.watch(
+      singleGameProvider(widget.gamePath).select((game) {
+        if (game == null) return null;
+        return (
+          name: game.name,
+          platform: game.platform,
+          sizeBytes: game.sizeBytes,
+          compressedSize: game.compressedSize,
+          isCompressed: game.isCompressed,
+          isDirectStorage: game.isDirectStorage,
+          isUnsupported: game.isUnsupported,
+          path: game.path,
+          lastCompressedAt: game.lastCompressedAt,
+          lastPlayed: game.lastPlayed,
+        );
+      }),
     );
-    final isExcluded = ref.watch(
-      settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.excludedPaths.contains(
-              widget.gamePath,
-            ) ??
-            false,
-      ),
+    if (cardData == null) return const SizedBox.shrink();
+    // Keep a full GameInfo reference for action callbacks that need it; read
+    // it imperatively so it does not trigger extra rebuilds.
+    final game = ref.read(singleGameProvider(widget.gamePath));
+    if (game == null) return const SizedBox.shrink();
+    final coverSnapshot = ref.watch(
+      coverArtProvider(widget.gamePath).select((value) {
+        final result = value.valueOrNull;
+        return (uri: result?.uri, revision: result?.revision ?? 0);
+      }),
     );
     final allowDirectStorageOverride = ref.watch(
       settingsProvider.select(
@@ -149,51 +175,40 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       ),
     );
 
-    // Update mutable references for the stable action callbacks.
+    // Update the mutable reference for the stable action callbacks.
     _currentGame = game;
-    _currentIsExcluded = isExcluded;
-    _currentDirectStorageOverride = allowDirectStorageOverride;
 
     _scheduleHydrationRequest();
     if (_isEstimatePrefetchAllowed(context)) {
       _scheduleEstimateFetch(game, allowDirectStorageOverride);
     }
-
+    final coverImageProvider = _coverImageProviderFor(coverSnapshot);
     return FocusableActionDetector(
+      key: _cardContentKey,
       shortcuts: _shortcuts,
       actions: _actions,
       mouseCursor: SystemMouseCursors.click,
       child: GameCard(
-        gameName: game.name,
-        platform: game.platform,
-        totalSizeBytes: game.sizeBytes,
-        compressedSizeBytes: game.compressedSize,
-        isCompressed: game.isCompressed,
-        isDirectStorage: game.isDirectStorage,
-        isUnsupported: game.isUnsupported,
+        // Use cardData fields for rendering — these are the selected values
+        // that control rebuild frequency.
+        gameName: cardData.name,
+        platform: cardData.platform,
+        totalSizeBytes: cardData.sizeBytes,
+        compressedSizeBytes: cardData.compressedSize,
+        isCompressed: cardData.isCompressed,
+        isDirectStorage: cardData.isDirectStorage,
+        isUnsupported: cardData.isUnsupported,
         estimatedSavedBytes: _estimatedSavedBytesFor(
           game,
           allowDirectStorageOverride,
         ),
         lastCompressedText: _lastCompressedText(game),
         assumeBoundedHeight: true,
-        coverImageProvider: imageProviderFromCover(coverResult),
+        coverImageProvider: coverImageProvider,
         heroTag: null,
-        onTap: () => unawaited(
-          _showContextMenu(
-            game: game,
-            isExcluded: isExcluded,
-            allowDirectStorageOverride: allowDirectStorageOverride,
-          ),
-        ),
-        onSecondaryTapDown: (details) => unawaited(
-          _showContextMenu(
-            game: game,
-            isExcluded: isExcluded,
-            allowDirectStorageOverride: allowDirectStorageOverride,
-            tapDown: details,
-          ),
-        ),
+        onTap: () => unawaited(_showContextMenu(game: game)),
+        onSecondaryTapDown: (details) =>
+            unawaited(_showContextMenu(game: game, tapDown: details)),
       ),
     );
   }
@@ -213,7 +228,33 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     if (lastCompressed == null) {
       return null;
     }
-    return formatLocalMonthDayTime(lastCompressed);
+    return formatLocalMonthDayTime(
+      lastCompressed,
+      locale: Localizations.localeOf(context),
+    );
+  }
+
+  ImageProvider<Object>? _coverImageProviderFor(
+    ({String? uri, int revision}) coverSnapshot,
+  ) {
+    final coverUri = coverSnapshot.uri;
+    final coverRevision = coverSnapshot.revision;
+    if (_cachedCoverUri == coverUri && _cachedCoverRevision == coverRevision) {
+      return _cachedCoverImageProvider;
+    }
+
+    _cachedCoverUri = coverUri;
+    _cachedCoverRevision = coverRevision;
+    _cachedCoverImageProvider = imageProviderFromCover(
+      coverUri == null
+          ? null
+          : CoverArtResult(
+              uri: coverUri,
+              source: CoverArtSource.none,
+              revision: coverRevision,
+            ),
+    );
+    return _cachedCoverImageProvider;
   }
 
   void _scheduleEstimateFetch(GameInfo game, bool allowDirectStorageOverride) {
@@ -296,58 +337,111 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     ref.read(settingsProvider.notifier).toggleGameExclusion(game.path);
   }
 
+  bool _readIsExcluded(String gamePath) {
+    return ref
+            .read(settingsProvider)
+            .valueOrNull
+            ?.settings
+            .excludedPaths
+            .contains(gamePath) ??
+        false;
+  }
+
+  bool _readDirectStorageOverride() {
+    return ref
+            .read(settingsProvider)
+            .valueOrNull
+            ?.settings
+            .directStorageOverrideEnabled ??
+        false;
+  }
+
   void _setUnsupportedStatus(GameInfo game, {required bool isUnsupported}) {
     toggleGameUnsupportedStatus(
-      ref, context, game, markUnsupported: isUnsupported,
+      ref,
+      context,
+      game,
+      markUnsupported: isUnsupported,
     );
   }
 
   Future<void> _showContextMenu({
     required GameInfo game,
-    required bool isExcluded,
-    required bool allowDirectStorageOverride,
     TapDownDetails? tapDown,
   }) async {
+    final l10n = context.l10n;
+    final isExcluded = _readIsExcluded(game.path);
+    final allowDirectStorageOverride = _readDirectStorageOverride();
     final action = await showMenu<GameContextAction>(
       context: context,
       position: _menuPosition(tapDown),
       popUpAnimationStyle: AnimationStyle.noAnimation,
+      constraints: const BoxConstraints(
+        minWidth: _contextMenuMinWidth,
+        maxWidth: _contextMenuMaxWidth,
+      ),
       items: [
         PopupMenuItem(
           value: GameContextAction.viewDetails,
-          child: _buildMenuLabel('View Details', LucideIcons.info),
+          child: _buildMenuLabel(l10n.gameMenuViewDetails, LucideIcons.info),
         ),
         PopupMenuItem(
           value: GameContextAction.compress,
           enabled:
               !game.isCompressed &&
               !_isDirectStorageBlocked(game, allowDirectStorageOverride),
-          child: _buildMenuLabel('Compress Now', LucideIcons.archive),
+          child: _buildMenuLabel(l10n.gameMenuCompressNow, LucideIcons.archive),
         ),
         PopupMenuItem(
           value: GameContextAction.decompress,
           enabled: game.isCompressed,
-          child: _buildMenuLabel('Decompress', LucideIcons.archiveRestore),
+          child: _buildMenuLabel(
+            l10n.gameMenuDecompress,
+            LucideIcons.archiveRestore,
+          ),
         ),
         PopupMenuItem(
           value: game.isUnsupported
               ? GameContextAction.markSupported
               : GameContextAction.markUnsupported,
           child: _buildMenuLabel(
-            game.isUnsupported ? 'Mark as Supported' : 'Mark as Unsupported',
+            game.isUnsupported
+                ? l10n.gameMenuMarkSupported
+                : l10n.gameMenuMarkUnsupported,
             game.isUnsupported ? LucideIcons.checkCircle2 : LucideIcons.ban,
           ),
         ),
         PopupMenuItem(
           value: GameContextAction.exclude,
           child: _buildMenuLabel(
-            isExcluded ? 'Include In Auto-Compression' : 'Exclude From Auto-Compression',
+            isExcluded
+                ? l10n.gameMenuIncludeInAutoCompression
+                : l10n.gameMenuExcludeFromAutoCompression,
             isExcluded ? LucideIcons.checkCircle2 : LucideIcons.ban,
           ),
         ),
         PopupMenuItem(
           value: GameContextAction.openFolder,
-          child: _buildMenuLabel('Open Folder', LucideIcons.folderOpen),
+          child: _buildMenuLabel(l10n.commonOpenFolder, LucideIcons.folderOpen),
+        ),
+        PopupMenuItem<GameContextAction>(
+          enabled: false,
+          height: 14,
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: Divider(
+            key: _dangerDividerKey,
+            height: 1,
+            thickness: 1,
+            color: AppColors.borderSubtle,
+          ),
+        ),
+        PopupMenuItem(
+          value: GameContextAction.removeFromLibrary,
+          child: _buildMenuLabel(
+            l10n.gameMenuRemoveFromLibrary,
+            LucideIcons.trash2,
+            color: Colors.redAccent,
+          ),
         ),
       ],
     );
@@ -383,6 +477,43 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       case GameContextAction.openFolder:
         await _openFolder(game.path);
         break;
+      case GameContextAction.removeFromLibrary:
+        _removeFromLibrary(game);
+        break;
+    }
+  }
+
+  void _removeFromLibrary(GameInfo game) {
+    ref.read(gameListProvider.notifier).removeGameByPath(game.path);
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.gameRemovedFromLibrary(game.name)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    unawaited(_persistLibraryRemoval(game));
+  }
+
+  Future<void> _persistLibraryRemoval(GameInfo game) async {
+    try {
+      await ref
+          .read(rustBridgeServiceProvider)
+          .removeGameFromDiscovery(path: game.path, platform: game.platform);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.maybeOf(context)
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.gameRemovalPersistFailed(game.name)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      await ref.read(gameListProvider.notifier).refresh();
     }
   }
 
@@ -408,18 +539,26 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     return const RelativeRect.fromLTRB(0, 0, 0, 0);
   }
 
-  Widget _buildMenuLabel(String text, IconData icon) {
-    return SizedBox(
-      width: double.infinity,
-      child: Row(
-        children: [
-          Icon(icon, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+  Widget _buildMenuLabel(String text, IconData icon, {Color? color}) {
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.fade,
+            style:
+                (color != null ? TextStyle(color: color) : null)?.copyWith(
+                  fontSize: 13,
+                  height: 1.15,
+                ) ??
+                const TextStyle(fontSize: 13, height: 1.15),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -428,21 +567,20 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
 
     _compressionConfirmOpen = true;
     try {
+      final l10n = context.l10n;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Confirm Compression'),
-          content: Text(
-            'Compress "$gameName"? This can affect disk usage and performance while running.',
-          ),
+          title: Text(l10n.gameConfirmCompressionTitle),
+          content: Text(l10n.gameConfirmCompressionMessage(gameName)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Compress'),
+              child: Text(l10n.gameConfirmCompressionAction),
             ),
           ],
         ),

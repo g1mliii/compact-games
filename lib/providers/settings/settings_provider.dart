@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/app_locale.dart';
 import '../../models/app_settings.dart';
 import '../../models/compression_algorithm.dart';
 import '../games/manual_game_import.dart';
@@ -135,6 +136,11 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
 
   void setHomeViewMode(HomeViewMode mode) {
     _updateSetting((s) => s.copyWith(homeViewMode: mode));
+  }
+
+  void setLocaleTag(String? localeTag) {
+    final canonicalTag = canonicalLocaleTag(localeTag);
+    _updateSetting((s) => s.copyWith(localeTag: () => canonicalTag));
   }
 
   void _updateSetting(AppSettings Function(AppSettings) updater) {

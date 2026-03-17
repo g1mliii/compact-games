@@ -39,6 +39,149 @@ void runPhase6OversizeSplitTests() {
     expect(refreshRect.top, greaterThan(searchRect.bottom));
   });
 
+  testWidgets('Home header reuses responsive subtree within the wide layout', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(980, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(
+            body: Padding(
+              padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: HomeHeader(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final finder = find.byKey(
+      const ValueKey<String>('homeHeaderLayout:wide-primary'),
+    );
+    final initialLayout = tester.widget<KeyedSubtree>(finder);
+
+    await tester.binding.setSurfaceSize(const Size(1008, 900));
+    await tester.pumpAndSettle();
+
+    final resizedLayout = tester.widget<KeyedSubtree>(finder);
+    expect(identical(resizedLayout, initialLayout), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home overview panel reuses shell within the same layout mode', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(980, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeOverviewPanel()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final finder = find.byKey(const ValueKey<String>('homeOverviewPanelShell'));
+    final initialShell = tester.widget<Padding>(finder);
+
+    await tester.binding.setSurfaceSize(const Size(1008, 900));
+    await tester.pumpAndSettle();
+
+    final resizedShell = tester.widget<Padding>(finder);
+    expect(identical(resizedShell, initialShell), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Home compact overview keeps lead copy expanded and trailing actions pinned right',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 720));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeOverviewPanel()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final shellFinder = find.byKey(
+        const ValueKey<String>('homeOverviewPanelShell'),
+      );
+      final leadFinder = find.byKey(
+        const ValueKey<String>('homeOverviewCompactLead'),
+      );
+      final trailingFinder = find.byKey(
+        const ValueKey<String>('homeOverviewCompactTrailing'),
+      );
+
+      final initialLeadRect = tester.getRect(leadFinder);
+      final initialTrailingRect = tester.getRect(trailingFinder);
+      final initialShellRect = tester.getRect(shellFinder);
+
+      expect(initialTrailingRect.right, greaterThan(initialLeadRect.right));
+      expect(
+        initialShellRect.right - initialTrailingRect.right,
+        lessThanOrEqualTo(56),
+      );
+
+      await tester.binding.setSurfaceSize(const Size(1400, 720));
+      await tester.pumpAndSettle();
+
+      final widenedLeadRect = tester.getRect(leadFinder);
+      final widenedTrailingRect = tester.getRect(trailingFinder);
+      final widenedShellRect = tester.getRect(shellFinder);
+
+      expect(widenedLeadRect.width, greaterThan(initialLeadRect.width));
+      expect(
+        widenedShellRect.right - widenedTrailingRect.right,
+        lessThanOrEqualTo(56),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Home cover-art nudge reflows actions at very narrow width', (
     WidgetTester tester,
   ) async {
@@ -68,7 +211,7 @@ void runPhase6OversizeSplitTests() {
     expect(tester.takeException(), isNull);
 
     final messageRect = tester.getRect(
-      find.textContaining('SteamGridDB API key'),
+      find.textContaining('Connect SteamGridDB in Settings'),
     );
     final settingsRect = tester.getRect(find.text('Go to Settings'));
     expect(settingsRect.top, greaterThan(messageRect.bottom));
@@ -103,18 +246,377 @@ void runPhase6OversizeSplitTests() {
     expect(tester.takeException(), isNull);
 
     final listRowRect = tester.getRect(find.text('Pixel Raider'));
-    final detailHintRect = tester.getRect(
-      find.text('Select a game to view details'),
-    );
+    final detailHintRect = tester.getRect(find.text('Choose a game'));
     expect(detailHintRect.top, greaterThan(listRowRect.bottom));
 
     await tester.tap(find.text('Pixel Raider'));
     await tester.pumpAndSettle();
 
-    expect(find.text('STATUS'), findsOneWidget);
-    final statusRect = tester.getRect(find.text('STATUS'));
+    expect(find.text('Status'), findsOneWidget);
+    final statusRect = tester.getRect(find.text('Status'));
     expect(statusRect.top, greaterThan(listRowRect.bottom));
   });
+
+  testWidgets(
+    'Home list view keeps cover and status side by side in split mode',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameListView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Pixel Raider'));
+      await tester.pumpAndSettle();
+
+      final coverRect = tester.getRect(find.byType(GameDetailsCover));
+      final statusRect = tester.getRect(find.text('Status'));
+
+      expect(coverRect.left, lessThan(statusRect.left));
+      expect(statusRect.top, lessThan(coverRect.bottom));
+      expect(
+        find.byKey(const ValueKey<String>('detailsStorageComparisonBar')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('Home list rows support keyboard activation', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeGameListView()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(selectedGameProvider),
+      anyOf(_sampleGames[0].path, _sampleGames[1].path),
+    );
+    expect(find.text('Status'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Home list rows avoid row-wide ValueListenableBuilder hover wrappers',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameListView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final rowFinder = find.ancestor(
+        of: find.text('Pixel Raider'),
+        matching: find.byType(InkWell),
+      );
+      expect(rowFinder, findsOneWidget);
+      expect(
+        find.descendant(
+          of: rowFinder,
+          matching: find.byType(ValueListenableBuilder<bool>),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: rowFinder, matching: find.byType(RepaintBoundary)),
+        findsNothing,
+      );
+      expect(tester.getSize(rowFinder).height, greaterThanOrEqualTo(55));
+
+      await tester.tap(find.text('Pixel Raider'));
+      await tester.pumpAndSettle();
+
+      final selectedSurface = tester.widget<Ink>(
+        find.ancestor(
+          of: find.text('Pixel Raider'),
+          matching: find.byType(Ink),
+        ),
+      );
+      final selectedDecoration = selectedSurface.decoration as BoxDecoration;
+      expect(selectedDecoration.gradient, isNotNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Home grid cards avoid adapter-local repaint boundaries', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeGameGrid()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final adapterFinder = find.byType(GameCardAdapter).first;
+    expect(adapterFinder, findsOneWidget);
+    expect(
+      find.descendant(
+        of: adapterFinder,
+        matching: find.byType(RepaintBoundary),
+      ),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Home grid card refreshes same-URI cover art without recreating grid shell',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Cover Refresh Grid',
+        path: r'C:\Games\cover_refresh_grid',
+        platform: Platform.steam,
+        sizeBytes: 96 * _oneGiB,
+      );
+      final coverService = _VersionedSameUriCoverArtService(
+        coverUri: _sameUriCoverFixture('grid-cover-refresh'),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: <GameInfo>[game]),
+          ),
+          coverArtServiceProvider.overrideWithValue(coverService),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameGrid()),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final initialGrid = tester.widget<GridView>(find.byType(GridView));
+      final initialCard = tester.widget<GameCard>(find.byType(GameCard).first);
+      final initialProvider = initialCard.coverImageProvider;
+      expect(initialProvider, isNotNull);
+
+      coverService.rewriteCover(game.path);
+      container.invalidate(coverArtProvider(game.path));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final updatedGrid = tester.widget<GridView>(find.byType(GridView));
+      final updatedCard = tester.widget<GameCard>(find.byType(GameCard).first);
+      final updatedProvider = updatedCard.coverImageProvider;
+      expect(identical(updatedGrid, initialGrid), isTrue);
+      expect(updatedProvider, isNotNull);
+      expect(updatedProvider, isNot(equals(initialProvider)));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Home list view remove action uses injected bridge and clears selection',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Resident Evil Requiem',
+        path: r'C:\Games\resident_evil_requiem',
+        platform: Platform.steam,
+        sizeBytes: 96 * _oneGiB,
+      );
+      final bridge = _DeferredRemoveRustBridgeService(games: <GameInfo>[game]);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameListView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Resident Evil Requiem'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Remove from Library'));
+      await tester.pump();
+
+      expect(bridge.removeGameFromDiscoveryCalls, 1);
+      expect(bridge.lastRemovedGamePath, game.path);
+      expect(container.read(selectedGameProvider), isNull);
+      expect(container.read(gameListProvider).valueOrNull?.games, isEmpty);
+      expect(find.text('Choose a game'), findsOneWidget);
+      expect(find.text('Nothing matches this view'), findsOneWidget);
+
+      bridge.completeRemoval();
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'Game details refresh same-URI cover art without rebuilding the info card',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Details Cover Refresh',
+        path: r'C:\Games\details_cover_refresh',
+        platform: Platform.steam,
+        sizeBytes: 96 * _oneGiB,
+      );
+      final coverService = _VersionedSameUriCoverArtService(
+        coverUri: _sameUriCoverFixture('details-cover-refresh'),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: <GameInfo>[game]),
+          ),
+          coverArtServiceProvider.overrideWithValue(coverService),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: GameDetailsScreen(gamePath: game.path),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final initialInfoCard = tester.widget<Card>(
+        find.byKey(const ValueKey<String>('detailsInfoCard')),
+      );
+      final initialHeader = tester.widget<GameDetailsHeader>(
+        find.byType(GameDetailsHeader),
+      );
+      final initialCover = tester.widget<GameDetailsCover>(
+        find.byType(GameDetailsCover),
+      );
+      final initialCoverResult = container
+          .read(coverArtProvider(game.path))
+          .valueOrNull;
+      final initialHeaderProvider = initialHeader.coverProvider;
+      final initialCoverProvider = initialCover.coverProvider;
+      expect(initialCoverResult?.revision, 1);
+      expect(initialHeaderProvider, isNotNull);
+      expect(initialCoverProvider, isNotNull);
+
+      coverService.rewriteCover(game.path);
+      container.invalidate(coverArtProvider(game.path));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump();
+
+      final updatedCoverResult = container
+          .read(coverArtProvider(game.path))
+          .valueOrNull;
+      final updatedInfoCard = tester.widget<Card>(
+        find.byKey(const ValueKey<String>('detailsInfoCard')),
+      );
+      final updatedHeader = tester.widget<GameDetailsHeader>(
+        find.byType(GameDetailsHeader),
+      );
+      final updatedCover = tester.widget<GameDetailsCover>(
+        find.byType(GameDetailsCover),
+      );
+      expect(updatedCoverResult?.revision, 2);
+      expect(identical(updatedInfoCard, initialInfoCard), isTrue);
+      expect(updatedHeader.coverProvider, isNot(equals(initialHeaderProvider)));
+      expect(updatedCover.coverProvider, isNot(equals(initialCoverProvider)));
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Home screen stays stable at very narrow width in list mode', (
     WidgetTester tester,
@@ -143,14 +645,129 @@ void runPhase6OversizeSplitTests() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Go to Settings'), findsOneWidget);
-    expect(find.text('Select a game to view details'), findsOneWidget);
+    expect(find.text('Go to Settings'), findsNothing);
+    expect(find.text('Choose a game'), findsOneWidget);
 
     await tester.tap(find.text('Pixel Raider'));
     await tester.pumpAndSettle();
 
-    expect(find.text('STATUS'), findsOneWidget);
+    expect(find.text('Status'), findsOneWidget);
   });
+
+  testWidgets(
+    'Home grid mode keeps breathing room between overview and first card',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final overviewRect = tester.getRect(
+        find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
+      );
+      final firstCardRect = tester.getRect(find.byType(GameCard).first);
+
+      expect(firstCardRect.top, greaterThan(overviewRect.bottom + 8));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Home list mode keeps breathing room between overview and first row',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final persistence = _InMemorySettingsPersistence();
+      await persistence.save(
+        const AppSettings(homeViewMode: HomeViewMode.list),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final overviewRect = tester.getRect(
+        find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
+      );
+      final firstRowFinder = find.ancestor(
+        of: find.text('Pixel Raider'),
+        matching: find.byType(InkWell),
+      );
+      final firstRowRect = tester.getRect(firstRowFinder.first);
+
+      expect(firstRowRect.top, greaterThan(overviewRect.bottom + 8));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Home list mode uses the compact overview shell to keep split content higher',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final persistence = _InMemorySettingsPersistence();
+      await persistence.save(
+        const AppSettings(homeViewMode: HomeViewMode.list),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('homeOverviewCompactLead')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('homeOverviewCompactTrailing')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'Settings inventory layout keeps spacing and avoids overly wide controls',
@@ -416,8 +1033,8 @@ void runPhase6OversizeSplitTests() {
       ),
     );
 
-    final compressedBadge = tester.getRect(find.byType(StatusBadge).at(0));
-    final directStorageBadge = tester.getRect(find.byType(StatusBadge).at(1));
+    final compressedBadge = tester.getRect(find.textContaining('Saved'));
+    final directStorageBadge = tester.getRect(find.text('DirectStorage'));
 
     expect(compressedBadge.top, directStorageBadge.top);
     expect(compressedBadge.height, directStorageBadge.height);
@@ -578,6 +1195,111 @@ void runPhase6OversizeSplitTests() {
     );
     expect(find.text('Mark as Unsupported'), findsOneWidget);
   });
+
+  testWidgets('Game details unsupported toggle only rebuilds header metadata', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final game = GameInfo(
+      name: 'Details Unsupported Media Stability',
+      path: r'C:\Games\details_unsupported_media_stability',
+      platform: Platform.steam,
+      sizeBytes: 96 * _oneGiB,
+    );
+    final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: GameDetailsScreen(gamePath: game.path),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final initialHeader = tester.widget<GameDetailsHeader>(
+      find.byType(GameDetailsHeader),
+    );
+    final initialCover = tester.widget<GameDetailsCover>(
+      find.byType(GameDetailsCover),
+    );
+
+    final unsupportedAction = find.byKey(
+      const ValueKey<String>('detailsStatusUnsupportedAction'),
+    );
+    await tester.ensureVisible(unsupportedAction);
+    await tester.tap(unsupportedAction);
+    await tester.pumpAndSettle();
+
+    final updatedHeader = tester.widget<GameDetailsHeader>(
+      find.byType(GameDetailsHeader),
+    );
+    final updatedCover = tester.widget<GameDetailsCover>(
+      find.byType(GameDetailsCover),
+    );
+
+    expect(identical(updatedHeader, initialHeader), isFalse);
+    expect(identical(updatedCover, initialCover), isTrue);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('detailsHeaderStatusBadge')),
+        matching: find.text('Unsupported'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Mark as Supported'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Game details remove action updates immediately before async persistence completes',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Details Remove Async',
+        path: r'C:\Games\details_remove_async',
+        platform: Platform.steam,
+        sizeBytes: 96 * _oneGiB,
+      );
+      final bridge = _DeferredRemoveRustBridgeService(games: <GameInfo>[game]);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: GameDetailsScreen(gamePath: game.path),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Remove from Library'));
+      await tester.pump();
+
+      expect(bridge.removeGameFromDiscoveryCalls, 1);
+      expect(bridge.lastRemovedGamePath, game.path);
+      expect(container.read(selectedGameProvider), isNull);
+      expect(container.read(gameListProvider).valueOrNull?.games, isEmpty);
+      expect(find.text('Game not found.'), findsOneWidget);
+
+      bridge.completeRemoval();
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('Refresh retries only placeholder cover entries', (
     WidgetTester tester,

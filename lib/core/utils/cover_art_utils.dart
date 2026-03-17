@@ -15,10 +15,30 @@ ImageProvider<Object>? imageProviderFromCover(CoverArtResult? result) {
     return null;
   }
   if (uri.isScheme('file')) {
-    return FileImage(File.fromUri(uri));
+    return RevisionedFileImage(
+      File.fromUri(uri),
+      revision: result?.revision ?? 0,
+    );
   }
   if (uri.isScheme('http') || uri.isScheme('https')) {
     return NetworkImage(uriText);
   }
   return null;
+}
+
+class RevisionedFileImage extends FileImage {
+  const RevisionedFileImage(super.file, {required this.revision, super.scale});
+
+  final int revision;
+
+  @override
+  bool operator ==(Object other) {
+    return other is RevisionedFileImage &&
+        other.file.path == file.path &&
+        other.scale == scale &&
+        other.revision == revision;
+  }
+
+  @override
+  int get hashCode => Object.hash(file.path, scale, revision);
 }

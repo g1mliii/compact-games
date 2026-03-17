@@ -30,15 +30,15 @@ impl Default for EpicScanner {
 
 impl PlatformScanner for EpicScanner {
     fn scan(&self, mode: DiscoveryScanMode) -> Result<Vec<GameInfo>, ScanError> {
-        let mut games = Vec::new();
+        // Manifests first: they carry the authoritative DisplayName (e.g. "Rocket League",
+        // not the internal AppName "Sugar" found in .egstore/.mancpn files).
+        let mut games = scan_epic_manifests(mode);
 
+        // Dir scan fills in any installs not covered by a manifest entry.
+        // Paths already present in `games` are silently skipped by merge_games.
         if self.epic_path.is_dir() {
-            games.extend(scan_epic_dir(&self.epic_path, mode));
+            utils::merge_games(&mut games, scan_epic_dir(&self.epic_path, mode));
         }
-
-        // Check launcher manifests for additional install locations
-        let manifest_games = scan_epic_manifests(mode);
-        utils::merge_games(&mut games, manifest_games);
 
         log::info!("Epic Games: found {} games", games.len());
         Ok(games)
@@ -70,43 +70,15 @@ fn scan_epic_dir(epic_path: &Path, mode: DiscoveryScanMode) -> Vec<GameInfo> {
                 return None;
             }
 
-            let name = read_egstore_name(&game_path).unwrap_or(folder_name);
-            Some((name, game_path))
+            // Use the folder name directly. The AppName field in .egstore/*.mancpn
+            // is Epic's internal app identifier (e.g. "Sugar" for Rocket League), NOT
+            // a display name. The authoritative DisplayName comes from the launcher's
+            // .item manifest files, which are scanned first via scan_epic_manifests.
+            Some((folder_name, game_path))
         })
         .collect();
 
     utils::build_games_from_candidates(epic_path, candidates, Platform::EpicGames, mode)
-}
-
-/// Read game name from .egstore metadata folder.
-fn read_egstore_name(game_path: &Path) -> Option<String> {
-    let egstore = game_path.join(".egstore");
-    if !egstore.is_dir() {
-        return None;
-    }
-
-    let entries = std::fs::read_dir(&egstore).ok()?;
-    for entry in entries.filter_map(|e| e.ok()) {
-        let path = entry.path();
-        if path.extension().is_some_and(|ext| ext == "mancpn") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if let Some(name) = parse_mancpn_name(&content) {
-                    return Some(name);
-                }
-            }
-        }
-    }
-    None
-}
-
-fn parse_mancpn_name(content: &str) -> Option<String> {
-    let json: serde_json::Value = serde_json::from_str(content)
-        .inspect_err(|e| log::debug!("Failed to parse .mancpn: {e}"))
-        .ok()?;
-    json.get("AppName")
-        .or_else(|| json.get("appName"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_owned())
 }
 
 /// Scan Epic launcher .item manifest files for installed games.
@@ -175,32 +147,50 @@ fn is_epic_system_folder(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::discovery::test_sync::lock_discovery_test;
+    use std::fs;
 
-    #[test]
-    fn parse_mancpn_name_valid() {
-        let json = r#"{"AppName": "Fortnite", "CatalogItemId": "abc123"}"#;
-        assert_eq!(parse_mancpn_name(json), Some("Fortnite".to_owned()));
+    /// RAII guard that restores an environment variable when dropped, even if
+    /// the test panics.  All mutations must be serialised by `lock_discovery_test`.
+    ///
+    /// Note: `std::env::set_var` / `remove_var` are `unsafe` in Rust edition 2024
+    /// because they can cause data races in multi-threaded programs.  We use
+    /// `lock_discovery_test()` to serialise all env-mutating tests, making these
+    /// calls safe in practice.
+    struct EnvVarGuard {
+        key: &'static str,
+        original: Option<String>,
     }
 
-    #[test]
-    fn parse_mancpn_name_lowercase_key() {
-        let json = r#"{"appName": "RocketLeague"}"#;
-        assert_eq!(parse_mancpn_name(json), Some("RocketLeague".to_owned()));
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let original = std::env::var(key).ok();
+            // SAFETY: test-only; all env-mutating tests are serialised by
+            // lock_discovery_test(), so no concurrent reads or writes occur.
+            #[allow(unused_unsafe)]
+            unsafe {
+                std::env::set_var(key, value);
+            }
+            Self { key, original }
+        }
     }
 
-    #[test]
-    fn parse_mancpn_name_missing() {
-        let json = r#"{"CatalogItemId": "abc123"}"#;
-        assert_eq!(parse_mancpn_name(json), None);
-    }
-
-    #[test]
-    fn parse_mancpn_name_invalid_json() {
-        assert_eq!(parse_mancpn_name("not json"), None);
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            // SAFETY: same serialisation guarantee as in `set`.
+            #[allow(unused_unsafe)]
+            unsafe {
+                match &self.original {
+                    Some(v) => std::env::set_var(self.key, v),
+                    None => std::env::remove_var(self.key),
+                }
+            }
+        }
     }
 
     #[test]
     fn parse_epic_manifest_item_nonexistent_path() {
+        let _guard = lock_discovery_test();
         let json = r#"{
             "DisplayName": "Test Game",
             "InstallLocation": "C:\\NonExistent\\TestGame",
@@ -211,12 +201,14 @@ mod tests {
 
     #[test]
     fn parse_epic_manifest_item_missing_fields() {
+        let _guard = lock_discovery_test();
         let json = r#"{"InstallLocation": "C:\\Test"}"#;
         assert!(parse_epic_manifest_item(json, DiscoveryScanMode::Full).is_none());
     }
 
     #[test]
     fn is_epic_system_folder_filters_correctly() {
+        let _guard = lock_discovery_test();
         assert!(is_epic_system_folder("Launcher"));
         assert!(is_epic_system_folder("DirectXRedist"));
         assert!(!is_epic_system_folder("Fortnite"));
@@ -225,8 +217,52 @@ mod tests {
 
     #[test]
     fn epic_scanner_nonexistent_path_returns_empty() {
+        let _guard = lock_discovery_test();
+        let temp = tempfile::TempDir::new().unwrap();
+        let manifests_dir = temp
+            .path()
+            .join("Epic")
+            .join("EpicGamesLauncher")
+            .join("Data")
+            .join("Manifests");
+        fs::create_dir_all(&manifests_dir).unwrap();
+        let _env = EnvVarGuard::set("PROGRAMDATA", &temp.path().to_string_lossy());
         let scanner = EpicScanner::with_path(PathBuf::from(r"C:\NonExistent\Epic"));
         let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn manifest_display_name_wins_over_folder_name_for_same_install_path() {
+        let _guard = lock_discovery_test();
+        let temp = tempfile::TempDir::new().unwrap();
+        let epic_root = temp.path().join("Epic Games");
+        let game_dir = epic_root.join("rocketleague");
+        fs::create_dir_all(&game_dir).unwrap();
+        fs::File::create(game_dir.join("game.exe"))
+            .unwrap()
+            .set_len(3 * 1024 * 1024)
+            .unwrap();
+        fs::File::create(game_dir.join("content.bin"))
+            .unwrap()
+            .set_len(700 * 1024 * 1024)
+            .unwrap();
+
+        let manifest = serde_json::json!({
+            "DisplayName": "Rocket League",
+            "InstallLocation": game_dir.display().to_string(),
+        })
+        .to_string();
+
+        let mut games = vec![parse_epic_manifest_item(&manifest, DiscoveryScanMode::Full)
+            .expect("manifest should produce game info")];
+        utils::merge_games(
+            &mut games,
+            scan_epic_dir(&epic_root, DiscoveryScanMode::Full),
+        );
+
+        assert_eq!(games.len(), 1);
+        assert_eq!(games[0].name, "Rocket League");
+        assert_eq!(games[0].path, game_dir);
     }
 }

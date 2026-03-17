@@ -30,6 +30,10 @@ fn scan_custom_path_includes_subdirs_when_root_matches() {
         .unwrap()
         .set_len(MIN_EXE_SIZE + 1)
         .unwrap();
+    File::create(root_path.join("rootcontent.bin"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
 
     let sub_game_path = root_path.join("SubGame");
     std::fs::create_dir_all(sub_game_path.join("bin")).unwrap();
@@ -37,6 +41,10 @@ fn scan_custom_path_includes_subdirs_when_root_matches() {
     File::create(&sub_exe)
         .unwrap()
         .set_len(MIN_EXE_SIZE + 1)
+        .unwrap();
+    File::create(sub_game_path.join("content.bin"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
         .unwrap();
 
     let games = scan_custom_path(root_path, DiscoveryScanMode::Full, true).unwrap();
@@ -138,5 +146,43 @@ fn detects_unity_layout_from_library_root() {
     assert!(
         games.iter().any(|g| g.path == cairn),
         "Unity folder under Games root should be discovered"
+    );
+}
+
+#[test]
+fn steamapps_container_root_is_not_detected_as_game() {
+    let root = TempDir::new().unwrap();
+    let steamapps = root.path().join("steamapps");
+    let common = steamapps.join("common");
+    let game = common.join("Portal 2");
+
+    std::fs::create_dir_all(game.join("bin")).unwrap();
+    File::create(steamapps.join("appmanifest_620.acf")).unwrap();
+    File::create(game.join("portal2.exe"))
+        .unwrap()
+        .set_len(MIN_EXE_SIZE + 1)
+        .unwrap();
+    File::create(game.join("content.bin"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
+
+    assert!(
+        !is_game_folder(&steamapps),
+        "Steam library container roots should never be treated as one game"
+    );
+    assert!(
+        !is_game_folder(&common),
+        "Steam common folder should not be treated as one game"
+    );
+
+    let games = scan_custom_path(&steamapps, DiscoveryScanMode::Full, true).unwrap();
+    assert!(
+        !games.iter().any(|g| g.path == steamapps),
+        "steamapps root should not be surfaced as a custom game"
+    );
+    assert!(
+        !games.iter().any(|g| g.path == common),
+        "steamapps/common should not be surfaced as a custom game"
     );
 }

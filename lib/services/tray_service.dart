@@ -52,16 +52,18 @@ class TrayService with TrayListener {
     return _enqueueLifecycle(() async {
       if (_initialized) return;
 
+      final initialStatus =
+          _pendingStatus ?? const TrayStatus(mode: TrayStatusMode.idle);
       _quitRequested = false;
-      _lastStatus = const TrayStatus(mode: TrayStatusMode.idle);
+      _lastStatus = initialStatus;
       _autoCompressionToggleInFlight = false;
       _lastTooltip = '';
 
       try {
         final iconPath = await _iconCache.resolve();
         await _trayPlatform.setIcon(iconPath);
-        await _trayPlatform.setToolTip('PressPlay');
-        _lastTooltip = 'PressPlay';
+        await _trayPlatform.setToolTip(initialStatus.strings.appName);
+        _lastTooltip = initialStatus.strings.appName;
         await _rebuildMenu(_lastStatus);
         _trayPlatform.addListener(this);
         _initialized = true;

@@ -13,6 +13,7 @@ import 'core/performance/perf_monitor.dart';
 import 'core/performance/pressplay_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
+import 'services/startup_window_coordinator.dart';
 import 'services/tray_service.dart';
 import 'services/window_close_coordinator.dart';
 import 'src/rust/frb_generated.dart';
@@ -27,6 +28,8 @@ final _windowCloseCoordinator = WindowCloseCoordinator(
   cleanupLifecycleHooks: _cleanupLifecycleHooks,
   requestAppExit: _requestAppExit,
 );
+const _startupWindow = WindowManagerStartupAdapter();
+final _startupTray = TrayStartupAdapter(TrayService.instance);
 
 Future<void> main() async {
   PerfMonitor.markStartupBegin();
@@ -53,13 +56,6 @@ Future<void> main() async {
   await _initRustBridge();
   RustBridgeService.instance.initApp();
 
-  await windowManager.ensureInitialized();
-  windowManager.removeListener(_windowListener);
-  windowManager.addListener(_windowListener);
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-    await windowManager.setPreventClose(true);
-  }
-
   final titleBarStyle =
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
       ? TitleBarStyle.hidden
@@ -79,16 +75,17 @@ Future<void> main() async {
     titleBarStyle: titleBarStyle,
   );
 
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    // Avoid stealing foreground focus from active fullscreen/borderless games
-    // when the app starts in the background.
-    await windowManager.show(inactive: true);
-    try {
-      await TrayService.instance.init();
-    } catch (e) {
-      debugPrint('[tray] Init failed (non-fatal): $e');
-    }
-  });
+  await initializeStartupWindow(
+    window: _startupWindow,
+    tray: _startupTray,
+    listener: _windowListener,
+    options: windowOptions,
+    isWeb: kIsWeb,
+    targetPlatform: defaultTargetPlatform,
+    onTrayInitError: (error) {
+      debugPrint('[tray] Init failed (non-fatal): $error');
+    },
+  );
 
   runApp(const _RustBridgeReloadHost(child: PressPlayApp()));
   PerfMonitor.markStartupEnd();

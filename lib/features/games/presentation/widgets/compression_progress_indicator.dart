@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pressplay/l10n/app_localizations.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/compression/compression_progress_provider.dart';
 
@@ -45,14 +48,10 @@ class CompressionProgressIndicator extends StatelessWidget {
     colors: [AppColors.info, AppColors.success],
   );
   static const BorderRadius _cardRadius = BorderRadius.all(Radius.circular(12));
-  static final BoxDecoration _cardDecoration = BoxDecoration(
-    gradient: AppColors.panelGradient,
-    borderRadius: _cardRadius,
-    border: Border.all(color: AppColors.border),
-  );
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final accentColor = activity.isCompression
         ? AppColors.richGold
         : AppColors.success;
@@ -67,7 +66,7 @@ class CompressionProgressIndicator extends StatelessWidget {
           decorationColor: Colors.transparent,
         ),
         child: DecoratedBox(
-          decoration: _cardDecoration,
+          decoration: buildAppSurfaceDecoration(borderRadius: _cardRadius),
           child: Padding(
             padding: EdgeInsets.all(compact ? 14 : 16),
             child: Column(
@@ -79,6 +78,9 @@ class CompressionProgressIndicator extends StatelessWidget {
                   compact: compact,
                   accentColor: accentColor,
                   action: action,
+                  statusLabel: activity.isCompression
+                      ? l10n.activityCompressing
+                      : l10n.activityDecompressing,
                 ),
                 SizedBox(height: compact ? 10 : 12),
                 _ActivityProgressBar(
@@ -89,9 +91,25 @@ class CompressionProgressIndicator extends StatelessWidget {
                   gradient: activity.isCompression
                       ? _compressionGradient
                       : _decompressionGradient,
+                  preparingLabel: l10n.activityPreparing,
+                  timeRemainingBuilder: (seconds) =>
+                      _formatTimeRemaining(l10n, seconds),
                 ),
                 SizedBox(height: compact ? 10 : 12),
-                _ActivityStats(activity: activity, compact: compact),
+                _ActivityStats(
+                  activity: activity,
+                  compact: compact,
+                  scanningLabel: activity.isCompression
+                      ? l10n.activityScanningFiles
+                      : l10n.activityScanningCompressedFiles,
+                  savedLabelBuilder: (value) => activity.isCompression
+                      ? l10n.activityAmountSaved(value)
+                      : l10n.activityAmountRestoring(value),
+                  fileProgressLabelBuilder: (processed, total, approximate) =>
+                      approximate
+                      ? l10n.activityApproxFileProgress(processed, total)
+                      : l10n.activityFileProgress(processed, total),
+                ),
               ],
             ),
           ),
@@ -107,12 +125,14 @@ class _ActivityHeader extends StatelessWidget {
     required this.compact,
     required this.accentColor,
     required this.action,
+    required this.statusLabel,
   });
 
   final CompressionActivityUiModel activity;
   final bool compact;
   final Color accentColor;
   final CompressionActivityAction? action;
+  final String statusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +157,7 @@ class _ActivityHeader extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                activity.statusLabel,
+                statusLabel,
                 style: AppTypography.label.copyWith(color: accentColor),
               ),
               const SizedBox(height: 2),
@@ -175,7 +195,10 @@ class _ActivityHeaderAction extends StatelessWidget {
             color: AppColors.textMuted,
             onPressed: action.onPressed,
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: const BoxConstraints(
+              minWidth: appDesktopControlMin,
+              minHeight: appDesktopControlMin,
+            ),
             visualDensity: compact
                 ? VisualDensity.compact
                 : VisualDensity.standard,
@@ -190,7 +213,10 @@ class _ActivityHeaderAction extends StatelessWidget {
               horizontal: compact ? 10 : 12,
               vertical: compact ? 6 : 8,
             ),
-            minimumSize: Size.zero,
+            minimumSize: const Size(
+              appDesktopControlMin,
+              appDesktopControlMin,
+            ),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             visualDensity: compact
                 ? VisualDensity.compact
@@ -245,6 +271,8 @@ class _ActivityProgressBar extends StatelessWidget {
     required this.progress,
     required this.accentColor,
     required this.gradient,
+    required this.preparingLabel,
+    required this.timeRemainingBuilder,
   });
 
   final CompressionActivityUiModel activity;
@@ -252,12 +280,14 @@ class _ActivityProgressBar extends StatelessWidget {
   final double progress;
   final Color accentColor;
   final Gradient gradient;
+  final String preparingLabel;
+  final String Function(int seconds) timeRemainingBuilder;
 
   @override
   Widget build(BuildContext context) {
     final trailingText =
         activity.hasKnownFileTotal && activity.etaSeconds != null
-        ? _formatTimeRemaining(activity.etaSeconds!)
+        ? timeRemainingBuilder(activity.etaSeconds!)
         : null;
 
     return Column(
@@ -270,7 +300,7 @@ class _ActivityProgressBar extends StatelessWidget {
               child: Text(
                 activity.hasKnownFileTotal
                     ? '${activity.percent}%'
-                    : 'Preparing...',
+                    : preparingLabel,
                 style: AppTypography.monoMedium.copyWith(color: accentColor),
               ),
             ),
@@ -306,10 +336,20 @@ class _ActivityProgressBar extends StatelessWidget {
 }
 
 class _ActivityStats extends StatelessWidget {
-  const _ActivityStats({required this.activity, required this.compact});
+  const _ActivityStats({
+    required this.activity,
+    required this.compact,
+    required this.scanningLabel,
+    required this.savedLabelBuilder,
+    required this.fileProgressLabelBuilder,
+  });
 
   final CompressionActivityUiModel activity;
   final bool compact;
+  final String scanningLabel;
+  final String Function(String value) savedLabelBuilder;
+  final String Function(int processed, int total, bool approximate)
+  fileProgressLabelBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -327,9 +367,7 @@ class _ActivityStats extends StatelessWidget {
           const SizedBox(width: 4),
           Expanded(
             child: Text(
-              activity.isCompression
-                  ? 'Scanning files...'
-                  : 'Scanning compressed files...',
+              scanningLabel,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: AppTypography.label.copyWith(
@@ -363,18 +401,15 @@ class _ActivityStats extends StatelessWidget {
         ? '${deltaGiB.toStringAsFixed(1)} GB'
         : '${deltaMiB.toStringAsFixed(0)} MB';
 
-    return activity.isCompression
-        ? '$amountText saved'
-        : '$amountText restoring';
+    return savedLabelBuilder(amountText);
   }
 
   String _formatFileProgress(CompressionActivityUiModel activity) {
-    final countLabel =
-        '${activity.filesProcessed} / ${activity.filesTotal} files';
-    if (!activity.isFileCountApproximate) {
-      return countLabel;
-    }
-    return '~$countLabel';
+    return fileProgressLabelBuilder(
+      activity.filesProcessed,
+      activity.filesTotal,
+      activity.isFileCountApproximate,
+    );
   }
 }
 
@@ -400,16 +435,16 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-String _formatTimeRemaining(int seconds) {
+String _formatTimeRemaining(AppLocalizations l10n, int seconds) {
   if (seconds < 60) {
-    return '${seconds}s remaining';
+    return l10n.activitySecondsRemaining(seconds);
   }
   if (seconds < 3600) {
     final minutes = seconds ~/ 60;
-    return '${minutes}m remaining';
+    return l10n.activityMinutesRemaining(minutes);
   }
 
   final hours = seconds ~/ 3600;
   final minutes = (seconds % 3600) ~/ 60;
-  return '${hours}h ${minutes}m remaining';
+  return l10n.activityHoursMinutesRemaining(hours, minutes);
 }

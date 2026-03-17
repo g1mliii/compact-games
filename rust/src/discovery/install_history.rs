@@ -30,6 +30,8 @@ static HISTORY_DIRTY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicB
 static LAST_PRUNE_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static HISTORY: LazyLock<RwLock<HistoryFile>> = LazyLock::new(|| RwLock::new(load_history_file()));
 
+/// Return the largest logical size ever recorded for `path`, or `None` if no
+/// history entry exists or the entry has expired.
 pub fn max_observed_size(path: &Path) -> Option<u64> {
     let key = normalize_path_key(path);
     let now = unix_now_ms();
@@ -41,6 +43,9 @@ pub fn max_observed_size(path: &Path) -> Option<u64> {
     })
 }
 
+/// Update the maximum observed logical size for `path`. The entry is only
+/// written (and the dirty flag set) when `logical_size` exceeds the previously
+/// recorded maximum.
 pub fn record_authoritative_size(path: &Path, logical_size: u64) {
     if logical_size == 0 {
         return;
@@ -64,11 +69,13 @@ pub fn record_authoritative_size(path: &Path, logical_size: u64) {
             updated_at_ms: now,
         };
 
+        // If the max size hasn't changed, skip the insert entirely: updating
+        // updated_at_ms without setting the dirty flag would silently lose the
+        // timestamp refresh on the next persist cycle.
         if existing
             .as_ref()
             .is_some_and(|entry| entry.max_logical_size == next_entry.max_logical_size)
         {
-            history.entries.insert(key, next_entry);
             return false;
         }
 
@@ -82,6 +89,7 @@ pub fn record_authoritative_size(path: &Path, logical_size: u64) {
     }
 }
 
+/// Remove the history entry for `path`, if present.
 pub fn remove(path: &Path) {
     let key = normalize_path_key(path);
     let removed = with_history_write(|history| history.entries.remove(&key).is_some());
@@ -90,6 +98,8 @@ pub fn remove(path: &Path) {
     }
 }
 
+/// Flush the in-memory install history to disk if it has been modified. A
+/// failed write re-sets the dirty flag so the next call will retry.
 pub fn persist_if_dirty() {
     if !HISTORY_DIRTY.swap(false, Ordering::Relaxed) {
         return;
@@ -99,6 +109,22 @@ pub fn persist_if_dirty() {
     if let Err(e) = save_history_file(&snapshot) {
         log::warn!("Failed to persist discovery install history: {e}");
         HISTORY_DIRTY.store(true, Ordering::Relaxed);
+    }
+}
+
+/// Clear all in-memory install history and delete the on-disk file.
+/// Primarily used in tests and for user-initiated resets.
+pub fn clear_all() {
+    with_history_write(|history| history.entries.clear());
+    HISTORY_DIRTY.store(false, Ordering::Relaxed);
+    LAST_PRUNE_MS.store(0, Ordering::Relaxed);
+
+    if let Ok(path) = history_path() {
+        match fs::remove_file(path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => log::warn!("Failed to remove discovery install-history file: {e}"),
+        }
     }
 }
 
@@ -119,7 +145,7 @@ fn load_history_file() -> HistoryFile {
 fn save_history_file(history: &HistoryFile) -> Result<(), Box<dyn std::error::Error>> {
     let path = history_path()?;
     let json = serde_json::to_string(history)?;
-    fs::write(path, json)?;
+    crate::utils::atomic_write(&path, json.as_bytes())?;
     Ok(())
 }
 
@@ -214,14 +240,12 @@ fn unix_now_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::discovery::test_sync::lock_discovery_test;
     use std::path::Path;
-    use std::sync::Mutex;
-
-    static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn remove_clears_recorded_size_for_path() {
-        let _guard = TEST_MUTEX.lock().unwrap();
+        let _guard = lock_discovery_test();
         let path = Path::new(r"C:\Games\remnant_test");
 
         record_authoritative_size(path, 5 * 1024 * 1024 * 1024);

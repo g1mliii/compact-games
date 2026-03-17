@@ -156,9 +156,9 @@ void main() {
 
     await service.init();
 
-    expect(fakeTray.setContextMenuCalls, 2);
+    expect(fakeTray.setContextMenuCalls, 1);
     expect(fakeTray.menuLabelForKey('status'), 'Compressing: Boot Game');
-    expect(fakeTray.lastTooltip, 'PressPlay — Compressing Boot Game (7%)');
+    expect(fakeTray.lastTooltip, 'PressPlay - Compressing Boot Game (7%)');
   });
 
   test(
@@ -199,7 +199,50 @@ void main() {
       await service.flushPendingUpdateForTest();
 
       expect(fakeTray.setToolTipCalls, 2);
-      expect(fakeTray.lastTooltip, 'PressPlay — Paused');
+      expect(fakeTray.lastTooltip, 'PressPlay - Paused');
+    },
+  );
+
+  test(
+    'localized menu label changes rebuild the tray menu even when status mode is unchanged',
+    () async {
+      final fakeTray = _FakeTrayPlatformAdapter();
+      final fakeWindow = _FakeWindowPlatformAdapter();
+      final service = TrayService.instance;
+      service.configureForTest(
+        trayPlatform: fakeTray,
+        windowPlatform: fakeWindow,
+        debounceDuration: const Duration(milliseconds: 5),
+        iconPathOverride: r'C:\test\pressplay_tray.ico',
+      );
+
+      await service.init();
+      final menuCallsBefore = fakeTray.setContextMenuCalls;
+      final tooltipCallsBefore = fakeTray.setToolTipCalls;
+
+      service.update(
+        const TrayStatus(
+          mode: TrayStatusMode.idle,
+          autoCompressionEnabled: true,
+          strings: TrayStrings(
+            openAppLabel: 'Abrir PressPlay',
+            pauseAutoCompressionLabel: 'Pausar compresion automatica',
+            resumeAutoCompressionLabel: 'Reanudar compresion automatica',
+            quitLabel: 'Salir',
+          ),
+        ),
+      );
+      await service.flushPendingUpdateForTest();
+
+      expect(fakeTray.setContextMenuCalls, menuCallsBefore + 1);
+      expect(fakeTray.setToolTipCalls, tooltipCallsBefore);
+      expect(fakeTray.menuLabelForKey('show'), 'Abrir PressPlay');
+      expect(
+        fakeTray.menuLabelForKey('toggle_auto'),
+        'Pausar compresion automatica',
+      );
+      expect(fakeTray.menuLabelForKey('quit'), 'Salir');
+      expect(fakeTray.lastTooltip, 'PressPlay');
     },
   );
 

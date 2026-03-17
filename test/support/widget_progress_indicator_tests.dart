@@ -25,7 +25,7 @@ void _registerProgressIndicatorWidgetTests() {
     );
 
     expect(find.text('100%'), findsOneWidget);
-    expect(find.text('1000 / 1000 files'), findsOneWidget);
+    expect(find.text('1000/1000 files'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -111,7 +111,7 @@ void _registerProgressIndicatorWidgetTests() {
         ),
       );
 
-      expect(find.text('~100 / 1000 files'), findsOneWidget);
+      expect(find.text('~100/1000 files'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

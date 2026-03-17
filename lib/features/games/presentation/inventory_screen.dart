@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../../../core/navigation/app_routes.dart';
+import '../../../core/localization/app_localization.dart';
+import '../../../core/localization/presentation_labels.dart';
+import '../../../models/compression_algorithm.dart';
 import '../../../models/game_info.dart';
 import '../../../providers/games/game_list_provider.dart';
 import '../../../providers/games/refresh_games_helper.dart';
@@ -21,7 +23,6 @@ class InventoryScreen extends ConsumerStatefulWidget {
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   static const Duration _searchDebounce = Duration(milliseconds: 220);
-  static const String _fallbackAlgorithmLabel = 'XPRESS 8K (Balanced)';
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounceTimer;
   String _debouncedQuery = '';
@@ -33,6 +34,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   bool _lastVisibleDescending = true;
   String _lastVisibleExcludedSignature = '';
   List<GameInfo> _cachedVisibleGames = const <GameInfo>[];
+  List<String> _cachedVisibleGamePaths = const <String>[];
+  List<String>? _cachedListPaths;
+  String _cachedListExcludedSignature = '';
+  String _cachedListLastCheckedLabel = '';
+  bool? _cachedListWatcherActive;
+  Widget? _cachedListView;
 
   @override
   void dispose() {
@@ -43,24 +50,23 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final games = ref.watch(
       gameListProvider.select((s) => s.valueOrNull?.games),
-    );
-    final lastRefreshed = ref.watch(
-      gameListProvider.select((s) => s.valueOrNull?.lastRefreshed),
     );
     final isLoading = ref.watch(gameListProvider.select((s) => s.isLoading));
     final hasError = ref.watch(gameListProvider.select((s) => s.hasError));
     final errorValue = ref.watch(
       gameListProvider.select((s) => s.hasError ? s.error : null),
     );
-    final algorithmLabel = ref.watch(
+    final algorithm = ref.watch(
       settingsProvider.select(
         (value) =>
-            value.valueOrNull?.settings.algorithm.displayName ??
-            _fallbackAlgorithmLabel,
+            value.valueOrNull?.settings.algorithm ??
+            CompressionAlgorithm.xpress8k,
       ),
     );
+    final algorithmLabel = algorithm.localizedLabel(l10n);
     final advancedEnabled = ref.watch(
       settingsProvider.select(
         (value) =>
@@ -83,15 +89,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         (value) => value.valueOrNull ?? false,
       ),
     );
+    final lastCheckedLabel = ref.watch(inventoryLastCheckedLabelProvider);
     final refreshAllowed = !isLoading;
     final excludedPathKeys = _normalizedExcludedPathKeys(excludedPaths);
+    final excludedSignature = _excludedSignature(excludedPathKeys);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Compression Inventory'),
+        title: Text(l10n.inventoryTitle),
         actions: [
           IconButton(
-            tooltip: 'Refresh inventory',
+            tooltip: l10n.inventoryRefreshTooltip,
             icon: const Icon(LucideIcons.refreshCw),
             onPressed: refreshAllowed
                 ? () => unawaited(refreshGamesAndInvalidateCovers(ref))
@@ -105,13 +113,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         }
         if (games == null && hasError) {
           return InventoryError(
-            message: 'Failed to load inventory: $errorValue',
+            message: l10n.inventoryLoadFailed('$errorValue'),
             onRetry: () => ref.read(gameListProvider.notifier).refresh(),
           );
         }
         final gamesList = games ?? const <GameInfo>[];
-        final visibleGames = _computeVisibleGames(gamesList, excludedPathKeys);
-        final lastCheckedLabel = _formatLastChecked(lastRefreshed);
+        final visibleGamePaths = _computeVisibleGamePaths(
+          gamesList,
+          excludedPathKeys,
+        );
 
         return Column(
           children: [
@@ -149,32 +159,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             const InventoryHeader(),
             const SizedBox(height: 4),
             Expanded(
-              child: visibleGames.isEmpty
+              child: visibleGamePaths.isEmpty
                   ? const InventoryEmpty()
-                  : RepaintBoundary(
-                      child: ListView.builder(
-                        itemExtent: 52,
-                        addAutomaticKeepAlives: false,
-                        addRepaintBoundaries: true,
-                        itemCount: visibleGames.length,
-                        itemBuilder: (context, index) {
-                          final game = visibleGames[index];
-                          return InventoryRow(
-                            key: ValueKey(game.path),
-                            game: game,
-                            watcherLabel: _watcherLabelFor(
-                              game,
-                              watcherActive: watcherActive,
-                              excludedPathKeys: excludedPathKeys,
-                            ),
-                            lastCheckedLabel: lastCheckedLabel,
-                            isStriped: index.isOdd,
-                            onOpenDetails: () => Navigator.of(
-                              context,
-                            ).pushNamed(AppRoutes.gameDetails(game.path)),
-                          );
-                        },
-                      ),
+                  : _buildInventoryList(
+                      visibleGamePaths,
+                      excludedPathKeys: excludedPathKeys,
+                      excludedSignature: excludedSignature,
+                      watcherActive: watcherActive,
+                      lastCheckedLabel: lastCheckedLabel,
                     ),
             ),
           ],
@@ -197,12 +189,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       return _cachedVisibleGames;
     }
 
-    final filtered = query.isEmpty
-        ? games
-        : games
-              .where((g) => g.name.toLowerCase().contains(query))
-              .toList(growable: false);
-    final sorted = List<GameInfo>.from(filtered);
+    final sorted = <GameInfo>[];
+    if (query.isEmpty) {
+      sorted.addAll(games);
+    } else {
+      for (final game in games) {
+        if (game.normalizedName.contains(query)) {
+          sorted.add(game);
+        }
+      }
+    }
     sorted.sort((a, b) {
       final watchGroupCmp = _watchGroupRank(
         a,
@@ -218,8 +214,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         InventorySortField.savingsPercent => a.savingsRatio.compareTo(
           b.savingsRatio,
         ),
-        InventorySortField.platform => a.platform.displayName.compareTo(
-          b.platform.displayName,
+        InventorySortField.platform => a.platform.name.compareTo(
+          b.platform.name,
         ),
       };
       if (cmp != 0) {
@@ -242,8 +238,86 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     return _cachedVisibleGames;
   }
 
+  List<String> _computeVisibleGamePaths(
+    List<GameInfo> games,
+    Set<String> excludedPathKeys,
+  ) {
+    final visibleGames = _computeVisibleGames(games, excludedPathKeys);
+    final cachedPaths = _cachedVisibleGamePaths;
+    if (cachedPaths.length == visibleGames.length) {
+      var matches = true;
+      for (var i = 0; i < visibleGames.length; i++) {
+        if (cachedPaths[i] != visibleGames[i].path) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        return cachedPaths;
+      }
+    }
+
+    final nextPaths = List<String>.filled(
+      visibleGames.length,
+      '',
+      growable: false,
+    );
+    for (var i = 0; i < visibleGames.length; i++) {
+      nextPaths[i] = visibleGames[i].path;
+    }
+    _cachedVisibleGamePaths = List<String>.unmodifiable(nextPaths);
+    return _cachedVisibleGamePaths;
+  }
+
+  Widget _buildInventoryList(
+    List<String> visibleGamePaths, {
+    required Set<String> excludedPathKeys,
+    required String excludedSignature,
+    required bool watcherActive,
+    required String lastCheckedLabel,
+  }) {
+    if (identical(_cachedListPaths, visibleGamePaths) &&
+        _cachedListExcludedSignature == excludedSignature &&
+        _cachedListLastCheckedLabel == lastCheckedLabel &&
+        _cachedListWatcherActive == watcherActive &&
+        _cachedListView != null) {
+      return _cachedListView!;
+    }
+
+    final listView = RepaintBoundary(
+      key: inventoryListBoundaryKey,
+      child: ListView.builder(
+        itemExtent: 52,
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: true,
+        itemCount: visibleGamePaths.length,
+        itemBuilder: (context, index) {
+          final gamePath = visibleGamePaths[index];
+          return InventoryGameRow(
+            key: ValueKey(gamePath),
+            gamePath: gamePath,
+            excludedPathKeys: excludedPathKeys,
+            watcherActive: watcherActive,
+            lastCheckedLabel: lastCheckedLabel,
+            isStriped: index.isOdd,
+          );
+        },
+      ),
+    );
+    _cachedListPaths = visibleGamePaths;
+    _cachedListExcludedSignature = excludedSignature;
+    _cachedListLastCheckedLabel = lastCheckedLabel;
+    _cachedListWatcherActive = watcherActive;
+    _cachedListView = listView;
+    return listView;
+  }
+
   Set<String> _normalizedExcludedPathKeys(List<String> paths) {
-    return paths.map((path) => path.toLowerCase()).toSet();
+    final normalized = <String>{};
+    for (final path in paths) {
+      normalized.add(path.toLowerCase());
+    }
+    return normalized;
   }
 
   String _excludedSignature(Set<String> excludedPathKeys) {
@@ -252,32 +326,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   bool _isWatchedGame(GameInfo game, Set<String> excludedPathKeys) {
-    return game.isCompressed &&
-        !excludedPathKeys.contains(game.path.toLowerCase());
+    return game.isCompressed && !excludedPathKeys.contains(game.normalizedPath);
   }
 
   int _watchGroupRank(GameInfo game, Set<String> excludedPathKeys) {
     return _isWatchedGame(game, excludedPathKeys) ? 0 : 1;
-  }
-
-  String _watcherLabelFor(
-    GameInfo game, {
-    required bool watcherActive,
-    required Set<String> excludedPathKeys,
-  }) {
-    if (!_isWatchedGame(game, excludedPathKeys)) {
-      return 'Not watched';
-    }
-    return watcherActive ? 'Watched' : 'Paused';
-  }
-
-  String _formatLastChecked(DateTime? lastChecked) {
-    if (lastChecked == null) {
-      return 'N/A';
-    }
-    final hour = lastChecked.hour.toString().padLeft(2, '0');
-    final minute = lastChecked.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
   }
 
   void _onSearchChanged(String value) {

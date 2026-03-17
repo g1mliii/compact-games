@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/localization/app_localization.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/settings/settings_provider.dart';
 import '../widgets/scaled_switch_row.dart';
@@ -21,6 +23,7 @@ class SafetySection extends ConsumerStatefulWidget {
 class _SafetySectionState extends ConsumerState<SafetySection> {
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final dsOverride = ref.watch(
       settingsProvider.select(
         (s) => s.valueOrNull?.settings.directStorageOverrideEnabled,
@@ -30,19 +33,48 @@ class _SafetySectionState extends ConsumerState<SafetySection> {
 
     return SettingsSectionCard(
       icon: LucideIcons.shieldAlert,
-      title: 'Safety',
+      title: l10n.settingsSafetySectionTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ScaledSwitchRow(
             key: _directStorageToggleKey,
-            label: 'Allow DirectStorage override',
+            label: l10n.settingsAllowDirectStorageOverride,
             value: dsOverride,
             onChanged: _onDirectStorageOverrideChanged,
           ),
-          const Text(
-            'Warning: overriding DirectStorage protection may cause issues.',
-            style: AppTypography.bodySmall,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(
+                  LucideIcons.alertTriangle,
+                  size: 14,
+                  color: AppColors.warning,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: l10n.settingsDirectStorageWarningLead,
+                        style: const TextStyle(
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      TextSpan(text: l10n.settingsDirectStorageWarningBody),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -60,18 +92,16 @@ class _SafetySectionState extends ConsumerState<SafetySection> {
     final shouldEnable = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Enable DirectStorage Override?'),
-        content: const Text(
-          'This allows compression on DirectStorage-tagged games and may impact performance.',
-        ),
+        title: Text(context.l10n.settingsEnableDirectStorageOverrideTitle),
+        content: Text(context.l10n.settingsEnableDirectStorageOverrideMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Enable'),
+            child: Text(context.l10n.commonEnable),
           ),
         ],
       ),

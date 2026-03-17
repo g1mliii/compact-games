@@ -38,6 +38,8 @@ export class FakeD1Database {
     this.clientReportHistory = new Map();
     this.clientSubmissionHistory = [];
     this.nextSubmissionHistoryId = 1;
+    this.ipSubmissionHistory = [];
+    this.nextIpSubmissionHistoryId = 1;
   }
 
   prepare(sql) {
@@ -71,6 +73,13 @@ export class FakeD1Database {
     });
   }
 
+  seedIpSubmissionHistory(row) {
+    this.ipSubmissionHistory.push({
+      id: row.id ?? this.nextIpSubmissionHistoryId++,
+      ...row,
+    });
+  }
+
   executeFirst(sql, bindings) {
     if (
       sql.startsWith(
@@ -83,6 +92,37 @@ export class FakeD1Database {
           row.install_id === installId && row.submitted_at_ms >= minSubmittedAtMs,
       ).length;
       return { cnt: count };
+    }
+
+    if (
+      sql.startsWith(
+        "select count(*) as cnt from ip_submission_history where ip = ? and submitted_at_ms >= ?",
+      )
+    ) {
+      const [ip, minSubmittedAtMs] = bindings;
+      const count = this.ipSubmissionHistory.filter(
+        (row) => row.ip === ip && row.submitted_at_ms >= minSubmittedAtMs,
+      ).length;
+      return { cnt: count };
+    }
+
+    if (
+      sql.startsWith(
+        "select count(distinct install_id) as cnt from ip_submission_history where ip = ? and is_new_reporter = 1 and submitted_at_ms >= ?",
+      )
+    ) {
+      const [ip, minSubmittedAtMs] = bindings;
+      const distinct = new Set(
+        this.ipSubmissionHistory
+          .filter(
+            (row) =>
+              row.ip === ip &&
+              row.is_new_reporter === 1 &&
+              row.submitted_at_ms >= minSubmittedAtMs,
+          )
+          .map((row) => row.install_id),
+      );
+      return { cnt: distinct.size };
     }
 
     if (
@@ -232,6 +272,25 @@ export class FakeD1Database {
 
     if (
       sql.startsWith(
+        "delete from client_reports where install_id = ? and folder_name not in (",
+      )
+    ) {
+      const [installId, ...folderNames] = bindings;
+      const keep = new Set(folderNames);
+      for (const key of [...this.clientReports.keys()]) {
+        const row = this.clientReports.get(key);
+        if (!row || row.install_id !== installId) {
+          continue;
+        }
+        if (!keep.has(row.folder_name)) {
+          this.clientReports.delete(key);
+        }
+      }
+      return { success: true };
+    }
+
+    if (
+      sql.startsWith(
         "insert into client_report_history ( install_id, folder_name, first_server_seen_at_ms, last_server_seen_at_ms, server_submission_count ) values (?, ?, ?, ?, 1) on conflict(install_id, folder_name) do update set last_server_seen_at_ms = excluded.last_server_seen_at_ms, server_submission_count = client_report_history.server_submission_count + 1",
       )
     ) {
@@ -317,6 +376,42 @@ export class FakeD1Database {
 
     if (
       sql.startsWith(
+        "delete from client_submission_history where submitted_at_ms < ?",
+      )
+    ) {
+      const [minSubmittedAtMs] = bindings;
+      this.clientSubmissionHistory = this.clientSubmissionHistory.filter(
+        (row) => row.submitted_at_ms >= minSubmittedAtMs,
+      );
+      return { success: true };
+    }
+
+    if (
+      sql.startsWith(
+        "delete from ip_submission_history where ip = ? and submitted_at_ms < ?",
+      )
+    ) {
+      const [ip, minSubmittedAtMs] = bindings;
+      this.ipSubmissionHistory = this.ipSubmissionHistory.filter(
+        (row) => row.ip !== ip || row.submitted_at_ms >= minSubmittedAtMs,
+      );
+      return { success: true };
+    }
+
+    if (
+      sql.startsWith(
+        "delete from ip_submission_history where submitted_at_ms < ?",
+      )
+    ) {
+      const [minSubmittedAtMs] = bindings;
+      this.ipSubmissionHistory = this.ipSubmissionHistory.filter(
+        (row) => row.submitted_at_ms >= minSubmittedAtMs,
+      );
+      return { success: true };
+    }
+
+    if (
+      sql.startsWith(
         "insert into client_submission_history ( install_id, submitted_at_ms, report_count ) values (?, ?, ?)",
       )
     ) {
@@ -324,6 +419,23 @@ export class FakeD1Database {
       this.clientSubmissionHistory.push({
         id: this.nextSubmissionHistoryId++,
         install_id: installId,
+        submitted_at_ms: submittedAtMs,
+        report_count: reportCount,
+      });
+      return { success: true };
+    }
+
+    if (
+      sql.startsWith(
+        "insert into ip_submission_history ( ip, install_id, is_new_reporter, submitted_at_ms, report_count ) values (?, ?, ?, ?, ?)",
+      )
+    ) {
+      const [ip, installId, isNewReporter, submittedAtMs, reportCount] = bindings;
+      this.ipSubmissionHistory.push({
+        id: this.nextIpSubmissionHistoryId++,
+        ip,
+        install_id: installId,
+        is_new_reporter: isNewReporter,
         submitted_at_ms: submittedAtMs,
         report_count: reportCount,
       });

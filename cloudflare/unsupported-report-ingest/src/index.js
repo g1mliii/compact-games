@@ -8,6 +8,10 @@ const MAX_FOLDER_NAME_LENGTH = 160;
 const MAX_REPORTER_ID_LENGTH = 64;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_SUBMISSIONS = 5;
+const IP_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const IP_RATE_LIMIT_MAX_SUBMISSIONS = 15;
+const IP_NEW_REPORTER_WINDOW_MS = 24 * 60 * 60 * 1000;
+const IP_NEW_REPORTER_MAX_REPORTERS = 10;
 const REPORTER_TOKEN_HEADER = "x-pressplay-reporter-token";
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -68,11 +72,30 @@ async function handleSubmission(request, env) {
 
   const submittedAtMs = Date.now();
   const rateLimitWindowStartMs = submittedAtMs - RATE_LIMIT_WINDOW_MS;
-  const installId = await resolveReporterId(
+  const ipRateLimitWindowStartMs = submittedAtMs - IP_RATE_LIMIT_WINDOW_MS;
+  const ipNewReporterWindowStartMs = submittedAtMs - IP_NEW_REPORTER_WINDOW_MS;
+
+  const clientIp = resolveClientIp(request);
+  const clientIpKey = clientIp ? await anonymizeIp(clientIp, env) : null;
+  if (clientIpKey) {
+    const recentIpCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS cnt
+       FROM ip_submission_history
+       WHERE ip = ? AND submitted_at_ms >= ?`,
+    )
+      .bind(clientIpKey, ipRateLimitWindowStartMs)
+      .first();
+    if (readInteger(recentIpCount?.cnt) >= IP_RATE_LIMIT_MAX_SUBMISSIONS) {
+      return json({ error: "Rate limit exceeded. Try again later." }, 429);
+    }
+  }
+
+  const identity = await resolveReporterIdentity(
     env,
     request.headers.get(REPORTER_TOKEN_HEADER),
     validated.legacyInstallId,
   );
+  const installId = identity.installId;
 
   // Per-reporter rate limiting: reject after too many accepted submissions
   // in the recent window. This uses server-side submission history rather than
@@ -88,9 +111,65 @@ async function handleSubmission(request, env) {
   if (readInteger(recentSubmissionCount?.cnt) >= RATE_LIMIT_MAX_SUBMISSIONS) {
     return json({ error: "Rate limit exceeded. Try again later." }, 429);
   }
-  const statements = [
-    env.DB.prepare("DELETE FROM client_reports WHERE install_id = ?").bind(installId),
-  ];
+
+  // Secondary guard: limit the number of brand new reporter identities that can
+  // be registered from a single IP. This makes "spam new reporter IDs from one
+  // IP" materially harder, while still allowing normal household NAT usage.
+  const isNewReporter = !identity.existed;
+  if (clientIpKey && isNewReporter) {
+    const recentNewReporters = await env.DB.prepare(
+      `SELECT COUNT(DISTINCT install_id) AS cnt
+       FROM ip_submission_history
+       WHERE ip = ? AND is_new_reporter = 1 AND submitted_at_ms >= ?`,
+    )
+      .bind(clientIpKey, ipNewReporterWindowStartMs)
+      .first();
+    if (readInteger(recentNewReporters?.cnt) >= IP_NEW_REPORTER_MAX_REPORTERS) {
+      return json({ error: "Rate limit exceeded. Try again later." }, 429);
+    }
+  }
+
+  const statements = [];
+
+  // Best-effort global pruning: without this, history tables can grow without bound
+  // because pruning is otherwise keyed to the active install/IP only.
+  statements.push(
+    env.DB
+      .prepare(
+        `DELETE FROM client_submission_history
+         WHERE submitted_at_ms < ?`,
+      )
+      .bind(rateLimitWindowStartMs),
+  );
+  statements.push(
+    env.DB
+      .prepare(
+        `DELETE FROM ip_submission_history
+         WHERE submitted_at_ms < ?`,
+      )
+      .bind(ipNewReporterWindowStartMs),
+  );
+
+  const folderNames = validated.reports.map((report) => report.folderName);
+  if (folderNames.length === 0) {
+    // Full withdrawal: remove every current report row for this install.
+    statements.push(
+      env.DB.prepare("DELETE FROM client_reports WHERE install_id = ?").bind(installId),
+    );
+  } else {
+    // Snapshot semantics without rewriting everything:
+    // - delete removed rows (not present in the payload)
+    // - upsert present rows below
+    const placeholders = folderNames.map(() => "?").join(", ");
+    statements.push(
+      env.DB
+        .prepare(
+          `DELETE FROM client_reports
+           WHERE install_id = ? AND folder_name NOT IN (${placeholders})`,
+        )
+        .bind(installId, ...folderNames),
+    );
+  }
 
   for (const report of validated.reports) {
     statements.push(
@@ -129,7 +208,16 @@ async function handleSubmission(request, env) {
             report_count,
             payload_generated_at_ms,
             submitted_at_ms
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(install_id, folder_name) DO UPDATE SET
+            app_version = excluded.app_version,
+            first_reported_at_ms = excluded.first_reported_at_ms,
+            active_since_ms = excluded.active_since_ms,
+            last_reported_at_ms = excluded.last_reported_at_ms,
+            last_withdrawn_at_ms = excluded.last_withdrawn_at_ms,
+            report_count = excluded.report_count,
+            payload_generated_at_ms = excluded.payload_generated_at_ms,
+            submitted_at_ms = excluded.submitted_at_ms`,
         )
         .bind(
           installId,
@@ -174,15 +262,6 @@ async function handleSubmission(request, env) {
   statements.push(
     env.DB
       .prepare(
-        `DELETE FROM client_submission_history
-         WHERE install_id = ? AND submitted_at_ms < ?`,
-      )
-      .bind(installId, rateLimitWindowStartMs),
-  );
-
-  statements.push(
-    env.DB
-      .prepare(
         `INSERT INTO client_submission_history (
           install_id,
           submitted_at_ms,
@@ -192,6 +271,28 @@ async function handleSubmission(request, env) {
       .bind(installId, submittedAtMs, validated.reports.length),
   );
 
+  if (clientIpKey) {
+    statements.push(
+      env.DB
+        .prepare(
+          `INSERT INTO ip_submission_history (
+            ip,
+            install_id,
+            is_new_reporter,
+            submitted_at_ms,
+            report_count
+          ) VALUES (?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          clientIpKey,
+          installId,
+          isNewReporter ? 1 : 0,
+          submittedAtMs,
+          validated.reports.length,
+        ),
+    );
+  }
+
   await env.DB.batch(statements);
 
   return json({
@@ -200,6 +301,57 @@ async function handleSubmission(request, env) {
     reporterId: installId,
     submittedAtMs,
   });
+}
+
+function resolveClientIp(request) {
+  const cfIp = request.headers.get("cf-connecting-ip") ?? request.headers.get("CF-Connecting-IP");
+  if (typeof cfIp === "string") {
+    const trimmed = cfIp.trim();
+    if (trimmed) {
+      return trimmed.slice(0, 96);
+    }
+  }
+
+  // Fallback for local tooling / proxies. In production this header is not trusted,
+  // but Cloudflare will always provide CF-Connecting-IP.
+  const xff = request.headers.get("x-forwarded-for");
+  if (typeof xff === "string") {
+    const first = xff.split(",")[0]?.trim() ?? "";
+    if (first) {
+      return first.slice(0, 96);
+    }
+  }
+
+  return null;
+}
+
+async function anonymizeIp(ip, env) {
+  // Prefer anonymizing with an HMAC key so we never store raw IPs in D1.
+  // If the secret isn't configured, fall back to raw IP so rate limiting still works.
+  const secret =
+    typeof env?.IP_HASH_SECRET === "string" ? env.IP_HASH_SECRET.trim() : "";
+  if (!secret) {
+    return ip;
+  }
+  return await hmacSha256Hex(secret, ip);
+}
+
+async function hmacSha256Hex(secret, message) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  const bytes = new Uint8Array(sig);
+  let out = "";
+  for (const b of bytes) {
+    out += b.toString(16).padStart(2, "0");
+  }
+  return out;
 }
 
 async function handleCandidates(request, env) {
@@ -472,6 +624,22 @@ async function resolveReporterId(env, headerReporterId, legacyInstallId) {
   }
 
   return createReporterId();
+}
+
+async function resolveReporterIdentity(env, headerReporterId, legacyInstallId) {
+  // Same semantics as resolveReporterId(), but also returns whether the identity
+  // existed on the server before this submission (avoids an extra DB roundtrip).
+  const trustedToken = normalizeReporterId(headerReporterId);
+  if (trustedToken && (await reporterExists(env, trustedToken))) {
+    return { installId: trustedToken, existed: true };
+  }
+
+  const legacyId = normalizeReporterId(legacyInstallId);
+  if (legacyId && !(await reporterExists(env, legacyId))) {
+    return { installId: legacyId, existed: false };
+  }
+
+  return { installId: createReporterId(), existed: false };
 }
 
 async function reporterExists(env, reporterId) {

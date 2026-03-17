@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../core/localization/app_localization.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../providers/settings/settings_provider.dart';
+import 'sections/language_section.dart';
 import 'widgets/scaled_switch_row.dart';
 import 'widgets/settings_section_card.dart';
 import 'widgets/settings_slider_row.dart';
@@ -31,6 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final isLoading = ref.watch(settingsProvider.select((s) => s.isLoading));
     final hasError = ref.watch(settingsProvider.select((s) => s.hasError));
     final errorValue = ref.watch(
@@ -38,13 +42,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : hasError
           ? Center(
               child: Text(
-                'Failed to load settings: $errorValue',
+                l10n.settingsLoadFailed('${errorValue ?? ''}'),
                 style: AppTypography.bodyMedium,
               ),
             )
@@ -55,6 +59,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
+                      const LanguageSection(),
+                      const SizedBox(height: 14),
                       const CompressionSection(),
                       const SizedBox(height: 14),
                       const _AutomationSection(),
@@ -84,6 +90,7 @@ class _AutomationSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final idleMinutes = ref.watch(
       settingsProvider.select(
         (s) => s.valueOrNull?.settings.idleDurationMinutes,
@@ -101,26 +108,29 @@ class _AutomationSection extends ConsumerWidget {
 
     return SettingsSectionCard(
       icon: LucideIcons.clock3,
-      title: 'Automation',
+      title: l10n.settingsAutomationSectionTitle,
       child: Column(
         children: [
           SettingsSliderRow(
-            label: 'Idle threshold',
+            label: l10n.settingsIdleThresholdLabel,
             value: idleMinutes.clamp(5, 30).toDouble(),
             min: 5,
             max: 30,
             divisions: 25,
-            valueLabelBuilder: (v) => '${v.round()} min',
+            valueLabelBuilder: (v) => l10n.settingsMinutesShort(v.round()),
+            valueColorBuilder: _idleThresholdColor,
             onChangedCommitted: (v) =>
                 ref.read(settingsProvider.notifier).setIdleDuration(v.round()),
           ),
           SettingsSliderRow(
-            label: 'CPU threshold',
+            label: l10n.settingsCpuThresholdLabel,
             value: cpuThreshold.clamp(5, 20),
             min: 5,
             max: 20,
             divisions: 15,
-            valueLabelBuilder: (v) => '${v.toStringAsFixed(0)}%',
+            valueLabelBuilder: (v) =>
+                l10n.settingsPercentShort(v.toStringAsFixed(0)),
+            valueColorBuilder: _cpuThresholdColor,
             onChangedCommitted: (v) =>
                 ref.read(settingsProvider.notifier).setCpuThreshold(v),
           ),
@@ -128,7 +138,7 @@ class _AutomationSection extends ConsumerWidget {
               defaultTargetPlatform == TargetPlatform.windows &&
               minimizeToTray != null)
             ScaledSwitchRow(
-              label: 'Minimize to tray on close',
+              label: l10n.settingsMinimizeToTrayOnCloseLabel,
               value: minimizeToTray,
               onChanged: (v) =>
                   ref.read(settingsProvider.notifier).setMinimizeToTray(v),
@@ -146,6 +156,7 @@ class _PathsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final customFolders = ref.watch(
       settingsProvider.select((s) => s.valueOrNull?.settings.customFolders),
     );
@@ -153,7 +164,7 @@ class _PathsSection extends ConsumerWidget {
 
     return SettingsSectionCard(
       icon: LucideIcons.folderTree,
-      title: 'Paths',
+      title: l10n.settingsPathsSectionTitle,
       child: Column(
         children: [
           Row(
@@ -161,9 +172,9 @@ class _PathsSection extends ConsumerWidget {
               Expanded(
                 child: TextField(
                   controller: folderController,
-                  decoration: const InputDecoration(
-                    hintText:
-                        r'C:\Games\CustomLibrary or C:\Games\MyGame\game.exe',
+                  decoration: InputDecoration(
+                    hintText: l10n.settingsPathsHint,
+                    hintStyle: const TextStyle(color: AppColors.textSecondary),
                   ),
                   onSubmitted: (_) => _addFolder(ref),
                 ),
@@ -171,16 +182,16 @@ class _PathsSection extends ConsumerWidget {
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: () => _addFolder(ref),
-                child: const Text('Add'),
+                child: Text(l10n.commonAdd),
               ),
             ],
           ),
           const SizedBox(height: 10),
           if (customFolders.isEmpty)
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'No custom paths configured.',
+                l10n.settingsNoCustomPaths,
                 style: AppTypography.bodySmall,
               ),
             ),
@@ -190,7 +201,7 @@ class _PathsSection extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               title: Text(path, style: AppTypography.bodySmall),
               trailing: IconButton(
-                tooltip: 'Remove path',
+                tooltip: l10n.settingsRemovePathTooltip,
                 icon: const Icon(LucideIcons.trash2, size: 16),
                 onPressed: () => ref
                     .read(settingsProvider.notifier)
@@ -209,4 +220,30 @@ class _PathsSection extends ConsumerWidget {
     ref.read(settingsProvider.notifier).addCustomFolder(value);
     folderController.clear();
   }
+}
+
+Color _idleThresholdColor(double value) {
+  if (value <= 8) {
+    return AppColors.warning;
+  }
+  if (value >= 22) {
+    return AppColors.success;
+  }
+  if (value >= 15) {
+    return AppColors.richGold;
+  }
+  return AppColors.textPrimary;
+}
+
+Color _cpuThresholdColor(double value) {
+  if (value >= 18) {
+    return AppColors.error;
+  }
+  if (value >= 15) {
+    return AppColors.warning;
+  }
+  if (value >= 10) {
+    return AppColors.richGold;
+  }
+  return AppColors.textPrimary;
 }

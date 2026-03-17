@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pressplay/l10n/app_localizations.dart';
+import 'core/localization/app_locale.dart';
 import 'core/navigation/app_routes.dart';
 import 'core/performance/perf_overlay.dart';
 import 'core/theme/app_theme.dart';
@@ -12,6 +14,7 @@ import 'features/games/presentation/widgets/compression_activity_overlay.dart';
 import 'providers/automation/automation_settings_sync.dart';
 import 'models/watcher_event.dart';
 import 'providers/games/game_list_provider.dart';
+import 'providers/localization/locale_provider.dart';
 import 'providers/system/route_state_provider.dart';
 import 'providers/system/tray_status_sync_provider.dart';
 import 'services/unsupported_report_sync_service.dart';
@@ -32,14 +35,13 @@ class PressPlayApp extends StatelessWidget {
   }
 }
 
-class _PressPlayRoot extends StatelessWidget {
+class _PressPlayRoot extends ConsumerWidget {
   const _PressPlayRoot();
 
   @override
-  Widget build(BuildContext context) {
-    final routeObserver = ProviderScope.containerOf(
-      context,
-    ).read(routeStateObserverProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final routeObserver = ref.read(routeStateObserverProvider);
+    final locale = ref.watch(effectiveLocaleProvider);
     return Column(
       children: [
         // Effect-only watcher — zero pixels, never causes child rebuilds.
@@ -50,6 +52,9 @@ class _PressPlayRoot extends StatelessWidget {
               title: AppConstants.appName,
               debugShowCheckedModeBanner: false,
               theme: _appTheme,
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: appSupportedLocales,
               navigatorObservers: [routeObserver],
               builder: _appBuilder,
               initialRoute: AppRoutes.home,
@@ -107,9 +112,15 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
       if (!mounted) {
         return;
       }
-      UnsupportedReportSyncService.instance.notePotentialChange(
-        ProviderScope.containerOf(context, listen: false),
-      );
+      final container = ProviderScope.containerOf(context, listen: false);
+      UnsupportedReportSyncService.instance.notePotentialChange(container);
+      unawaited(() async {
+        try {
+          await ref.read(rustBridgeServiceProvider).fetchCommunityUnsupportedList();
+        } catch (_) {
+          // Best effort; cache/interval handled in Rust.
+        }
+      }());
     });
   }
 

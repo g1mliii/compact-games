@@ -5,12 +5,15 @@ pub mod custom;
 pub mod ea;
 pub mod epic;
 pub mod gog;
+pub mod hidden_paths;
 pub mod index;
 pub mod install_history;
 pub mod platform;
 pub mod scan_error;
 pub mod steam;
 pub mod storage;
+#[cfg(test)]
+pub(crate) mod test_sync;
 pub mod ubisoft;
 pub mod utils;
 pub mod xbox;

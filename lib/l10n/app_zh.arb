@@ -1,0 +1,1123 @@
+{
+  "@@locale": "zh",
+  "algorithmXpress4k": "XPRESS 4K（快速）",
+  "@algorithmXpress4k": {
+    "description": "Localized message for algorithm xpress4k."
+  },
+  "algorithmXpress8k": "XPRESS 8K（平衡）",
+  "@algorithmXpress8k": {
+    "description": "Localized message for algorithm xpress8k."
+  },
+  "algorithmXpress16k": "XPRESS 16K（更高压缩率）",
+  "@algorithmXpress16k": {
+    "description": "Localized message for algorithm xpress16k."
+  },
+  "algorithmLzx": "LZX（最高）",
+  "@algorithmLzx": {
+    "description": "Localized message for algorithm lzx."
+  },
+  "platformSteam": "Steam",
+  "@platformSteam": {
+    "description": "Localized message for platform steam."
+  },
+  "platformEpicGames": "Epic Games",
+  "@platformEpicGames": {
+    "description": "Localized message for platform epic games."
+  },
+  "platformGogGalaxy": "GOG Galaxy",
+  "@platformGogGalaxy": {
+    "description": "Localized message for platform gog galaxy."
+  },
+  "platformUbisoftConnect": "Ubisoft Connect",
+  "@platformUbisoftConnect": {
+    "description": "Localized message for platform ubisoft connect."
+  },
+  "platformEaApp": "EA App",
+  "@platformEaApp": {
+    "description": "Localized message for platform ea app."
+  },
+  "platformBattleNet": "Battle.net",
+  "@platformBattleNet": {
+    "description": "Localized message for platform battle net."
+  },
+  "platformXboxGamePass": "Xbox Game Pass",
+  "@platformXboxGamePass": {
+    "description": "Localized message for platform xbox game pass."
+  },
+  "platformCustom": "自定义",
+  "@platformCustom": {
+    "description": "Localized message for platform custom."
+  },
+  "commonAdd": "添加",
+  "@commonAdd": {
+    "description": "Localized message for common add."
+  },
+  "commonCancel": "取消",
+  "@commonCancel": {
+    "description": "Localized message for common cancel."
+  },
+  "commonDismissTooltip": "关闭",
+  "@commonDismissTooltip": {
+    "description": "Localized message for common dismiss tooltip."
+  },
+  "commonEnable": "启用",
+  "@commonEnable": {
+    "description": "Localized message for common enable."
+  },
+  "commonOpenFolder": "打开文件夹",
+  "@commonOpenFolder": {
+    "description": "Localized message for common open folder."
+  },
+  "commonQuit": "退出",
+  "@commonQuit": {
+    "description": "Localized message for common quit."
+  },
+  "commonRetry": "重试",
+  "@commonRetry": {
+    "description": "Localized message for common retry."
+  },
+  "commonNotAvailable": "无",
+  "@commonNotAvailable": {
+    "description": "Localized message for common not available."
+  },
+  "commonGigabytes": "{value} GB",
+  "@commonGigabytes": {
+    "description": "Localized message for common gigabytes.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "commonMegabytes": "{count} MB",
+  "@commonMegabytes": {
+    "description": "Localized message for common megabytes.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "routeNotFoundTitle": "未找到路由",
+  "@routeNotFoundTitle": {
+    "description": "Localized message for route not found title."
+  },
+  "routeNotFoundMessage": "请求的路由不存在。",
+  "@routeNotFoundMessage": {
+    "description": "Localized message for route not found message."
+  },
+  "settingsTitle": "设置",
+  "@settingsTitle": {
+    "description": "Localized message for settings title."
+  },
+  "settingsLoadFailed": "加载设置失败：{errorMessage}",
+  "@settingsLoadFailed": {
+    "description": "Localized message for settings load failed.",
+    "placeholders": {
+      "errorMessage": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAutomationSectionTitle": "自动化",
+  "@settingsAutomationSectionTitle": {
+    "description": "Localized message for settings automation section title."
+  },
+  "settingsIdleThresholdLabel": "空闲阈值",
+  "@settingsIdleThresholdLabel": {
+    "description": "Localized message for settings idle threshold label."
+  },
+  "settingsMinutesShort": "{minutes} 分钟",
+  "@settingsMinutesShort": {
+    "description": "Localized message for settings minutes short.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsCpuThresholdLabel": "CPU 阈值",
+  "@settingsCpuThresholdLabel": {
+    "description": "Localized message for settings cpu threshold label."
+  },
+  "settingsPercentShort": "{percent}%",
+  "@settingsPercentShort": {
+    "description": "Localized message for settings percent short.",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsMinimizeToTrayOnCloseLabel": "关闭时最小化到托盘",
+  "@settingsMinimizeToTrayOnCloseLabel": {
+    "description": "Localized message for settings minimize to tray on close label."
+  },
+  "settingsPathsSectionTitle": "自定义路径",
+  "@settingsPathsSectionTitle": {
+    "description": "Localized message for settings paths section title."
+  },
+  "settingsPathsHint": "添加额外的游戏库文件夹路径",
+  "@settingsPathsHint": {
+    "description": "Localized message for settings paths hint."
+  },
+  "settingsNoCustomPaths": "尚未配置自定义游戏库路径。",
+  "@settingsNoCustomPaths": {
+    "description": "Localized message for settings no custom paths."
+  },
+  "settingsRemovePathTooltip": "移除路径",
+  "@settingsRemovePathTooltip": {
+    "description": "Localized message for settings remove path tooltip."
+  },
+  "settingsCompressionSectionTitle": "压缩",
+  "@settingsCompressionSectionTitle": {
+    "description": "Localized message for settings compression section title."
+  },
+  "settingsAlgorithmLabel": "算法",
+  "@settingsAlgorithmLabel": {
+    "description": "Localized message for settings algorithm label."
+  },
+  "settingsAlgorithmTooltip": "选择压缩算法。",
+  "@settingsAlgorithmTooltip": {
+    "description": "Localized message for settings algorithm tooltip."
+  },
+  "settingsAlgorithmRecommendedHint": "XPRESS 8K 是大多数游戏的推荐默认选项。",
+  "@settingsAlgorithmRecommendedHint": {
+    "description": "Localized message for settings algorithm recommended hint."
+  },
+  "settingsIoThreadsTooltip": "覆盖并行 I/O 线程数。",
+  "@settingsIoThreadsTooltip": {
+    "description": "Localized message for settings io threads tooltip."
+  },
+  "settingsIoThreadsLabel": "I/O 线程",
+  "@settingsIoThreadsLabel": {
+    "description": "Localized message for settings io threads label."
+  },
+  "settingsIoThreadsAuto": "自动",
+  "@settingsIoThreadsAuto": {
+    "description": "Localized message for settings io threads auto."
+  },
+  "settingsIoThreadsCount": "{count} 个线程",
+  "@settingsIoThreadsCount": {
+    "description": "Localized message for settings io threads count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsIoThreadsHelp": "自动会匹配当前硬件建议值。",
+  "@settingsIoThreadsHelp": {
+    "description": "Localized message for settings io threads help."
+  },
+  "settingsInventorySectionTitle": "清单",
+  "@settingsInventorySectionTitle": {
+    "description": "Localized message for settings inventory section title."
+  },
+  "settingsPauseWatcher": "暂停监视器",
+  "@settingsPauseWatcher": {
+    "description": "Localized message for settings pause watcher."
+  },
+  "settingsResumeWatcher": "恢复监视器",
+  "@settingsResumeWatcher": {
+    "description": "Localized message for settings resume watcher."
+  },
+  "settingsWatcherAutomationEnabled": "自动化当前正在监视压缩清单。",
+  "@settingsWatcherAutomationEnabled": {
+    "description": "Localized message for settings watcher automation enabled."
+  },
+  "settingsWatcherAutomationDisabled": "自动化当前已暂停，不会监视压缩清单。",
+  "@settingsWatcherAutomationDisabled": {
+    "description": "Localized message for settings watcher automation disabled."
+  },
+  "settingsEnableFullMetadataInventoryScan": "启用完整元数据清单扫描",
+  "@settingsEnableFullMetadataInventoryScan": {
+    "description": "Localized message for settings enable full metadata inventory scan."
+  },
+  "settingsInventoryAdvancedDescription": "为清单表收集更丰富的元数据。扫描时可能会更慢。",
+  "@settingsInventoryAdvancedDescription": {
+    "description": "Localized message for settings inventory advanced description."
+  },
+  "settingsSteamGridDbManagedOnce": "SteamGridDB 封面每个游戏只会获取一次，除非你手动刷新。",
+  "@settingsSteamGridDbManagedOnce": {
+    "description": "Localized message for settings steam grid db managed once."
+  },
+  "settingsLanguageSectionTitle": "语言",
+  "@settingsLanguageSectionTitle": {
+    "description": "Localized message for settings language section title."
+  },
+  "settingsLanguageSelectorLabel": "显示语言",
+  "@settingsLanguageSelectorLabel": {
+    "description": "Localized message for settings language selector label."
+  },
+  "settingsLanguageSelectorTooltip": "选择应用语言。",
+  "@settingsLanguageSelectorTooltip": {
+    "description": "Localized message for settings language selector tooltip."
+  },
+  "settingsLanguageSystemDefault": "跟随系统",
+  "@settingsLanguageSystemDefault": {
+    "description": "Localized message for settings language system default."
+  },
+  "settingsLanguageEnglish": "English",
+  "@settingsLanguageEnglish": {
+    "description": "Localized message for settings language english."
+  },
+  "settingsLanguageSpanish": "Español",
+  "@settingsLanguageSpanish": {
+    "description": "Localized message for settings language spanish."
+  },
+  "settingsLanguageChineseSimplified": "简体中文",
+  "@settingsLanguageChineseSimplified": {
+    "description": "Localized message for settings language chinese simplified."
+  },
+  "settingsIntegrationsSectionTitle": "集成",
+  "@settingsIntegrationsSectionTitle": {
+    "description": "Localized message for settings integrations section title."
+  },
+  "settingsApiKeySavedMessage": "API 密钥已保存。",
+  "@settingsApiKeySavedMessage": {
+    "description": "Localized message for settings api key saved message."
+  },
+  "settingsApiKeyCopiedMessage": "API 密钥已复制。",
+  "@settingsApiKeyCopiedMessage": {
+    "description": "Localized message for settings api key copied message."
+  },
+  "settingsSteamGridDbConnectedStatus": "SteamGridDB API 密钥已连接",
+  "@settingsSteamGridDbConnectedStatus": {
+    "description": "Localized message for settings steam grid db connected status."
+  },
+  "settingsSteamGridDbMissingStatus": "缺少 SteamGridDB API 密钥",
+  "@settingsSteamGridDbMissingStatus": {
+    "description": "Localized message for settings steam grid db missing status."
+  },
+  "settingsSteamGridDbExplanation": "SteamGridDB 可提升手动添加或难以匹配游戏的封面质量。",
+  "@settingsSteamGridDbExplanation": {
+    "description": "Localized message for settings steam grid db explanation."
+  },
+  "settingsSteamGridDbStep1": "打开你的 SteamGridDB 账户偏好设置页面。",
+  "@settingsSteamGridDbStep1": {
+    "description": "Localized message for settings steam grid db step1."
+  },
+  "settingsSteamGridDbStep2": "生成或复制你的个人 API 密钥。",
+  "@settingsSteamGridDbStep2": {
+    "description": "Localized message for settings steam grid db step2."
+  },
+  "settingsSteamGridDbStep3": "将其粘贴到这里，以启用更丰富的封面查询。",
+  "@settingsSteamGridDbStep3": {
+    "description": "Localized message for settings steam grid db step3."
+  },
+  "settingsSteamGridDbOpenButton": "打开 SteamGridDB API 页面",
+  "@settingsSteamGridDbOpenButton": {
+    "description": "Localized message for settings steam grid db open button."
+  },
+  "settingsSteamGridDbApiKeyLabel": "SteamGridDB API 密钥",
+  "@settingsSteamGridDbApiKeyLabel": {
+    "description": "Localized message for settings steam grid db api key label."
+  },
+  "settingsSteamGridDbApiKeyHint": "粘贴你的 SteamGridDB API 密钥",
+  "@settingsSteamGridDbApiKeyHint": {
+    "description": "Localized message for settings steam grid db api key hint."
+  },
+  "settingsSteamGridDbShowKeyTooltip": "显示密钥",
+  "@settingsSteamGridDbShowKeyTooltip": {
+    "description": "Localized message for settings steam grid db show key tooltip."
+  },
+  "settingsSteamGridDbHideKeyTooltip": "隐藏密钥",
+  "@settingsSteamGridDbHideKeyTooltip": {
+    "description": "Localized message for settings steam grid db hide key tooltip."
+  },
+  "settingsSteamGridDbCopyKeyTooltip": "复制密钥",
+  "@settingsSteamGridDbCopyKeyTooltip": {
+    "description": "Localized message for settings steam grid db copy key tooltip."
+  },
+  "settingsSteamGridDbSaveButton": "保存密钥",
+  "@settingsSteamGridDbSaveButton": {
+    "description": "Localized message for settings steam grid db save button."
+  },
+  "settingsSteamGridDbRemoveButton": "移除密钥",
+  "@settingsSteamGridDbRemoveButton": {
+    "description": "Localized message for settings steam grid db remove button."
+  },
+  "settingsSafetySectionTitle": "安全",
+  "@settingsSafetySectionTitle": {
+    "description": "Localized message for settings safety section title."
+  },
+  "settingsAllowDirectStorageOverride": "允许绕过 DirectStorage 保护",
+  "@settingsAllowDirectStorageOverride": {
+    "description": "Localized message for settings allow direct storage override."
+  },
+  "settingsDirectStorageWarningLead": "仅在你清楚风险时使用。",
+  "@settingsDirectStorageWarningLead": {
+    "description": "Localized message for settings direct storage warning lead."
+  },
+  "settingsDirectStorageWarningBody": "DirectStorage 游戏在压缩后可能加载更慢，或出现不可预测的问题。",
+  "@settingsDirectStorageWarningBody": {
+    "description": "Localized message for settings direct storage warning body."
+  },
+  "settingsEnableDirectStorageOverrideTitle": "启用 DirectStorage 绕过？",
+  "@settingsEnableDirectStorageOverrideTitle": {
+    "description": "Localized message for settings enable direct storage override title."
+  },
+  "settingsEnableDirectStorageOverrideMessage": "这会允许压缩被标记为 DirectStorage 的游戏，可能影响加载性能和稳定性。",
+  "@settingsEnableDirectStorageOverrideMessage": {
+    "description": "Localized message for settings enable direct storage override message."
+  },
+  "settingsWatcherStatusActive": "监视器已启用",
+  "@settingsWatcherStatusActive": {
+    "description": "Localized message for settings watcher status active."
+  },
+  "settingsWatcherStatusPaused": "监视器已暂停",
+  "@settingsWatcherStatusPaused": {
+    "description": "Localized message for settings watcher status paused."
+  },
+  "homeRefreshGamesTooltip": "刷新游戏",
+  "@homeRefreshGamesTooltip": {
+    "description": "Localized message for home refresh games tooltip."
+  },
+  "homeCompressionInventoryTooltip": "打开压缩清单",
+  "@homeCompressionInventoryTooltip": {
+    "description": "Localized message for home compression inventory tooltip."
+  },
+  "homeAddGameTooltip": "添加游戏",
+  "@homeAddGameTooltip": {
+    "description": "Localized message for home add game tooltip."
+  },
+  "homeSettingsTooltip": "打开设置",
+  "@homeSettingsTooltip": {
+    "description": "Localized message for home settings tooltip."
+  },
+  "homeSwitchToListViewTooltip": "切换到列表视图",
+  "@homeSwitchToListViewTooltip": {
+    "description": "Localized message for home switch to list view tooltip."
+  },
+  "homeSwitchToGridViewTooltip": "切换到网格视图",
+  "@homeSwitchToGridViewTooltip": {
+    "description": "Localized message for home switch to grid view tooltip."
+  },
+  "homeHeaderTagline": "精简你的游戏库，同时保持完全掌控。",
+  "@homeHeaderTagline": {
+    "description": "Localized message for home header tagline."
+  },
+  "homeHeaderReadyLine": "{count} 款游戏已可释放空间。",
+  "@homeHeaderReadyLine": {
+    "description": "Localized message for home header ready line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeSearchGamesHint": "搜索游戏...",
+  "@homeSearchGamesHint": {
+    "description": "Localized message for home search games hint."
+  },
+  "homePrimaryReviewEligible": "查看可压缩游戏",
+  "@homePrimaryReviewEligible": {
+    "description": "Localized message for home primary review eligible action."
+  },
+  "homePrimaryOpenInventory": "打开清单",
+  "@homePrimaryOpenInventory": {
+    "description": "Localized message for home primary open inventory action."
+  },
+  "homePrimaryAddGame": "添加游戏",
+  "@homePrimaryAddGame": {
+    "description": "Localized message for home primary add game action."
+  },
+  "homeEmptyTitle": "当前视图中没有游戏",
+  "@homeEmptyTitle": {
+    "description": "Localized message for home empty title."
+  },
+  "homeEmptyMessage": "Steam、Epic、GOG 和其他启动器中的游戏会自动出现在这里。",
+  "@homeEmptyMessage": {
+    "description": "Localized message for home empty message."
+  },
+  "homeEmptyGuidance": "刷新扫描，或手动添加游戏文件夹，以开始查看可回收空间。",
+  "@homeEmptyGuidance": {
+    "description": "Localized message for home empty guidance."
+  },
+  "homeLoadErrorTitle": "无法加载你的游戏库",
+  "@homeLoadErrorTitle": {
+    "description": "Localized message for home load error title."
+  },
+  "homeLoadErrorGuidance": "请重试扫描。如果问题仍然存在，请检查启动器路径，或手动添加游戏文件夹。",
+  "@homeLoadErrorGuidance": {
+    "description": "Localized message for home load error guidance."
+  },
+  "homeListEmptyTitle": "当前视图没有匹配项",
+  "@homeListEmptyTitle": {
+    "description": "Localized message for home list empty title."
+  },
+  "homeListEmptyMessage": "清除当前搜索或筛选条件，或手动添加一个游戏文件夹。",
+  "@homeListEmptyMessage": {
+    "description": "Localized message for home list empty message."
+  },
+  "homeSelectGameTitle": "选择一个游戏",
+  "@homeSelectGameTitle": {
+    "description": "Localized message for home select game title."
+  },
+  "homeSelectGameMessage": "选中一个标题以查看体积、压缩历史和下一步操作。",
+  "@homeSelectGameMessage": {
+    "description": "Localized message for home select game message."
+  },
+  "homeStatusReadyToCompress": "可立即压缩",
+  "@homeStatusReadyToCompress": {
+    "description": "Localized message for home ready-to-compress status."
+  },
+  "homeAddedToLibraryMessage": "“{gameName}”已添加到库中。",
+  "@homeAddedToLibraryMessage": {
+    "description": "Localized message for home added to library message.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "homeUpdatedInLibraryMessage": "“{gameName}”已在库中更新。",
+  "@homeUpdatedInLibraryMessage": {
+    "description": "Localized message for home updated in library message.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "homeFailedToAddGameMessage": "添加游戏失败：{errorMessage}",
+  "@homeFailedToAddGameMessage": {
+    "description": "Localized message for home failed to add game message.",
+    "placeholders": {
+      "errorMessage": {
+        "type": "String"
+      }
+    }
+  },
+  "homeInvalidPathMessage": "所选路径无效。",
+  "@homeInvalidPathMessage": {
+    "description": "Localized message for home invalid path message."
+  },
+  "homeAddGameDialogTitle": "添加游戏",
+  "@homeAddGameDialogTitle": {
+    "description": "Localized message for home add game dialog title."
+  },
+  "homeAddGamePathHint": "选择游戏文件夹或可执行文件",
+  "@homeAddGamePathHint": {
+    "description": "Localized message for home add game path hint."
+  },
+  "homeBrowseFolder": "浏览文件夹",
+  "@homeBrowseFolder": {
+    "description": "Localized message for home browse folder."
+  },
+  "homeBrowseExe": "浏览 .exe",
+  "@homeBrowseExe": {
+    "description": "Localized message for home browse exe."
+  },
+  "homeCoverArtNudgeMessage": "在设置中连接 SteamGridDB，以改进封面匹配。",
+  "@homeCoverArtNudgeMessage": {
+    "description": "Localized message for home cover art nudge message."
+  },
+  "homeGoToSettingsButton": "前往设置",
+  "@homeGoToSettingsButton": {
+    "description": "Localized message for home go to settings button."
+  },
+  "homeOverviewEyebrow": "可压缩概览",
+  "@homeOverviewEyebrow": {
+    "description": "Localized message for home overview eyebrow."
+  },
+  "homeOverviewEmptyHeadline": "先导入你的游戏库，再快速腾出空间。",
+  "@homeOverviewEmptyHeadline": {
+    "description": "Localized message for home overview empty headline."
+  },
+  "homeOverviewEmptySubtitle": "扫描你的启动器，或手动添加游戏文件夹，开始显示可回收空间。",
+  "@homeOverviewEmptySubtitle": {
+    "description": "Localized message for home overview empty subtitle."
+  },
+  "homeOverviewReadyHeadline": "{count} 款游戏已可释放空间。",
+  "@homeOverviewReadyHeadline": {
+    "description": "Localized message for home overview ready headline.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeOverviewReadySubtitle": "先处理最明确的节省机会。预计可回收空间：{value}。",
+  "@homeOverviewReadySubtitle": {
+    "description": "Localized message for home overview ready subtitle.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "homeOverviewProtectedHeadline": "游戏库已发现完成，但这些标题仍保持受保护状态。",
+  "@homeOverviewProtectedHeadline": {
+    "description": "Localized message for home overview protected headline."
+  },
+  "homeOverviewProtectedSubtitle": "在强制压缩之前，请先在清单中检查 DirectStorage 和不受支持的游戏。",
+  "@homeOverviewProtectedSubtitle": {
+    "description": "Localized message for home overview protected subtitle."
+  },
+  "homeOverviewManagedHeadline": "你的已压缩游戏库正在稳住空间占用。",
+  "@homeOverviewManagedHeadline": {
+    "description": "Localized message for home overview managed headline."
+  },
+  "homeOverviewManagedSubtitle": "前往清单查看已节省的空间，并在新游戏出现时及时处理。",
+  "@homeOverviewManagedSubtitle": {
+    "description": "Localized message for home overview managed subtitle."
+  },
+  "homeOverviewReadyCountLabel": "待压缩",
+  "@homeOverviewReadyCountLabel": {
+    "description": "Localized message for home overview ready count label."
+  },
+  "homeOverviewCompressedCountLabel": "已压缩",
+  "@homeOverviewCompressedCountLabel": {
+    "description": "Localized message for home overview compressed count label."
+  },
+  "homeOverviewProtectedCountLabel": "受保护",
+  "@homeOverviewProtectedCountLabel": {
+    "description": "Localized message for home overview protected count label."
+  },
+  "homeOverviewReclaimableLabel": "潜在空间",
+  "@homeOverviewReclaimableLabel": {
+    "description": "Localized message for home overview reclaimable label."
+  },
+  "inventoryTitle": "压缩清单",
+  "@inventoryTitle": {
+    "description": "Localized message for inventory title."
+  },
+  "inventoryRefreshTooltip": "刷新清单",
+  "@inventoryRefreshTooltip": {
+    "description": "Localized message for inventory refresh tooltip."
+  },
+  "inventoryLoadFailed": "加载清单失败：{errorMessage}",
+  "@inventoryLoadFailed": {
+    "description": "Localized message for inventory load failed.",
+    "placeholders": {
+      "errorMessage": {
+        "type": "String"
+      }
+    }
+  },
+  "inventorySearchHint": "搜索清单...",
+  "@inventorySearchHint": {
+    "description": "Localized message for inventory search hint."
+  },
+  "inventorySortDirectionDescending": "降序",
+  "@inventorySortDirectionDescending": {
+    "description": "Localized message for inventory sort direction descending."
+  },
+  "inventorySortDirectionAscending": "升序",
+  "@inventorySortDirectionAscending": {
+    "description": "Localized message for inventory sort direction ascending."
+  },
+  "inventorySortLabel": "排序方式",
+  "@inventorySortLabel": {
+    "description": "Localized message for inventory sort label."
+  },
+  "inventorySortSavingsPercent": "节省 %",
+  "@inventorySortSavingsPercent": {
+    "description": "Localized message for inventory sort savings percent."
+  },
+  "inventorySortOriginalSize": "原始大小",
+  "@inventorySortOriginalSize": {
+    "description": "Localized message for inventory sort original size."
+  },
+  "inventorySortName": "名称",
+  "@inventorySortName": {
+    "description": "Localized message for inventory sort name."
+  },
+  "inventorySortPlatform": "平台",
+  "@inventorySortPlatform": {
+    "description": "Localized message for inventory sort platform."
+  },
+  "inventoryHeaderGame": "游戏",
+  "@inventoryHeaderGame": {
+    "description": "Localized message for inventory header game."
+  },
+  "inventoryHeaderPlatform": "平台",
+  "@inventoryHeaderPlatform": {
+    "description": "Localized message for inventory header platform."
+  },
+  "inventoryHeaderOriginal": "原始",
+  "@inventoryHeaderOriginal": {
+    "description": "Localized message for inventory header original."
+  },
+  "inventoryHeaderCurrent": "当前",
+  "@inventoryHeaderCurrent": {
+    "description": "Localized message for inventory header current."
+  },
+  "inventoryHeaderSavings": "节省",
+  "@inventoryHeaderSavings": {
+    "description": "Localized message for inventory header savings."
+  },
+  "inventoryHeaderLastChecked": "最近检查",
+  "@inventoryHeaderLastChecked": {
+    "description": "Localized message for inventory header last checked."
+  },
+  "inventoryHeaderWatcher": "监视器",
+  "@inventoryHeaderWatcher": {
+    "description": "Localized message for inventory header watcher."
+  },
+  "inventoryEmpty": "当前清单筛选条件下没有匹配的游戏。",
+  "@inventoryEmpty": {
+    "description": "Localized message for inventory empty."
+  },
+  "inventoryWatcherNotWatched": "未监视",
+  "@inventoryWatcherNotWatched": {
+    "description": "Localized message for inventory watcher not watched."
+  },
+  "inventoryWatcherWatched": "已监视",
+  "@inventoryWatcherWatched": {
+    "description": "Localized message for inventory watcher watched."
+  },
+  "inventoryWatcherPaused": "已暂停",
+  "@inventoryWatcherPaused": {
+    "description": "Localized message for inventory watcher paused."
+  },
+  "inventoryWatcherActive": "监视器已启用",
+  "@inventoryWatcherActive": {
+    "description": "Localized message for inventory watcher active."
+  },
+  "inventoryAlgorithmBadgeLabel": "算法",
+  "@inventoryAlgorithmBadgeLabel": {
+    "description": "Localized message for inventory algorithm badge label."
+  },
+  "inventoryWatcherBadgeLabel": "监视器",
+  "@inventoryWatcherBadgeLabel": {
+    "description": "Localized message for inventory watcher badge label."
+  },
+  "inventoryWatcherBadgeActive": "启用",
+  "@inventoryWatcherBadgeActive": {
+    "description": "Localized message for inventory watcher badge active."
+  },
+  "inventoryWatcherBadgePaused": "暂停",
+  "@inventoryWatcherBadgePaused": {
+    "description": "Localized message for inventory watcher badge paused."
+  },
+  "inventoryPauseWatcher": "暂停监视器",
+  "@inventoryPauseWatcher": {
+    "description": "Localized message for inventory pause watcher."
+  },
+  "inventoryResumeWatcher": "恢复监视器",
+  "@inventoryResumeWatcher": {
+    "description": "Localized message for inventory resume watcher."
+  },
+  "inventoryAdvancedMetadataScanOn": "高级元数据扫描：开启",
+  "@inventoryAdvancedMetadataScanOn": {
+    "description": "Localized message for inventory advanced metadata scan on."
+  },
+  "inventoryAdvancedMetadataScanOff": "高级元数据扫描：关闭",
+  "@inventoryAdvancedMetadataScanOff": {
+    "description": "Localized message for inventory advanced metadata scan off."
+  },
+  "inventoryRunFullRescan": "执行完整清单重扫",
+  "@inventoryRunFullRescan": {
+    "description": "Localized message for inventory run full rescan."
+  },
+  "inventoryRescanUnavailableWhileLoading": "加载期间无法重新扫描",
+  "@inventoryRescanUnavailableWhileLoading": {
+    "description": "Localized message for inventory rescan unavailable while loading."
+  },
+  "inventoryWatcherSummary": "{status}。交互控制显示在下方。",
+  "@inventoryWatcherSummary": {
+    "description": "Localized message for inventory watcher summary.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "activityDismissMonitor": "关闭监视器",
+  "@activityDismissMonitor": {
+    "description": "Localized message for activity dismiss monitor."
+  },
+  "activityCompressing": "正在压缩",
+  "@activityCompressing": {
+    "description": "Localized message for activity compressing."
+  },
+  "activityDecompressing": "正在解压",
+  "@activityDecompressing": {
+    "description": "Localized message for activity decompressing."
+  },
+  "activityPreparing": "准备中...",
+  "@activityPreparing": {
+    "description": "Localized message for activity preparing."
+  },
+  "activityScanningFiles": "正在扫描文件...",
+  "@activityScanningFiles": {
+    "description": "Localized message for activity scanning files."
+  },
+  "activityScanningCompressedFiles": "正在扫描已压缩文件...",
+  "@activityScanningCompressedFiles": {
+    "description": "Localized message for activity scanning compressed files."
+  },
+  "activityAmountSaved": "已节省 {value}",
+  "@activityAmountSaved": {
+    "description": "Localized message for activity amount saved.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "activityAmountRestoring": "正在恢复 {value}",
+  "@activityAmountRestoring": {
+    "description": "Localized message for activity amount restoring.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "activityApproxFileProgress": "~{processed}/{total} 个文件",
+  "@activityApproxFileProgress": {
+    "description": "Localized message for activity approx file progress.",
+    "placeholders": {
+      "processed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "activityFileProgress": "{processed}/{total} 个文件",
+  "@activityFileProgress": {
+    "description": "Localized message for activity file progress.",
+    "placeholders": {
+      "processed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "activitySecondsRemaining": "剩余 {seconds} 秒",
+  "@activitySecondsRemaining": {
+    "description": "Localized message for activity seconds remaining.",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "activityMinutesRemaining": "剩余 {minutes} 分钟",
+  "@activityMinutesRemaining": {
+    "description": "Localized message for activity minutes remaining.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "activityHoursMinutesRemaining": "剩余 {hours} 小时 {minutes} 分钟",
+  "@activityHoursMinutesRemaining": {
+    "description": "Localized message for activity hours minutes remaining.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "gameStatusDirectStorage": "DirectStorage",
+  "@gameStatusDirectStorage": {
+    "description": "Localized message for game status direct storage."
+  },
+  "gameStatusUnsupported": "不支持",
+  "@gameStatusUnsupported": {
+    "description": "Localized message for game status unsupported."
+  },
+  "gameStatusNotCompressed": "未压缩",
+  "@gameStatusNotCompressed": {
+    "description": "Localized message for game status not compressed."
+  },
+  "gameSavedGigabytes": "已节省 {gigabytes} GB",
+  "@gameSavedGigabytes": {
+    "description": "Localized message for game saved gigabytes.",
+    "placeholders": {
+      "gigabytes": {
+        "type": "String"
+      }
+    }
+  },
+  "gameEstimatedSaveableGigabytes": "可节省 {gigabytes} GB",
+  "@gameEstimatedSaveableGigabytes": {
+    "description": "Localized message for game estimated saveable gigabytes.",
+    "placeholders": {
+      "gigabytes": {
+        "type": "String"
+      }
+    }
+  },
+  "gameMarkedUnsupported": "“{gameName}”已标记为不支持。",
+  "@gameMarkedUnsupported": {
+    "description": "Localized message for game marked unsupported.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameMarkedSupported": "“{gameName}”已标记为支持。",
+  "@gameMarkedSupported": {
+    "description": "Localized message for game marked supported.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameMenuViewDetails": "查看详情",
+  "@gameMenuViewDetails": {
+    "description": "Localized message for game menu view details."
+  },
+  "gameMenuCompressNow": "立即压缩",
+  "@gameMenuCompressNow": {
+    "description": "Localized message for game menu compress now."
+  },
+  "gameMenuDecompress": "解压",
+  "@gameMenuDecompress": {
+    "description": "Localized message for game menu decompress."
+  },
+  "gameMenuMarkUnsupported": "标记为不支持",
+  "@gameMenuMarkUnsupported": {
+    "description": "Localized message for game menu mark unsupported."
+  },
+  "gameMenuMarkSupported": "标记为支持",
+  "@gameMenuMarkSupported": {
+    "description": "Localized message for game menu mark supported."
+  },
+  "gameMenuExcludeFromAutoCompression": "从自动压缩中排除",
+  "@gameMenuExcludeFromAutoCompression": {
+    "description": "Localized message for game menu exclude from auto compression."
+  },
+  "gameMenuIncludeInAutoCompression": "加入自动压缩",
+  "@gameMenuIncludeInAutoCompression": {
+    "description": "Localized message for game menu include in auto compression."
+  },
+  "gameMenuRemoveFromLibrary": "从库中移除",
+  "@gameMenuRemoveFromLibrary": {
+    "description": "Localized message for game menu remove from library."
+  },
+  "gameRemovedFromLibrary": "“{gameName}”已从库中移除。",
+  "@gameRemovedFromLibrary": {
+    "description": "Localized message for game removed from library.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameRemovalPersistFailed": "无法保存“{gameName}”的移除操作，正在刷新游戏库。",
+  "@gameRemovalPersistFailed": {
+    "description": "Localized message for game removal persist failed.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameConfirmCompressionTitle": "确认压缩",
+  "@gameConfirmCompressionTitle": {
+    "description": "Localized message for game confirm compression title."
+  },
+  "gameConfirmCompressionMessage": "要压缩“{gameName}”吗？这可能影响磁盘占用和运行时性能。",
+  "@gameConfirmCompressionMessage": {
+    "description": "Localized message for game confirm compression message.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameConfirmCompressionAction": "压缩",
+  "@gameConfirmCompressionAction": {
+    "description": "Localized message for game confirm compression action."
+  },
+  "gameDetailsTitleFallback": "游戏详情",
+  "@gameDetailsTitleFallback": {
+    "description": "Localized message for game details title fallback."
+  },
+  "gameDetailsNotFound": "未找到游戏。",
+  "@gameDetailsNotFound": {
+    "description": "Localized message for game details not found."
+  },
+  "gameDetailsActivityCompressingNow": "正在压缩",
+  "@gameDetailsActivityCompressingNow": {
+    "description": "Localized message for game details activity compressing now."
+  },
+  "gameDetailsActivityDecompressingNow": "正在解压",
+  "@gameDetailsActivityDecompressingNow": {
+    "description": "Localized message for game details activity decompressing now."
+  },
+  "gameDetailsLastCompressedBadge": "上次压缩 {value}",
+  "@gameDetailsLastCompressedBadge": {
+    "description": "Localized message for game details last compressed badge.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "gameDetailsStatusCompressed": "已压缩",
+  "@gameDetailsStatusCompressed": {
+    "description": "Localized message for game details status compressed."
+  },
+  "gameDetailsStatusReady": "就绪",
+  "@gameDetailsStatusReady": {
+    "description": "Localized message for game details status ready."
+  },
+  "gameDetailsDirectStorageWarning": "检测到 DirectStorage。压缩可能影响运行时性能。",
+  "@gameDetailsDirectStorageWarning": {
+    "description": "Localized message for game details direct storage warning."
+  },
+  "gameDetailsUnsupportedWarning": "已知此游戏在使用 WOF 压缩后会出现问题。",
+  "@gameDetailsUnsupportedWarning": {
+    "description": "Localized message for game details unsupported warning."
+  },
+  "gameDetailsStatusGroupTitle": "状态",
+  "@gameDetailsStatusGroupTitle": {
+    "description": "Localized message for game details status group title."
+  },
+  "gameDetailsPlatformLabel": "平台",
+  "@gameDetailsPlatformLabel": {
+    "description": "Localized message for game details platform label."
+  },
+  "gameDetailsCompressionLabel": "压缩",
+  "@gameDetailsCompressionLabel": {
+    "description": "Localized message for game details compression label."
+  },
+  "gameDetailsCompressionCompressed": "已压缩",
+  "@gameDetailsCompressionCompressed": {
+    "description": "Localized message for game details compression compressed."
+  },
+  "gameDetailsCompressionNotCompressed": "未压缩",
+  "@gameDetailsCompressionNotCompressed": {
+    "description": "Localized message for game details compression not compressed."
+  },
+  "gameDetailsDirectStorageLabel": "DirectStorage",
+  "@gameDetailsDirectStorageLabel": {
+    "description": "Localized message for game details direct storage label."
+  },
+  "gameDetailsDirectStorageDetected": "已检测",
+  "@gameDetailsDirectStorageDetected": {
+    "description": "Localized message for game details direct storage detected."
+  },
+  "gameDetailsDirectStorageNotDetected": "未检测",
+  "@gameDetailsDirectStorageNotDetected": {
+    "description": "Localized message for game details direct storage not detected."
+  },
+  "gameDetailsUnsupportedLabel": "兼容性",
+  "@gameDetailsUnsupportedLabel": {
+    "description": "Localized message for game details unsupported label."
+  },
+  "gameDetailsUnsupportedFlagged": "已标记",
+  "@gameDetailsUnsupportedFlagged": {
+    "description": "Localized message for game details unsupported flagged."
+  },
+  "gameDetailsUnsupportedNotFlagged": "未标记",
+  "@gameDetailsUnsupportedNotFlagged": {
+    "description": "Localized message for game details unsupported not flagged."
+  },
+  "gameDetailsAutoCompressLabel": "自动压缩",
+  "@gameDetailsAutoCompressLabel": {
+    "description": "Localized message for game details auto compress label."
+  },
+  "gameDetailsAutoCompressExcluded": "已排除",
+  "@gameDetailsAutoCompressExcluded": {
+    "description": "Localized message for game details auto compress excluded."
+  },
+  "gameDetailsAutoCompressIncluded": "已包含",
+  "@gameDetailsAutoCompressIncluded": {
+    "description": "Localized message for game details auto compress included."
+  },
+  "gameDetailsStorageGroupTitle": "存储",
+  "@gameDetailsStorageGroupTitle": {
+    "description": "Localized message for game details storage group title."
+  },
+  "gameDetailsOriginalSizeLabel": "原始大小",
+  "@gameDetailsOriginalSizeLabel": {
+    "description": "Localized message for game details original size label."
+  },
+  "gameDetailsCurrentSizeLabel": "当前大小",
+  "@gameDetailsCurrentSizeLabel": {
+    "description": "Localized message for game details current size label."
+  },
+  "gameDetailsSpaceSavedLabel": "已节省空间",
+  "@gameDetailsSpaceSavedLabel": {
+    "description": "Localized message for game details space saved label."
+  },
+  "gameDetailsSavingsLabel": "节省",
+  "@gameDetailsSavingsLabel": {
+    "description": "Localized message for game details savings label."
+  },
+  "gameDetailsInstallPathGroupTitle": "安装路径",
+  "@gameDetailsInstallPathGroupTitle": {
+    "description": "Localized message for game details install path group title."
+  },
+  "gameDetailsCompressedAt": "压缩于 {value}",
+  "@gameDetailsCompressedAt": {
+    "description": "Localized message for game details compressed at.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "gameDetailsRemovedFromLibrary": "“{gameName}”已从库中移除。除非重新安装，否则不会再次出现。",
+  "@gameDetailsRemovedFromLibrary": {
+    "description": "Localized message for game details removed from library.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameDetailsCopyPathTooltip": "复制路径",
+  "@gameDetailsCopyPathTooltip": {
+    "description": "Localized message for game details copy path tooltip."
+  },
+  "gameDetailsInstallPathCopied": "安装路径已复制。",
+  "@gameDetailsInstallPathCopied": {
+    "description": "Localized message for game details install path copied."
+  },
+  "gameDetailsStorageLegendCurrent": "当前",
+  "@gameDetailsStorageLegendCurrent": {
+    "description": "Localized message for game details storage legend current."
+  },
+  "gameDetailsStorageLegendOriginal": "原始",
+  "@gameDetailsStorageLegendOriginal": {
+    "description": "Localized message for game details storage legend original."
+  },
+  "gameDetailsStorageLegendSaved": "已节省",
+  "@gameDetailsStorageLegendSaved": {
+    "description": "Localized message for game details storage legend saved."
+  },
+  "trayOpenApp": "打开 PressPlay",
+  "@trayOpenApp": {
+    "description": "Localized message for tray open app."
+  },
+  "trayPauseAutoCompression": "暂停自动压缩",
+  "@trayPauseAutoCompression": {
+    "description": "Localized message for tray pause auto compression."
+  },
+  "trayResumeAutoCompression": "恢复自动压缩",
+  "@trayResumeAutoCompression": {
+    "description": "Localized message for tray resume auto compression."
+  },
+  "trayCompressing": "正在压缩",
+  "@trayCompressing": {
+    "description": "Localized message for tray compressing."
+  },
+  "trayPaused": "已暂停",
+  "@trayPaused": {
+    "description": "Localized message for tray paused."
+  },
+  "trayError": "错误",
+  "@trayError": {
+    "description": "Localized message for tray error."
+  }
+}

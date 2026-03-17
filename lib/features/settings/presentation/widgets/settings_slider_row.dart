@@ -13,6 +13,7 @@ class SettingsSliderRow extends StatefulWidget {
     required this.divisions,
     required this.valueLabelBuilder,
     required this.onChangedCommitted,
+    this.valueColorBuilder,
   });
 
   final String label;
@@ -22,6 +23,7 @@ class SettingsSliderRow extends StatefulWidget {
   final int divisions;
   final String Function(double value) valueLabelBuilder;
   final ValueChanged<double> onChangedCommitted;
+  final Color Function(double value)? valueColorBuilder;
 
   @override
   State<SettingsSliderRow> createState() => _SettingsSliderRowState();
@@ -53,51 +55,61 @@ class _SettingsSliderRowState extends State<SettingsSliderRow> {
   @override
   Widget build(BuildContext context) {
     final valueLabel = widget.valueLabelBuilder(_draftValue);
+    final valueColor =
+        widget.valueColorBuilder?.call(_draftValue) ?? AppColors.textPrimary;
     return RepaintBoundary(
       child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(widget.label, style: AppTypography.bodyMedium),
-            const Spacer(),
-            Text(valueLabel, style: AppTypography.bodySmall),
-          ],
-        ),
-        SliderTheme(
-          data: _cachedSliderTheme ??= SliderTheme.of(context).copyWith(
-            trackHeight: 2.5,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-            activeTrackColor: AppColors.accent,
-            inactiveTrackColor: AppColors.surfaceElevated.withValues(
-              alpha: 0.55,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(widget.label, style: AppTypography.bodyMedium),
+              const Spacer(),
+              Text(
+                valueLabel,
+                style: AppTypography.bodySmall.copyWith(
+                  color: valueColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: _cachedSliderTheme ??= SliderTheme.of(context).copyWith(
+              trackHeight: 2.5,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              activeTrackColor: AppColors.accent,
+              inactiveTrackColor: AppColors.surfaceElevated.withValues(
+                alpha: 0.55,
+              ),
+            ),
+            child: Slider(
+              min: widget.min,
+              max: widget.max,
+              divisions: widget.divisions,
+              value: _draftValue,
+              onChanged: (value) {
+                setState(() {
+                  _dragging = true;
+                  _draftValue = value;
+                });
+              },
+              onChangeEnd: (value) {
+                setState(() {
+                  _dragging = false;
+                  _draftValue = value;
+                });
+                if ((widget.value - value).abs() <= _epsilon) {
+                  return;
+                }
+                widget.onChangedCommitted(value);
+              },
             ),
           ),
-          child: Slider(
-            min: widget.min,
-            max: widget.max,
-            divisions: widget.divisions,
-            value: _draftValue,
-            onChanged: (value) {
-              setState(() {
-                _dragging = true;
-                _draftValue = value;
-              });
-            },
-            onChangeEnd: (value) {
-              setState(() {
-                _dragging = false;
-                _draftValue = value;
-              });
-              if ((widget.value - value).abs() <= _epsilon) {
-                return;
-              }
-              widget.onChangedCommitted(value);
-            },
-          ),
-        ),
-      ],
+        ],
       ),
     );
   }

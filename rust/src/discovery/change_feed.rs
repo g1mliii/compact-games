@@ -116,6 +116,9 @@ static FORCE_FULL_REBUILD: AtomicBool = AtomicBool::new(false);
 static CHANGE_FEED: LazyLock<RwLock<ChangeFeedFile>> =
     LazyLock::new(|| RwLock::new(load_change_feed_file()));
 
+/// Plan a subdirectory scan for `scan_root`, comparing `candidates` against the
+/// stored fingerprint baseline. Returns a [`CandidatePlan`] that categorises
+/// candidates as changed, unchanged, or deleted.
 pub fn plan_subdir_scan(
     scan_root: &Path,
     candidates: &[(String, PathBuf)],
@@ -217,6 +220,7 @@ pub fn plan_subdir_scan(
     }
 }
 
+/// Remove all change-feed entries for `path` across every tracked root.
 pub fn remove(path: &Path) {
     let key = normalize_path_key(path);
     let removed = with_change_feed_write(|feed| {
@@ -231,6 +235,8 @@ pub fn remove(path: &Path) {
     }
 }
 
+/// Record that a full discovery scan completed successfully, stamping the
+/// current time as `last_successful_full_scan_ms`.
 pub fn mark_full_scan_success() {
     with_change_feed_write(|feed| {
         feed.last_successful_full_scan_ms = Some(unix_now_ms());
@@ -238,6 +244,9 @@ pub fn mark_full_scan_success() {
     CHANGE_FEED_DIRTY.store(true, Ordering::Relaxed);
 }
 
+/// Flush the in-memory change feed to disk if it has been modified since the
+/// last successful persist. A failed write re-sets the dirty flag so the next
+/// call will retry.
 pub fn persist_if_dirty() {
     if !CHANGE_FEED_DIRTY.swap(false, Ordering::Relaxed) {
         return;
@@ -253,6 +262,8 @@ pub fn persist_if_dirty() {
     }
 }
 
+/// Clear all in-memory state and delete the on-disk change-feed file.
+/// Primarily used in tests and to recover from corrupted state.
 pub fn clear_all() {
     with_change_feed_write(|feed| {
         feed.roots.clear();
@@ -405,7 +416,7 @@ fn load_change_feed_file() -> ChangeFeedFile {
 
 fn save_change_feed_json(json: &str) -> Result<(), Box<dyn std::error::Error>> {
     let path = change_feed_path()?;
-    fs::write(path, json)?;
+    crate::utils::atomic_write(&path, json.as_bytes())?;
     Ok(())
 }
 
@@ -427,7 +438,8 @@ fn metadata_modified_ms(metadata: &fs::Metadata) -> Option<u64> {
         .modified()
         .ok()
         .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map(|d| d.as_millis() as u64)
+        // as_millis() returns u128; timestamps won't overflow u64 until year ~292 million.
+        .map(|d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
 }
 
 fn max_optional_u64(lhs: Option<u64>, rhs: Option<u64>) -> Option<u64> {
@@ -445,15 +457,12 @@ fn unix_now_ms() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
-
     use super::*;
-
-    static TEST_MUTEX: Mutex<()> = Mutex::new(());
+    use crate::discovery::test_sync::lock_discovery_test;
 
     #[test]
     fn incremental_plan_after_full_baseline() {
-        let _guard = TEST_MUTEX.lock().unwrap();
+        let _guard = lock_discovery_test();
         clear_all();
 
         let root = tempfile::TempDir::new().unwrap();
@@ -478,7 +487,7 @@ mod tests {
 
     #[test]
     fn plan_marks_deleted_paths() {
-        let _guard = TEST_MUTEX.lock().unwrap();
+        let _guard = lock_discovery_test();
         clear_all();
 
         let root = tempfile::TempDir::new().unwrap();
@@ -504,7 +513,7 @@ mod tests {
 
     #[test]
     fn root_tracking_is_bounded() {
-        let _guard = TEST_MUTEX.lock().unwrap();
+        let _guard = lock_discovery_test();
         clear_all();
 
         let base = tempfile::TempDir::new().unwrap();

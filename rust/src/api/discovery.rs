@@ -1,6 +1,6 @@
 //! Game discovery API exposed to Flutter via FRB.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use flutter_rust_bridge::frb;
 
@@ -32,22 +32,37 @@ pub fn clear_discovery_cache() {
     crate::discovery::cache::clear_all();
     crate::discovery::index::clear_all();
     crate::discovery::change_feed::clear_all();
+    crate::discovery::hidden_paths::clear_all();
+    crate::discovery::install_history::clear_all();
     log::info!("Discovery cache cleared");
 }
 
 /// Evict discovery cache for a single game path.
+/// Clears stats cache, incremental index, and change feed so the path is
+/// re-evaluated on the next scan.
 #[frb(sync)]
 pub fn clear_discovery_cache_entry(path: String) {
     if path.trim().is_empty() {
         return;
     }
     let path = PathBuf::from(path);
-    crate::discovery::cache::remove(&path);
-    crate::discovery::cache::persist_if_dirty();
-    crate::discovery::index::remove(&path);
-    crate::discovery::index::persist_if_dirty();
-    crate::discovery::change_feed::remove(&path);
-    crate::discovery::change_feed::persist_if_dirty();
+    clear_discovery_metadata_for_candidate_paths(&path);
+    persist_discovery_metadata_if_dirty();
+    log::info!("Discovery cache entry cleared: {}", path.display());
+}
+
+/// Evict all discovery caches for a path and hide the current on-disk install
+/// snapshot until that directory changes.
+///
+/// Call this when the user explicitly removes a game from the library.
+pub async fn remove_game_from_discovery(path: String, platform: FrbPlatform) {
+    if path.trim().is_empty() {
+        return;
+    }
+    let game_path = PathBuf::from(&path);
+    remove_game_from_discovery_inner(&game_path, platform.into());
+    persist_discovery_metadata_if_dirty();
+    log::info!("Game removed from discovery: {}", path);
 }
 
 /// Scan a single custom folder for games.
@@ -87,11 +102,7 @@ pub fn hydrate_game(
     let game_path = PathBuf::from(&path);
     let platform: Platform = platform.into();
 
-    let stats_path = if platform == Platform::XboxGamePass && game_path.join("Content").is_dir() {
-        game_path.join("Content")
-    } else {
-        game_path.clone()
-    };
+    let stats_path = discovery_stats_path(&game_path, platform);
 
     let game = utils::build_game_info_with_mode_and_stats_path(
         name,
@@ -106,4 +117,142 @@ pub fn hydrate_game(
     crate::discovery::cache::persist_if_dirty();
 
     Ok(game.map(FrbGameInfo::from))
+}
+
+fn persist_discovery_metadata_if_dirty() {
+    crate::discovery::cache::persist_if_dirty();
+    crate::discovery::index::persist_if_dirty();
+    crate::discovery::change_feed::persist_if_dirty();
+    crate::discovery::hidden_paths::persist_if_dirty();
+    crate::discovery::install_history::persist_if_dirty();
+}
+
+fn clear_discovery_metadata_for_path(path: &Path) {
+    crate::discovery::cache::remove(path);
+    crate::discovery::index::remove(path);
+    crate::discovery::change_feed::remove(path);
+    crate::discovery::hidden_paths::remove(path);
+    crate::discovery::install_history::remove(path);
+}
+
+fn clear_discovery_metadata_for_candidate_paths(path: &Path) {
+    clear_discovery_metadata_for_path(path);
+
+    let content_path = path.join("Content");
+    if content_path.is_dir() {
+        clear_discovery_metadata_for_path(&content_path);
+    }
+}
+
+fn remove_game_from_discovery_inner(game_path: &Path, platform: Platform) {
+    let stats_path = discovery_stats_path(game_path, platform);
+    clear_discovery_metadata_for_path(&stats_path);
+    crate::discovery::hidden_paths::hide_path(&stats_path);
+}
+
+fn discovery_stats_path(game_path: &Path, platform: Platform) -> PathBuf {
+    if platform == Platform::XboxGamePass && game_path.join("Content").is_dir() {
+        game_path.join("Content")
+    } else {
+        game_path.to_path_buf()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::{self, File};
+
+    use super::*;
+    use crate::discovery::cache;
+    use crate::discovery::hidden_paths;
+    use crate::discovery::index;
+    use crate::discovery::install_history;
+    use crate::discovery::platform::{DiscoveryScanMode, Platform};
+    use crate::discovery::test_sync::lock_discovery_test;
+    use crate::discovery::utils;
+
+    #[test]
+    fn remove_game_from_discovery_targets_xbox_content_stats_path() {
+        let _guard = lock_discovery_test();
+        cache::clear_all();
+        index::clear_all();
+        hidden_paths::clear_all();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let game_dir = temp.path().join("Microsoft.HaloInfinite");
+        let content_dir = game_dir.join("Content");
+        fs::create_dir_all(&content_dir).unwrap();
+        File::create(content_dir.join("content.bin"))
+            .unwrap()
+            .set_len(700 * 1024 * 1024)
+            .unwrap();
+
+        let discovered = utils::build_game_info_with_mode_and_stats_path(
+            "Halo Infinite".to_owned(),
+            game_dir.clone(),
+            content_dir.clone(),
+            Platform::XboxGamePass,
+            DiscoveryScanMode::Full,
+        );
+        assert!(discovered.is_some());
+        assert!(cache::lookup_stale(&content_dir).is_some());
+        assert_eq!(
+            install_history::max_observed_size(&content_dir),
+            Some(700 * 1024 * 1024),
+        );
+
+        remove_game_from_discovery_inner(&game_dir, Platform::XboxGamePass);
+
+        assert!(cache::lookup_stale(&content_dir).is_none());
+        assert!(install_history::max_observed_size(&content_dir).is_none());
+        let hidden_token = cache::compute_change_token(&content_dir, false);
+        assert!(hidden_paths::should_hide(&content_dir, &hidden_token));
+    }
+
+    #[test]
+    fn clear_discovery_cache_clears_hidden_paths_and_install_history() {
+        let _guard = lock_discovery_test();
+        clear_discovery_cache();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let game_dir = temp.path().join("DiscoveryResetGame");
+        fs::create_dir_all(&game_dir).unwrap();
+        File::create(game_dir.join("content.bin"))
+            .unwrap()
+            .set_len(700 * 1024 * 1024)
+            .unwrap();
+
+        hidden_paths::hide_path(&game_dir);
+        install_history::record_authoritative_size(&game_dir, 6 * 1024 * 1024 * 1024);
+
+        clear_discovery_cache();
+
+        let hidden_token = cache::compute_change_token(&game_dir, false);
+        assert!(!hidden_paths::should_hide(&game_dir, &hidden_token));
+        assert!(install_history::max_observed_size(&game_dir).is_none());
+    }
+
+    #[test]
+    fn clear_discovery_cache_entry_clears_xbox_content_hidden_state() {
+        let _guard = lock_discovery_test();
+        clear_discovery_cache();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let game_dir = temp.path().join("XboxResetGame");
+        let content_dir = game_dir.join("Content");
+        fs::create_dir_all(&content_dir).unwrap();
+        File::create(content_dir.join("content.bin"))
+            .unwrap()
+            .set_len(700 * 1024 * 1024)
+            .unwrap();
+
+        hidden_paths::hide_path(&content_dir);
+        install_history::record_authoritative_size(&content_dir, 6 * 1024 * 1024 * 1024);
+
+        clear_discovery_cache_entry(game_dir.to_string_lossy().into_owned());
+
+        let hidden_token = cache::compute_change_token(&content_dir, false);
+        assert!(!hidden_paths::should_hide(&content_dir, &hidden_token));
+        assert!(install_history::max_observed_size(&content_dir).is_none());
+    }
 }

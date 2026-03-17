@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/localization/app_localization.dart';
+import '../../../../core/localization/presentation_labels.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../models/compression_algorithm.dart';
+import 'static_popup_selector.dart';
 
 class AlgorithmSelector extends StatelessWidget {
   const AlgorithmSelector({
@@ -11,56 +13,26 @@ class AlgorithmSelector extends StatelessWidget {
     required this.onSelected,
   });
 
-  static const double _controlHeight = 40;
-
   final CompressionAlgorithm selected;
   final ValueChanged<CompressionAlgorithm> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: _controlHeight,
-      child: PopupMenuButton<CompressionAlgorithm>(
-        tooltip: 'Algorithm',
-        popUpAnimationStyle: AnimationStyle.noAnimation,
-        padding: EdgeInsets.zero,
-        onSelected: onSelected,
-        itemBuilder: (context) => CompressionAlgorithm.values
-            .map(
-              (algo) => PopupMenuItem<CompressionAlgorithm>(
-                value: algo,
-                child: Text(
-                  algo.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.bodySmall,
-                ),
-              ),
-            )
-            .toList(growable: false),
-        child: InputDecorator(
-          decoration: const InputDecoration(
-            labelText: 'Algorithm',
-            isDense: true,
-          ),
-          child: SizedBox.expand(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    selected.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.bodySmall,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(LucideIcons.chevronDown, size: 16),
-              ],
+    final l10n = context.l10n;
+    return StaticPopupSelector<CompressionAlgorithm>(
+      labelText: l10n.settingsAlgorithmLabel,
+      tooltip: l10n.settingsAlgorithmTooltip,
+      selectedLabel: selected.localizedLabel(l10n),
+      items: CompressionAlgorithm.values
+          .map(
+            (algo) => StaticPopupSelectorItem<CompressionAlgorithm>(
+              value: algo,
+              label: algo.localizedLabel(l10n),
+              selected: algo == selected,
             ),
-          ),
-        ),
-      ),
+          )
+          .toList(growable: false),
+      onSelected: onSelected,
     );
   }
 }

@@ -31,12 +31,20 @@ enum CoverArtSource {
 }
 
 class CoverArtResult {
-  const CoverArtResult({required this.uri, required this.source});
+  const CoverArtResult({
+    required this.uri,
+    required this.source,
+    this.revision = 0,
+  });
 
   final String? uri;
   final CoverArtSource source;
+  final int revision;
 
-  const CoverArtResult.none() : uri = null, source = CoverArtSource.none;
+  const CoverArtResult.none()
+    : uri = null,
+      source = CoverArtSource.none,
+      revision = 0;
 }
 
 class CoverArtService {
@@ -50,6 +58,8 @@ class CoverArtService {
   static const Duration _steamManifestCacheTtl = Duration(minutes: 15);
   static final LinkedHashMap<String, CoverArtResult> _memoryCache =
       LinkedHashMap<String, CoverArtResult>();
+  static final LinkedHashMap<String, int> _coverRevisions =
+      LinkedHashMap<String, int>();
   static const int _maxInFlightEntries = 100;
   static final Map<String, Future<CoverArtResult>> _inFlight =
       <String, Future<CoverArtResult>>{};
@@ -186,9 +196,11 @@ class CoverArtService {
       }
 
       final copied = await _copyIntoCache(cacheKey, sourcePath);
+      final revision = _bumpCoverRevision(cacheKey);
       final result = CoverArtResult(
         uri: File(copied).uri.toString(),
         source: _sourceForPath(game, sourcePath),
+        revision: revision,
       );
       _writeMemoryCache(cacheKey, result);
       return result;
@@ -244,9 +256,14 @@ class CoverArtService {
     try {
       await file.setLastModified(now);
     } catch (_) {}
+    final revision = _coverRevisionForRead(
+      cacheKey,
+      fallbackModified: stat.modified,
+    );
     return CoverArtResult(
       uri: file.uri.toString(),
       source: CoverArtSource.cache,
+      revision: revision,
     );
   }
 
@@ -263,9 +280,11 @@ class CoverArtService {
     if (apiPath == null) {
       return null;
     }
+    final revision = _bumpCoverRevision(cacheKey);
     return CoverArtResult(
       uri: File(apiPath).uri.toString(),
       source: CoverArtSource.steamGridDbApi,
+      revision: revision,
     );
   }
 
@@ -375,6 +394,30 @@ class CoverArtService {
     _memoryCache.remove(cacheKey);
     _memoryCache[cacheKey] = result;
     _trimLru(_memoryCache, _maxMemoryCacheEntries);
+  }
+
+  int _coverRevisionForRead(
+    String cacheKey, {
+    required DateTime fallbackModified,
+  }) {
+    final existing = _coverRevisions.remove(cacheKey);
+    if (existing != null) {
+      _coverRevisions[cacheKey] = existing;
+      return existing;
+    }
+
+    final seeded = fallbackModified.microsecondsSinceEpoch;
+    _coverRevisions[cacheKey] = seeded;
+    _trimLru(_coverRevisions, _maxMemoryCacheEntries);
+    return seeded;
+  }
+
+  int _bumpCoverRevision(String cacheKey) {
+    final current = _coverRevisions.remove(cacheKey) ?? 0;
+    final next = current + 1;
+    _coverRevisions[cacheKey] = next;
+    _trimLru(_coverRevisions, _maxMemoryCacheEntries);
+    return next;
   }
 
   ({String? artworkPath, String? executablePath})? _readEstimateHint(

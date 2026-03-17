@@ -91,3 +91,25 @@ CREATE INDEX IF NOT EXISTS idx_client_submission_history_install_submitted_at
 
 CREATE INDEX IF NOT EXISTS idx_client_submission_history_submitted_at
     ON client_submission_history(submitted_at_ms DESC);
+
+-- IP-level rate limiting history for POST /unsupported-reports.
+-- This is intentionally short-lived data: the worker prunes by time window.
+CREATE TABLE IF NOT EXISTS ip_submission_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip TEXT NOT NULL,
+    install_id TEXT NOT NULL,
+    is_new_reporter INTEGER NOT NULL,
+    submitted_at_ms INTEGER NOT NULL,
+    report_count INTEGER NOT NULL,
+    CHECK(length(ip) BETWEEN 1 AND 96),
+    CHECK(length(install_id) BETWEEN 1 AND 64),
+    CHECK(is_new_reporter IN (0, 1)),
+    CHECK(submitted_at_ms >= 0),
+    CHECK(report_count >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ip_submission_history_ip_submitted_at
+    ON ip_submission_history(ip, submitted_at_ms DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ip_submission_history_submitted_at
+    ON ip_submission_history(submitted_at_ms DESC);

@@ -4,8 +4,20 @@ import '../../models/game_info.dart';
 import 'game_list_provider.dart';
 import 'game_list_state.dart';
 
+// Intentionally non-autoDispose: this memo object must live for the full app
+// lifecycle to remain effective. Do not convert to autoDispose without also
+// clearing memo state in ref.onDispose, or the cache will persist with stale
+// references across scope recreations.
 final _sortedGamesMemoProvider = Provider<_SortedGamesMemo>((ref) {
   return _SortedGamesMemo();
+});
+
+// Intentionally non-autoDispose: this memo object must live for the full app
+// lifecycle to remain effective. Do not convert to autoDispose without also
+// clearing memo state in ref.onDispose, or the cache will persist with stale
+// references across scope recreations.
+final _filteredGamePathsMemoProvider = Provider<_FilteredGamePathsMemo>((ref) {
+  return _FilteredGamePathsMemo();
 });
 
 final _gamesProvider = Provider<List<GameInfo>>((ref) {
@@ -51,6 +63,14 @@ final filteredGamesProvider = Provider<List<GameInfo>>((ref) {
   );
 });
 
+/// Stable visible-path list for list/grid widgets that only care about
+/// membership/order, not every metadata field on each game.
+final filteredGamePathsProvider = Provider<List<String>>((ref) {
+  final pathMemo = ref.watch(_filteredGamePathsMemoProvider);
+  final games = ref.watch(filteredGamesProvider);
+  return pathMemo.pathsFor(games);
+});
+
 final platformCountsProvider = Provider<Map<Platform, int>>((ref) {
   final games = ref.watch(_gamesProvider);
   final counts = <Platform, int>{};
@@ -58,19 +78,6 @@ final platformCountsProvider = Provider<Map<Platform, int>>((ref) {
     counts[game.platform] = (counts[game.platform] ?? 0) + 1;
   }
   return counts;
-});
-
-final totalSavingsProvider = Provider<({int totalBytes, int savedBytes})>((
-  ref,
-) {
-  final games = ref.watch(_gamesProvider);
-  var totalBytes = 0;
-  var savedBytes = 0;
-  for (final game in games) {
-    totalBytes += game.sizeBytes;
-    savedBytes += game.bytesSaved;
-  }
-  return (totalBytes: totalBytes, savedBytes: savedBytes);
 });
 
 List<GameInfo> _applyFiltersAndSort({
@@ -152,9 +159,7 @@ class _SortedGamesMemo {
       GameSortField.name => _compareByName(a, b),
       GameSortField.sizeBytes => a.sizeBytes.compareTo(b.sizeBytes),
       GameSortField.savingsRatio => a.savingsRatio.compareTo(b.savingsRatio),
-      GameSortField.platform => a.platform.displayName.compareTo(
-        b.platform.displayName,
-      ),
+      GameSortField.platform => a.platform.name.compareTo(b.platform.name),
     };
     return sortDirection == SortDirection.ascending ? cmp : -cmp;
   }
@@ -169,5 +174,38 @@ class _SortedGamesMemo {
       return raw;
     }
     return a.path.compareTo(b.path);
+  }
+}
+
+class _FilteredGamePathsMemo {
+  List<String> _lastPaths = const <String>[];
+
+  List<String> pathsFor(List<GameInfo> games) {
+    if (games.isEmpty) {
+      _lastPaths = const <String>[];
+      return _lastPaths;
+    }
+
+    final lastPaths = _lastPaths;
+    if (lastPaths.length == games.length) {
+      var matches = true;
+      for (var i = 0; i < games.length; i++) {
+        if (lastPaths[i] != games[i].path) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        return lastPaths;
+      }
+    }
+
+    final nextPaths = List<String>.filled(games.length, '', growable: false);
+    for (var i = 0; i < games.length; i++) {
+      nextPaths[i] = games[i].path;
+    }
+
+    _lastPaths = List<String>.unmodifiable(nextPaths);
+    return _lastPaths;
   }
 }

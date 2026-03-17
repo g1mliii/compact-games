@@ -48,5 +48,6 @@
       "WebFetch(domain:www.steamgriddb.com)",
       "WebFetch(domain:steamcommunity.com)"
     ]
-  }
+  },
+  "prefersReducedMotion": true
 }

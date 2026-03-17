@@ -11,6 +11,9 @@ const MIN_EXE_SIZE: u64 = 2 * 1024 * 1024;
 /// Unity bootstrap executables are often smaller than main game binaries.
 const MIN_UNITY_BOOTSTRAP_EXE_SIZE: u64 = 256 * 1024;
 const UNITY_DATA_SUFFIX: &str = "_data";
+const STEAM_APPS_FOLDER: &str = "steamapps";
+const STEAM_COMMON_FOLDER: &str = "common";
+const STEAM_LIBRARY_FOLDER: &str = "steamlibrary";
 
 /// Maximum scan depth for finding game-like folders.
 const MAX_SCAN_DEPTH: usize = 6;
@@ -159,6 +162,10 @@ fn scan_custom_path(
 
 /// Heuristic check: does this folder look like a game installation?
 fn is_game_folder(path: &Path) -> bool {
+    if is_known_library_container(path) {
+        return false;
+    }
+
     if has_unity_layout(path) {
         return true;
     }
@@ -221,6 +228,50 @@ fn is_game_folder(path: &Path) -> bool {
     }
 
     has_large_exe && (has_game_subdir || sample_size >= MIN_GAME_SIZE)
+}
+
+fn is_known_library_container(path: &Path) -> bool {
+    let Some(folder_name) = path
+        .file_name()
+        .map(|name| name.to_string_lossy().to_ascii_lowercase())
+    else {
+        return false;
+    };
+
+    if folder_name == STEAM_LIBRARY_FOLDER && path.join(STEAM_APPS_FOLDER).is_dir() {
+        return true;
+    }
+
+    if folder_name == STEAM_APPS_FOLDER {
+        if path.join(STEAM_COMMON_FOLDER).is_dir() {
+            return true;
+        }
+
+        if std::fs::read_dir(path).ok().is_some_and(|entries| {
+            entries.filter_map(|entry| entry.ok()).any(|entry| {
+                entry.path().is_file()
+                    && entry
+                        .file_name()
+                        .to_string_lossy()
+                        .to_ascii_lowercase()
+                        .starts_with("appmanifest_")
+            })
+        }) {
+            return true;
+        }
+    }
+
+    if folder_name == STEAM_COMMON_FOLDER {
+        let parent_name = path
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .map(|name| name.to_string_lossy().to_ascii_lowercase());
+        if parent_name.as_deref() == Some(STEAM_APPS_FOLDER) {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn has_nested_game_indicator_subdir(path: &Path) -> bool {

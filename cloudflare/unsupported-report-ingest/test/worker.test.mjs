@@ -293,6 +293,64 @@ test("rolling submission history enforces the per-reporter rate limit", async (t
   assert.equal(env.DB.clientSubmissionHistory.length, beforeCount);
 });
 
+test("per-ip submission rate limiting blocks excessive POST volume even when reporter IDs rotate", async (t) => {
+  const env = createEnv();
+  t.mock.method(Date, "now", () => BASE_TIME_MS);
+
+  const ip = "203.0.113.9";
+  for (let index = 0; index < 15; index += 1) {
+    env.DB.seedIpSubmissionHistory({
+      ip,
+      install_id: `ppr-spam-${index}`,
+      is_new_reporter: 1,
+      submitted_at_ms: BASE_TIME_MS - index * 2_000,
+      report_count: 1,
+    });
+  }
+
+  const result = await fetchJson(
+    env,
+    "/unsupported-reports",
+    createJsonRequest(createPayload({ install_id: "new-legacy" }), {
+      "CF-Connecting-IP": ip,
+    }),
+  );
+
+  assert.equal(result.response.status, 429);
+  assert.deepEqual(result.json, {
+    error: "Rate limit exceeded. Try again later.",
+  });
+});
+
+test("per-ip new reporter limiting blocks mass registration of reporter IDs", async (t) => {
+  const env = createEnv();
+  t.mock.method(Date, "now", () => BASE_TIME_MS);
+
+  const ip = "198.51.100.77";
+  for (let index = 0; index < 10; index += 1) {
+    env.DB.seedIpSubmissionHistory({
+      ip,
+      install_id: `ppr-new-${index}`,
+      is_new_reporter: 1,
+      submitted_at_ms: BASE_TIME_MS - 5 * 60 * 1000 - index * 1000,
+      report_count: 1,
+    });
+  }
+
+  const result = await fetchJson(
+    env,
+    "/unsupported-reports",
+    createJsonRequest(createPayload({ install_id: "fresh-legacy" }), {
+      "CF-Connecting-IP": ip,
+    }),
+  );
+
+  assert.equal(result.response.status, 429);
+  assert.deepEqual(result.json, {
+    error: "Rate limit exceeded. Try again later.",
+  });
+});
+
 test("expired submission history is pruned and does not block a new submission", async (t) => {
   const env = createEnv();
   t.mock.method(Date, "now", () => BASE_TIME_MS);
@@ -410,5 +468,15 @@ test("schema keeps the submission history table and indexes required by rate lim
   assert.match(
     schema,
     /CREATE INDEX IF NOT EXISTS idx_client_submission_history_submitted_at/i,
+  );
+
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS ip_submission_history/i);
+  assert.match(
+    schema,
+    /CREATE INDEX IF NOT EXISTS idx_ip_submission_history_ip_submitted_at/i,
+  );
+  assert.match(
+    schema,
+    /CREATE INDEX IF NOT EXISTS idx_ip_submission_history_submitted_at/i,
   );
 });

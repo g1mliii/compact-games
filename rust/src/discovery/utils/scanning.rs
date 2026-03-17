@@ -5,6 +5,7 @@ use rayon::prelude::*;
 
 use crate::discovery::cache;
 use crate::discovery::change_feed::{self, ScanPath};
+use crate::discovery::hidden_paths;
 use crate::discovery::index;
 use crate::discovery::install_history;
 use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
@@ -117,6 +118,7 @@ pub fn evict_discovery_entry(path: &Path) {
     cache::remove(path);
     index::remove(path);
     change_feed::remove(path);
+    hidden_paths::remove(path);
     install_history::remove(path);
 }
 
@@ -195,6 +197,7 @@ pub fn scan_all_platforms_with_mode(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     }
 
     cache::persist_if_dirty();
+    hidden_paths::persist_if_dirty();
     install_history::persist_if_dirty();
     if mode == DiscoveryScanMode::Full {
         index::mark_full_scan_success();
@@ -402,6 +405,7 @@ pub fn scan_custom_paths_with_mode(
 
     let result = CustomScanner::new(paths).scan(mode);
     cache::persist_if_dirty();
+    hidden_paths::persist_if_dirty();
     install_history::persist_if_dirty();
     if mode == DiscoveryScanMode::Full {
         index::mark_full_scan_success();
@@ -470,6 +474,10 @@ mod tests {
         let game_dir = root.path().join("GameA");
         std::fs::create_dir_all(&game_dir).unwrap();
         std::fs::write(game_dir.join("game.exe"), vec![0_u8; 3 * 1024 * 1024]).unwrap();
+        std::fs::File::create(game_dir.join("content.bin"))
+            .unwrap()
+            .set_len(700 * 1024 * 1024)
+            .unwrap();
 
         let first = scan_game_subdirs(root.path(), Platform::Custom, DiscoveryScanMode::Full);
         assert_eq!(first.len(), 1);

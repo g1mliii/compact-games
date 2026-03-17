@@ -30,6 +30,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
 
   int _requestGeneration = 0;
   bool _disposed = false;
+  bool _startupFullRefreshQueued = false;
 
   final Queue<String> _hydrationQueue = Queue<String>();
   final Set<String> _queuedHydrations = <String>{};
@@ -58,12 +59,18 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       _pendingHydratedUpdates.clear();
       _activeHydrations = 0;
       _manualImportInProgress = false;
+      _startupFullRefreshQueued = false;
       _hydrationFlushTimer?.cancel();
       _hydrationFlushTimer = null;
     });
 
     final requestId = ++_requestGeneration;
-    return _loadGames(requestId, mode: _DiscoveryLoadMode.quick);
+    final quickState = await _loadGames(
+      requestId,
+      mode: _DiscoveryLoadMode.quick,
+    );
+    _scheduleStartupFullRefresh(baseRequestId: requestId);
+    return quickState;
   }
 
   Future<GameListState> _loadGames(
@@ -99,7 +106,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       }
       return _buildLoadedState(
         games: state.valueOrNull?.games ?? const [],
-        error: 'Failed to load games: $e',
+        error: '$e',
       );
     }
   }
@@ -108,7 +115,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     List<GameInfo> games, {
     required bool markAsFullyHydrated,
   }) {
-    final nextPaths = games.map((g) => g.path).toSet();
+    final nextPaths = _pathSetFromGames(games);
     _hydrationQueue.removeWhere((path) => !nextPaths.contains(path));
     _queuedHydrations.removeWhere((path) => !nextPaths.contains(path));
     _inFlightHydrations.removeWhere((path) => !nextPaths.contains(path));
@@ -117,9 +124,10 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     _pendingHydratedUpdates.removeWhere((path, _) => !nextPaths.contains(path));
 
     if (markAsFullyHydrated) {
-      _fullyHydratedPaths
-        ..clear()
-        ..addAll(nextPaths);
+      _fullyHydratedPaths.clear();
+      for (final path in nextPaths) {
+        _fullyHydratedPaths.add(path);
+      }
     } else {
       _fullyHydratedPaths.clear();
     }
@@ -166,6 +174,41 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     );
   }
 
+  void _scheduleStartupFullRefresh({required int baseRequestId}) {
+    if (_disposed ||
+        _isStaleRequest(baseRequestId) ||
+        _startupFullRefreshQueued) {
+      return;
+    }
+
+    _startupFullRefreshQueued = true;
+    unawaited(
+      Future<void>.delayed(Duration.zero, () async {
+        await _runStartupFullRefresh(baseRequestId: baseRequestId);
+      }),
+    );
+  }
+
+  Future<void> _runStartupFullRefresh({required int baseRequestId}) async {
+    if (_disposed || _isStaleRequest(baseRequestId)) {
+      return;
+    }
+
+    final requestId = ++_requestGeneration;
+    debugPrint(
+      '[discovery][startup-full] start request=$requestId from=$baseRequestId',
+    );
+    final next = await _loadGames(requestId, mode: _DiscoveryLoadMode.full);
+    if (_isStaleRequest(requestId)) {
+      return;
+    }
+
+    state = AsyncValue.data(next);
+    debugPrint(
+      '[discovery][startup-full] done request=$requestId visible=${next.games.length} error=${next.error ?? 'none'}',
+    );
+  }
+
   Future<ManualGameImportResult> addGameFromPathOrExe(String rawPath) async {
     final trimmed = rawPath.trim();
     if (trimmed.isEmpty) {
@@ -207,22 +250,23 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
         );
       }
 
-      final beforeKeys = latestState.games
-          .map((g) => manualImportPathKey(g.path))
-          .toSet();
+      final beforeKeys = _manualImportPathKeySet(latestState.games);
       final merged = dedupeDiscoveredGames(<GameInfo>[
         ...latestState.games,
         selected,
       ]);
-      final afterKeys = merged.map((g) => manualImportPathKey(g.path)).toSet();
+      final afterKeys = _manualImportPathKeySet(merged);
 
       if (!listEquals(latestState.games, merged)) {
         final previousHydrated = Set<String>.from(_fullyHydratedPaths);
         _queueResetForNewGameSet(merged, markAsFullyHydrated: false);
-        final nextPaths = merged.map((g) => g.path).toSet();
-        _fullyHydratedPaths
-          ..addAll(previousHydrated.where(nextPaths.contains))
-          ..add(selected.path);
+        final nextPaths = _pathSetFromGames(merged);
+        for (final path in previousHydrated) {
+          if (nextPaths.contains(path)) {
+            _fullyHydratedPaths.add(path);
+          }
+        }
+        _fullyHydratedPaths.add(selected.path);
 
         state = AsyncValue.data(
           latestState.copyWith(
@@ -503,3 +547,19 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
 }
 
 enum _DiscoveryLoadMode { quick, full }
+
+Set<String> _pathSetFromGames(Iterable<GameInfo> games) {
+  final paths = <String>{};
+  for (final game in games) {
+    paths.add(game.path);
+  }
+  return paths;
+}
+
+Set<String> _manualImportPathKeySet(Iterable<GameInfo> games) {
+  final keys = <String>{};
+  for (final game in games) {
+    keys.add(manualImportPathKey(game.path));
+  }
+  return keys;
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../../core/localization/app_localization.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
 
@@ -13,15 +14,15 @@ class GameDetailsDirectStorageWarningCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       color: _warningColor,
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.all(12),
         child: Row(
           children: [
-            Icon(LucideIcons.alertTriangle, size: 18),
-            SizedBox(width: 10),
+            const Icon(LucideIcons.alertTriangle, size: 18),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'DirectStorage detected. Compression can impact runtime performance.',
+                context.l10n.gameDetailsDirectStorageWarning,
                 style: AppTypography.bodySmall,
               ),
             ),
@@ -41,15 +42,15 @@ class GameDetailsUnsupportedWarningCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       color: _warningColor,
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.all(12),
         child: Row(
           children: [
-            Icon(LucideIcons.ban, size: 18),
-            SizedBox(width: 10),
+            const Icon(LucideIcons.ban, size: 18),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'This game is known to have issues after WOF compression.',
+                context.l10n.gameDetailsUnsupportedWarning,
                 style: AppTypography.bodySmall,
               ),
             ),

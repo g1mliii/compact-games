@@ -1,11 +1,14 @@
+import 'package:flutter/foundation.dart';
+
 import 'compression_algorithm.dart';
 
 /// Layout mode for the home screen game library.
 enum HomeViewMode { grid, list }
 
 /// Application settings with JSON persistence.
+@immutable
 class AppSettings {
-  static const int currentSchemaVersion = 3;
+  static const int currentSchemaVersion = 4;
 
   final int schemaVersion;
   final CompressionAlgorithm algorithm;
@@ -23,6 +26,7 @@ class AppSettings {
   final bool inventoryAdvancedScanEnabled;
   final bool minimizeToTray;
   final HomeViewMode homeViewMode;
+  final String? localeTag;
 
   const AppSettings({
     this.schemaVersion = currentSchemaVersion,
@@ -41,6 +45,7 @@ class AppSettings {
     this.inventoryAdvancedScanEnabled = false,
     this.minimizeToTray = true,
     this.homeViewMode = HomeViewMode.grid,
+    this.localeTag,
   });
 
   /// Clamp values to safe ranges.
@@ -62,6 +67,7 @@ class AppSettings {
       inventoryAdvancedScanEnabled: inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray,
       homeViewMode: homeViewMode,
+      localeTag: _normalizedLocaleTag(localeTag),
     );
   }
 
@@ -81,6 +87,7 @@ class AppSettings {
     bool? inventoryAdvancedScanEnabled,
     bool? minimizeToTray,
     HomeViewMode? homeViewMode,
+    String? Function()? localeTag,
   }) {
     return AppSettings(
       schemaVersion: schemaVersion,
@@ -105,6 +112,7 @@ class AppSettings {
           inventoryAdvancedScanEnabled ?? this.inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray ?? this.minimizeToTray,
       homeViewMode: homeViewMode ?? this.homeViewMode,
+      localeTag: localeTag != null ? localeTag() : this.localeTag,
     );
   }
 
@@ -125,6 +133,7 @@ class AppSettings {
     'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
     'minimizeToTray': minimizeToTray,
     'homeViewMode': homeViewMode.name,
+    'localeTag': localeTag,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -160,6 +169,7 @@ class AppSettings {
         (v) => v.name == json['homeViewMode'],
         orElse: () => HomeViewMode.grid,
       ),
+      localeTag: _normalizedLocaleTag(json['localeTag'] as String?),
     ).validated();
   }
 
@@ -186,5 +196,13 @@ class AppSettings {
       return null;
     }
     return value.clamp(1, 16);
+  }
+
+  static String? _normalizedLocaleTag(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    return trimmed.replaceAll('_', '-');
   }
 }

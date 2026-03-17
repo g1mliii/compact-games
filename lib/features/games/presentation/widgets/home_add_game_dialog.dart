@@ -1,13 +1,33 @@
-part of 'home_header.dart';
+import 'dart:async';
 
-class _AddGameDialog extends ConsumerStatefulWidget {
-  const _AddGameDialog();
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+
+import '../../../../core/localization/app_localization.dart';
+import '../../../../providers/system/platform_shell_provider.dart';
+
+const ValueKey<String> homeAddGamePathFieldKey = ValueKey<String>(
+  'addGamePathField',
+);
+const ValueKey<String> homeConfirmAddGameButtonKey = ValueKey<String>(
+  'confirmAddGameButton',
+);
+const ValueKey<String> homeBrowseGameFolderButtonKey = ValueKey<String>(
+  'browseGameFolderButton',
+);
+const ValueKey<String> homeBrowseGameExeButtonKey = ValueKey<String>(
+  'browseGameExeButton',
+);
+
+class HomeAddGameDialog extends ConsumerStatefulWidget {
+  const HomeAddGameDialog({super.key});
 
   @override
-  ConsumerState<_AddGameDialog> createState() => _AddGameDialogState();
+  ConsumerState<HomeAddGameDialog> createState() => _HomeAddGameDialogState();
 }
 
-class _AddGameDialogState extends ConsumerState<_AddGameDialog> {
+class _HomeAddGameDialogState extends ConsumerState<HomeAddGameDialog> {
   final TextEditingController _inputController = TextEditingController();
   bool _pickingPath = false;
 
@@ -19,8 +39,9 @@ class _AddGameDialogState extends ConsumerState<_AddGameDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
-      title: const Text('Add Game'),
+      title: Text(l10n.homeAddGameDialogTitle),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 620),
         child: SizedBox(
@@ -30,11 +51,11 @@ class _AddGameDialogState extends ConsumerState<_AddGameDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(
-                key: _addGamePathFieldKey,
+                key: homeAddGamePathFieldKey,
                 controller: _inputController,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: r'C:\Games\MyGame or C:\Games\MyGame\game.exe',
+                decoration: InputDecoration(
+                  hintText: l10n.homeAddGamePathHint,
                 ),
                 onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
               ),
@@ -43,16 +64,16 @@ class _AddGameDialogState extends ConsumerState<_AddGameDialog> {
                 builder: (context, constraints) {
                   final stackedButtons = constraints.maxWidth < 420;
                   final folderButton = _buildBrowseButton(
-                    key: _browseGameFolderButtonKey,
+                    key: homeBrowseGameFolderButtonKey,
                     pickExecutable: false,
                     icon: LucideIcons.folderOpen,
-                    label: 'Browse Folder',
+                    label: l10n.homeBrowseFolder,
                   );
                   final exeButton = _buildBrowseButton(
-                    key: _browseGameExeButtonKey,
+                    key: homeBrowseGameExeButtonKey,
                     pickExecutable: true,
                     icon: LucideIcons.fileCode2,
-                    label: 'Browse EXE',
+                    label: l10n.homeBrowseExe,
                   );
 
                   if (stackedButtons) {
@@ -82,13 +103,13 @@ class _AddGameDialogState extends ConsumerState<_AddGameDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
-          key: _confirmAddGameButtonKey,
+          key: homeConfirmAddGameButtonKey,
           onPressed: () =>
               Navigator.of(context).pop(_inputController.text.trim()),
-          child: const Text('Add'),
+          child: Text(l10n.commonAdd),
         ),
       ],
     );

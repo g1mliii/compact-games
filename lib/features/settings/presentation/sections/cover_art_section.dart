@@ -5,10 +5,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/settings/settings_provider.dart';
 import '../widgets/settings_section_card.dart';
+
+const ValueKey<String> _steamGridDbFieldKey = ValueKey<String>(
+  'settingsSteamGridDbField',
+);
+const ValueKey<String> _steamGridDbSaveButtonKey = ValueKey<String>(
+  'settingsSteamGridDbSaveButton',
+);
+const ValueKey<String> _steamGridDbRemoveButtonKey = ValueKey<String>(
+  'settingsSteamGridDbRemoveButton',
+);
 
 class CoverArtSection extends ConsumerStatefulWidget {
   const CoverArtSection({super.key});
@@ -19,31 +30,41 @@ class CoverArtSection extends ConsumerStatefulWidget {
 
 class _CoverArtSectionState extends ConsumerState<CoverArtSection> {
   final _controller = TextEditingController();
+  ProviderSubscription<String?>? _apiKeySub;
   bool _obscured = true;
   bool _dirty = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _syncFromSettings());
-  }
-
-  void _syncFromSettings() {
-    final key = ref.read(
+    _apiKeySub = ref.listenManual(
       settingsProvider.select((s) => s.valueOrNull?.settings.steamGridDbApiKey),
+      (previous, next) {
+        if (_dirty) {
+          return;
+        }
+        final nextValue = next ?? '';
+        if (_controller.text == nextValue) {
+          return;
+        }
+        _controller.value = TextEditingValue(
+          text: nextValue,
+          selection: TextSelection.collapsed(offset: nextValue.length),
+        );
+      },
+      fireImmediately: true,
     );
-    if (key != null && _controller.text.isEmpty) {
-      _controller.text = key;
-    }
   }
 
   @override
   void dispose() {
+    _apiKeySub?.close();
     _controller.dispose();
     super.dispose();
   }
 
   void _save() {
+    final l10n = context.l10n;
     final value = _controller.text.trim();
     ref
         .read(settingsProvider.notifier)
@@ -51,9 +72,9 @@ class _CoverArtSectionState extends ConsumerState<CoverArtSection> {
     setState(() => _dirty = false);
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('API key saved.'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(l10n.settingsApiKeySavedMessage),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -65,24 +86,26 @@ class _CoverArtSectionState extends ConsumerState<CoverArtSection> {
   }
 
   Future<void> _openLink() async {
-    await Process.run('cmd', [
-      '/c',
-      'start',
-      '',
-      'https://www.steamgriddb.com/profile/preferences/api',
-    ]);
+    const url = 'https://www.steamgriddb.com/profile/preferences/api';
+    try {
+      await Process.run('cmd', ['/c', 'start', '', url]);
+    } catch (e) {
+      debugPrint('Failed to open URL: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final savedKey = ref.watch(
       settingsProvider.select((s) => s.valueOrNull?.settings.steamGridDbApiKey),
     );
     final hasKey = savedKey != null && savedKey.isNotEmpty;
+    final hasInput = _controller.text.trim().isNotEmpty;
 
     return SettingsSectionCard(
       icon: LucideIcons.image,
-      title: 'Cover Art',
+      title: l10n.settingsIntegrationsSectionTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -95,12 +118,14 @@ class _CoverArtSectionState extends ConsumerState<CoverArtSection> {
                 color: hasKey ? AppColors.success : AppColors.warning,
               ),
               const SizedBox(width: 6),
-              Text(
-                hasKey
-                    ? 'SteamGridDB connected — game covers will load automatically.'
-                    : 'No API key set — game covers will not load.',
-                style: AppTypography.bodySmall.copyWith(
-                  color: hasKey ? AppColors.success : AppColors.warning,
+              Expanded(
+                child: Text(
+                  hasKey
+                      ? l10n.settingsSteamGridDbConnectedStatus
+                      : l10n.settingsSteamGridDbMissingStatus,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: hasKey ? AppColors.success : AppColors.warning,
+                  ),
                 ),
               ),
             ],
@@ -109,8 +134,7 @@ class _CoverArtSectionState extends ConsumerState<CoverArtSection> {
 
           // Explanation
           Text(
-            'PressPlay uses SteamGridDB to fetch high-quality cover art for your games. '
-            'Getting a key is free and takes about 30 seconds — you just need a Steam account.',
+            l10n.settingsSteamGridDbExplanation,
             style: AppTypography.bodySmall.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -118,94 +142,84 @@ class _CoverArtSectionState extends ConsumerState<CoverArtSection> {
           const SizedBox(height: 16),
 
           // Steps
-          const _StepRow(
-            number: '1',
-            text: 'Click "Get API Key" below to open SteamGridDB in your browser.',
-          ),
+          _StepRow(number: '1', text: l10n.settingsSteamGridDbStep1),
           const SizedBox(height: 6),
-          const _StepRow(
-            number: '2',
-            text: 'Sign in with your Steam account (no registration required).',
-          ),
+          _StepRow(number: '2', text: l10n.settingsSteamGridDbStep2),
           const SizedBox(height: 6),
-          const _StepRow(
-            number: '3',
-            text: 'Click "Generate API Key", then copy and paste it into the field below.',
-          ),
+          _StepRow(number: '3', text: l10n.settingsSteamGridDbStep3),
           const SizedBox(height: 16),
 
           // Open link button
           OutlinedButton.icon(
             onPressed: _openLink,
             icon: const Icon(LucideIcons.externalLink, size: 14),
-            label: const Text('Get API Key on SteamGridDB'),
+            label: Text(l10n.settingsSteamGridDbOpenButton),
           ),
           const SizedBox(height: 16),
 
           // API key input
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  obscureText: _obscured,
-                  onChanged: (_) => setState(() => _dirty = true),
-                  decoration: InputDecoration(
-                    labelText: 'SteamGridDB API Key',
-                    hintText: 'Paste your key here',
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: _obscured ? 'Show key' : 'Hide key',
-                          icon: Icon(
-                            _obscured
-                                ? LucideIcons.eye
-                                : LucideIcons.eyeOff,
-                            size: 16,
-                          ),
-                          onPressed: () =>
-                              setState(() => _obscured = !_obscured),
-                        ),
-                        if (hasKey && !_dirty)
-                          IconButton(
-                            tooltip: 'Copy key',
-                            icon: const Icon(LucideIcons.copy, size: 16),
-                            onPressed: () {
-                              Clipboard.setData(
-                                ClipboardData(text: _controller.text),
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('API key copied.'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
+          TextField(
+            key: _steamGridDbFieldKey,
+            controller: _controller,
+            obscureText: _obscured,
+            enableSuggestions: false,
+            autocorrect: false,
+            onChanged: (_) => setState(() => _dirty = true),
+            decoration: InputDecoration(
+              labelText: l10n.settingsSteamGridDbApiKeyLabel,
+              hintText: l10n.settingsSteamGridDbApiKeyHint,
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: _dirty ? _save : null,
-                    child: const Text('Save'),
-                  ),
-                  if (hasKey) ...[
-                    const SizedBox(height: 6),
-                    TextButton(
-                      onPressed: _clear,
-                      child: const Text('Remove'),
+                  IconButton(
+                    tooltip: _obscured
+                        ? l10n.settingsSteamGridDbShowKeyTooltip
+                        : l10n.settingsSteamGridDbHideKeyTooltip,
+                    icon: Icon(
+                      _obscured ? LucideIcons.eye : LucideIcons.eyeOff,
+                      size: 16,
                     ),
-                  ],
+                    onPressed: () => setState(() => _obscured = !_obscured),
+                  ),
+                  if (hasInput)
+                    IconButton(
+                      tooltip: l10n.settingsSteamGridDbCopyKeyTooltip,
+                      icon: const Icon(LucideIcons.copy, size: 16),
+                      onPressed: () {
+                        Clipboard.setData(
+                          ClipboardData(text: _controller.text),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.settingsApiKeyCopiedMessage),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
                 ],
               ),
+            ),
+            onSubmitted: (_) => _save(),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: _steamGridDbSaveButtonKey,
+                onPressed: _dirty ? _save : null,
+                icon: const Icon(LucideIcons.save, size: 16),
+                label: Text(l10n.settingsSteamGridDbSaveButton),
+              ),
+              if (hasKey || hasInput)
+                OutlinedButton.icon(
+                  key: _steamGridDbRemoveButtonKey,
+                  onPressed: _clear,
+                  icon: const Icon(LucideIcons.trash2, size: 16),
+                  label: Text(l10n.settingsSteamGridDbRemoveButton),
+                ),
             ],
           ),
         ],

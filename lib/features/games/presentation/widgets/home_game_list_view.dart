@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:pressplay/l10n/app_localizations.dart';
 
+import '../../../../core/localization/app_localization.dart';
+import '../../../../core/localization/presentation_labels.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/utils/platform_icon.dart';
 import '../../../../providers/games/filtered_games_provider.dart';
 import '../../../../providers/games/selected_game_provider.dart';
@@ -18,9 +23,10 @@ import '../widgets/game_details/game_details_body.dart';
 class HomeGameListView extends StatefulWidget {
   const HomeGameListView({super.key});
 
-  static const double _listPanelWidth = 300;
+  static const double _listPanelWidth = 320;
   static const double _stackedBreakpoint = 560;
   static const double _heightBucket = 20.0;
+  static const double _contentTopInset = 8.0;
 
   @override
   State<HomeGameListView> createState() => _HomeGameListViewState();
@@ -64,24 +70,34 @@ class _HomeGameListViewState extends State<HomeGameListView> {
           return _buildStacked();
         }
 
-        if (stacked == _stacked) return _sideBySide;
+        if (stacked == _stacked) return _buildSideBySide();
         _stacked = stacked;
-        return _sideBySide;
+        return _buildSideBySide();
       },
     );
   }
 
+  Widget _buildSideBySide() {
+    return const Padding(
+      padding: EdgeInsets.only(top: HomeGameListView._contentTopInset),
+      child: _sideBySide,
+    );
+  }
+
   Widget _buildStacked() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: _bucketedHeight,
-          child: const RepaintBoundary(child: _GameListPanel()),
-        ),
-        const Divider(height: 1, color: AppColors.borderSubtle),
-        const Expanded(child: RepaintBoundary(child: _DetailPanel())),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(top: HomeGameListView._contentTopInset),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: _bucketedHeight,
+            child: const RepaintBoundary(child: _GameListPanel()),
+          ),
+          const Divider(height: 1, color: AppColors.borderSubtle),
+          const Expanded(child: RepaintBoundary(child: _DetailPanel())),
+        ],
+      ),
     );
   }
 }
@@ -91,22 +107,51 @@ class _GameListPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final games = ref.watch(filteredGamesProvider);
+    final gamePaths = ref.watch(filteredGamePathsProvider);
+    final l10n = context.l10n;
 
-    if (games.isEmpty) {
-      return const Center(
-        child: Text('No games found.', style: AppTypography.bodySmall),
+    if (gamePaths.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                LucideIcons.searchX,
+                size: 22,
+                color: AppColors.textMuted,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                l10n.homeListEmptyTitle,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.homeListEmptyMessage,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     return ListView.builder(
-      itemCount: games.length,
-      itemExtent: 48,
+      itemCount: gamePaths.length,
+      itemExtent: 72,
       addRepaintBoundaries: true,
       addAutomaticKeepAlives: false,
       itemBuilder: (context, index) {
-        final game = games[index];
-        return _GameListRow(key: ValueKey(game.path), gamePath: game.path);
+        final gamePath = gamePaths[index];
+        return _GameListRow(key: ValueKey(gamePath), gamePath: gamePath);
       },
     );
   }
@@ -117,8 +162,24 @@ class _GameListRow extends ConsumerWidget {
 
   final String gamePath;
 
-  static final _selectedColor = AppColors.accent.withValues(alpha: 0.15);
-  static final _hoverColor = AppColors.surfaceElevated.withValues(alpha: 0.5);
+  static final _selectedDecoration = BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        AppColors.selectionSurface.withValues(alpha: 0.9),
+        AppColors.focusFill.withValues(alpha: 0.14),
+      ],
+    ),
+    border: Border(
+      left: BorderSide(color: AppColors.richGold, width: 3),
+      top: BorderSide(color: AppColors.selectionBorder),
+      bottom: BorderSide(color: AppColors.selectionBorder),
+    ),
+  );
+  static const _defaultDecoration = BoxDecoration(
+    border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+  );
   static final _selectedTextStyle = AppTypography.bodySmall.copyWith(
     color: AppColors.textPrimary,
     fontWeight: FontWeight.w600,
@@ -127,9 +188,18 @@ class _GameListRow extends ConsumerWidget {
     color: AppColors.textSecondary,
     fontWeight: FontWeight.w400,
   );
+  static final _platformSelectedStyle = AppTypography.label.copyWith(
+    color: AppColors.textPrimary.withValues(alpha: 0.82),
+    fontWeight: FontWeight.w600,
+  );
+  static final _platformDefaultStyle = AppTypography.label.copyWith(
+    color: AppColors.textMuted,
+    fontWeight: FontWeight.w600,
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final gameData = ref.watch(
       singleGameProvider(gamePath).select(
         (g) => g == null
@@ -149,74 +219,121 @@ class _GameListRow extends ConsumerWidget {
       selectedGameProvider.select((selected) => selected == gamePath),
     );
 
-    return Material(
-      color: isSelected ? _selectedColor : Colors.transparent,
-      child: InkWell(
-        onTap: () => ref.read(selectedGameProvider.notifier).state = gamePath,
-        hoverColor: _hoverColor,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              Icon(
-                platformIcon(gameData.platform),
-                size: 14,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            platformIcon(gameData.platform),
+            size: 15,
+            color: isSelected ? AppColors.richGold : AppColors.textSecondary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   gameData.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: isSelected ? _selectedTextStyle : _defaultTextStyle,
                 ),
-              ),
-              const SizedBox(width: 6),
-              _StatusIndicator(
-                isCompressed: gameData.isCompressed,
-                isDirectStorage: gameData.isDirectStorage,
-                isUnsupported: gameData.isUnsupported,
-              ),
-            ],
+                const SizedBox(height: 3),
+                Text(
+                  gameData.platform.localizedLabel(l10n),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: isSelected
+                      ? _platformSelectedStyle
+                      : _platformDefaultStyle,
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: _StatusPill(
+                  isCompressed: gameData.isCompressed,
+                  isDirectStorage: gameData.isDirectStorage,
+                  isUnsupported: gameData.isUnsupported,
+                  l10n: l10n,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: isSelected ? _selectedDecoration : _defaultDecoration,
+        child: InkWell(
+          onTap: () => ref.read(selectedGameProvider.notifier).state = gamePath,
+          mouseCursor: SystemMouseCursors.click,
+          overlayColor: appInteractionOverlay,
+          hoverColor: isSelected ? Colors.transparent : AppColors.hoverSurface,
+          focusColor: AppColors.hoverSurface,
+          highlightColor: Colors.transparent,
+          splashFactory: NoSplash.splashFactory,
+          child: content,
         ),
       ),
     );
   }
 }
 
-class _StatusIndicator extends StatelessWidget {
-  const _StatusIndicator({
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
     required this.isCompressed,
     required this.isDirectStorage,
     required this.isUnsupported,
+    required this.l10n,
   });
 
   final bool isCompressed;
   final bool isDirectStorage;
   final bool isUnsupported;
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
-    if (isDirectStorage) {
-      return const Icon(
+    final (Color color, IconData icon, String label) = switch ((
+      isCompressed,
+      isDirectStorage,
+      isUnsupported,
+    )) {
+      (_, true, _) => (
+        AppColors.directStorage,
         LucideIcons.alertTriangle,
-        size: 12,
-        color: AppColors.directStorage,
-      );
-    }
-    if (isUnsupported) {
-      return const Icon(LucideIcons.ban, size: 12, color: AppColors.warning);
-    }
-    if (isCompressed) {
-      return const Icon(
+        l10n.gameStatusDirectStorage,
+      ),
+      (_, _, true) => (
+        AppColors.warning,
+        LucideIcons.ban,
+        l10n.gameStatusUnsupported,
+      ),
+      (true, _, _) => (
+        AppColors.compressed,
+        LucideIcons.checkCircle2,
+        l10n.gameDetailsStatusCompressed,
+      ),
+      _ => (
+        AppColors.richGold,
         LucideIcons.archive,
-        size: 12,
-        color: AppColors.compressed,
-      );
-    }
-    return const SizedBox.shrink();
+        l10n.homeStatusReadyToCompress,
+      ),
+    };
+
+    return StatusBadge(color: color, icon: icon, label: label);
   }
 }
 
@@ -228,23 +345,35 @@ class _DetailPanel extends ConsumerWidget {
     final selectedPath = ref.watch(selectedGameProvider);
 
     if (selectedPath == null) {
+      final l10n = context.l10n;
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              LucideIcons.mousePointerClick,
-              size: 36,
-              color: AppColors.textMuted,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Select a game to view details',
-              style: AppTypography.bodySmall.copyWith(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                LucideIcons.mousePointerClick,
+                size: 36,
                 color: AppColors.textMuted,
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                l10n.homeSelectGameTitle,
+                style: AppTypography.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.homeSelectGameMessage,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }

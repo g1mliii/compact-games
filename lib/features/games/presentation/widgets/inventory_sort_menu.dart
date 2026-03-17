@@ -29,8 +29,8 @@ class _HorizontalSortMenuEntryState extends State<_HorizontalSortMenuEntry> {
               (field) => Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: _SortMenuOptionButton(
-                    label: _inventorySortFieldLabel(field),
+                child: _SortMenuOptionButton(
+                    label: _inventorySortFieldLabel(context.l10n, field),
                     isSelected: field == widget.selected,
                     onPressed: () => Navigator.of(context).pop(field),
                   ),

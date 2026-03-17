@@ -19,6 +19,7 @@ pub(super) struct UnsupportedSyncMeta {
     pub(super) last_prepared_payload_hash: Option<String>,
     pub(super) last_submitted_at_ms: Option<u64>,
     pub(super) last_submitted_payload_hash: Option<String>,
+    pub(super) last_community_fetch_at_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

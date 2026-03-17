@@ -26,17 +26,26 @@ mod types;
 
 use storage::{
     load_json_set_or_default, load_report_records_or_default, load_sync_meta_or_default,
-    queue_save, resolve_path_or_log,
+    persist_sync_meta, queue_save, resolve_path_or_log,
 };
 use types::{SaveTarget, UnsupportedReportRecord, UnsupportedSyncMeta};
 
 const KNOWN_UNSUPPORTED_JSON: &str = include_str!("known_unsupported_games.json");
 const MAX_ENTRIES: usize = 32_768;
 const REPORT_STABILITY_WINDOW_MS: u64 = 7 * 24 * 60 * 60 * 1000;
-const REPORT_SUBMISSION_INTERVAL_MS: u64 = 7 * 24 * 60 * 60 * 1000;
+const REPORT_SUBMISSION_INTERVAL_MS: u64 = 24 * 60 * 60 * 1000;
+const COMMUNITY_FETCH_INTERVAL_MS: u64 = 24 * 60 * 60 * 1000;
 #[cfg(not(test))]
 const REPORT_SUBMISSION_ENDPOINT_ENV: &str = "PRESSPLAY_UNSUPPORTED_REPORT_ENDPOINT";
 const REPORT_SUBMISSION_ENDPOINT_FILE: &str = "unsupported_report_endpoint.txt";
+
+// Default endpoints.
+#[cfg(not(test))]
+const DEFAULT_REPORT_SUBMISSION_ENDPOINT: &str =
+    "https://pressplay-unsupported-report-ingest.pressplay-subai.workers.dev/unsupported-reports";
+// Community list is fetched from GitHub Releases (exported by the repo workflow).
+pub(crate) const DEFAULT_COMMUNITY_LIST_ENDPOINT: &str =
+    "https://github.com/g1mliii/compact-games/releases/latest/download/unsupported_games.json";
 
 static EMBEDDED: LazyLock<HashSet<String>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(KNOWN_UNSUPPORTED_JSON)
@@ -242,4 +251,38 @@ pub fn update_community_list(games: Vec<String>) -> Result<(), String> {
 /// submit the latest stable snapshot to a configured endpoint.
 pub fn sync_report_collection(app_version: &str) -> Result<u32, String> {
     submission::sync_report_collection_inner(app_version)
+}
+
+/// Returns true when the cached community list should be refreshed.
+pub fn should_fetch_community_list() -> bool {
+    let current_time_ms = now_ms();
+    let last_fetch = match SYNC_META.read() {
+        Ok(guard) => guard.last_community_fetch_at_ms,
+        Err(poisoned) => poisoned.into_inner().last_community_fetch_at_ms,
+    };
+
+    match last_fetch {
+        None => true,
+        Some(last_fetch_at_ms) => {
+            current_time_ms.saturating_sub(last_fetch_at_ms) >= COMMUNITY_FETCH_INTERVAL_MS
+        }
+    }
+}
+
+pub fn mark_community_list_fetched() -> Result<(), String> {
+    let current_time_ms = now_ms();
+    let mut meta = match SYNC_META.write() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    meta.last_community_fetch_at_ms = Some(current_time_ms);
+    drop(meta);
+    persist_sync_meta()
+}
+
+pub fn community_list_len() -> u32 {
+    match COMMUNITY.read() {
+        Ok(guard) => guard.len() as u32,
+        Err(poisoned) => poisoned.into_inner().len() as u32,
+    }
 }
