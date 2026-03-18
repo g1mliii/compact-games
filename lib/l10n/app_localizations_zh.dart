@@ -57,6 +57,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonEnable => '启用';
 
   @override
+  String get commonSet => '设置';
+
+  @override
   String get commonOpenFolder => '打开文件夹';
 
   @override
@@ -109,6 +112,19 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String settingsPercentShort(String percent) {
     return '$percent%';
+  }
+
+  @override
+  String get settingsExactValueHint => '输入精确值';
+
+  @override
+  String settingsRangeMinutes(int min, int max) {
+    return '范围 $min-$max 分钟';
+  }
+
+  @override
+  String settingsRangePercent(int min, int max) {
+    return '范围 $min-$max%';
   }
 
   @override
@@ -263,8 +279,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsDirectStorageWarningLead => '仅在你清楚风险时使用。';
 
   @override
-  String get settingsDirectStorageWarningBody =>
-      'DirectStorage 游戏在压缩后可能加载更慢，或出现不可预测的问题。';
+  String get settingsDirectStorageWarningBody => 'DirectStorage 游戏在压缩后可能加载更慢。';
 
   @override
   String get settingsEnableDirectStorageOverrideTitle => '启用 DirectStorage 绕过？';
@@ -298,7 +313,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeSwitchToGridViewTooltip => '切换到网格视图';
 
   @override
-  String get homeHeaderTagline => '精简你的游戏库，同时保持完全掌控。';
+  String get homeCollapseOverviewTooltip => '收起概览';
+
+  @override
+  String get homeExpandOverviewTooltip => '展开概览';
+
+  @override
+  String get homeHeaderTagline => '为你的电脑节省空间。';
 
   @override
   String homeHeaderReadyLine(int count) {
@@ -345,7 +366,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeSelectGameMessage => '选中一个标题以查看体积、压缩历史和下一步操作。';
 
   @override
-  String get homeStatusReadyToCompress => '可立即压缩';
+  String get homeStatusReadyToCompress => '就绪';
 
   @override
   String homeAddedToLibraryMessage(String gameName) {
@@ -384,7 +405,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeGoToSettingsButton => '前往设置';
 
   @override
-  String get homeOverviewEyebrow => '可压缩概览';
+  String get homeOverviewEyebrow => '压缩概览';
 
   @override
   String get homeOverviewEmptyHeadline => '先导入你的游戏库，再快速腾出空间。';
@@ -399,7 +420,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String homeOverviewReadySubtitle(String value) {
-    return '先处理最明确的节省机会。预计可回收空间：$value。';
+    return '查看哪些游戏已准备好压缩，以及你可能节省多少空间：$value。';
   }
 
   @override
@@ -530,7 +551,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String inventoryWatcherSummary(String status) {
-    return '$status。交互控制显示在下方。';
+    return '$status。';
   }
 
   @override
@@ -688,7 +709,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '检测到 DirectStorage。压缩可能影响运行时性能。';
 
   @override
-  String get gameDetailsUnsupportedWarning => '已知此游戏在使用 WOF 压缩后会出现问题。';
+  String get gameDetailsUnsupportedWarning => '已由社区标记为不受支持。';
 
   @override
   String get gameDetailsStatusGroupTitle => '状态';

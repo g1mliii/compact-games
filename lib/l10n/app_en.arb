@@ -64,6 +64,10 @@
   "@commonEnable": {
     "description": "Localized message for common enable."
   },
+  "commonSet": "Set",
+  "@commonSet": {
+    "description": "Localized message for common set."
+  },
   "commonOpenFolder": "Open Folder",
   "@commonOpenFolder": {
     "description": "Localized message for common open folder."
@@ -146,6 +150,34 @@
     "placeholders": {
       "percent": {
         "type": "String"
+      }
+    }
+  },
+  "settingsExactValueHint": "Enter an exact value",
+  "@settingsExactValueHint": {
+    "description": "Localized message for settings exact value hint."
+  },
+  "settingsRangeMinutes": "Range {min}-{max} min",
+  "@settingsRangeMinutes": {
+    "description": "Localized message for settings minutes range helper.",
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsRangePercent": "Range {min}-{max}%",
+  "@settingsRangePercent": {
+    "description": "Localized message for settings percent range helper.",
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
       }
     }
   },
@@ -350,7 +382,7 @@
   "@settingsDirectStorageWarningLead": {
     "description": "Localized message for settings direct storage warning lead."
   },
-  "settingsDirectStorageWarningBody": "DirectStorage games may load slower or behave unpredictably after compression.",
+  "settingsDirectStorageWarningBody": "DirectStorage games may load slower after compression.",
   "@settingsDirectStorageWarningBody": {
     "description": "Localized message for settings direct storage warning body."
   },
@@ -394,7 +426,15 @@
   "@homeSwitchToGridViewTooltip": {
     "description": "Localized message for home switch to grid view tooltip."
   },
-  "homeHeaderTagline": "Compact your library without losing control.",
+  "homeCollapseOverviewTooltip": "Collapse overview",
+  "@homeCollapseOverviewTooltip": {
+    "description": "Localized message for home collapse overview tooltip."
+  },
+  "homeExpandOverviewTooltip": "Expand overview",
+  "@homeExpandOverviewTooltip": {
+    "description": "Localized message for home expand overview tooltip."
+  },
+  "homeHeaderTagline": "Save space on your computer.",
   "@homeHeaderTagline": {
     "description": "Localized message for home header tagline."
   },
@@ -459,9 +499,9 @@
   "@homeSelectGameMessage": {
     "description": "Localized message for home select game message."
   },
-  "homeStatusReadyToCompress": "Ready to compress",
+  "homeStatusReadyToCompress": "Ready",
   "@homeStatusReadyToCompress": {
-    "description": "Localized message for home ready-to-compress status."
+    "description": "Localized message for home ready status."
   },
   "homeAddedToLibraryMessage": "\"{gameName}\" added to the library.",
   "@homeAddedToLibraryMessage": {
@@ -518,7 +558,7 @@
   "@homeGoToSettingsButton": {
     "description": "Localized message for home go to settings button."
   },
-  "homeOverviewEyebrow": "COMPRESS READY",
+  "homeOverviewEyebrow": "Compression overview",
   "@homeOverviewEyebrow": {
     "description": "Localized message for home overview eyebrow."
   },
@@ -539,7 +579,7 @@
       }
     }
   },
-  "homeOverviewReadySubtitle": "Start with the clearest savings opportunities first. Estimated reclaimable space: {value}.",
+  "homeOverviewReadySubtitle": "See which games are ready to compress and how much space you could save: {value}.",
   "@homeOverviewReadySubtitle": {
     "description": "Localized message for home overview ready subtitle.",
     "placeholders": {
@@ -717,7 +757,7 @@
   "@inventoryRescanUnavailableWhileLoading": {
     "description": "Localized message for inventory rescan unavailable while loading."
   },
-  "inventoryWatcherSummary": "{status}. Interactive controls are shown below.",
+  "inventoryWatcherSummary": "{status}.",
   "@inventoryWatcherSummary": {
     "description": "Localized message for inventory watcher summary.",
     "placeholders": {
@@ -974,7 +1014,7 @@
   "@gameDetailsDirectStorageWarning": {
     "description": "Localized message for game details direct storage warning."
   },
-  "gameDetailsUnsupportedWarning": "This game is known to have issues after WOF compression.",
+  "gameDetailsUnsupportedWarning": "Marked by the community as unsupported.",
   "@gameDetailsUnsupportedWarning": {
     "description": "Localized message for game details unsupported warning."
   },

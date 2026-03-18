@@ -97,6 +97,10 @@ void main() {
     expect(menuRowFinder, findsOneWidget);
     final menuRowSize = tester.getSize(menuRowFinder);
     expect(menuRowSize.width, greaterThan(sortFieldSize.width * 0.85));
+    expect(
+      (menuRowSize.height - sortFieldSize.height).abs(),
+      lessThanOrEqualTo(1),
+    );
 
     await tester.tap(find.text('Platform'));
     await tester.pumpAndSettle();
@@ -203,6 +207,10 @@ void main() {
         expect(menuRowFinder, findsOneWidget);
         final menuRowSize = tester.getSize(menuRowFinder);
         expect(menuRowSize.width, greaterThan(sortFieldSize.width * 0.85));
+        expect(
+          (menuRowSize.height - sortFieldSize.height).abs(),
+          lessThanOrEqualTo(1),
+        );
 
         await tester.tap(find.text(label).first);
         await tester.pumpAndSettle();
@@ -312,6 +320,7 @@ void main() {
       expect(borderSide?.color, AppColors.richGold.withValues(alpha: 0.85));
       expect(borderSide?.width, greaterThan(1.5));
       expect(background, AppColors.richGold.withValues(alpha: 0.08));
+      expect(find.textContaining('Interactive controls'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

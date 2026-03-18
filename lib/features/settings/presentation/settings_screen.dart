@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -14,7 +15,6 @@ import 'widgets/settings_slider_row.dart';
 import 'sections/compression_section.dart';
 import 'sections/cover_art_section.dart';
 import 'sections/safety_section.dart';
-import 'sections/inventory_section.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -70,8 +70,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const CoverArtSection(),
                       const SizedBox(height: 14),
                       const SafetySection(),
-                      const SizedBox(height: 14),
-                      const InventorySection(),
                     ],
                   ),
                 ),
@@ -80,6 +78,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 }
+
+const ValueKey<String> _idleThresholdValueKey = ValueKey<String>(
+  'settingsIdleThresholdValue',
+);
+const ValueKey<String> _cpuThresholdValueKey = ValueKey<String>(
+  'settingsCpuThresholdValue',
+);
+const ValueKey<String> _sliderValueFieldKey = ValueKey<String>(
+  'settingsSliderValueField',
+);
 
 // ---------------------------------------------------------------------------
 // Sections kept here are lightweight; larger ones extracted to sections/.
@@ -117,8 +125,21 @@ class _AutomationSection extends ConsumerWidget {
             min: 5,
             max: 30,
             divisions: 25,
+            valueKey: _idleThresholdValueKey,
             valueLabelBuilder: (v) => l10n.settingsMinutesShort(v.round()),
             valueColorBuilder: _idleThresholdColor,
+            onRequestDirectEntry: (context, currentValue, min, max) =>
+                _showSliderValueDialog(
+                  context,
+                  title: l10n.settingsIdleThresholdLabel,
+                  initialValue: currentValue.round(),
+                  min: min.round(),
+                  max: max.round(),
+                  helperText: l10n.settingsRangeMinutes(
+                    min.round(),
+                    max.round(),
+                  ),
+                ),
             onChangedCommitted: (v) =>
                 ref.read(settingsProvider.notifier).setIdleDuration(v.round()),
           ),
@@ -128,9 +149,22 @@ class _AutomationSection extends ConsumerWidget {
             min: 5,
             max: 20,
             divisions: 15,
+            valueKey: _cpuThresholdValueKey,
             valueLabelBuilder: (v) =>
                 l10n.settingsPercentShort(v.toStringAsFixed(0)),
             valueColorBuilder: _cpuThresholdColor,
+            onRequestDirectEntry: (context, currentValue, min, max) =>
+                _showSliderValueDialog(
+                  context,
+                  title: l10n.settingsCpuThresholdLabel,
+                  initialValue: currentValue.round(),
+                  min: min.round(),
+                  max: max.round(),
+                  helperText: l10n.settingsRangePercent(
+                    min.round(),
+                    max.round(),
+                  ),
+                ),
             onChangedCommitted: (v) =>
                 ref.read(settingsProvider.notifier).setCpuThreshold(v),
           ),
@@ -142,6 +176,8 @@ class _AutomationSection extends ConsumerWidget {
               value: minimizeToTray,
               onChanged: (v) =>
                   ref.read(settingsProvider.notifier).setMinimizeToTray(v),
+              enableLabelSurfaceHover: false,
+              showLabelSurfaceDecoration: false,
             ),
         ],
       ),
@@ -246,4 +282,104 @@ Color _cpuThresholdColor(double value) {
     return AppColors.richGold;
   }
   return AppColors.textPrimary;
+}
+
+Future<double?> _showSliderValueDialog(
+  BuildContext context, {
+  required String title,
+  required int initialValue,
+  required int min,
+  required int max,
+  required String helperText,
+}) async {
+  return showDialog<double>(
+    context: context,
+    builder: (dialogContext) => _SliderValueDialog(
+      title: title,
+      initialValue: initialValue,
+      min: min,
+      max: max,
+      helperText: helperText,
+    ),
+  );
+}
+
+class _SliderValueDialog extends StatefulWidget {
+  const _SliderValueDialog({
+    required this.title,
+    required this.initialValue,
+    required this.min,
+    required this.max,
+    required this.helperText,
+  });
+
+  final String title;
+  final int initialValue;
+  final int min;
+  final int max;
+  final String helperText;
+
+  @override
+  State<_SliderValueDialog> createState() => _SliderValueDialogState();
+}
+
+class _SliderValueDialogState extends State<_SliderValueDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: '${widget.initialValue}',
+  );
+
+  bool get _canSubmit => int.tryParse(_controller.text.trim()) != null;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final parsed = int.tryParse(_controller.text.trim());
+    if (parsed == null) {
+      return;
+    }
+    Navigator.of(context).pop(parsed.clamp(widget.min, widget.max).toDouble());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(widget.title),
+      content: SizedBox(
+        width: 320,
+        child: TextField(
+          key: _sliderValueFieldKey,
+          controller: _controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          inputFormatters: <TextInputFormatter>[
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(widget.max.toString().length + 1),
+          ],
+          decoration: InputDecoration(
+            labelText: widget.title,
+            hintText: l10n.settingsExactValueHint,
+            helperText: widget.helperText,
+          ),
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => _submit(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonCancel),
+        ),
+        FilledButton(
+          onPressed: _canSubmit ? _submit : null,
+          child: Text(l10n.commonSet),
+        ),
+      ],
+    );
+  }
 }

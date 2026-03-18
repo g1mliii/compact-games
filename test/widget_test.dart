@@ -55,8 +55,17 @@ final List<GameInfo> _sampleGames = <GameInfo>[
 
 void main() {
   testWidgets('App loads without crashing', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: PressPlayApp()));
-    expect(find.text('PressPlay'), findsOneWidget);
+    final bridge = _StaticRustBridgeService(games: _sampleGames);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+        child: const PressPlayApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Compact Games'), findsOneWidget);
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 

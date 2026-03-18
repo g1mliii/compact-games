@@ -13,7 +13,6 @@ import '../../../../../providers/compression/compression_state.dart';
 import '../../../../../providers/cover_art/cover_art_provider.dart';
 import '../../../../../providers/games/single_game_provider.dart';
 import '../../../../../services/cover_art_service.dart';
-import 'details_actions.dart';
 import 'details_info_card.dart';
 import 'details_media.dart';
 
@@ -387,7 +386,7 @@ class _DetailsRightColumnHost extends ConsumerWidget {
           savingsRatio: game.savingsRatio,
           lastCompressed: game.lastCompressed,
           // Pass through the full game for widgets that need all fields
-          // (GameDetailsInfoCard / GameDetailsDirectStorageWarningCard).
+          // (GameDetailsInfoCard).
           game: game,
         );
       }),
@@ -397,10 +396,11 @@ class _DetailsRightColumnHost extends ConsumerWidget {
     }
 
     final currentSize = columnData.compressedSize ?? columnData.sizeBytes;
-    final savedBytes =
-        (columnData.sizeBytes - currentSize).clamp(0, columnData.sizeBytes);
-    final savingsPercent =
-        (columnData.savingsRatio * 100).toStringAsFixed(1);
+    final savedBytes = (columnData.sizeBytes - currentSize).clamp(
+      0,
+      columnData.sizeBytes,
+    );
+    final savingsPercent = (columnData.savingsRatio * 100).toStringAsFixed(1);
     final lastCompressedText = formatLocalMonthDayTimeOrNull(
       columnData.lastCompressed,
       locale: Localizations.localeOf(context),
@@ -443,14 +443,6 @@ class _DetailsRightColumn extends StatelessWidget {
           savingsPercent: savingsPercent,
           lastCompressedText: lastCompressedText,
         ),
-        if (game.isDirectStorage) ...[
-          const SizedBox(height: 12),
-          const GameDetailsDirectStorageWarningCard(),
-        ],
-        if (game.isUnsupported) ...[
-          const SizedBox(height: 12),
-          const GameDetailsUnsupportedWarningCard(),
-        ],
       ],
     );
   }

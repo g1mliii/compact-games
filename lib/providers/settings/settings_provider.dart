@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/localization/app_locale.dart';
@@ -147,6 +148,9 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     final current = state.valueOrNull;
     if (current == null) return;
     final newSettings = updater(current.settings).validated();
+    if (_settingsEqual(current.settings, newSettings)) {
+      return;
+    }
     state = AsyncValue.data(
       current.copyWith(settings: newSettings, error: () => null),
     );
@@ -164,4 +168,24 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
       }
     });
   }
+}
+
+bool _settingsEqual(AppSettings a, AppSettings b) {
+  return a.schemaVersion == b.schemaVersion &&
+      a.algorithm == b.algorithm &&
+      a.autoCompress == b.autoCompress &&
+      a.cpuThreshold == b.cpuThreshold &&
+      a.idleDurationMinutes == b.idleDurationMinutes &&
+      a.cooldownMinutes == b.cooldownMinutes &&
+      listEquals(a.customFolders, b.customFolders) &&
+      listEquals(a.excludedPaths, b.excludedPaths) &&
+      a.notificationsEnabled == b.notificationsEnabled &&
+      a.themeVariant == b.themeVariant &&
+      a.directStorageOverrideEnabled == b.directStorageOverrideEnabled &&
+      a.ioParallelismOverride == b.ioParallelismOverride &&
+      a.steamGridDbApiKey == b.steamGridDbApiKey &&
+      a.inventoryAdvancedScanEnabled == b.inventoryAdvancedScanEnabled &&
+      a.minimizeToTray == b.minimizeToTray &&
+      a.homeViewMode == b.homeViewMode &&
+      a.localeTag == b.localeTag;
 }

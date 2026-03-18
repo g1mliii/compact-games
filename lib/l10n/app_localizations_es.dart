@@ -57,6 +57,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get commonEnable => 'Activar';
 
   @override
+  String get commonSet => 'Establecer';
+
+  @override
   String get commonOpenFolder => 'Abrir carpeta';
 
   @override
@@ -109,6 +112,19 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String settingsPercentShort(String percent) {
     return '$percent%';
+  }
+
+  @override
+  String get settingsExactValueHint => 'Ingresa un valor exacto';
+
+  @override
+  String settingsRangeMinutes(int min, int max) {
+    return 'Rango $min-$max min';
+  }
+
+  @override
+  String settingsRangePercent(int min, int max) {
+    return 'Rango $min-$max%';
   }
 
   @override
@@ -283,7 +299,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsDirectStorageWarningBody =>
-      'Los juegos con DirectStorage pueden cargar más lento o comportarse de forma impredecible tras la compresión.';
+      'Los juegos con DirectStorage pueden cargar más lento después de la compresión.';
 
   @override
   String get settingsEnableDirectStorageOverrideTitle =>
@@ -319,8 +335,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeSwitchToGridViewTooltip => 'Cambiar a vista de cuadrícula';
 
   @override
-  String get homeHeaderTagline =>
-      'Compacta tu biblioteca sin perder el control.';
+  String get homeCollapseOverviewTooltip => 'Contraer resumen';
+
+  @override
+  String get homeExpandOverviewTooltip => 'Expandir resumen';
+
+  @override
+  String get homeHeaderTagline => 'Ahorra espacio en tu computadora.';
 
   @override
   String homeHeaderReadyLine(int count) {
@@ -372,7 +393,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Selecciona un título para revisar su tamaño, historial de compresión y próximas acciones.';
 
   @override
-  String get homeStatusReadyToCompress => 'Listo para comprimir';
+  String get homeStatusReadyToCompress => 'Listo';
 
   @override
   String homeAddedToLibraryMessage(String gameName) {
@@ -413,7 +434,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeGoToSettingsButton => 'Ir a Configuración';
 
   @override
-  String get homeOverviewEyebrow => 'LISTOS PARA COMPRIMIR';
+  String get homeOverviewEyebrow => 'Resumen de compresión';
 
   @override
   String get homeOverviewEmptyHeadline =>
@@ -430,7 +451,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String homeOverviewReadySubtitle(String value) {
-    return 'Empieza por las oportunidades de ahorro más claras. Espacio recuperable estimado: $value.';
+    return 'Mira qué juegos están listos para comprimir y cuánto espacio podrías ahorrar: $value.';
   }
 
   @override
@@ -569,7 +590,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String inventoryWatcherSummary(String status) {
-    return '$status. Los controles interactivos aparecen abajo.';
+    return '$status.';
   }
 
   @override
@@ -731,7 +752,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get gameDetailsUnsupportedWarning =>
-      'Se sabe que este juego presenta problemas después de la compresión WOF.';
+      'Marcado por la comunidad como no compatible.';
 
   @override
   String get gameDetailsStatusGroupTitle => 'Estado';

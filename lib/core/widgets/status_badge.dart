@@ -9,6 +9,7 @@ class StatusBadge extends StatelessWidget {
     required this.label,
     required this.color,
     this.icon,
+    this.showIcon = true,
     this.variant = StatusBadgeVariant.filled,
     this.toneAlpha = 1.0,
     super.key,
@@ -36,6 +37,7 @@ class StatusBadge extends StatelessWidget {
     : label = 'Not Compressed',
       color = AppColors.notCompressed,
       icon = LucideIcons.circle,
+      showIcon = true,
       variant = StatusBadgeVariant.filled,
       toneAlpha = 0.78;
 
@@ -43,6 +45,7 @@ class StatusBadge extends StatelessWidget {
     : label = 'DirectStorage',
       color = AppColors.directStorage,
       icon = LucideIcons.alertTriangle,
+      showIcon = true,
       variant = StatusBadgeVariant.filled,
       toneAlpha = 1.0;
 
@@ -50,6 +53,7 @@ class StatusBadge extends StatelessWidget {
     : label = 'Unsupported',
       color = AppColors.warning,
       icon = LucideIcons.ban,
+      showIcon = true,
       variant = StatusBadgeVariant.filled,
       toneAlpha = 1.0;
 
@@ -57,12 +61,14 @@ class StatusBadge extends StatelessWidget {
     : label = 'Compressing',
       color = AppColors.compressing,
       icon = LucideIcons.hourglass,
+      showIcon = true,
       variant = StatusBadgeVariant.filled,
       toneAlpha = 1.0;
 
   final String label;
   final Color color;
   final IconData? icon;
+  final bool showIcon;
   final StatusBadgeVariant variant;
   final double toneAlpha;
 
@@ -130,10 +136,8 @@ class StatusBadge extends StatelessWidget {
       variant.index,
       toneAlpha.hashCode,
     );
-    final iconCacheKey = Object.hash(color.toARGB32(), toneAlpha.hashCode, 0x69636f6e);
 
     final decoration = _decorationCache.putIfAbsent(cacheKey, _buildDecoration);
-    final iconDecoration = _iconDecorationCache.putIfAbsent(iconCacheKey, _buildIconDecoration);
 
     return DecoratedBox(
       decoration: decoration,
@@ -142,28 +146,37 @@ class StatusBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: DecoratedBox(
-                decoration: iconDecoration,
-                child: Center(
-                  child: icon != null
-                      ? Icon(icon, size: 11, color: effectiveColor)
-                      : SizedBox(
-                          width: 5,
-                          height: 5,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: effectiveColor,
-                              shape: BoxShape.circle,
+            if (showIcon) ...[
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: DecoratedBox(
+                  decoration: _iconDecorationCache.putIfAbsent(
+                    Object.hash(
+                      color.toARGB32(),
+                      toneAlpha.hashCode,
+                      0x69636f6e,
+                    ),
+                    _buildIconDecoration,
+                  ),
+                  child: Center(
+                    child: icon != null
+                        ? Icon(icon, size: 11, color: effectiveColor)
+                        : SizedBox(
+                            width: 5,
+                            height: 5,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: effectiveColor,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
-                        ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
+              const SizedBox(width: 8),
+            ],
             Text(
               label,
               style: AppTypography.label.copyWith(

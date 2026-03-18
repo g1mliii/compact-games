@@ -196,6 +196,12 @@ abstract class AppLocalizations {
   /// **'Enable'**
   String get commonEnable;
 
+  /// Localized message for common set.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get commonSet;
+
   /// Localized message for common open folder.
   ///
   /// In en, this message translates to:
@@ -285,6 +291,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{percent}%'**
   String settingsPercentShort(String percent);
+
+  /// Localized message for settings exact value hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an exact value'**
+  String get settingsExactValueHint;
+
+  /// Localized message for settings minutes range helper.
+  ///
+  /// In en, this message translates to:
+  /// **'Range {min}-{max} min'**
+  String settingsRangeMinutes(int min, int max);
+
+  /// Localized message for settings percent range helper.
+  ///
+  /// In en, this message translates to:
+  /// **'Range {min}-{max}%'**
+  String settingsRangePercent(int min, int max);
 
   /// Localized message for settings minimize to tray on close label.
   ///
@@ -583,7 +607,7 @@ abstract class AppLocalizations {
   /// Localized message for settings direct storage warning body.
   ///
   /// In en, this message translates to:
-  /// **'DirectStorage games may load slower or behave unpredictably after compression.'**
+  /// **'DirectStorage games may load slower after compression.'**
   String get settingsDirectStorageWarningBody;
 
   /// Localized message for settings enable direct storage override title.
@@ -646,10 +670,22 @@ abstract class AppLocalizations {
   /// **'Switch to grid view'**
   String get homeSwitchToGridViewTooltip;
 
+  /// Localized message for home collapse overview tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse overview'**
+  String get homeCollapseOverviewTooltip;
+
+  /// Localized message for home expand overview tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand overview'**
+  String get homeExpandOverviewTooltip;
+
   /// Localized message for home header tagline.
   ///
   /// In en, this message translates to:
-  /// **'Compact your library without losing control.'**
+  /// **'Save space on your computer.'**
   String get homeHeaderTagline;
 
   /// Localized message for home header ready line.
@@ -736,10 +772,10 @@ abstract class AppLocalizations {
   /// **'Select a title to inspect its size, compression history, and next actions.'**
   String get homeSelectGameMessage;
 
-  /// Localized message for home ready-to-compress status.
+  /// Localized message for home ready status.
   ///
   /// In en, this message translates to:
-  /// **'Ready to compress'**
+  /// **'Ready'**
   String get homeStatusReadyToCompress;
 
   /// Localized message for home added to library message.
@@ -805,7 +841,7 @@ abstract class AppLocalizations {
   /// Localized message for home overview eyebrow.
   ///
   /// In en, this message translates to:
-  /// **'COMPRESS READY'**
+  /// **'Compression overview'**
   String get homeOverviewEyebrow;
 
   /// Localized message for home overview empty headline.
@@ -829,7 +865,7 @@ abstract class AppLocalizations {
   /// Localized message for home overview ready subtitle.
   ///
   /// In en, this message translates to:
-  /// **'Start with the clearest savings opportunities first. Estimated reclaimable space: {value}.'**
+  /// **'See which games are ready to compress and how much space you could save: {value}.'**
   String homeOverviewReadySubtitle(String value);
 
   /// Localized message for home overview protected headline.
@@ -1081,7 +1117,7 @@ abstract class AppLocalizations {
   /// Localized message for inventory watcher summary.
   ///
   /// In en, this message translates to:
-  /// **'{status}. Interactive controls are shown below.'**
+  /// **'{status}.'**
   String inventoryWatcherSummary(String status);
 
   /// Localized message for activity dismiss monitor.
@@ -1333,7 +1369,7 @@ abstract class AppLocalizations {
   /// Localized message for game details unsupported warning.
   ///
   /// In en, this message translates to:
-  /// **'This game is known to have issues after WOF compression.'**
+  /// **'Marked by the community as unsupported.'**
   String get gameDetailsUnsupportedWarning;
 
   /// Localized message for game details status group title.

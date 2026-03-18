@@ -22,6 +22,8 @@ import 'package:pressplay/features/games/presentation/widgets/home_header.dart';
 import 'package:pressplay/features/games/presentation/widgets/home_overview_panel.dart';
 import 'package:pressplay/features/games/presentation/widgets/inventory_components.dart';
 import 'package:pressplay/features/settings/presentation/sections/compression_section.dart';
+import 'package:pressplay/features/settings/presentation/widgets/scaled_switch_row.dart';
+import 'package:pressplay/features/settings/presentation/widgets/settings_slider_row.dart';
 import 'package:pressplay/models/app_settings.dart';
 import 'package:pressplay/models/automation_state.dart';
 import 'package:pressplay/models/compression_algorithm.dart';
@@ -714,10 +716,6 @@ void main() {
     expect(find.byKey(excludeActionKey), findsOneWidget);
     expect(find.text('Decompress'), findsOneWidget);
     expect(find.text('Exclude From Auto-Compression'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('detailsStorageComparisonBar')),
-      findsOneWidget,
-    );
 
     final statusRect = tester.getRect(find.text('Status'));
     final actionRect = tester.getRect(actionRowFinder);
@@ -804,58 +802,6 @@ void main() {
     expect(find.text('Include In Auto-Compression'), findsOneWidget);
   });
 
-  testWidgets(
-    'Game details storage comparison bar renders visible current and saved segments for compressed games',
-    (WidgetTester tester) async {
-      final game = GameInfo(
-        name: 'Details Storage Bar',
-        path: r'C:\Games\details_storage_bar',
-        platform: Platform.steam,
-        sizeBytes: 96 * _oneGiB,
-        compressedSize: 72 * _oneGiB,
-        isCompressed: true,
-      );
-      final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
-      final container = ProviderContainer(
-        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
-      );
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: buildAppTheme(),
-            home: GameDetailsScreen(gamePath: game.path),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final barFinder = find.byKey(
-        const ValueKey<String>('detailsStorageComparisonBar'),
-      );
-      final currentFillFinder = find.byKey(
-        const ValueKey<String>('detailsStorageCurrentFill'),
-      );
-      final savedFillFinder = find.byKey(
-        const ValueKey<String>('detailsStorageSavedFill'),
-      );
-
-      expect(barFinder, findsOneWidget);
-      expect(currentFillFinder, findsOneWidget);
-      expect(savedFillFinder, findsOneWidget);
-
-      final barWidth = tester.getSize(barFinder).width;
-      final currentWidth = tester.getSize(currentFillFinder).width;
-      final savedWidth = tester.getSize(savedFillFinder).width;
-
-      expect(currentWidth, closeTo(barWidth * 0.75, 1.5));
-      expect(savedWidth, closeTo(barWidth * 0.25, 1.5));
-      expect(currentWidth, greaterThan(savedWidth));
-    },
-  );
-
   testWidgets('Game details install path stays overflow-free at narrow width', (
     WidgetTester tester,
   ) async {
@@ -893,6 +839,105 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byTooltip('Copy path'), findsOneWidget);
+  });
+
+  testWidgets('Game details stat labels stay visually tight to their values', (
+    WidgetTester tester,
+  ) async {
+    final game = GameInfo(
+      name: 'Details Stat Alignment',
+      path: r'C:\Games\details_stat_alignment',
+      platform: Platform.steam,
+      sizeBytes: 96 * _oneGiB,
+      compressedSize: 70 * _oneGiB,
+      isCompressed: true,
+    );
+    final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: GameDetailsScreen(gamePath: game.path),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final infoCard = find.byKey(const ValueKey<String>('detailsInfoCard'));
+    final platformLabel = find.descendant(
+      of: infoCard,
+      matching: find.text('Platform'),
+    );
+    final platformValue = find.descendant(
+      of: infoCard,
+      matching: find.text('Steam'),
+    );
+
+    expect(platformLabel, findsOneWidget);
+    expect(platformValue, findsOneWidget);
+
+    final gap =
+        tester.getRect(platformValue).left -
+        tester.getRect(platformLabel).right;
+    expect(gap, lessThanOrEqualTo(18));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Game details install path box keeps vertical breathing room', (
+    WidgetTester tester,
+  ) async {
+    final game = GameInfo(
+      name: 'Details Path Breathing Room',
+      path:
+          r'C:\Program Files\Epic Games\rocketleague\Very\Long\Nested\Folder\Path\To\Game',
+      platform: Platform.epicGames,
+      sizeBytes: 96 * _oneGiB,
+      compressedSize: 70 * _oneGiB,
+      isCompressed: true,
+    );
+    final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: GameDetailsScreen(gamePath: game.path),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
+
+    final pathBlock = find.byKey(
+      const ValueKey<String>('detailsInstallPathBlock'),
+    );
+    final pathText = find.descendant(
+      of: pathBlock,
+      matching: find.byType(SelectableText),
+    );
+
+    expect(pathBlock, findsOneWidget);
+    expect(pathText, findsOneWidget);
+
+    final pathBlockRect = tester.getRect(pathBlock);
+    final pathTextRect = tester.getRect(pathText);
+
+    expect(pathTextRect.top - pathBlockRect.top, greaterThanOrEqualTo(9));
+    expect(pathBlockRect.bottom - pathTextRect.bottom, greaterThanOrEqualTo(9));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Game details shows last compressed when timestamp exists', (
@@ -1074,12 +1119,6 @@ void main() {
       );
       expect(find.byTooltip('Show key'), findsOneWidget);
       expect(find.byTooltip('Copy key'), findsOneWidget);
-      expect(
-        find.text(
-          'SteamGridDB artwork is only fetched once per game unless you refresh it.',
-        ),
-        findsOneWidget,
-      );
 
       final saveButtonSize = tester.getSize(
         find.byKey(const ValueKey<String>('settingsSteamGridDbSaveButton')),
@@ -1087,6 +1126,225 @@ void main() {
       expect(saveButtonSize.height, greaterThanOrEqualTo(40));
     },
   );
+
+  testWidgets('Settings threshold value chips allow exact numeric entry', (
+    WidgetTester tester,
+  ) async {
+    final persistence = _InMemorySettingsPersistence();
+    await persistence.save(
+      const AppSettings(idleDurationMinutes: 9, cpuThreshold: 11),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          initialRoute: AppRoutes.settings,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('settingsIdleThresholdValue')),
+    );
+    await tester.pumpAndSettle();
+
+    final sliderValueField = find.byKey(
+      const ValueKey<String>('settingsSliderValueField'),
+    );
+    expect(sliderValueField, findsOneWidget);
+    await tester.enterText(sliderValueField, '31');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Set'));
+    await tester.pumpAndSettle();
+
+    expect(
+      container
+          .read(settingsProvider)
+          .valueOrNull
+          ?.settings
+          .idleDurationMinutes,
+      30,
+    );
+    expect(find.text('30 min'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('settingsCpuThresholdValue')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(sliderValueField, '17');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Set'));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(settingsProvider).valueOrNull?.settings.cpuThreshold,
+      17,
+    );
+    expect(find.text('17%'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 600));
+  });
+
+  testWidgets(
+    'Settings slider exact-value trigger supports keyboard activation',
+    (WidgetTester tester) async {
+      double? committedValue;
+      var requestCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(),
+          home: Scaffold(
+            body: SettingsSliderRow(
+              label: 'Idle threshold',
+              value: 9,
+              min: 5,
+              max: 30,
+              divisions: 25,
+              valueKey: const ValueKey<String>('sliderDirectEntryButton'),
+              valueLabelBuilder: (value) => '${value.round()} min',
+              onRequestDirectEntry:
+                  (context, currentValue, minValue, maxValue) async {
+                    requestCount += 1;
+                    return 12;
+                  },
+              onChangedCommitted: (value) {
+                committedValue = value;
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+
+      expect(requestCount, 1);
+      expect(committedValue, 12);
+    },
+  );
+
+  testWidgets('Scaled switch row label surface supports keyboard activation', (
+    WidgetTester tester,
+  ) async {
+    var currentValue = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(),
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return Scaffold(
+              body: ScaledSwitchRow(
+                label: 'Allow DirectStorage override',
+                value: currentValue,
+                onChanged: (value) {
+                  setState(() {
+                    currentValue = value;
+                  });
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(currentValue, isTrue);
+    final labelInk = tester.widget<Ink>(
+      find.descendant(
+        of: find.byType(ScaledSwitchRow),
+        matching: find.byType(Ink),
+      ),
+    );
+    final decoration = labelInk.decoration as BoxDecoration;
+    expect(decoration.color, AppColors.selectionSurface);
+  });
+
+  testWidgets('Safety toggle stays vertically centered with its label', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1100, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final persistence = _InMemorySettingsPersistence();
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          initialRoute: AppRoutes.settings,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final toggleRow = find.byKey(
+      const ValueKey<String>('settingsDirectStorageToggle'),
+    );
+    await tester.ensureVisible(toggleRow);
+    await tester.pumpAndSettle();
+
+    final switchFinder = find.descendant(
+      of: toggleRow,
+      matching: find.byType(Switch),
+    );
+    final labelFinder = find.descendant(
+      of: toggleRow,
+      matching: find.text('Allow DirectStorage override'),
+    );
+    final labelSurface = tester.widget<InkWell>(
+      find.descendant(of: toggleRow, matching: find.byType(InkWell)),
+    );
+
+    expect(switchFinder, findsOneWidget);
+    expect(labelFinder, findsOneWidget);
+    expect(labelSurface.hoverColor, Colors.transparent);
+    expect(labelSurface.focusColor, Colors.transparent);
+    final labelInk = tester.widget<Ink>(
+      find.descendant(of: toggleRow, matching: find.byType(Ink)),
+    );
+    final decoration = labelInk.decoration as BoxDecoration;
+    expect(decoration.color, Colors.transparent);
+    expect(decoration.border?.top.color, Colors.transparent);
+
+    final centerDelta =
+        (tester.getCenter(switchFinder).dy - tester.getCenter(labelFinder).dy)
+            .abs();
+    expect(centerDelta, lessThanOrEqualTo(3));
+  });
 
   testWidgets(
     'Settings I/O override selector is compact and updates provider',
@@ -1122,16 +1380,8 @@ void main() {
 
       await tester.tap(selectorFinder);
       await tester.pumpAndSettle();
-
-      final firstMenuItem = find.ancestor(
-        of: find.text('Auto').last,
-        matching: find.byWidgetPredicate(
-          (widget) => widget is PopupMenuEntry<dynamic>,
-        ),
-      );
-      expect(tester.getSize(firstMenuItem).height, greaterThanOrEqualTo(38));
-
-      await tester.tap(find.text('4 threads').last);
+      await tester.enterText(selectorFinder, '4');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(
         container
@@ -1144,7 +1394,8 @@ void main() {
 
       await tester.tap(selectorFinder);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Auto').last);
+      await tester.enterText(selectorFinder, '');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(
         container
@@ -1156,6 +1407,57 @@ void main() {
       );
 
       await tester.pump(const Duration(milliseconds: 600));
+    },
+  );
+
+  testWidgets(
+    'Settings I/O override selector ignores unchanged submit commits',
+    (WidgetTester tester) async {
+      final persistence = _InMemorySettingsPersistence();
+      await persistence.save(const AppSettings(ioParallelismOverride: 4));
+      persistence.resetSaveCalls();
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            initialRoute: AppRoutes.settings,
+            onGenerateRoute: AppRoutes.onGenerateRoute,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final selectorFinder = find.byKey(
+        const ValueKey<String>('settingsIoOverrideSelector'),
+      );
+      expect(selectorFinder, findsOneWidget);
+
+      await tester.tap(selectorFinder);
+      await tester.pumpAndSettle();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(persistence.saveCalls, 0);
+      expect(
+        container
+            .read(settingsProvider)
+            .valueOrNull
+            ?.settings
+            .ioParallelismOverride,
+        4,
+      );
     },
   );
 
@@ -1200,7 +1502,10 @@ void main() {
 
       final afterIoCard = tester.widget<Card>(find.byType(Card));
       expect(identical(afterIoCard, initialCard), isTrue);
-      expect(find.text('4 threads'), findsOneWidget);
+      final ioField = tester.widget<TextField>(
+        find.byKey(const ValueKey<String>('settingsIoOverrideSelector')),
+      );
+      expect(ioField.controller?.text, '4');
 
       await tester.pump(const Duration(milliseconds: 600));
     },
@@ -1461,101 +1766,5 @@ void main() {
     },
   );
 
-  testWidgets('Settings inventory advanced toggle updates provider', (
-    WidgetTester tester,
-  ) async {
-    final persistence = _InMemorySettingsPersistence();
-    final container = ProviderContainer(
-      overrides: [
-        rustBridgeServiceProvider.overrideWithValue(
-          _TestRustBridgeService(games: _sampleGames),
-        ),
-        settingsPersistenceProvider.overrideWithValue(persistence),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildAppTheme(),
-          initialRoute: AppRoutes.settings,
-          onGenerateRoute: AppRoutes.onGenerateRoute,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      container
-          .read(settingsProvider)
-          .valueOrNull
-          ?.settings
-          .inventoryAdvancedScanEnabled,
-      isFalse,
-    );
-
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -1400));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey<String>('settingsInventoryAdvancedToggle')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      container
-          .read(settingsProvider)
-          .valueOrNull
-          ?.settings
-          .inventoryAdvancedScanEnabled,
-      isTrue,
-    );
-  });
-
-  testWidgets('Settings inventory watcher toggle updates provider', (
-    WidgetTester tester,
-  ) async {
-    final persistence = _InMemorySettingsPersistence();
-    final container = ProviderContainer(
-      overrides: [
-        rustBridgeServiceProvider.overrideWithValue(
-          _TestRustBridgeService(games: _sampleGames),
-        ),
-        settingsPersistenceProvider.overrideWithValue(persistence),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildAppTheme(),
-          initialRoute: AppRoutes.settings,
-          onGenerateRoute: AppRoutes.onGenerateRoute,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      container.read(settingsProvider).valueOrNull?.settings.autoCompress,
-      isFalse,
-    );
-
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -1400));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey<String>('settingsWatcherToggleButton')),
-    );
-    await tester.pump(const Duration(milliseconds: 600));
-    await tester.pumpAndSettle();
-
-    expect(
-      container.read(settingsProvider).valueOrNull?.settings.autoCompress,
-      isTrue,
-    );
-  });
   runPhase6OversizeSplitTests();
 }

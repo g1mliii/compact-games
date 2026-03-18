@@ -42,6 +42,8 @@ class _SafetySectionState extends ConsumerState<SafetySection> {
             label: l10n.settingsAllowDirectStorageOverride,
             value: dsOverride,
             onChanged: _onDirectStorageOverrideChanged,
+            enableLabelSurfaceHover: false,
+            showLabelSurfaceDecoration: false,
           ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,21 +58,11 @@ class _SafetySectionState extends ConsumerState<SafetySection> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    children: [
-                      TextSpan(
-                        text: l10n.settingsDirectStorageWarningLead,
-                        style: const TextStyle(
-                          color: AppColors.warning,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      TextSpan(text: l10n.settingsDirectStorageWarningBody),
-                    ],
+                child: Text(
+                  l10n.settingsDirectStorageWarningBody,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

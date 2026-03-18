@@ -30,9 +30,7 @@ class PlatformShellService {
     return _showWindowsPathPicker(pickExecutable: true);
   }
 
-  Future<String?> _showWindowsPathPicker({
-    required bool pickExecutable,
-  }) async {
+  Future<String?> _showWindowsPathPicker({required bool pickExecutable}) async {
     final script = pickExecutable
         ? '''
 Add-Type -AssemblyName System.Windows.Forms
@@ -44,10 +42,19 @@ if (\$dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-O
 '''
         : '''
 Add-Type -AssemblyName System.Windows.Forms
-\$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-\$dialog.Description = 'Select game folder'
-\$dialog.ShowNewFolderButton = \$false
-if (\$dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output \$dialog.SelectedPath }
+Add-Type -AssemblyName System.IO
+\$dialog = New-Object System.Windows.Forms.OpenFileDialog
+\$dialog.Title = 'Select game folder'
+\$dialog.Filter = "Folders|*.folder"
+\$dialog.Multiselect = \$false
+\$dialog.CheckFileExists = \$false
+\$dialog.CheckPathExists = \$true
+\$dialog.ValidateNames = \$false
+\$dialog.FileName = "Select folder"
+if (\$dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  \$selected = [System.IO.Path]::GetDirectoryName(\$dialog.FileName)
+  if (\$selected) { Write-Output \$selected }
+}
 ''';
 
     try {

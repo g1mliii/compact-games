@@ -82,6 +82,7 @@ class _InfoLabel extends StatelessWidget {
   const _InfoLabel(this.text, {this.emphasized = false});
 
   static const double _labelWidth = 110;
+  static const double _labelGap = 12;
   static final TextStyle _baseStyle = AppTypography.bodySmall.copyWith(
     color: AppColors.textSecondary,
     fontWeight: FontWeight.w500,
@@ -98,7 +99,14 @@ class _InfoLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: _labelWidth,
-      child: Text(text, style: emphasized ? _emphasizedStyle : _baseStyle),
+      child: Padding(
+        padding: const EdgeInsets.only(right: _labelGap),
+        child: Text(
+          text,
+          textAlign: TextAlign.right,
+          style: emphasized ? _emphasizedStyle : _baseStyle,
+        ),
+      ),
     );
   }
 }

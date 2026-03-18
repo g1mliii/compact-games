@@ -57,6 +57,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonEnable => 'Enable';
 
   @override
+  String get commonSet => 'Set';
+
+  @override
   String get commonOpenFolder => 'Open Folder';
 
   @override
@@ -109,6 +112,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String settingsPercentShort(String percent) {
     return '$percent%';
+  }
+
+  @override
+  String get settingsExactValueHint => 'Enter an exact value';
+
+  @override
+  String settingsRangeMinutes(int min, int max) {
+    return 'Range $min-$max min';
+  }
+
+  @override
+  String settingsRangePercent(int min, int max) {
+    return 'Range $min-$max%';
   }
 
   @override
@@ -276,7 +292,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDirectStorageWarningBody =>
-      'DirectStorage games may load slower or behave unpredictably after compression.';
+      'DirectStorage games may load slower after compression.';
 
   @override
   String get settingsEnableDirectStorageOverrideTitle =>
@@ -311,8 +327,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeSwitchToGridViewTooltip => 'Switch to grid view';
 
   @override
-  String get homeHeaderTagline =>
-      'Compact your library without losing control.';
+  String get homeCollapseOverviewTooltip => 'Collapse overview';
+
+  @override
+  String get homeExpandOverviewTooltip => 'Expand overview';
+
+  @override
+  String get homeHeaderTagline => 'Save space on your computer.';
 
   @override
   String homeHeaderReadyLine(int count) {
@@ -364,7 +385,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Select a title to inspect its size, compression history, and next actions.';
 
   @override
-  String get homeStatusReadyToCompress => 'Ready to compress';
+  String get homeStatusReadyToCompress => 'Ready';
 
   @override
   String homeAddedToLibraryMessage(String gameName) {
@@ -404,7 +425,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeGoToSettingsButton => 'Go to Settings';
 
   @override
-  String get homeOverviewEyebrow => 'COMPRESS READY';
+  String get homeOverviewEyebrow => 'Compression overview';
 
   @override
   String get homeOverviewEmptyHeadline =>
@@ -421,7 +442,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String homeOverviewReadySubtitle(String value) {
-    return 'Start with the clearest savings opportunities first. Estimated reclaimable space: $value.';
+    return 'See which games are ready to compress and how much space you could save: $value.';
   }
 
   @override
@@ -556,7 +577,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String inventoryWatcherSummary(String status) {
-    return '$status. Interactive controls are shown below.';
+    return '$status.';
   }
 
   @override
@@ -716,7 +737,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gameDetailsUnsupportedWarning =>
-      'This game is known to have issues after WOF compression.';
+      'Marked by the community as unsupported.';
 
   @override
   String get gameDetailsStatusGroupTitle => 'Status';

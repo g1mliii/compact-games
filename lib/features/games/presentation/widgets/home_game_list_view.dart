@@ -55,12 +55,7 @@ class _HomeGameListViewState extends State<HomeGameListView> {
             constraints.maxWidth < HomeGameListView._stackedBreakpoint;
 
         if (stacked) {
-          final raw = constraints.maxHeight.isFinite
-              ? (constraints.maxHeight * 0.34).clamp(180.0, 280.0)
-              : 240.0;
-          final bucketed =
-              (raw / HomeGameListView._heightBucket).round() *
-              HomeGameListView._heightBucket;
+          final bucketed = bucketHomeGameListPanelHeight(constraints.maxHeight);
 
           if (stacked == _stacked && bucketed == _bucketedHeight) {
             return _buildStacked();
@@ -100,6 +95,17 @@ class _HomeGameListViewState extends State<HomeGameListView> {
       ),
     );
   }
+}
+
+@visibleForTesting
+double bucketHomeGameListPanelHeight(double maxHeight) {
+  final raw = maxHeight.isFinite
+      ? (maxHeight * 0.34).clamp(90.0, 280.0)
+      : 240.0;
+  return ((raw / HomeGameListView._heightBucket).floor() *
+          HomeGameListView._heightBucket)
+      .clamp(90.0, 280.0)
+      .toDouble();
 }
 
 class _GameListPanel extends ConsumerWidget {
@@ -306,7 +312,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (Color color, IconData icon, String label) = switch ((
+    final (Color color, IconData? icon, String label) = switch ((
       isCompressed,
       isDirectStorage,
       isUnsupported,
@@ -326,14 +332,16 @@ class _StatusPill extends StatelessWidget {
         LucideIcons.checkCircle2,
         l10n.gameDetailsStatusCompressed,
       ),
-      _ => (
-        AppColors.richGold,
-        LucideIcons.archive,
-        l10n.homeStatusReadyToCompress,
-      ),
+      _ => (AppColors.info, null, l10n.homeStatusReadyToCompress),
     };
 
-    return StatusBadge(color: color, icon: icon, label: label);
+    return StatusBadge(
+      color: color,
+      icon: icon,
+      label: label,
+      variant: StatusBadgeVariant.outlined,
+      toneAlpha: 0.85,
+    );
   }
 }
 

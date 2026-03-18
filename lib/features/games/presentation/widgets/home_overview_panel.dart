@@ -22,24 +22,58 @@ const ValueKey<String> _compactOverviewLeadKey = ValueKey<String>(
 const ValueKey<String> _compactOverviewTrailingKey = ValueKey<String>(
   'homeOverviewCompactTrailing',
 );
+const ValueKey<String> _homeOverviewStatsCardKey = ValueKey<String>(
+  'homeOverviewStatsCard',
+);
+const ValueKey<String> _homeOverviewToggleButtonKey = ValueKey<String>(
+  'homeOverviewToggleButton',
+);
 
 /// Reads only the derived breakpoint booleans from [MediaQuery.sizeOf] and
-/// rebuilds [_HomeOverviewPanelInner] only when those booleans change, not on
-/// every sub-pixel viewport resize.
-class HomeOverviewPanel extends StatelessWidget {
-  const HomeOverviewPanel({super.key});
+/// reuses the same child widget while those booleans stay stable, so the
+/// provider-reading inner panel does not rerun on every sub-pixel resize tick.
+class HomeOverviewPanel extends StatefulWidget {
+  const HomeOverviewPanel({
+    super.key,
+    @visibleForTesting this.useCompactSummaryOverride,
+  });
+
+  final bool? useCompactSummaryOverride;
+
+  @override
+  State<HomeOverviewPanel> createState() => _HomeOverviewPanelShellState();
+}
+
+class _HomeOverviewPanelShellState extends State<HomeOverviewPanel> {
+  ({bool tooNarrow, bool useCompactSummary, bool stackWideSummary})?
+  _cachedLayout;
+  Widget? _cachedChild;
 
   @override
   Widget build(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
-    final tooNarrow = viewport.width < 360;
-    final useCompactSummary = viewport.height < 760 || viewport.width < 640;
-    final stackWideSummary = viewport.width < 856;
-    return _HomeOverviewPanelInner(
-      tooNarrow: tooNarrow,
-      useCompactSummaryFromViewport: useCompactSummary,
-      stackWideSummary: stackWideSummary,
+    final layout = (
+      tooNarrow: viewport.width < 360,
+      useCompactSummary:
+          widget.useCompactSummaryOverride ??
+          (viewport.height < 760 || viewport.width < 640),
+      stackWideSummary: viewport.width < 856,
     );
+
+    if (_cachedLayout == layout && _cachedChild != null) {
+      return _cachedChild!;
+    }
+
+    final child = layout.tooNarrow
+        ? const SizedBox.shrink()
+        : _HomeOverviewPanelInner(
+            tooNarrow: layout.tooNarrow,
+            useCompactSummaryFromViewport: layout.useCompactSummary,
+            stackWideSummary: layout.stackWideSummary,
+          );
+    _cachedLayout = layout;
+    _cachedChild = child;
+    return child;
   }
 }
 
@@ -62,6 +96,7 @@ class _HomeOverviewPanelInner extends ConsumerStatefulWidget {
 class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
   int? _cachedSignature;
   Widget? _cachedChild;
+  bool _manuallyCollapsed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -74,8 +109,11 @@ class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
       ),
     );
     final listMode = viewMode == HomeViewMode.list;
+    final manualCollapseAvailable =
+        !listMode && !widget.useCompactSummaryFromViewport;
+    final manuallyCollapsed = manualCollapseAvailable && _manuallyCollapsed;
     final useCompactSummary =
-        listMode || widget.useCompactSummaryFromViewport;
+        manuallyCollapsed || listMode || widget.useCompactSummaryFromViewport;
     final stackWideSummary = widget.stackWideSummary;
     final libraryState = ref.watch(
       gameListProvider.select(
@@ -103,6 +141,8 @@ class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
       listMode,
       useCompactSummary,
       stackWideSummary,
+      manualCollapseAvailable,
+      manuallyCollapsed,
       overview.totalGames,
       overview.readyCount,
       overview.compressedCount,
@@ -120,91 +160,97 @@ class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
       runHomePrimaryAction(context, ref, overview);
     }
 
+    final panelToggleButton = manualCollapseAvailable
+        ? _OverviewPanelToggleButton(
+            buttonKey: _homeOverviewToggleButtonKey,
+            collapsed: useCompactSummary,
+            onPressed: () {
+              setState(() {
+                _manuallyCollapsed = !manuallyCollapsed;
+              });
+            },
+          )
+        : null;
+
     final child = useCompactSummary
         ? Padding(
             key: const ValueKey<String>('homeOverviewPanelShell'),
             padding: EdgeInsets.fromLTRB(24, listMode ? 8 : 12, 24, 0),
-            child: RepaintBoundary(
-              child: DecoratedBox(
-                decoration: buildAppSurfaceDecoration(),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(18, listMode ? 14 : 16, 18, 14),
-                  child: _CompactOverviewPanel(
-                    overview: overview,
-                    label: label,
-                    icon: icon,
-                    onPressed: handlePressed,
-                  ),
-                ),
+            child: _OverviewPanelFrame(
+              decoration: buildAppSurfaceDecoration(),
+              toggleButton: panelToggleButton,
+              toggleContentClearance: panelToggleButton == null ? 0 : 18,
+              padding: EdgeInsets.fromLTRB(18, listMode ? 14 : 16, 18, 14),
+              child: _CompactOverviewPanel(
+                overview: overview,
+                label: label,
+                icon: icon,
+                onPressed: handlePressed,
               ),
             ),
           )
         : Padding(
             key: const ValueKey<String>('homeOverviewPanelShell'),
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-            child: RepaintBoundary(
-              child: DecoratedBox(
-                decoration: buildAppPanelDecoration(emphasized: true),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: -42,
-                      right: -8,
-                      child: IgnorePointer(
-                        child: Container(
-                          width: 180,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                AppColors.burntSienna.withValues(alpha: 0.22),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
+            child: _OverviewPanelFrame(
+              decoration: buildAppPanelDecoration(emphasized: true),
+              toggleButton: panelToggleButton,
+              toggleContentClearance: panelToggleButton == null ? 0 : 12,
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+              backgroundChildren: [
+                Positioned(
+                  top: -42,
+                  right: -8,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 180,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            AppColors.burntSienna.withValues(alpha: 0.22),
+                            Colors.transparent,
+                          ],
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
-                      child: stackWideSummary
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _OverviewLead(
-                                  overview: overview,
-                                  onPressed: handlePressed,
-                                  label: label,
-                                  icon: icon,
-                                ),
-                                const SizedBox(height: 16),
-                                _OverviewStats(overview: overview),
-                              ],
-                            )
-                          : Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Expanded(
-                                  flex: 5,
-                                  child: _OverviewLead(
-                                    overview: overview,
-                                    onPressed: handlePressed,
-                                    label: label,
-                                    icon: icon,
-                                  ),
-                                ),
-                                const SizedBox(width: 20),
-                                SizedBox(
-                                  width: 276,
-                                  child: _OverviewStats(overview: overview),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
+              child: stackWideSummary
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _OverviewLead(
+                          overview: overview,
+                          onPressed: handlePressed,
+                          label: label,
+                          icon: icon,
+                        ),
+                        const SizedBox(height: 16),
+                        _OverviewStats(overview: overview),
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: _OverviewLead(
+                            overview: overview,
+                            onPressed: handlePressed,
+                            label: label,
+                            icon: icon,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        SizedBox(
+                          width: 276,
+                          child: _OverviewStats(overview: overview),
+                        ),
+                      ],
+                    ),
             ),
           );
     _cachedSignature = signature;
@@ -253,7 +299,7 @@ class _CompactOverviewPanel extends StatelessWidget {
                 const SizedBox(height: 8),
                 summaryChips,
                 const SizedBox(height: 8),
-                actionButton,
+                Wrap(spacing: 8, runSpacing: 8, children: [actionButton]),
               ],
             ),
           );
@@ -279,7 +325,10 @@ class _CompactOverviewPanel extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 8,
                     runSpacing: 8,
-                    children: [..._buildCompactChips(l10n), actionButton],
+                    children: <Widget?>[
+                      ..._buildCompactChips(l10n),
+                      actionButton,
+                    ].whereType<Widget>().toList(growable: false),
                   ),
                 ),
               ),
@@ -303,6 +352,49 @@ class _CompactOverviewPanel extends StatelessWidget {
         color: AppColors.richGold,
       ),
     ];
+  }
+}
+
+class _OverviewPanelFrame extends StatelessWidget {
+  const _OverviewPanelFrame({
+    required this.decoration,
+    required this.padding,
+    required this.child,
+    this.toggleButton,
+    this.toggleContentClearance = 0,
+    this.backgroundChildren = const <Widget>[],
+  });
+
+  final Decoration decoration;
+  final EdgeInsetsGeometry padding;
+  final Widget child;
+  final Widget? toggleButton;
+  final double toggleContentClearance;
+  final List<Widget> backgroundChildren;
+
+  @override
+  Widget build(BuildContext context) {
+    final effectivePadding = toggleButton == null
+        ? padding
+        : padding.add(EdgeInsets.only(bottom: toggleContentClearance));
+    return RepaintBoundary(
+      child: DecoratedBox(
+        decoration: decoration,
+        child: Stack(
+          children: [
+            ...backgroundChildren,
+            Padding(padding: effectivePadding, child: child),
+            if (toggleButton != null)
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: toggleButton!,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -401,6 +493,51 @@ class _CompactChip extends StatelessWidget {
   }
 }
 
+class _OverviewPanelToggleButton extends StatelessWidget {
+  const _OverviewPanelToggleButton({
+    this.buttonKey,
+    required this.collapsed,
+    required this.onPressed,
+  });
+
+  static const double width = 92;
+  static const double height = 30;
+
+  final Key? buttonKey;
+  final bool collapsed;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: IconButton(
+        key: buttonKey,
+        tooltip: collapsed
+            ? l10n.homeExpandOverviewTooltip
+            : l10n.homeCollapseOverviewTooltip,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.expand(),
+        splashRadius: 22,
+        visualDensity: VisualDensity.compact,
+        style: ButtonStyle(
+          overlayColor: WidgetStateProperty.resolveWith(
+            (_) => Colors.transparent,
+          ),
+        ),
+        icon: Icon(
+          collapsed ? LucideIcons.chevronDown : LucideIcons.chevronUp,
+          size: 17,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
 class _OverviewLead extends StatelessWidget {
   const _OverviewLead({
     required this.overview,
@@ -454,8 +591,7 @@ class _OverviewLead extends StatelessWidget {
     );
   }
 
-  String _headline(AppLocalizations l10n) =>
-      _overviewHeadline(l10n, overview);
+  String _headline(AppLocalizations l10n) => _overviewHeadline(l10n, overview);
 
   String _subtitle(AppLocalizations l10n) => _overviewSubtitle(l10n, overview);
 }
@@ -469,6 +605,7 @@ class _OverviewStats extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return DecoratedBox(
+      key: _homeOverviewStatsCardKey,
       decoration: buildAppSurfaceDecoration(),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),

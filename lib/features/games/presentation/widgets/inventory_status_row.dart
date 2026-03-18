@@ -3,7 +3,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/status_badge.dart';
 
 const double _statusActionHeight = 40;
@@ -54,22 +53,9 @@ class InventoryStatusRow extends StatelessWidget {
     border: Border.all(color: AppColors.borderSubtle),
   );
 
-  static final _secondaryActionStyle = OutlinedButton.styleFrom(
-    foregroundColor: AppColors.textPrimary,
-    backgroundColor: AppColors.surfaceElevated.withValues(alpha: 0.16),
-    side: const BorderSide(color: AppColors.borderSubtle),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(12)),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-  );
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final watcherLabel = watcherActive
-        ? l10n.inventoryWatcherActive
-        : l10n.inventoryWatcherPaused;
     return RepaintBoundary(
       child: Container(
         key: _inventoryStatusPanelKey,
@@ -109,7 +95,7 @@ class InventoryStatusRow extends StatelessWidget {
               children: [
                 OutlinedButton.icon(
                   key: _inventoryWatcherToggleButtonKey,
-                  style: _watcherActionStyle(watcherActive),
+                  style: _watcherActionStyle(context, watcherActive),
                   onPressed: () => onWatcherEnabledChanged(!watcherEnabled),
                   icon: Icon(
                     watcherEnabled ? LucideIcons.pause : LucideIcons.play,
@@ -122,7 +108,6 @@ class InventoryStatusRow extends StatelessWidget {
                   ),
                 ),
                 OutlinedButton.icon(
-                  style: _secondaryActionStyle,
                   key: _inventoryAdvancedScanToggleButtonKey,
                   onPressed: () => onAdvancedChanged(!advancedEnabled),
                   icon: Icon(
@@ -155,35 +140,32 @@ class InventoryStatusRow extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 6),
-            Text(
-              l10n.inventoryWatcherSummary(watcherLabel),
-              style: AppTypography.bodySmall,
-            ),
           ],
         ),
       ),
     );
   }
 
-  static ButtonStyle _watcherActionStyle(bool watcherActive) {
-    final borderColor = watcherActive
-        ? AppColors.richGold.withValues(alpha: 0.85)
-        : AppColors.border;
-    return OutlinedButton.styleFrom(
-      foregroundColor: AppColors.textPrimary,
-      backgroundColor: watcherActive
-          ? AppColors.richGold.withValues(alpha: 0.08)
-          : AppColors.surfaceElevated.withValues(alpha: 0.18),
-      side: BorderSide(color: borderColor, width: watcherActive ? 1.6 : 1),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+  static ButtonStyle _watcherActionStyle(
+    BuildContext context,
+    bool watcherActive,
+  ) {
+    final base =
+        Theme.of(context).outlinedButtonTheme.style ?? const ButtonStyle();
+    if (!watcherActive) {
+      return base;
+    }
+
+    return base.copyWith(
+      backgroundColor: WidgetStatePropertyAll(
+        AppColors.richGold.withValues(alpha: 0.08),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      shadowColor: watcherActive
-          ? AppColors.richGold.withValues(alpha: 0.22)
-          : Colors.transparent,
-      elevation: watcherActive ? 1 : 0,
+      side: WidgetStatePropertyAll(
+        BorderSide(
+          color: AppColors.richGold.withValues(alpha: 0.85),
+          width: 1.6,
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ part of '../phase6_ui_test.dart';
 
 class _InMemorySettingsPersistence implements SettingsPersistence {
   AppSettings _current = const AppSettings();
+  int saveCalls = 0;
 
   @override
   Future<AppSettings> load() async {
@@ -10,7 +11,12 @@ class _InMemorySettingsPersistence implements SettingsPersistence {
 
   @override
   Future<void> save(AppSettings settings) async {
+    saveCalls += 1;
     _current = settings;
+  }
+
+  void resetSaveCalls() {
+    saveCalls = 0;
   }
 }
 

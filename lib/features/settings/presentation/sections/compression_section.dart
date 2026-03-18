@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pressplay/l10n/app_localizations.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/localization/app_localization.dart';
@@ -8,7 +8,6 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../models/compression_algorithm.dart';
 import '../../../../providers/settings/settings_provider.dart';
 import '../widgets/settings_section_card.dart';
-import '../widgets/static_popup_selector.dart';
 
 const ValueKey<String> _ioOverrideSelectorKey = ValueKey<String>(
   'settingsIoOverrideSelector',
@@ -115,43 +114,12 @@ class IoOverrideSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        StaticPopupSelector<int?>(
-          key: _ioOverrideSelectorKey,
-          labelText: l10n.settingsIoThreadsLabel,
-          tooltip: l10n.settingsIoThreadsTooltip,
-          selectedLabel: _labelFor(l10n, selected),
-          items: <StaticPopupSelectorItem<int?>>[
-            StaticPopupSelectorItem<int?>(
-              value: null,
-              label: _labelFor(l10n, null),
-              selected: selected == null,
-            ),
-            for (var i = 1; i <= CompressionSection._maxIoOverride; i++)
-              StaticPopupSelectorItem<int?>(
-                value: i,
-                label: _labelFor(l10n, i),
-                selected: selected == i,
-              ),
-          ],
-          onSelected: onSelected,
-        ),
-        const SizedBox(height: 6),
-        const Padding(
-          padding: EdgeInsets.only(left: 2),
-          child: _IoThreadsHelpText(),
-        ),
-      ],
+    return _IoOverrideInput(
+      selected: selected,
+      onSelected: onSelected,
+      labelText: l10n.settingsIoThreadsLabel,
+      hintText: l10n.settingsIoThreadsAuto,
     );
-  }
-
-  static String _labelFor(AppLocalizations l10n, int? value) {
-    if (value == null) {
-      return l10n.settingsIoThreadsAuto;
-    }
-    return l10n.settingsIoThreadsCount(value);
   }
 }
 
@@ -161,5 +129,123 @@ class _IoThreadsHelpText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(context.l10n.settingsIoThreadsHelp, style: AppTypography.label);
+  }
+}
+
+class _IoOverrideInput extends StatefulWidget {
+  const _IoOverrideInput({
+    required this.selected,
+    required this.onSelected,
+    required this.labelText,
+    required this.hintText,
+  });
+
+  final int? selected;
+  final ValueChanged<int?> onSelected;
+  final String labelText;
+  final String hintText;
+
+  @override
+  State<_IoOverrideInput> createState() => _IoOverrideInputState();
+}
+
+class _IoOverrideInputState extends State<_IoOverrideInput> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.selected?.toString() ?? '',
+  );
+  late final FocusNode _focusNode = FocusNode()
+    ..addListener(() {
+      if (!_focusNode.hasFocus) {
+        _commit();
+      }
+    });
+
+  @override
+  void didUpdateWidget(covariant _IoOverrideInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected != widget.selected) {
+      final nextText = widget.selected?.toString() ?? '';
+      if (_controller.text != nextText) {
+        _controller.value = TextEditingValue(
+          text: nextText,
+          selection: TextSelection.collapsed(offset: nextText.length),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final raw = _controller.text.trim();
+    int? nextValue;
+    if (raw.isEmpty) {
+      nextValue = null;
+    } else {
+      final parsed = int.tryParse(raw);
+      if (parsed == null) {
+        nextValue = null;
+      } else {
+        final clamped = parsed
+            .clamp(1, CompressionSection._maxIoOverride)
+            .toInt();
+        final normalized = '$clamped';
+        if (normalized != raw) {
+          _controller.value = TextEditingValue(
+            text: normalized,
+            selection: TextSelection.collapsed(offset: normalized.length),
+          );
+        }
+        nextValue = clamped;
+      }
+    }
+
+    if (nextValue == widget.selected) {
+      return;
+    }
+    widget.onSelected(nextValue);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 220),
+          child: SizedBox(
+            height: 40,
+            child: TextField(
+              key: _ioOverrideSelectorKey,
+              controller: _controller,
+              focusNode: _focusNode,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(2),
+              ],
+              decoration: InputDecoration(
+                labelText: widget.labelText,
+                hintText: widget.hintText,
+                isDense: true,
+                contentPadding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              ),
+              onSubmitted: (_) => _commit(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Padding(
+          padding: EdgeInsets.only(left: 2),
+          child: _IoThreadsHelpText(),
+        ),
+      ],
+    );
   }
 }

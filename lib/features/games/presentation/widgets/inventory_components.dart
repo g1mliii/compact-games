@@ -220,6 +220,12 @@ class _SortFieldButton extends StatelessWidget {
       popUpAnimationStyle: AnimationStyle.noAnimation,
       position: menuPosition.position,
       constraints: BoxConstraints.tightFor(width: menuPosition.width),
+      color: Colors.transparent,
+      shadowColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      menuPadding: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(),
       items: <PopupMenuEntry<InventorySortField>>[
         _HorizontalSortMenuEntry(selected: sortField),
       ],
@@ -250,7 +256,7 @@ class _SortFieldButton extends StatelessWidget {
       position: RelativeRect.fromRect(
         Rect.fromLTWH(
           buttonRect.left,
-          buttonRect.bottom + 4,
+          buttonRect.bottom,
           buttonRect.width,
           0,
         ),

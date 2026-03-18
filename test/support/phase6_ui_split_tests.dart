@@ -71,7 +71,7 @@ void runPhase6OversizeSplitTests() {
     await tester.pumpAndSettle();
 
     final finder = find.byKey(
-      const ValueKey<String>('homeHeaderLayout:wide-primary'),
+      const ValueKey<String>('homeHeaderLayout:wide-grouped'),
     );
     final initialLayout = tester.widget<KeyedSubtree>(finder);
 
@@ -82,6 +82,44 @@ void runPhase6OversizeSplitTests() {
     expect(identical(resizedLayout, initialLayout), isTrue);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Home header keeps one review action on wide layouts and groups view toggles separately',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final persistence = _InMemorySettingsPersistence();
+      await persistence.save(
+        const AppSettings(homeViewMode: HomeViewMode.grid),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review eligible games'), findsOneWidget);
+
+      final viewGroupRect = tester.getRect(
+        find.byKey(const ValueKey<String>('homeHeaderViewModeGroup')),
+      );
+      final addGameRect = tester.getRect(find.byTooltip('Add game'));
+      expect(addGameRect.left, greaterThan(viewGroupRect.right + 8));
+    },
+  );
 
   testWidgets('Home overview panel reuses shell within the same layout mode', (
     WidgetTester tester,
@@ -103,7 +141,9 @@ void runPhase6OversizeSplitTests() {
         container: container,
         child: MaterialApp(
           theme: buildAppTheme(),
-          home: const Scaffold(body: HomeOverviewPanel()),
+          home: const Scaffold(
+            body: HomeOverviewPanel(useCompactSummaryOverride: false),
+          ),
         ),
       ),
     );
@@ -120,8 +160,132 @@ void runPhase6OversizeSplitTests() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Home overview panel can collapse into a compact summary', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final persistence = _InMemorySettingsPersistence();
+    await persistence.save(const AppSettings(homeViewMode: HomeViewMode.grid));
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(
+            body: HomeOverviewPanel(useCompactSummaryOverride: false),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final shellFinder = find.byKey(
+      const ValueKey<String>('homeOverviewPanelShell'),
+    );
+    expect(shellFinder, findsOneWidget);
+    final compactLeadFinder = find.byKey(
+      const ValueKey<String>('homeOverviewCompactLead'),
+    );
+    final startedCompact = compactLeadFinder.evaluate().isNotEmpty;
+
+    final collapseButton = find.byKey(
+      const ValueKey<String>('homeOverviewToggleButton'),
+    );
+    expect(collapseButton, findsOneWidget);
+    final expandedShellRect = tester.getRect(shellFinder);
+    final expandedButtonRect = tester.getRect(collapseButton);
+    expect(
+      (expandedButtonRect.center.dx - expandedShellRect.center.dx).abs(),
+      lessThanOrEqualTo(1),
+    );
+    expect(expandedButtonRect.width, greaterThanOrEqualTo(88));
+    expect(
+      (expandedShellRect.bottom - expandedButtonRect.bottom).abs(),
+      lessThanOrEqualTo(1),
+    );
+    await tester.tap(collapseButton);
+    await tester.pumpAndSettle();
+
+    expect(compactLeadFinder.evaluate().isNotEmpty, isNot(startedCompact));
+
+    final expandButton = find.byKey(
+      const ValueKey<String>('homeOverviewToggleButton'),
+    );
+    expect(expandButton, findsOneWidget);
+    final compactShellRect = tester.getRect(shellFinder);
+    final compactButtonRect = tester.getRect(expandButton);
+    expect(
+      (compactButtonRect.center.dx - compactShellRect.center.dx).abs(),
+      lessThanOrEqualTo(1),
+    );
+    expect(compactButtonRect.width, greaterThanOrEqualTo(88));
+    expect(
+      (compactShellRect.bottom - compactButtonRect.bottom).abs(),
+      lessThanOrEqualTo(1),
+    );
+    await tester.tap(expandButton);
+    await tester.pumpAndSettle();
+
+    expect(compactLeadFinder.evaluate().isNotEmpty, startedCompact);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home overview toggle stays below stacked stats content', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(820, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final persistence = _InMemorySettingsPersistence();
+    await persistence.save(const AppSettings(homeViewMode: HomeViewMode.grid));
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(
+            body: HomeOverviewPanel(useCompactSummaryOverride: false),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final statsRect = tester.getRect(
+      find.byKey(const ValueKey<String>('homeOverviewStatsCard')),
+    );
+    final toggleRect = tester.getRect(
+      find.byKey(const ValueKey<String>('homeOverviewToggleButton')),
+    );
+
+    expect(toggleRect.top, greaterThanOrEqualTo(statsRect.bottom));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
-    'Home compact overview keeps lead copy expanded and trailing actions pinned right',
+    'Home compact overview keeps lead copy expanded, trailing actions pinned right, and hides the dead toggle',
     (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 720));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -155,7 +319,6 @@ void runPhase6OversizeSplitTests() {
       final trailingFinder = find.byKey(
         const ValueKey<String>('homeOverviewCompactTrailing'),
       );
-
       final initialLeadRect = tester.getRect(leadFinder);
       final initialTrailingRect = tester.getRect(trailingFinder);
       final initialShellRect = tester.getRect(shellFinder);
@@ -164,6 +327,10 @@ void runPhase6OversizeSplitTests() {
       expect(
         initialShellRect.right - initialTrailingRect.right,
         lessThanOrEqualTo(56),
+      );
+      expect(
+        find.byKey(const ValueKey<String>('homeOverviewToggleButton')),
+        findsNothing,
       );
 
       await tester.binding.setSurfaceSize(const Size(1400, 720));
@@ -177,6 +344,10 @@ void runPhase6OversizeSplitTests() {
       expect(
         widenedShellRect.right - widenedTrailingRect.right,
         lessThanOrEqualTo(56),
+      );
+      expect(
+        find.byKey(const ValueKey<String>('homeOverviewToggleButton')),
+        findsNothing,
       );
       expect(tester.takeException(), isNull);
     },
@@ -257,6 +428,11 @@ void runPhase6OversizeSplitTests() {
     expect(statusRect.top, greaterThan(listRowRect.bottom));
   });
 
+  test('Home list view stacked-height bucketing preserves its minimum', () {
+    expect(bucketHomeGameListPanelHeight(290), 90);
+    expect(bucketHomeGameListPanelHeight(double.infinity), 240);
+  });
+
   testWidgets(
     'Home list view keeps cover and status side by side in split mode',
     (WidgetTester tester) async {
@@ -291,10 +467,6 @@ void runPhase6OversizeSplitTests() {
 
       expect(coverRect.left, lessThan(statusRect.left));
       expect(statusRect.top, lessThan(coverRect.bottom));
-      expect(
-        find.byKey(const ValueKey<String>('detailsStorageComparisonBar')),
-        findsOneWidget,
-      );
     },
   );
 
@@ -648,6 +820,8 @@ void runPhase6OversizeSplitTests() {
     expect(find.text('Go to Settings'), findsNothing);
     expect(find.text('Choose a game'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Pixel Raider'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Pixel Raider'));
     await tester.pumpAndSettle();
 
@@ -766,58 +940,6 @@ void runPhase6OversizeSplitTests() {
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'Settings inventory layout keeps spacing and avoids overly wide controls',
-    (WidgetTester tester) async {
-      await tester.binding.setSurfaceSize(const Size(1600, 900));
-      addTearDown(() async {
-        await tester.binding.setSurfaceSize(null);
-      });
-
-      final persistence = _InMemorySettingsPersistence();
-      final container = ProviderContainer(
-        overrides: [
-          rustBridgeServiceProvider.overrideWithValue(
-            _TestRustBridgeService(games: _sampleGames),
-          ),
-          settingsPersistenceProvider.overrideWithValue(persistence),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: buildAppTheme(),
-            initialRoute: AppRoutes.settings,
-            onGenerateRoute: AppRoutes.onGenerateRoute,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final firstCardRect = tester.getRect(find.byType(Card).first);
-      expect(firstCardRect.width, lessThan(1000));
-
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -1400));
-      await tester.pumpAndSettle();
-
-      final bannerRect = tester.getRect(
-        find.byKey(const ValueKey<String>('settingsWatcherStatusBanner')),
-      );
-      final watcherButtonRect = tester.getRect(
-        find.byKey(const ValueKey<String>('settingsWatcherToggleButton')),
-      );
-
-      expect(watcherButtonRect.width, lessThan(bannerRect.width));
-      expect(
-        watcherButtonRect.top - bannerRect.bottom,
-        greaterThanOrEqualTo(8),
-      );
     },
   );
 

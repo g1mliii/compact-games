@@ -225,9 +225,10 @@ class GameCard extends StatelessWidget {
     }
 
     return StatusBadge(
-      color: AppColors.richGold,
+      color: AppColors.info,
       label: l10n.homeStatusReadyToCompress,
-      icon: LucideIcons.archive,
+      variant: StatusBadgeVariant.outlined,
+      toneAlpha: 0.85,
     );
   }
 
@@ -316,6 +317,7 @@ class GameCard extends StatelessWidget {
     required double sizeGB,
   }) {
     final l10n = context.l10n;
+    final timestamp = lastCompressedText?.trim();
     return Align(
       alignment: Alignment.centerLeft,
       child: FittedBox(
@@ -340,6 +342,16 @@ class GameCard extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
+            if (timestamp != null && timestamp.isNotEmpty) ...[
+              const SizedBox(width: 10),
+              Text(
+                timestamp,
+                style: AppTypography.bodySmall.copyWith(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ],
         ),
       ),

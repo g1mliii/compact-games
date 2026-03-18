@@ -15,6 +15,30 @@ class _StatusSectionHeader extends StatefulWidget {
 class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
   bool? _compact;
 
+  String? _statusNoteText(BuildContext context) {
+    if (widget.game.isUnsupported) {
+      return context.l10n.gameDetailsUnsupportedWarning;
+    }
+    if (widget.game.isDirectStorage) {
+      return context.l10n.gameDetailsDirectStorageWarning;
+    }
+    return null;
+  }
+
+  Widget _buildStatusNote(BuildContext context) {
+    final text = _statusNoteText(context);
+    if (text == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Text(
+      text,
+      style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final actions = RepaintBoundary(
@@ -44,10 +68,15 @@ class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
   }
 
   Widget _buildCompact(Widget actions) {
+    final note = _statusNoteText(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _InfoGroupTitle(title: context.l10n.gameDetailsStatusGroupTitle),
+        if (note != null) ...[
+          const SizedBox(height: 4),
+          _buildStatusNote(context),
+        ],
         const SizedBox(height: 6),
         actions,
         const SizedBox(height: 2),
@@ -56,14 +85,24 @@ class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
   }
 
   Widget _buildWide(Widget actions) {
+    final note = _statusNoteText(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: _InfoGroupTitle(
-              title: context.l10n.gameDetailsStatusGroupTitle,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _InfoGroupTitle(
+                  title: context.l10n.gameDetailsStatusGroupTitle,
+                ),
+                if (note != null) ...[
+                  const SizedBox(height: 4),
+                  _buildStatusNote(context),
+                ],
+              ],
             ),
           ),
           const SizedBox(width: 10),
@@ -80,38 +119,9 @@ class _StatusActionButtons extends ConsumerWidget {
   final GameInfo game;
   final bool isExcluded;
 
-  static final _secondaryStyle = TextButton.styleFrom(
-    backgroundColor: AppColors.surfaceElevated.withValues(alpha: 0.5),
-    foregroundColor: AppColors.textPrimary,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(10)),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-  );
-
-  static final _tertiaryStyle = TextButton.styleFrom(
-    foregroundColor: AppColors.textSecondary,
-    backgroundColor: AppColors.surfaceElevated.withValues(alpha: 0.18),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(10)),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-  );
-
   static final _destructiveStyle = TextButton.styleFrom(
     foregroundColor: AppColors.error,
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-  );
-
-  static final _primaryStyle = FilledButton.styleFrom(
-    backgroundColor: AppColors.richGold,
-    foregroundColor: AppColors.nightDune,
-    disabledBackgroundColor: AppColors.surfaceElevated.withValues(alpha: 0.55),
-    disabledForegroundColor: AppColors.textMuted,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(10)),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
   );
 
   @override
@@ -133,10 +143,9 @@ class _StatusActionButtons extends ConsumerWidget {
           runSpacing: 8,
           children: [
             _buildCompressionButton(context, ref, allowDirectStorageOverride),
-            TextButton.icon(
+            OutlinedButton.icon(
               onPressed: () =>
                   ref.read(platformShellServiceProvider).openFolder(game.path),
-              style: _secondaryStyle,
               icon: const Icon(LucideIcons.folderOpen, size: 16),
               label: Text(context.l10n.commonOpenFolder),
             ),
@@ -149,12 +158,11 @@ class _StatusActionButtons extends ConsumerWidget {
           runSpacing: 8,
           children: [
             _buildUnsupportedButton(context, ref),
-            TextButton.icon(
+            OutlinedButton.icon(
               key: _detailsStatusExcludeActionKey,
               onPressed: () => ref
                   .read(settingsProvider.notifier)
                   .toggleGameExclusion(game.path),
-              style: _tertiaryStyle,
               icon: const Icon(LucideIcons.shieldAlert, size: 16),
               label: Text(
                 isExcluded
@@ -221,7 +229,6 @@ class _StatusActionButtons extends ConsumerWidget {
     if (game.isCompressed) {
       return FilledButton.icon(
         key: _detailsStatusPrimaryActionKey,
-        style: _primaryStyle,
         onPressed: () => ref
             .read(compressionProvider.notifier)
             .startDecompression(gamePath: game.path, gameName: game.name),
@@ -232,7 +239,6 @@ class _StatusActionButtons extends ConsumerWidget {
 
     return FilledButton.icon(
       key: _detailsStatusPrimaryActionKey,
-      style: _primaryStyle,
       onPressed: game.isDirectStorage && !allowDirectStorageOverride
           ? null
           : () => ref
@@ -249,7 +255,7 @@ class _StatusActionButtons extends ConsumerWidget {
 
   Widget _buildUnsupportedButton(BuildContext context, WidgetRef ref) {
     final nextUnsupported = !game.isUnsupported;
-    return TextButton.icon(
+    return OutlinedButton.icon(
       key: _detailsStatusUnsupportedActionKey,
       onPressed: () => toggleGameUnsupportedStatus(
         ref,
@@ -257,7 +263,6 @@ class _StatusActionButtons extends ConsumerWidget {
         game,
         markUnsupported: nextUnsupported,
       ),
-      style: _tertiaryStyle,
       icon: Icon(
         nextUnsupported ? LucideIcons.ban : LucideIcons.checkCircle2,
         size: 16,

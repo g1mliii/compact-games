@@ -36,14 +36,8 @@ const ValueKey<String> _detailsStatusExcludeActionKey = ValueKey<String>(
 const ValueKey<String> _detailsStatusUnsupportedActionKey = ValueKey<String>(
   'detailsStatusUnsupportedAction',
 );
-const ValueKey<String> _detailsStorageComparisonBarKey = ValueKey<String>(
-  'detailsStorageComparisonBar',
-);
-const ValueKey<String> _detailsStorageCurrentFillKey = ValueKey<String>(
-  'detailsStorageCurrentFill',
-);
-const ValueKey<String> _detailsStorageSavedFillKey = ValueKey<String>(
-  'detailsStorageSavedFill',
+const ValueKey<String> _detailsInstallPathBlockKey = ValueKey<String>(
+  'detailsInstallPathBlock',
 );
 
 class GameDetailsInfoCard extends ConsumerWidget {
@@ -117,24 +111,19 @@ class GameDetailsInfoCard extends ConsumerWidget {
               _InfoGroupTitle(title: l10n.gameDetailsStorageGroupTitle),
               _StatLine(
                 label: _InfoLabel(l10n.gameDetailsOriginalSizeLabel),
-                value: formatBytesDetailed(context.l10n,game.sizeBytes),
+                value: formatBytesDetailed(context.l10n, game.sizeBytes),
               ),
               _StatLine(
                 label: _InfoLabel(l10n.gameDetailsCurrentSizeLabel),
-                value: formatBytesDetailed(context.l10n,currentSize),
+                value: formatBytesDetailed(context.l10n, currentSize),
               ),
-              _StorageComparisonBar(
-                originalSizeBytes: game.sizeBytes,
-                currentSizeBytes: currentSize,
-                savedBytes: savedBytes,
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _HeroMetricLine(
                 label: _InfoLabel(
                   l10n.gameDetailsSpaceSavedLabel,
                   emphasized: true,
                 ),
-                value: formatBytesDetailed(context.l10n,savedBytes),
+                value: formatBytesDetailed(context.l10n, savedBytes),
                 trailingText: lastCompressedText == null
                     ? null
                     : l10n.gameDetailsCompressedAt(lastCompressedText!),
@@ -152,12 +141,11 @@ class GameDetailsInfoCard extends ConsumerWidget {
               ),
               _InfoGroupTitle(title: l10n.gameDetailsInstallPathGroupTitle),
               const SizedBox(height: 6),
-              _PathBlock(path: game.path),
+              _PathBlock(key: _detailsInstallPathBlockKey, path: game.path),
             ],
           ),
         ),
       ),
     );
   }
-
 }

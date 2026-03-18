@@ -6,6 +6,7 @@ const double appDesktopControlMin = 36.0;
 const double appDesktopFrequentActionMin = 44.0;
 const double appDesktopMenuRowMin = 38.0;
 const BorderRadius appPanelRadius = BorderRadius.all(Radius.circular(16));
+const BorderRadius appButtonRadius = BorderRadius.all(Radius.circular(12));
 
 /// Shared interaction overlay used across buttons and desktop row surfaces.
 final appInteractionOverlay = WidgetStateProperty.resolveWith<Color?>((states) {
@@ -60,6 +61,43 @@ BoxDecoration buildAppSurfaceDecoration({
 
 /// Builds the PressPlay cinematic desert theme.
 ThemeData buildAppTheme() {
+  final outlinedBackground = WidgetStateProperty.resolveWith<Color?>((states) {
+    if (states.contains(WidgetState.disabled)) {
+      return AppColors.surfaceElevated.withValues(alpha: 0.08);
+    }
+    if (states.contains(WidgetState.pressed)) {
+      return AppColors.surfaceElevated.withValues(alpha: 0.24);
+    }
+    if (states.contains(WidgetState.hovered) ||
+        states.contains(WidgetState.focused)) {
+      return AppColors.surfaceElevated.withValues(alpha: 0.18);
+    }
+    return AppColors.surfaceElevated.withValues(alpha: 0.12);
+  });
+
+  final outlinedSide = WidgetStateProperty.resolveWith<BorderSide>((states) {
+    if (states.contains(WidgetState.disabled)) {
+      return BorderSide(color: AppColors.borderSubtle.withValues(alpha: 0.45));
+    }
+    if (states.contains(WidgetState.focused)) {
+      return BorderSide(color: AppColors.focusRing, width: 1.2);
+    }
+    if (states.contains(WidgetState.hovered)) {
+      return const BorderSide(color: AppColors.border);
+    }
+    return const BorderSide(color: AppColors.borderSubtle);
+  });
+
+  final filledElevation = WidgetStateProperty.resolveWith<double?>((states) {
+    if (states.contains(WidgetState.disabled)) return 0;
+    if (states.contains(WidgetState.pressed)) return 0;
+    if (states.contains(WidgetState.hovered) ||
+        states.contains(WidgetState.focused)) {
+      return 1;
+    }
+    return 0;
+  });
+
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
@@ -95,18 +133,45 @@ ThemeData buildAppTheme() {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.burntSienna,
         foregroundColor: AppColors.textPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: const RoundedRectangleBorder(borderRadius: appButtonRadius),
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       ).copyWith(overlayColor: appInteractionOverlay),
     ),
     filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ).copyWith(overlayColor: appInteractionOverlay),
+      style:
+          FilledButton.styleFrom(
+            shape: const RoundedRectangleBorder(borderRadius: appButtonRadius),
+            minimumSize: const Size(0, 40),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            disabledBackgroundColor: AppColors.surfaceElevated.withValues(
+              alpha: 0.55,
+            ),
+            disabledForegroundColor: AppColors.textMuted,
+          ).copyWith(
+            overlayColor: appInteractionOverlay,
+            elevation: filledElevation,
+            shadowColor: const WidgetStatePropertyAll(Colors.black),
+          ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style:
+          OutlinedButton.styleFrom(
+            foregroundColor: AppColors.textPrimary,
+            shape: const RoundedRectangleBorder(borderRadius: appButtonRadius),
+            minimumSize: const Size(0, 40),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ).copyWith(
+            overlayColor: appInteractionOverlay,
+            backgroundColor: outlinedBackground,
+            side: outlinedSide,
+          ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: AppColors.accent,
+        shape: const RoundedRectangleBorder(borderRadius: appButtonRadius),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ).copyWith(overlayColor: appInteractionOverlay),
     ),
     iconButtonTheme: IconButtonThemeData(

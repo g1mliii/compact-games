@@ -3,7 +3,7 @@ part of 'inventory_components.dart';
 class _HorizontalSortMenuEntry extends PopupMenuEntry<InventorySortField> {
   const _HorizontalSortMenuEntry({required this.selected});
 
-  static const double _entryHeight = 48;
+  static const double _entryHeight = _inventoryControlHeight;
   final InventorySortField selected;
 
   @override
@@ -29,7 +29,7 @@ class _HorizontalSortMenuEntryState extends State<_HorizontalSortMenuEntry> {
               (field) => Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: _SortMenuOptionButton(
+                  child: _SortMenuOptionButton(
                     label: _inventorySortFieldLabel(context.l10n, field),
                     isSelected: field == widget.selected,
                     onPressed: () => Navigator.of(context).pop(field),
@@ -58,7 +58,8 @@ class _SortMenuOptionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+        minimumSize: const Size.fromHeight(_inventoryControlHeight),
         visualDensity: VisualDensity.compact,
         foregroundColor: isSelected
             ? AppColors.textPrimary
