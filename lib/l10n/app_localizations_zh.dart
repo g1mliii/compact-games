@@ -45,6 +45,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get platformCustom => '自定义';
 
   @override
+  String get platformApplication => '应用程序';
+
+  @override
+  String get addItemModeGame => '游戏';
+
+  @override
+  String get addItemModeApplication => '应用程序';
+
+  @override
+  String get addApplicationPathHint => '粘贴应用程序文件夹路径或浏览...';
+
+  @override
   String get commonAdd => '添加';
 
   @override

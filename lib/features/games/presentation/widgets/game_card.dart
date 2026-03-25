@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../../core/utils/app_placeholder.dart';
 import '../../../../core/utils/platform_icon.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -48,6 +49,9 @@ class GameCard extends StatelessWidget {
     Radius.circular(12),
   );
   static const double _sizeInfoRegionHeight = 34;
+  static final BoxDecoration _cardDecoration = buildAppSurfaceDecoration(
+    borderRadius: _cardBorderRadius,
+  );
   static const BoxDecoration _placeholderDecoration = BoxDecoration(
     gradient: LinearGradient(
       begin: Alignment.topCenter,
@@ -62,24 +66,22 @@ class GameCard extends StatelessWidget {
       onTap: onTap,
       onSecondaryTapDown: onSecondaryTapDown,
       child: DecoratedBox(
-        decoration: buildAppSurfaceDecoration(borderRadius: _cardBorderRadius),
+        decoration: _cardDecoration,
         child: assumeBoundedHeight
             ? _buildBoundedBody(context)
-            : _buildAdaptiveBody(),
+            : _buildAdaptiveBody(context),
       ),
     );
   }
 
-  Widget _buildAdaptiveBody() {
-    return Builder(
-      builder: (context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildCoverArt(context: context, useAspectRatio: true),
-          _buildGameInfo(),
-        ],
-      ),
+  Widget _buildAdaptiveBody(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildCoverArt(context: context, useAspectRatio: true),
+        _buildGameInfo(),
+      ],
     );
   }
 
@@ -155,6 +157,21 @@ class GameCard extends StatelessWidget {
 
   Widget _buildPlaceholderCover() {
     final icon = platformIcon(platform);
+    if (platform == Platform.application) {
+      final color = AppPlaceholder.colorForPath(gameName);
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [color, color.withValues(alpha: 0.6)],
+          ),
+        ),
+        child: Center(
+          child: Icon(icon, size: 48, color: AppColors.desertSand),
+        ),
+      );
+    }
     return DecoratedBox(
       decoration: _placeholderDecoration,
       child: Center(child: Icon(icon, size: 48, color: AppColors.desertSand)),
@@ -186,14 +203,7 @@ class GameCard extends StatelessWidget {
   }
 
   Widget _buildStatusRow(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: _buildStatusBadge(context),
-      ),
-    );
+    return _buildStatusBadge(context);
   }
 
   Widget _buildStatusBadge(BuildContext context) {
@@ -271,19 +281,17 @@ class GameCard extends StatelessWidget {
         height: _sizeInfoRegionHeight,
         child: Align(
           alignment: Alignment.bottomLeft,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Row(
-              children: [
-                Text(
-                  l10n.commonGigabytes(sizeGB.toStringAsFixed(1)),
-                  style: AppTypography.monoSmall.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+          child: Row(
+            children: [
+              Text(
+                l10n.commonGigabytes(sizeGB.toStringAsFixed(1)),
+                style: AppTypography.monoSmall.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(width: 6),
-                Text(
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
                   l10n.gameEstimatedSaveableGigabytes(
                     savedGB.toStringAsFixed(1),
                   ),
@@ -291,9 +299,11 @@ class GameCard extends StatelessWidget {
                     color: AppColors.success,
                     fontSize: 11,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );
@@ -318,43 +328,39 @@ class GameCard extends StatelessWidget {
   }) {
     final l10n = context.l10n;
     final timestamp = lastCompressedText?.trim();
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l10n.commonGigabytes(compressedGB.toStringAsFixed(1)),
-              style: AppTypography.monoSmall.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '/ ${l10n.commonGigabytes(sizeGB.toStringAsFixed(1))}',
+    return Row(
+      children: [
+        Text(
+          l10n.commonGigabytes(compressedGB.toStringAsFixed(1)),
+          style: AppTypography.monoSmall.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '/ ${l10n.commonGigabytes(sizeGB.toStringAsFixed(1))}',
+          style: AppTypography.bodySmall.copyWith(
+            fontSize: 12,
+            fontFamilyFallback: AppTypography.monoFontFallback,
+            decoration: TextDecoration.lineThrough,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        if (timestamp != null && timestamp.isNotEmpty) ...[
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              timestamp,
               style: AppTypography.bodySmall.copyWith(
-                fontSize: 12,
-                fontFamilyFallback: AppTypography.monoFontFallback,
-                decoration: TextDecoration.lineThrough,
+                fontSize: 11,
                 color: AppColors.textSecondary,
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
-            if (timestamp != null && timestamp.isNotEmpty) ...[
-              const SizedBox(width: 10),
-              Text(
-                timestamp,
-                style: AppTypography.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -436,7 +442,9 @@ class _CompressionBar extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         child: Stack(
           children: [
-            const ColoredBox(color: AppColors.surfaceElevated),
+            const SizedBox.expand(
+              child: ColoredBox(color: AppColors.surfaceElevated),
+            ),
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: ratio,

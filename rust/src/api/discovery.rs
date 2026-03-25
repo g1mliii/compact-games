@@ -85,6 +85,61 @@ pub fn scan_custom_folder(path: String) -> Result<Vec<FrbGameInfo>, FrbDiscovery
     }
 }
 
+/// Add an arbitrary application folder (not a game) for compression.
+///
+/// Unlike `scan_custom_folder`, this skips game-likeness heuristics and
+/// accepts any directory. The returned `FrbGameInfo` has `Platform::Application`.
+pub fn add_application_folder(
+    path: String,
+    name: Option<String>,
+) -> Result<FrbGameInfo, FrbDiscoveryError> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err(FrbDiscoveryError::InvalidPath {
+            message: "path cannot be empty".to_owned(),
+        });
+    }
+
+    let mut folder = PathBuf::from(trimmed);
+
+    // If the user picked an executable, resolve to its parent directory.
+    if folder.is_file() {
+        folder = folder
+            .parent()
+            .map(|p| p.to_path_buf())
+            .ok_or_else(|| FrbDiscoveryError::InvalidPath {
+                message: format!("cannot resolve parent of '{}'", folder.display()),
+            })?;
+    }
+
+    if !folder.is_dir() {
+        return Err(FrbDiscoveryError::InvalidPath {
+            message: format!("'{}' is not a directory", folder.display()),
+        });
+    }
+
+    let display_name = name.unwrap_or_else(|| {
+        folder
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Application".to_owned())
+    });
+
+    let game = utils::build_game_info_with_mode(
+        display_name,
+        folder,
+        Platform::Application,
+        DiscoveryScanMode::Full,
+    );
+
+    match game {
+        Some(info) => Ok(FrbGameInfo::from(info)),
+        None => Err(FrbDiscoveryError::DiscoveryFailed {
+            message: "Failed to build metadata for the application folder.".to_owned(),
+        }),
+    }
+}
+
 /// Hydrate full metadata for a single discovered game.
 ///
 /// Intended for lazy on-demand UI hydration after quick discovery.

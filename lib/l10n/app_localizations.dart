@@ -172,6 +172,30 @@ abstract class AppLocalizations {
   /// **'Custom'**
   String get platformCustom;
 
+  /// Localized label for the Application platform type.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get platformApplication;
+
+  /// Segmented button label for adding a game.
+  ///
+  /// In en, this message translates to:
+  /// **'Game'**
+  String get addItemModeGame;
+
+  /// Segmented button label for adding an application.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get addItemModeApplication;
+
+  /// Hint text for the application path input field.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste application folder path or browse...'**
+  String get addApplicationPathHint;
+
   /// Localized message for common add.
   ///
   /// In en, this message translates to:

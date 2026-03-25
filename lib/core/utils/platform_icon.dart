@@ -13,5 +13,6 @@ IconData platformIcon(Platform platform) {
     Platform.battleNet => LucideIcons.cloudLightning,
     Platform.xboxGamePass => LucideIcons.tv2,
     Platform.custom => LucideIcons.folder,
+    Platform.application => LucideIcons.archive,
   };
 }

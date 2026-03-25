@@ -48,6 +48,22 @@
   "@platformCustom": {
     "description": "Localized message for platform custom."
   },
+  "platformApplication": "Application",
+  "@platformApplication": {
+    "description": "Localized label for the Application platform type."
+  },
+  "addItemModeGame": "Game",
+  "@addItemModeGame": {
+    "description": "Segmented button label for adding a game."
+  },
+  "addItemModeApplication": "Application",
+  "@addItemModeApplication": {
+    "description": "Segmented button label for adding an application."
+  },
+  "addApplicationPathHint": "Paste application folder path or browse...",
+  "@addApplicationPathHint": {
+    "description": "Hint text for the application path input field."
+  },
   "commonAdd": "Add",
   "@commonAdd": {
     "description": "Localized message for common add."

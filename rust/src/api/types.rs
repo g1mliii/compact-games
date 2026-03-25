@@ -70,6 +70,7 @@ pub enum FrbPlatform {
     BattleNet,
     XboxGamePass,
     Custom,
+    Application,
 }
 
 impl From<Platform> for FrbPlatform {
@@ -83,6 +84,7 @@ impl From<Platform> for FrbPlatform {
             Platform::BattleNet => Self::BattleNet,
             Platform::XboxGamePass => Self::XboxGamePass,
             Platform::Custom => Self::Custom,
+            Platform::Application => Self::Application,
         }
     }
 }
@@ -98,6 +100,7 @@ impl From<FrbPlatform> for Platform {
             FrbPlatform::BattleNet => Self::BattleNet,
             FrbPlatform::XboxGamePass => Self::XboxGamePass,
             FrbPlatform::Custom => Self::Custom,
+            FrbPlatform::Application => Self::Application,
         }
     }
 }

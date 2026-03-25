@@ -7,7 +7,8 @@ enum Platform {
   eaApp,
   battleNet,
   xboxGamePass,
-  custom;
+  custom,
+  application;
 
   String get displayName => switch (this) {
     steam => 'Steam',
@@ -18,6 +19,7 @@ enum Platform {
     battleNet => 'Battle.net',
     xboxGamePass => 'Xbox Game Pass',
     custom => 'Custom',
+    application => 'Application',
   };
 }
 

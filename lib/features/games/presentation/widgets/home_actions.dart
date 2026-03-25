@@ -56,29 +56,30 @@ Future<void> runHomePrimaryAction(
 }
 
 Future<void> promptAddGame(BuildContext context, WidgetRef ref) async {
-  final inputValue = await showDialog<String>(
+  final result = await showDialog<AddItemResult>(
     context: context,
     builder: (_) => const HomeAddGameDialog(),
   );
 
-  final value = inputValue?.trim() ?? '';
-  if (value.isEmpty || !context.mounted) {
+  if (result == null || !context.mounted) {
     return;
   }
 
-  await submitManualGame(context, ref, value);
+  await submitManualItem(context, ref, result.path, result.mode);
 }
 
-Future<void> submitManualGame(
+Future<void> submitManualItem(
   BuildContext context,
   WidgetRef ref,
   String pathOrExe,
+  AddItemMode mode,
 ) async {
   final l10n = context.l10n;
   try {
-    final result = await ref
-        .read(gameListProvider.notifier)
-        .addGameFromPathOrExe(pathOrExe);
+    final notifier = ref.read(gameListProvider.notifier);
+    final result = mode == AddItemMode.application
+        ? await notifier.addApplicationFromPathOrExe(pathOrExe)
+        : await notifier.addGameFromPathOrExe(pathOrExe);
     if (!context.mounted) {
       return;
     }

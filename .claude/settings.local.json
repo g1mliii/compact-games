@@ -46,7 +46,8 @@
       "Bash(find \"/c/Users/subai/Documents/compact games/lib/services\" -type f -name \"*.dart\" | xargs ls -la 2>/dev/null)",
       "Bash(ls resources:*)",
       "WebFetch(domain:www.steamgriddb.com)",
-      "WebFetch(domain:steamcommunity.com)"
+      "WebFetch(domain:steamcommunity.com)",
+      "Bash(flutter gen-l10n:*)"
     ]
   },
   "prefersReducedMotion": true

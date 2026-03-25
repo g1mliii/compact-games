@@ -96,6 +96,14 @@ class RustBridgeService {
     return frbGames.map(_mapFrbGameInfo).toList();
   }
 
+  Future<GameInfo> addApplicationFolder(String path, {String? name}) async {
+    final frbGame = await rust_discovery.addApplicationFolder(
+      path: path,
+      name: name,
+    );
+    return _mapFrbGameInfo(frbGame);
+  }
+
   Future<GameInfo?> hydrateGame({
     required String gamePath,
     required String gameName,

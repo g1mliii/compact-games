@@ -45,6 +45,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String get platformCustom => 'Personalizado';
 
   @override
+  String get platformApplication => 'Aplicación';
+
+  @override
+  String get addItemModeGame => 'Juego';
+
+  @override
+  String get addItemModeApplication => 'Aplicación';
+
+  @override
+  String get addApplicationPathHint =>
+      'Pega la ruta de la carpeta de la aplicación o explora...';
+
+  @override
   String get commonAdd => 'Agregar';
 
   @override

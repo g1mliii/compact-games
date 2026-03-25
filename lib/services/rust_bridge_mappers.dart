@@ -31,6 +31,7 @@ Platform _mapFrbPlatform(rust_types.FrbPlatform frb) {
     rust_types.FrbPlatform.battleNet => Platform.battleNet,
     rust_types.FrbPlatform.xboxGamePass => Platform.xboxGamePass,
     rust_types.FrbPlatform.custom => Platform.custom,
+    rust_types.FrbPlatform.application => Platform.application,
   };
 }
 
@@ -96,6 +97,7 @@ rust_types.FrbPlatform _toFrbPlatform(Platform platform) {
     Platform.battleNet => rust_types.FrbPlatform.battleNet,
     Platform.xboxGamePass => rust_types.FrbPlatform.xboxGamePass,
     Platform.custom => rust_types.FrbPlatform.custom,
+    Platform.application => rust_types.FrbPlatform.application,
   };
 }
 

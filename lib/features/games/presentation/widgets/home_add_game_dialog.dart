@@ -20,6 +20,10 @@ const ValueKey<String> homeBrowseGameExeButtonKey = ValueKey<String>(
   'browseGameExeButton',
 );
 
+enum AddItemMode { game, application }
+
+typedef AddItemResult = ({String path, AddItemMode mode});
+
 class HomeAddGameDialog extends ConsumerStatefulWidget {
   const HomeAddGameDialog({super.key});
 
@@ -30,11 +34,18 @@ class HomeAddGameDialog extends ConsumerStatefulWidget {
 class _HomeAddGameDialogState extends ConsumerState<HomeAddGameDialog> {
   final TextEditingController _inputController = TextEditingController();
   bool _pickingPath = false;
+  AddItemMode _mode = AddItemMode.game;
 
   @override
   void dispose() {
     _inputController.dispose();
     super.dispose();
+  }
+
+  void _submit() {
+    final text = _inputController.text.trim();
+    if (text.isEmpty) return;
+    Navigator.of(context).pop((path: text, mode: _mode));
   }
 
   @override
@@ -50,14 +61,37 @@ class _HomeAddGameDialogState extends ConsumerState<HomeAddGameDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              SegmentedButton<AddItemMode>(
+                segments: [
+                  ButtonSegment(
+                    value: AddItemMode.game,
+                    label: Text(l10n.addItemModeGame),
+                    icon: const Icon(LucideIcons.gamepad2, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: AddItemMode.application,
+                    label: Text(l10n.addItemModeApplication),
+                    icon: const Icon(LucideIcons.archive, size: 16),
+                  ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (selected) {
+                  setState(() {
+                    _mode = selected.first;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
               TextField(
                 key: homeAddGamePathFieldKey,
                 controller: _inputController,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: l10n.homeAddGamePathHint,
+                  hintText: _mode == AddItemMode.game
+                      ? l10n.homeAddGamePathHint
+                      : l10n.addApplicationPathHint,
                 ),
-                onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
+                onSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 10),
               LayoutBuilder(
@@ -107,8 +141,7 @@ class _HomeAddGameDialogState extends ConsumerState<HomeAddGameDialog> {
         ),
         FilledButton(
           key: homeConfirmAddGameButtonKey,
-          onPressed: () =>
-              Navigator.of(context).pop(_inputController.text.trim()),
+          onPressed: _submit,
           child: Text(l10n.commonAdd),
         ),
       ],

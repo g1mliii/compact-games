@@ -15,6 +15,7 @@ pub enum Platform {
     BattleNet,
     XboxGamePass,
     Custom,
+    Application,
 }
 
 /// Discovery scan strategy.
@@ -39,6 +40,7 @@ impl std::fmt::Display for Platform {
             Self::BattleNet => write!(f, "Battle.net"),
             Self::XboxGamePass => write!(f, "Xbox Game Pass"),
             Self::Custom => write!(f, "Custom"),
+            Self::Application => write!(f, "Application"),
         }
     }
 }

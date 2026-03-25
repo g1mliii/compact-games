@@ -18,6 +18,7 @@ extension _CoverArtServiceScan on CoverArtService {
         roots.add(p.join(game.path, 'Content'));
       case Platform.steam:
       case Platform.custom:
+      case Platform.application:
         break;
     }
 

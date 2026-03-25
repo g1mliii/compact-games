@@ -25,6 +25,7 @@ extension PlatformLocalizationX on Platform {
       Platform.battleNet => l10n.platformBattleNet,
       Platform.xboxGamePass => l10n.platformXboxGamePass,
       Platform.custom => l10n.platformCustom,
+      Platform.application => l10n.platformApplication,
     };
   }
 }

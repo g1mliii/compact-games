@@ -178,6 +178,16 @@ class _TestRustBridgeService implements RustBridgeService {
   }
 
   @override
+  Future<GameInfo> addApplicationFolder(String path, {String? name}) async {
+    return GameInfo(
+      name: name ?? 'Test Application',
+      path: path,
+      platform: Platform.application,
+      sizeBytes: 0,
+    );
+  }
+
+  @override
   Future<void> startAutoCompression() async {}
 
   @override

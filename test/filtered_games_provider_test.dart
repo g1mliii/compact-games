@@ -301,6 +301,14 @@ class _MinimalBridgeService implements RustBridgeService {
   @override
   Future<List<GameInfo>> scanCustomFolder(String path) async => const [];
   @override
+  Future<GameInfo> addApplicationFolder(String path, {String? name}) async =>
+      GameInfo(
+        name: name ?? 'Test App',
+        path: path,
+        platform: Platform.application,
+        sizeBytes: 0,
+      );
+  @override
   Future<void> shutdownApp({
     Duration manualCompressionStopTimeout = const Duration(seconds: 2),
   }) async {}

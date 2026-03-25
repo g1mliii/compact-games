@@ -210,19 +210,8 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
   }
 
   Future<ManualGameImportResult> addGameFromPathOrExe(String rawPath) async {
-    final trimmed = rawPath.trim();
-    if (trimmed.isEmpty) {
-      throw ArgumentError('Path cannot be empty.');
-    }
-    if (_manualImportInProgress) {
-      throw StateError('Another add-game operation is still running.');
-    }
-    final initialState = state.valueOrNull;
-    if (initialState == null) {
-      throw StateError('Game library is still loading. Try again in a moment.');
-    }
-    _manualImportInProgress = true;
-    try {
+    return _addManualItem(rawPath, () async {
+      final trimmed = rawPath.trim();
       final target = resolveManualImportTarget(trimmed);
       final bridge = ref.read(rustBridgeServiceProvider);
       final scanResults = await bridge.scanCustomFolder(target.folderPath);
@@ -242,12 +231,42 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
           'No game metadata was detected for the selected target.',
         );
       }
+      return selected;
+    });
+  }
+
+  Future<ManualGameImportResult> addApplicationFromPathOrExe(
+    String rawPath,
+  ) async {
+    return _addManualItem(rawPath, () {
+      final trimmed = rawPath.trim();
+      return ref.read(rustBridgeServiceProvider).addApplicationFolder(trimmed);
+    });
+  }
+
+  /// Shared logic for manually adding a game or application to the library.
+  Future<ManualGameImportResult> _addManualItem(
+    String rawPath,
+    Future<GameInfo> Function() resolveItem,
+  ) async {
+    final trimmed = rawPath.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('Path cannot be empty.');
+    }
+    if (_manualImportInProgress) {
+      throw StateError('Another add operation is still running.');
+    }
+    final initialState = state.valueOrNull;
+    if (initialState == null) {
+      throw StateError('Library is still loading. Try again in a moment.');
+    }
+    _manualImportInProgress = true;
+    try {
+      final selected = await resolveItem();
 
       final latestState = state.valueOrNull;
       if (latestState == null) {
-        throw StateError(
-          'Game library is still loading. Try again in a moment.',
-        );
+        throw StateError('Library is still loading. Try again in a moment.');
       }
 
       final beforeKeys = _manualImportPathKeySet(latestState.games);

@@ -48,6 +48,22 @@
   "@platformCustom": {
     "description": "Localized message for platform custom."
   },
+  "platformApplication": "应用程序",
+  "@platformApplication": {
+    "description": "Localized label for the Application platform type."
+  },
+  "addItemModeGame": "游戏",
+  "@addItemModeGame": {
+    "description": "Segmented button label for adding a game."
+  },
+  "addItemModeApplication": "应用程序",
+  "@addItemModeApplication": {
+    "description": "Segmented button label for adding an application."
+  },
+  "addApplicationPathHint": "粘贴应用程序文件夹路径或浏览...",
+  "@addApplicationPathHint": {
+    "description": "Hint text for the application path input field."
+  },
   "commonAdd": "添加",
   "@commonAdd": {
     "description": "Localized message for common add."

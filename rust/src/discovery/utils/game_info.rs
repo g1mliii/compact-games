@@ -422,6 +422,11 @@ fn compression_timestamp_for_game_path(path: &Path, is_compressed: bool) -> Opti
 }
 
 fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) -> bool {
+    // Application folders are user-chosen; skip game-likeness heuristics.
+    if platform == Platform::Application {
+        return logical_size > 0;
+    }
+
     if logical_size == 0 {
         return false;
     }

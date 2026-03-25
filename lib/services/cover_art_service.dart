@@ -156,21 +156,26 @@ class CoverArtService {
     String cacheKey, {
     String? steamGridDbApiKey,
   }) async {
+    // Applications skip SteamGridDB — only try local/cache sources.
+    final isApp = game.platform == Platform.application;
+
     final cached = await _readCachedCover(cacheKey);
     if (cached != null) {
-      final cachedNeedsUpgrade = await _needsApiUpgradeForCached(
-        cached,
-        apiKey: steamGridDbApiKey,
-      );
-      if (cachedNeedsUpgrade) {
-        final upgraded = await _resolveApiCover(
-          game,
-          cacheKey: cacheKey,
+      if (!isApp) {
+        final cachedNeedsUpgrade = await _needsApiUpgradeForCached(
+          cached,
           apiKey: steamGridDbApiKey,
         );
-        if (upgraded != null) {
-          _writeMemoryCache(cacheKey, upgraded);
-          return upgraded;
+        if (cachedNeedsUpgrade) {
+          final upgraded = await _resolveApiCover(
+            game,
+            cacheKey: cacheKey,
+            apiKey: steamGridDbApiKey,
+          );
+          if (upgraded != null) {
+            _writeMemoryCache(cacheKey, upgraded);
+            return upgraded;
+          }
         }
       }
       _writeMemoryCache(cacheKey, cached);
@@ -179,19 +184,21 @@ class CoverArtService {
 
     final sourcePath = await _resolveLocalSourcePath(game);
     if (sourcePath != null) {
-      final localNeedsUpgrade = await _needsApiUpgradeForPath(
-        sourcePath,
-        apiKey: steamGridDbApiKey,
-      );
-      if (localNeedsUpgrade) {
-        final upgraded = await _resolveApiCover(
-          game,
-          cacheKey: cacheKey,
+      if (!isApp) {
+        final localNeedsUpgrade = await _needsApiUpgradeForPath(
+          sourcePath,
           apiKey: steamGridDbApiKey,
         );
-        if (upgraded != null) {
-          _writeMemoryCache(cacheKey, upgraded);
-          return upgraded;
+        if (localNeedsUpgrade) {
+          final upgraded = await _resolveApiCover(
+            game,
+            cacheKey: cacheKey,
+            apiKey: steamGridDbApiKey,
+          );
+          if (upgraded != null) {
+            _writeMemoryCache(cacheKey, upgraded);
+            return upgraded;
+          }
         }
       }
 
@@ -206,14 +213,16 @@ class CoverArtService {
       return result;
     }
 
-    final result = await _resolveApiCover(
-      game,
-      cacheKey: cacheKey,
-      apiKey: steamGridDbApiKey,
-    );
-    if (result != null) {
-      _writeMemoryCache(cacheKey, result);
-      return result;
+    if (!isApp) {
+      final result = await _resolveApiCover(
+        game,
+        cacheKey: cacheKey,
+        apiKey: steamGridDbApiKey,
+      );
+      if (result != null) {
+        _writeMemoryCache(cacheKey, result);
+        return result;
+      }
     }
 
     const none = CoverArtResult.none();

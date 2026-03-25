@@ -8,6 +8,7 @@ import 'package:pressplay/core/utils/date_time_format.dart';
 import 'package:pressplay/features/games/presentation/widgets/compression_progress_indicator.dart';
 import 'package:pressplay/features/games/presentation/widgets/game_details/details_info_card.dart';
 import 'package:pressplay/features/settings/presentation/sections/language_section.dart';
+import 'package:pressplay/l10n/app_localizations.dart';
 import 'package:pressplay/models/app_settings.dart';
 import 'package:pressplay/models/compression_algorithm.dart';
 import 'package:pressplay/models/game_info.dart';
@@ -367,6 +368,7 @@ void main() {
   testWidgets(
     'PressPlayApp applies persisted Spanish locale to home and settings',
     (tester) async {
+      final spanishL10n = lookupAppLocalizations(const Locale('es'));
       final persistence = _MemorySettingsPersistence(
         const AppSettings(localeTag: 'es'),
       );
@@ -388,10 +390,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Compacta tu biblioteca sin perder el control.'),
-        findsOneWidget,
-      );
+      expect(find.text(spanishL10n.homeHeaderTagline), findsOneWidget);
 
       await tester.tap(find.byTooltip('Abrir configuración'));
       await tester.pumpAndSettle();
@@ -508,6 +507,7 @@ void main() {
   testWidgets('PressPlayApp applies persisted Chinese locale to home', (
     tester,
   ) async {
+    final chineseL10n = lookupAppLocalizations(const Locale('zh'));
     final persistence = _MemorySettingsPersistence(
       const AppSettings(localeTag: 'zh-CN'),
     );
@@ -529,7 +529,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('精简你的游戏库，同时保持完全掌控。'), findsOneWidget);
+    expect(find.text(chineseL10n.homeHeaderTagline), findsOneWidget);
     expect(find.byTooltip('打开设置'), findsOneWidget);
   });
 }
