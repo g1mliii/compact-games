@@ -1,4 +1,4 @@
-# PressPlay 
+# Compact Games
 
 A beautiful, intelligent game compressor that automatically saves disk space without compromising performance.
 
