@@ -1,10 +1,10 @@
-# PressPlay 
+# Compact Games
 
 A beautiful, intelligent game compressor that automatically saves disk space without compromising performance.
 
-## What is PressPlay?
+## What is Compact Games?
 
-PressPlay is a game manager that silently compresses your games in the background when your system is idle. It features a cinematic desert UI with real-time compression statistics and responsive game management controls.
+Compact Games is a game manager that silently compresses your games in the background when your system is idle. It features a cinematic desert UI with real-time compression statistics and responsive game management controls.
 
 ## Key Features
 
@@ -15,7 +15,7 @@ PressPlay is a game manager that silently compresses your games in the backgroun
 - **Real-time Progress**: Live compression stats with estimated time remaining
 - **Zero Configuration**: Works out of the box with automatic game detection
 
-## Why PressPlay?
+## Why Compact Games?
 
 Modern games can consume hundreds of gigabytes of storage. Windows NTFS compression can reduce game sizes by 20-60% without noticeable performance impact on most titles. PressPlay makes this process automatic, safe, and beautiful.
 
@@ -69,7 +69,7 @@ flutter run
 
 ## Safety First
 
-PressPlay includes multiple safety mechanisms:
+Compact Games includes multiple safety mechanisms:
 
 - **DirectStorage Detection**: Automatically detects and skips games that use DirectStorage
 - **Running Game Detection**: Never compresses games while they're running
@@ -88,38 +88,9 @@ PressPlay includes multiple safety mechanisms:
 
 _Coming soon (candid captures will be updated after the cinematic UI pass is finalized)._
 
-## Roadmap
-
-See [SPEC.md](SPEC.md) for the complete development plan.
-
-### Phase 1: Core Engine 
-- Compression engine with Windows API integration
-- DirectStorage detection
-- Game discovery for multiple platforms
-
-### Phase 2: Beautiful UI 
-- Implemented:
-  - Home screen with responsive game grid
-  - Reusable cinematic UI components (cards, badges, progress banner)
-  - Tokenized theme + motion primitives
-- Planned:
-  - Game details screen
-  - Settings screen
-  - Context menu and cover-art service integration
-
-### Phase 3: Automation 
-- Intelligent idle detection
-- Automatic compression workflow
-- System tray integration
-
-### Phase 4: Polish & Release 
-- Comprehensive testing
-- Performance optimization
-- Installer and distribution
-
 ## Contributing
 
-Contributions are welcome! Please read [AGENTS.md](AGENTS.md) for development guidelines.
+Contributions are welcome!
 
 ### Development Workflow
 
