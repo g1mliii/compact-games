@@ -104,12 +104,11 @@ pub fn add_application_folder(
 
     // If the user picked an executable, resolve to its parent directory.
     if folder.is_file() {
-        folder = folder
-            .parent()
-            .map(|p| p.to_path_buf())
-            .ok_or_else(|| FrbDiscoveryError::InvalidPath {
+        folder = folder.parent().map(|p| p.to_path_buf()).ok_or_else(|| {
+            FrbDiscoveryError::InvalidPath {
                 message: format!("cannot resolve parent of '{}'", folder.display()),
-            })?;
+            }
+        })?;
     }
 
     if !folder.is_dir() {

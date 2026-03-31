@@ -33,6 +33,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Check Node supply-chain guardrails
+        run: node ./scripts/check-node-supply-chain.mjs
+
       - name: Export unsupported community bundle
         env:
           PRESSPLAY_UNSUPPORTED_WORKER_URL: ${{ vars.PRESSPLAY_UNSUPPORTED_WORKER_URL || 'https://pressplay-unsupported-report-ingest.pressplay-subai.workers.dev' }}

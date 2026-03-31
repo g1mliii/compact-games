@@ -107,6 +107,7 @@ node ./scripts/export-unsupported-community-list.mjs
 From `cloudflare/unsupported-report-ingest/`:
 
 ```bash
+npm run security:check
 npm run check
 npm test
 ```
@@ -121,6 +122,13 @@ The regression suite covers:
 - per-IP rate limiting (including new reporter caps)
 - community candidates/list/release-bundle responses
 - required rate-limit schema artifacts
+
+## Dependency hygiene
+
+- Commit a lockfile with any future npm dependency change in this directory.
+- Run `npm run security:check` before merging dependency updates.
+- Review any install-time lifecycle scripts (`preinstall`, `install`, `postinstall`,
+  `prepare`) before allowing them into the repo or CI.
 
 ## Desktop app configuration
 
