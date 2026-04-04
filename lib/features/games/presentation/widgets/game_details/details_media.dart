@@ -10,6 +10,7 @@ import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/utils/platform_icon.dart';
 import '../../../../../core/widgets/status_badge.dart';
 import '../../../../../models/game_info.dart';
+import '../../../../../services/cover_art_service.dart';
 
 const double _headerHeight = 156;
 const ValueKey<String> _detailsHeaderStatusBadgeKey = ValueKey<String>(
@@ -33,6 +34,7 @@ class GameDetailsHeader extends StatelessWidget {
     required this.coverProvider,
     required this.decodeWidth,
     required this.deferred,
+    this.coverArtType,
     this.lastCompressedLabel,
     this.activityLabel,
     super.key,
@@ -49,6 +51,7 @@ class GameDetailsHeader extends StatelessWidget {
   final ImageProvider<Object>? coverProvider;
   final int decodeWidth;
   final bool deferred;
+  final CoverArtType? coverArtType;
   final String? lastCompressedLabel;
   final String? activityLabel;
 
@@ -63,7 +66,8 @@ class GameDetailsHeader extends StatelessWidget {
           children: [
             RepaintBoundary(
               child: _HeaderBackgroundArt(
-                coverProvider: coverProvider,
+                coverProvider:
+                    coverArtType == CoverArtType.icon ? null : coverProvider,
                 decodeWidth: decodeWidth,
                 deferred: deferred,
                 platform: platform,
@@ -215,6 +219,11 @@ class _HeaderBackgroundArt extends StatelessWidget {
     required this.platform,
   });
 
+  // Cached filter — Skia compiles the blur shader once per app lifetime
+  // instead of once per ImageFilter instance (which caused the "frame time
+  // older than last" vsync clamping errors on first open of each game).
+  static final _kBlur = ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8);
+
   final ImageProvider<Object>? coverProvider;
   final int decodeWidth;
   final bool deferred;
@@ -248,7 +257,7 @@ class _HeaderBackgroundArt extends StatelessWidget {
       return image;
     }
     return ImageFiltered(
-      imageFilter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+      imageFilter: _kBlur,
       child: image,
     );
   }
@@ -260,6 +269,7 @@ class GameDetailsCover extends StatelessWidget {
     required this.coverProvider,
     required this.decodeWidth,
     required this.deferred,
+    this.coverArtType,
     super.key,
   });
 
@@ -267,6 +277,7 @@ class GameDetailsCover extends StatelessWidget {
   final ImageProvider<Object>? coverProvider;
   final int decodeWidth;
   final bool deferred;
+  final CoverArtType? coverArtType;
 
   @override
   Widget build(BuildContext context) {
@@ -280,20 +291,57 @@ class GameDetailsCover extends StatelessWidget {
             color: AppColors.surfaceElevated,
             child: coverProvider == null
                 ? _CoverFallback(platform: platform)
-                : _CachedResizeImage(
-                    provider: coverProvider!,
-                    decodeWidth: decodeWidth,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    alignment: Alignment.center,
-                    filterQuality: quality,
-                    isAntiAlias: true,
-                    errorBuilder: _CoverFallback(platform: platform),
-                  ),
+                : coverArtType == CoverArtType.icon
+                    ? _IconCoverLayout(
+                        coverProvider: coverProvider!,
+                        platform: platform,
+                      )
+                    : _CachedResizeImage(
+                        provider: coverProvider!,
+                        decodeWidth: decodeWidth,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        alignment: Alignment.center,
+                        filterQuality: quality,
+                        isAntiAlias: true,
+                        errorBuilder: _CoverFallback(platform: platform),
+                      ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _IconCoverLayout extends StatelessWidget {
+  const _IconCoverLayout({
+    required this.coverProvider,
+    required this.platform,
+  });
+
+  final ImageProvider<Object> coverProvider;
+  final Platform platform;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _CoverFallback(platform: platform),
+        Center(
+          child: SizedBox(
+            width: 64,
+            height: 64,
+            child: Image(
+              image: coverProvider,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.medium,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

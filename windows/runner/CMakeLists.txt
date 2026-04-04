@@ -34,6 +34,10 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+# winmm.lib provides timeBeginPeriod/timeEndPeriod — required to reduce the
+# Windows default timer granularity from ~15.6 ms to 1 ms so that DWM VSync
+# timestamps are precise enough that Flutter never sees them go backwards.
+target_link_libraries(${BINARY_NAME} PRIVATE "winmm.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

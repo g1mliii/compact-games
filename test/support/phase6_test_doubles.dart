@@ -232,6 +232,9 @@ class _TestRustBridgeService implements RustBridgeService {
 
   @override
   Future<int> fetchCommunityUnsupportedList() async => 0;
+
+  @override
+  Uint8List? extractExeIcon({required String exePath}) => null;
 }
 
 class _DelayedActivityRustBridgeService extends _TestRustBridgeService {
@@ -364,6 +367,7 @@ class _RecordingCoverArtService extends CoverArtService {
   Future<CoverArtResult> resolveCover(
     GameInfo game, {
     String? steamGridDbApiKey,
+    RustBridgeService? rustBridge,
   }) async {
     return const CoverArtResult.none();
   }
@@ -379,6 +383,7 @@ class _VersionedSameUriCoverArtService extends CoverArtService {
   Future<CoverArtResult> resolveCover(
     GameInfo game, {
     String? steamGridDbApiKey,
+    RustBridgeService? rustBridge,
   }) async {
     return CoverArtResult(
       uri: coverUri,

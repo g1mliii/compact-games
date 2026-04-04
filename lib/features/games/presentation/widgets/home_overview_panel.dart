@@ -50,6 +50,13 @@ class _HomeOverviewPanelShellState extends State<HomeOverviewPanel> {
   Widget? _cachedChild;
 
   @override
+  void dispose() {
+    _cachedLayout = null;
+    _cachedChild = null;
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
     final layout = (
@@ -97,6 +104,13 @@ class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
   int? _cachedSignature;
   Widget? _cachedChild;
   bool _manuallyCollapsed = false;
+
+  @override
+  void dispose() {
+    _cachedSignature = null;
+    _cachedChild = null;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

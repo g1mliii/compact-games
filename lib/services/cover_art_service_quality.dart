@@ -2,8 +2,8 @@ part of 'cover_art_service.dart';
 
 const int _preferredCoverMinWidth = 300;
 const int _preferredCoverMinHeight = 300;
-const double _preferredCoverAspectMin = 0.62;
-const double _preferredCoverAspectMax = 1.08;
+const double _preferredCoverAspectMin = 0.5;
+const double _preferredCoverAspectMax = 2.2;
 const int _imageHeaderMaxReadBytes = 512 * 1024;
 
 const Set<int> _jpegSofMarkers = <int>{
@@ -32,16 +32,6 @@ extension _CoverArtServiceQuality on CoverArtService {
     }
     final localPath = _filePathFromUri(cached.uri);
     if (localPath == null) {
-      return false;
-    }
-    return !(await _isPreferredCardCover(localPath));
-  }
-
-  Future<bool> _needsApiUpgradeForPath(
-    String localPath, {
-    required String? apiKey,
-  }) async {
-    if (!_isApiEnabled(apiKey)) {
       return false;
     }
     return !(await _isPreferredCardCover(localPath));
@@ -96,9 +86,6 @@ extension _CoverArtServiceQuality on CoverArtService {
 
   bool _isPreferredCardCoverSize(int width, int height) {
     if (width < _preferredCoverMinWidth || height < _preferredCoverMinHeight) {
-      return false;
-    }
-    if (height <= width) {
       return false;
     }
     final aspect = width / height;

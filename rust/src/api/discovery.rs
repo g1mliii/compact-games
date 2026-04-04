@@ -309,4 +309,88 @@ mod tests {
         assert!(!hidden_paths::should_hide(&content_dir, &hidden_token));
         assert!(install_history::max_observed_size(&content_dir).is_none());
     }
+
+    #[test]
+    fn scan_custom_folder_returns_custom_platform_for_detected_install() {
+        let _guard = lock_discovery_test();
+        clear_discovery_cache();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path().join("Cairn");
+        let data = root.join("Cairn_Data");
+        fs::create_dir_all(&data).unwrap();
+        File::create(root.join("Cairn.exe"))
+            .unwrap()
+            .set_len(512 * 1024)
+            .unwrap();
+        File::create(data.join("globalgamemanagers"))
+            .unwrap()
+            .set_len(2 * 1024 * 1024)
+            .unwrap();
+
+        let games = scan_custom_folder(root.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(games.len(), 1);
+        let game = &games[0];
+        assert_eq!(game.platform, FrbPlatform::Custom);
+        assert_eq!(PathBuf::from(&game.path), root);
+        assert_eq!(game.name, "Cairn");
+        assert!(game.size_bytes > 0);
+    }
+
+    #[test]
+    fn add_application_folder_returns_application_platform_for_exe_parent() {
+        let _guard = lock_discovery_test();
+        clear_discovery_cache();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let app_dir = temp.path().join("Toolbox");
+        fs::create_dir_all(&app_dir).unwrap();
+        File::create(app_dir.join("toolbox.exe"))
+            .unwrap()
+            .set_len(128 * 1024)
+            .unwrap();
+        File::create(app_dir.join("payload.bin"))
+            .unwrap()
+            .set_len(4 * 1024 * 1024)
+            .unwrap();
+
+        let app = add_application_folder(
+            app_dir.join("toolbox.exe").to_string_lossy().into_owned(),
+            Some("Toolbox".to_owned()),
+        )
+        .unwrap();
+
+        assert_eq!(app.platform, FrbPlatform::Application);
+        assert_eq!(PathBuf::from(&app.path), app_dir);
+        assert_eq!(app.name, "Toolbox");
+        assert!(app.size_bytes > 0);
+    }
+
+    #[test]
+    fn hydrate_game_preserves_xbox_platform_and_root_path() {
+        let _guard = lock_discovery_test();
+        clear_discovery_cache();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let game_dir = temp.path().join("Microsoft.HaloInfinite");
+        let content_dir = game_dir.join("Content");
+        fs::create_dir_all(&content_dir).unwrap();
+        File::create(content_dir.join("content.bin"))
+            .unwrap()
+            .set_len(700 * 1024 * 1024)
+            .unwrap();
+
+        let hydrated = hydrate_game(
+            game_dir.to_string_lossy().into_owned(),
+            "Halo Infinite".to_owned(),
+            FrbPlatform::XboxGamePass,
+        )
+        .unwrap()
+        .expect("xbox install should hydrate successfully");
+
+        assert_eq!(hydrated.platform, FrbPlatform::XboxGamePass);
+        assert_eq!(PathBuf::from(&hydrated.path), game_dir);
+        assert_eq!(hydrated.name, "Halo Infinite");
+        assert!(hydrated.size_bytes >= 700 * 1024 * 1024);
+    }
 }

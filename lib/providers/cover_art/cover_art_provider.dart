@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/cover_art_service.dart';
+import '../games/game_list_provider.dart';
 import '../games/single_game_provider.dart';
 import '../settings/settings_provider.dart';
 
@@ -55,5 +56,10 @@ final coverArtProvider = FutureProvider.autoDispose
         return const CoverArtResult.none();
       }
       final service = ref.read(coverArtServiceProvider);
-      return service.resolveCover(game, steamGridDbApiKey: apiKey);
+      final bridge = ref.read(rustBridgeServiceProvider);
+      return service.resolveCover(
+        game,
+        steamGridDbApiKey: apiKey,
+        rustBridge: bridge,
+      );
     });

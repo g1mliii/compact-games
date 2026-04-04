@@ -127,6 +127,9 @@ class _BaseRustBridgeService implements RustBridgeService {
   Future<int> fetchCommunityUnsupportedList() async => 0;
 
   @override
+  Uint8List? extractExeIcon({required String exePath}) => null;
+
+  @override
   Future<List<GameInfo>> scanCustomFolder(String path) async {
     return const <GameInfo>[];
   }
@@ -464,14 +467,19 @@ class _CancelledErrorRustBridgeService extends _BaseRustBridgeService {
 }
 
 class _DelayedActivityRustBridgeService extends _StaticRustBridgeService {
-  _DelayedActivityRustBridgeService({required super.games})
+  _DelayedActivityRustBridgeService({required super.games, this.hydratedGame})
     : _compressionController = StreamController<CompressionProgress>(),
-      _decompressionController = StreamController<CompressionProgress>();
+      _decompressionController = StreamController<CompressionProgress>(),
+      _automationQueueController =
+          StreamController<List<AutomationJob>>.broadcast();
 
   final StreamController<CompressionProgress> _compressionController;
   final StreamController<CompressionProgress> _decompressionController;
+  final StreamController<List<AutomationJob>> _automationQueueController;
+  GameInfo? hydratedGame;
   int compressCalls = 0;
   int decompressCalls = 0;
+  int persistCompressionHistoryCalls = 0;
   bool? lastAllowDirectStorageOverride;
 
   @override
@@ -495,6 +503,25 @@ class _DelayedActivityRustBridgeService extends _StaticRustBridgeService {
   }) {
     decompressCalls += 1;
     return _decompressionController.stream;
+  }
+
+  @override
+  Future<GameInfo?> hydrateGame({
+    required String gamePath,
+    required String gameName,
+    required Platform platform,
+  }) async {
+    return hydratedGame;
+  }
+
+  @override
+  Stream<List<AutomationJob>> watchAutomationQueue() {
+    return _automationQueueController.stream;
+  }
+
+  @override
+  void persistCompressionHistory() {
+    persistCompressionHistoryCalls += 1;
   }
 
   void emitCompressionProgress({
@@ -536,9 +563,20 @@ class _DelayedActivityRustBridgeService extends _StaticRustBridgeService {
     unawaited(_decompressionController.close());
   }
 
+  void emitAutomationQueue(List<AutomationJob> jobs) {
+    if (_automationQueueController.isClosed) {
+      return;
+    }
+    _automationQueueController.add(jobs);
+  }
+
   void disposeStreams() {
     finishCompression();
     finishDecompression();
+    if (_automationQueueController.isClosed) {
+      return;
+    }
+    unawaited(_automationQueueController.close());
   }
 }
 

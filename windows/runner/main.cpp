@@ -1,5 +1,6 @@
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
+#include <timeapi.h>
 #include <windows.h>
 
 #include "flutter_window.h"
@@ -7,6 +8,13 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // Reduce the Windows multimedia timer granularity from the default ~15.6 ms
+  // to 1 ms for the lifetime of this process. Without this, DWM VSync
+  // timestamps are coarse enough to occasionally appear out-of-order to the
+  // Flutter engine, producing "Reported frame time is older than the last one;
+  // clamping" errors — especially on high-refresh-rate monitors.
+  ::timeBeginPeriod(1);
+
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
@@ -18,7 +26,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
   flutter::DartProject project(L"data");
-
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
 
@@ -26,7 +33,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
-  Win32Window::Size size(1280, 720);
+  // Keep the initial native window size aligned with the Dart-side
+  // window_manager startup options to avoid early surface churn.
+  Win32Window::Size size(1200, 800);
   if (!window.Create(L"pressplay", origin, size)) {
     return EXIT_FAILURE;
   }
@@ -39,5 +48,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   ::CoUninitialize();
+  ::timeEndPeriod(1);
   return EXIT_SUCCESS;
 }

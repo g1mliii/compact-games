@@ -39,7 +39,6 @@ impl CompressionEngine {
             scanned_files: totals.scanned_files,
             sampled_bytes: totals.sampled_bytes,
             estimated_saved_bytes: totals.estimated_saved_bytes,
-            artwork_candidate_path: totals.artwork_candidate.map(|c| c.path),
             executable_candidate_path: totals.executable_candidate.map(|c| c.path),
         })
     }
@@ -74,7 +73,6 @@ impl CompressionEngine {
             scanned_files: totals.scanned_files,
             sampled_bytes: totals.sampled_bytes,
             estimated_saved_bytes: totals.estimated_saved_bytes,
-            artwork_candidate_path: totals.artwork_candidate.map(|c| c.path),
             executable_candidate_path: totals.executable_candidate.map(|c| c.path),
         })
     }
@@ -96,7 +94,6 @@ impl CompressionEngine {
             scanned_files: totals.scanned_files,
             sampled_bytes: totals.sampled_bytes,
             estimated_saved_bytes: totals.estimated_saved_bytes,
-            artwork_candidate_path: totals.artwork_candidate.map(|c| c.path),
             executable_candidate_path: totals.executable_candidate.map(|c| c.path),
         })
     }
@@ -118,7 +115,6 @@ impl CompressionEngine {
             scanned_files: totals.scanned_files,
             sampled_bytes: totals.sampled_bytes,
             estimated_saved_bytes: totals.estimated_saved_bytes,
-            artwork_candidate_path: totals.artwork_candidate.map(|c| c.path),
             executable_candidate_path: totals.executable_candidate.map(|c| c.path),
         })
     }
@@ -172,13 +168,6 @@ impl CompressionEngine {
                     sampled_bytes: file_size,
                     ..EstimateTotals::default()
                 };
-                if let Some(score) = artwork_score(path) {
-                    totals.artwork_candidate = Some(EstimateCandidate {
-                        score,
-                        path: path.to_path_buf(),
-                        path_len: path.as_os_str().len(),
-                    });
-                }
                 if let Some(score) = executable_score(path, file_size) {
                     totals.executable_candidate = Some(EstimateCandidate {
                         score,
@@ -232,13 +221,6 @@ impl CompressionEngine {
                     sampled_bytes: file_size,
                     ..EstimateTotals::default()
                 };
-                if let Some(score) = artwork_score(path) {
-                    totals.artwork_candidate = Some(EstimateCandidate {
-                        score,
-                        path: path.to_path_buf(),
-                        path_len: path.as_os_str().len(),
-                    });
-                }
                 if let Some(score) = executable_score(path, file_size) {
                     totals.executable_candidate = Some(EstimateCandidate {
                         score,
@@ -262,54 +244,6 @@ impl CompressionEngine {
 
         Ok(totals)
     }
-}
-
-fn artwork_score(path: &Path) -> Option<u16> {
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(|e| e.to_ascii_lowercase())?;
-    if !matches!(
-        ext.as_str(),
-        "jpg" | "jpeg" | "png" | "webp" | "bmp" | "ico"
-    ) {
-        return None;
-    }
-
-    let name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_ascii_lowercase())
-        .unwrap_or_default();
-    let mut score = 0;
-    if name.contains("cover") {
-        score += 45;
-    }
-    if name.contains("library_600x900") {
-        score += 45;
-    }
-    if name.contains("capsule") {
-        score += 40;
-    }
-    if name.contains("poster") {
-        score += 35;
-    }
-    if name.contains("banner") {
-        score += 28;
-    }
-    if name.contains("hero") {
-        score += 22;
-    }
-    if name.contains("logo") || name.contains("icon") {
-        score += 14;
-    }
-    if score == 0 {
-        return None;
-    }
-    if ext == "jpg" || ext == "png" {
-        score += 5;
-    }
-    Some(score)
 }
 
 fn executable_score(path: &Path, file_size: u64) -> Option<u16> {

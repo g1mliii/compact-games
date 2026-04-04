@@ -13,6 +13,7 @@ import 'core/performance/perf_monitor.dart';
 import 'core/performance/pressplay_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
+import 'services/rust_library_candidates.dart';
 import 'services/startup_window_coordinator.dart';
 import 'services/tray_service.dart';
 import 'services/window_close_coordinator.dart';
@@ -169,16 +170,11 @@ void _safeDisposeRustLib() {
 }
 
 List<String> _rustLibraryCandidates() {
-  const releaseDll = 'rust/target/release/pressplay_core.dll';
-  const debugDll = 'rust/target/debug/pressplay_core.dll';
-
-  if (kReleaseMode) {
-    return const [releaseDll];
-  }
-
-  return _preferDebugRustDll
-      ? const [debugDll, releaseDll]
-      : const [releaseDll, debugDll];
+  return buildRustLibraryCandidates(
+    isReleaseMode: kReleaseMode,
+    isProfileMode: kProfileMode,
+    preferDebugRustDll: _preferDebugRustDll,
+  );
 }
 
 class _RustBridgeReloadHost extends StatefulWidget {

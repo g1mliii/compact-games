@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../models/game_info.dart';
+import '../../../../services/cover_art_service.dart';
 
 class GameCard extends StatelessWidget {
   const GameCard({
@@ -24,6 +25,7 @@ class GameCard extends StatelessWidget {
     this.isUnsupported = false,
     this.estimatedSavedBytes,
     this.lastCompressedText,
+    this.coverArtType,
     this.assumeBoundedHeight = true,
     this.onTap,
     this.onSecondaryTapDown,
@@ -42,6 +44,7 @@ class GameCard extends StatelessWidget {
   final bool isUnsupported;
   final int? estimatedSavedBytes;
   final String? lastCompressedText;
+  final CoverArtType? coverArtType;
   final bool assumeBoundedHeight;
   final VoidCallback? onTap;
   final GestureTapDownCallback? onSecondaryTapDown;
@@ -124,13 +127,34 @@ class GameCard extends StatelessWidget {
   }
 
   Widget _buildCoverContent(BuildContext context) {
-    // Prefer explicit provider (all production callers pass this).
     if (coverImageProvider != null) {
+      if (coverArtType == CoverArtType.icon) {
+        return _buildIconCover(context, coverImageProvider!);
+      }
       return _buildImageWithProvider(context, coverImageProvider!);
     }
-
-    // Fallback placeholder when no provider is available.
     return _buildPlaceholderCover();
+  }
+
+  Widget _buildIconCover(BuildContext context, ImageProvider provider) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildPlaceholderCover(),
+        Center(
+          child: SizedBox(
+            width: 64,
+            height: 64,
+            child: Image(
+              image: provider,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.medium,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildImageWithProvider(BuildContext context, ImageProvider provider) {
@@ -330,20 +354,35 @@ class GameCard extends StatelessWidget {
     final timestamp = lastCompressedText?.trim();
     return Row(
       children: [
-        Text(
-          l10n.commonGigabytes(compressedGB.toStringAsFixed(1)),
-          style: AppTypography.monoSmall.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '/ ${l10n.commonGigabytes(sizeGB.toStringAsFixed(1))}',
-          style: AppTypography.bodySmall.copyWith(
-            fontSize: 12,
-            fontFamilyFallback: AppTypography.monoFontFallback,
-            decoration: TextDecoration.lineThrough,
-            color: AppColors.textSecondary,
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  l10n.commonGigabytes(compressedGB.toStringAsFixed(1)),
+                  style: AppTypography.monoSmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  '/ ${l10n.commonGigabytes(sizeGB.toStringAsFixed(1))}',
+                  style: AppTypography.bodySmall.copyWith(
+                    fontSize: 12,
+                    fontFamilyFallback: AppTypography.monoFontFallback,
+                    decoration: TextDecoration.lineThrough,
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
         if (timestamp != null && timestamp.isNotEmpty) ...[

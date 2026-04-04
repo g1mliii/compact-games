@@ -4,6 +4,10 @@ import 'package:flutter/painting.dart';
 
 import '../../services/cover_art_service.dart';
 
+CoverArtType? coverArtTypeFromSource(CoverArtSource source) {
+  return source == CoverArtSource.exeIcon ? CoverArtType.icon : null;
+}
+
 ImageProvider<Object>? imageProviderFromCover(CoverArtResult? result) {
   final uriText = result?.uri;
   if (uriText == null || uriText.isEmpty) {

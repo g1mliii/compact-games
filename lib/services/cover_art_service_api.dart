@@ -13,9 +13,11 @@ const List<String> _steamGridDimensionPreference = <String>[
   '342x482',
   '660x930',
   '600x900',
+  '460x215',
+  '920x430',
 ];
-const double _steamGridPreferredAspectMin = 0.69;
-const double _steamGridPreferredAspectMax = 1.10;
+const double _steamGridPreferredAspectMin = 0.5;
+const double _steamGridPreferredAspectMax = 2.5;
 
 int _activeApiRequests = 0;
 final Queue<Completer<void>> _apiPermitQueue = Queue<Completer<void>>();

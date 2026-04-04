@@ -51,7 +51,6 @@ pub struct CompressionEstimate {
     pub scanned_files: u64,
     pub sampled_bytes: u64,
     pub estimated_saved_bytes: u64,
-    pub artwork_candidate_path: Option<PathBuf>,
     pub executable_candidate_path: Option<PathBuf>,
 }
 
@@ -120,7 +119,6 @@ struct EstimateTotals {
     sampled_bytes: u64,
     estimated_saved_bytes: u64,
     saw_cancel: bool,
-    artwork_candidate: Option<EstimateCandidate>,
     executable_candidate: Option<EstimateCandidate>,
 }
 
@@ -140,10 +138,6 @@ impl EstimateTotals {
                 .estimated_saved_bytes
                 .saturating_add(other.estimated_saved_bytes),
             saw_cancel: self.saw_cancel || other.saw_cancel,
-            artwork_candidate: select_best_candidate(
-                self.artwork_candidate,
-                other.artwork_candidate,
-            ),
             executable_candidate: select_best_candidate(
                 self.executable_candidate,
                 other.executable_candidate,

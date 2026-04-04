@@ -12,7 +12,9 @@ import 'core/constants/app_constants.dart';
 import 'core/widgets/desktop_window_frame.dart';
 import 'features/games/presentation/widgets/compression_activity_overlay.dart';
 import 'providers/automation/automation_settings_sync.dart';
+import 'providers/compression/completed_game_refresh.dart';
 import 'models/watcher_event.dart';
+import 'models/automation_state.dart';
 import 'providers/games/game_list_provider.dart';
 import 'providers/localization/locale_provider.dart';
 import 'providers/system/route_state_provider.dart';
@@ -88,6 +90,9 @@ class _EffectProviderHost extends ConsumerStatefulWidget {
 
 class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
   StreamSubscription<WatcherEvent>? _watcherEventsSub;
+  StreamSubscription<List<AutomationJob>>? _automationQueueSub;
+  Map<String, AutomationJobStatus> _automationStatusesByKey =
+      <String, AutomationJobStatus>{};
 
   @override
   void initState() {
@@ -108,6 +113,14 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
       // Tests and partially initialized startup paths may not have FRB ready.
       _watcherEventsSub = null;
     }
+    try {
+      _automationQueueSub = ref
+          .read(rustBridgeServiceProvider)
+          .watchAutomationQueue()
+          .listen(_handleAutomationQueueUpdate);
+    } catch (_) {
+      _automationQueueSub = null;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -116,7 +129,9 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
       UnsupportedReportSyncService.instance.notePotentialChange(container);
       unawaited(() async {
         try {
-          await ref.read(rustBridgeServiceProvider).fetchCommunityUnsupportedList();
+          await ref
+              .read(rustBridgeServiceProvider)
+              .fetchCommunityUnsupportedList();
         } catch (_) {
           // Best effort; cache/interval handled in Rust.
         }
@@ -127,7 +142,39 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
   @override
   void dispose() {
     unawaited(_watcherEventsSub?.cancel());
+    unawaited(_automationQueueSub?.cancel());
     super.dispose();
+  }
+
+  void _handleAutomationQueueUpdate(List<AutomationJob> jobs) {
+    final previousStatuses = _automationStatusesByKey;
+    final nextStatuses = <String, AutomationJobStatus>{};
+
+    for (final job in jobs) {
+      final key = _automationJobKey(job);
+      nextStatuses[key] = job.status;
+
+      final previousStatus = previousStatuses[key];
+      if (job.status != AutomationJobStatus.completed ||
+          previousStatus == null ||
+          previousStatus == AutomationJobStatus.completed) {
+        continue;
+      }
+
+      unawaited(
+        refreshCompletedCompressionGame(
+          read: ref.read,
+          gamePath: job.gamePath,
+          completedAt: DateTime.now(),
+        ),
+      );
+    }
+
+    _automationStatusesByKey = nextStatuses;
+  }
+
+  String _automationJobKey(AutomationJob job) {
+    return '${job.gamePath.toLowerCase()}|${job.kind.name}|${job.queuedAt.microsecondsSinceEpoch}';
   }
 
   @override

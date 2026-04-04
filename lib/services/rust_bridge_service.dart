@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:typed_data';
 
 import '../models/automation_state.dart';
 import '../models/game_info.dart';
@@ -13,6 +14,7 @@ import '../src/rust/api/automation_types.dart' as rust_automation_types;
 import '../src/rust/api/compression.dart' as rust_compression;
 import '../src/rust/api/discovery.dart' as rust_discovery;
 import '../src/rust/api/unsupported.dart' as rust_unsupported;
+import '../src/rust/api/icon.dart' as rust_icon;
 import '../src/rust/frb_generated.dart';
 import '../src/rust/api/minimal.dart' as rust_minimal;
 import '../src/rust/api/types.dart' as rust_types;
@@ -233,6 +235,11 @@ class RustBridgeService {
     return rust_unsupported.syncUnsupportedReportCollection(
       appVersion: appVersion,
     );
+  }
+
+  /// Extract the primary icon from a Windows EXE as a PNG image.
+  Uint8List? extractExeIcon({required String exePath}) {
+    return rust_icon.extractExeIcon(exePath: exePath);
   }
 
   Future<int> fetchCommunityUnsupportedList() {

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/localization/app_localization.dart';
+import '../../../../core/performance/ui_memory_lifecycle.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/cover_art_utils.dart';
 import '../../../../core/utils/date_time_format.dart';
@@ -32,7 +33,18 @@ class GameCardAdapter extends ConsumerStatefulWidget {
   ConsumerState<GameCardAdapter> createState() => _GameCardAdapterState();
 }
 
-class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
+class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
+    with AutomaticKeepAliveClientMixin {
+  /// Keep the card alive when it has completed hydration work (cover art or
+  /// estimate fetched), so scrolling back doesn't re-trigger async work.
+  /// Gated by image cache budget to avoid unbounded memory growth.
+  static const int _keepAliveCacheBudget = 150 * 1024 * 1024; // 150 MB
+
+  @override
+  bool get wantKeepAlive =>
+      (_cachedCoverUri != null || _cachedEstimate != null) &&
+      UiMemoryLifecycle.currentImageCacheBytes < _keepAliveCacheBudget;
+
   static const double _contextMenuMinWidth = 184;
   static const double _contextMenuMaxWidth = 208;
   static const ValueKey<String> _dangerDividerKey = ValueKey<String>(
@@ -41,6 +53,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   static const ValueKey<String> _cardContentKey = ValueKey<String>(
     'gameCardAdapterContent',
   );
+  final FocusNode _focusNode = FocusNode();
   bool _hydrationRequested = false;
   bool _hydrationRequestScheduled = false;
   bool _estimateFetchScheduled = false;
@@ -53,11 +66,11 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   int _cachedCoverRevision = 0;
   ImageProvider<Object>? _cachedCoverImageProvider;
 
-  // Mutable reference for the stable action callbacks below.
-  GameInfo? _currentGame;
+  /// Read the current game fresh from the provider. Used by keyboard action
+  /// callbacks so they never act on a stale cached reference.
+  GameInfo? _readCurrentGame() =>
+      ref.read(singleGameProvider(widget.gamePath));
 
-  // Stable action map — created once per state, callbacks read the latest
-  // selected game and fetch any dynamic settings at invoke time.
   static const _shortcuts = <ShortcutActivator, Intent>{
     SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
     SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true):
@@ -74,42 +87,42 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   late final Map<Type, Action<Intent>> _actions = <Type, Action<Intent>>{
     ActivateIntent: CallbackAction<ActivateIntent>(
       onInvoke: (_) {
-        final game = _currentGame;
+        final game = _readCurrentGame();
         if (game != null) unawaited(_onGameTap(game));
         return null;
       },
     ),
     CompressIntent: CallbackAction<CompressIntent>(
       onInvoke: (_) {
-        final game = _currentGame;
+        final game = _readCurrentGame();
         if (game != null) unawaited(_onGameTap(game));
         return null;
       },
     ),
     ExcludeIntent: CallbackAction<ExcludeIntent>(
       onInvoke: (_) {
-        final game = _currentGame;
+        final game = _readCurrentGame();
         if (game != null) _toggleExclusion(game);
         return null;
       },
     ),
     OpenFolderIntent: CallbackAction<OpenFolderIntent>(
       onInvoke: (_) {
-        final game = _currentGame;
+        final game = _readCurrentGame();
         if (game != null) unawaited(_openFolder(game.path));
         return null;
       },
     ),
     OpenDetailsIntent: CallbackAction<OpenDetailsIntent>(
       onInvoke: (_) {
-        final game = _currentGame;
+        final game = _readCurrentGame();
         if (game != null) _openDetails(game.path);
         return null;
       },
     ),
     ContextMenuIntent: CallbackAction<ContextMenuIntent>(
       onInvoke: (_) {
-        final game = _currentGame;
+        final game = _readCurrentGame();
         if (game != null) {
           unawaited(_showContextMenu(game: game));
         }
@@ -117,6 +130,12 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       },
     ),
   };
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(covariant GameCardAdapter oldWidget) {
@@ -137,6 +156,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
     // Select only the fields actually rendered on the card so this widget does
     // not rebuild when unrelated GameInfo fields (e.g. excluded, lastPlayed)
     // change. A null selector result means the game was removed from the list.
@@ -158,14 +178,17 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       }),
     );
     if (cardData == null) return const SizedBox.shrink();
-    // Keep a full GameInfo reference for action callbacks that need it; read
-    // it imperatively so it does not trigger extra rebuilds.
+    // Read imperatively for estimate prefetch and context menu closures.
     final game = ref.read(singleGameProvider(widget.gamePath));
     if (game == null) return const SizedBox.shrink();
     final coverSnapshot = ref.watch(
       coverArtProvider(widget.gamePath).select((value) {
         final result = value.valueOrNull;
-        return (uri: result?.uri, revision: result?.revision ?? 0);
+        return (
+          uri: result?.uri,
+          revision: result?.revision ?? 0,
+          source: result?.source ?? CoverArtSource.none,
+        );
       }),
     );
     final allowDirectStorageOverride = ref.watch(
@@ -175,16 +198,15 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       ),
     );
 
-    // Update the mutable reference for the stable action callbacks.
-    _currentGame = game;
-
     _scheduleHydrationRequest();
     if (_isEstimatePrefetchAllowed(context)) {
       _scheduleEstimateFetch(game, allowDirectStorageOverride);
     }
     final coverImageProvider = _coverImageProviderFor(coverSnapshot);
+    final coverArtType = coverArtTypeFromSource(coverSnapshot.source);
     return FocusableActionDetector(
       key: _cardContentKey,
+      focusNode: _focusNode,
       shortcuts: _shortcuts,
       actions: _actions,
       mouseCursor: SystemMouseCursors.click,
@@ -205,6 +227,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
         lastCompressedText: _lastCompressedText(game),
         assumeBoundedHeight: true,
         coverImageProvider: coverImageProvider,
+        coverArtType: coverArtType,
         heroTag: null,
         onTap: () => unawaited(_showContextMenu(game: game)),
         onSecondaryTapDown: (details) =>
@@ -235,7 +258,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   }
 
   ImageProvider<Object>? _coverImageProviderFor(
-    ({String? uri, int revision}) coverSnapshot,
+    ({String? uri, int revision, CoverArtSource source}) coverSnapshot,
   ) {
     final coverUri = coverSnapshot.uri;
     final coverRevision = coverSnapshot.revision;
@@ -446,7 +469,10 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
       ],
     );
 
-    if (!mounted || action == null) return;
+    if (!mounted) return;
+    // Restore keyboard focus to this card after menu dismissal.
+    if (_focusNode.canRequestFocus) _focusNode.requestFocus();
+    if (action == null) return;
     switch (action) {
       case GameContextAction.viewDetails:
         _openDetails(game.path);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -865,6 +866,195 @@ void main() {
       expect(bridge.updateAutomationConfigCalls, greaterThan(0));
       expect(bridge.startAutoCompressionCalls, greaterThan(0));
       expect(bridge.lastAutomationAllowDirectStorageOverride, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Automation settings sync ignores discovery updates that do not change watch paths',
+    (WidgetTester tester) async {
+      final bridge = _RecordingRustBridgeService(games: _sampleGames);
+      final persistence = _FixedSettingsPersistence(
+        const AppSettings(autoCompress: true),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const PressPlayApp(),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final initialUpdateCalls = bridge.updateAutomationConfigCalls;
+      final initialStartCalls = bridge.startAutoCompressionCalls;
+      expect(initialUpdateCalls, greaterThan(0));
+      expect(initialStartCalls, 1);
+
+      final updatedGame = _sampleGames.first.copyWith(
+        isCompressed: true,
+        compressedSize: () => 32 * _oneGiB,
+        lastCompressedAt: () => DateTime(2026, 4, 4, 0, 0),
+      );
+      container.read(gameListProvider.notifier).updateGame(updatedGame);
+      await tester.pumpAndSettle();
+
+      expect(bridge.updateAutomationConfigCalls, initialUpdateCalls);
+      expect(bridge.startAutoCompressionCalls, initialStartCalls);
+    },
+  );
+
+  testWidgets(
+    'Manual compression completion preserves fresh last-compressed timestamp when hydration is stale',
+    (WidgetTester tester) async {
+      final originalGame = GameInfo(
+        name: 'Counter-Strike 2',
+        path:
+            r'C:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive',
+        platform: Platform.steam,
+        sizeBytes: 40 * _oneGiB,
+        compressedSize: 30 * _oneGiB,
+        isCompressed: true,
+        lastCompressedAt: DateTime(2026, 2, 16, 17, 36),
+      );
+      final staleHydratedGame = originalGame.copyWith(
+        compressedSize: () => 28 * _oneGiB,
+      );
+      final bridge = _DelayedActivityRustBridgeService(
+        games: [originalGame],
+        hydratedGame: staleHydratedGame,
+      );
+      addTearDown(bridge.disposeStreams);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const PressPlayApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final completionStart = DateTime.now();
+      await container
+          .read(compressionProvider.notifier)
+          .startCompression(
+            gamePath: originalGame.path,
+            gameName: originalGame.name,
+          );
+      bridge.emitCompressionProgress(
+        gameName: originalGame.name,
+        filesProcessed: 10,
+        filesTotal: 10,
+        bytesOriginal: 100,
+        bytesCompressed: 60,
+      );
+      bridge.finishCompression();
+      await tester.pumpAndSettle();
+
+      final refreshedGame = container
+          .read(gameListProvider)
+          .valueOrNull!
+          .games
+          .firstWhere((game) => game.path == originalGame.path);
+
+      expect(bridge.persistCompressionHistoryCalls, 1);
+      expect(refreshedGame.isCompressed, isTrue);
+      expect(refreshedGame.compressedSize, 28 * _oneGiB);
+      expect(refreshedGame.lastCompressed, isNotNull);
+      expect(
+        refreshedGame.lastCompressed!.isAfter(completionStart) ||
+            refreshedGame.lastCompressed!.isAtSameMomentAs(completionStart),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'Automation compression completion preserves fresh last-compressed timestamp when hydration is stale',
+    (WidgetTester tester) async {
+      final originalGame = GameInfo(
+        name: 'Counter-Strike 2',
+        path:
+            r'C:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive',
+        platform: Platform.steam,
+        sizeBytes: 40 * _oneGiB,
+        compressedSize: 30 * _oneGiB,
+        isCompressed: true,
+        lastCompressedAt: DateTime(2026, 2, 16, 17, 36),
+      );
+      final staleHydratedGame = originalGame.copyWith(
+        compressedSize: () => 28 * _oneGiB,
+      );
+      final bridge = _DelayedActivityRustBridgeService(
+        games: [originalGame],
+        hydratedGame: staleHydratedGame,
+      );
+      addTearDown(bridge.disposeStreams);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const PressPlayApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final completionStart = DateTime.now();
+      final queuedAt = DateTime(2026, 4, 4, 1, 15);
+      bridge.emitAutomationQueue([
+        AutomationJob(
+          gamePath: originalGame.path,
+          gameName: originalGame.name,
+          kind: AutomationJobKind.reconcile,
+          status: AutomationJobStatus.compressing,
+          queuedAt: queuedAt,
+          startedAt: queuedAt.add(const Duration(minutes: 1)),
+        ),
+      ]);
+      await tester.pump();
+
+      bridge.emitAutomationQueue([
+        AutomationJob(
+          gamePath: originalGame.path,
+          gameName: originalGame.name,
+          kind: AutomationJobKind.reconcile,
+          status: AutomationJobStatus.completed,
+          queuedAt: queuedAt,
+          startedAt: queuedAt.add(const Duration(minutes: 1)),
+        ),
+      ]);
+      await tester.pumpAndSettle();
+
+      final refreshedGame = container
+          .read(gameListProvider)
+          .valueOrNull!
+          .games
+          .firstWhere((game) => game.path == originalGame.path);
+
+      expect(bridge.persistCompressionHistoryCalls, 1);
+      expect(refreshedGame.isCompressed, isTrue);
+      expect(refreshedGame.compressedSize, 28 * _oneGiB);
+      expect(refreshedGame.lastCompressed, isNotNull);
+      expect(
+        refreshedGame.lastCompressed!.isAfter(completionStart) ||
+            refreshedGame.lastCompressed!.isAtSameMomentAs(completionStart),
+        isTrue,
+      );
     },
   );
 

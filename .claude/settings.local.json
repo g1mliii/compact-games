@@ -47,7 +47,9 @@
       "Bash(ls resources:*)",
       "WebFetch(domain:www.steamgriddb.com)",
       "WebFetch(domain:steamcommunity.com)",
-      "Bash(flutter gen-l10n:*)"
+      "Bash(flutter gen-l10n:*)",
+      "Read(//c/Users/subai/Documents/compact games/**)",
+      "Bash(dart:*)"
     ]
   },
   "prefersReducedMotion": true

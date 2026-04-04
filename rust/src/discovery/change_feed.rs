@@ -12,6 +12,8 @@ const CHANGE_FEED_FILE_NAME: &str = "discovery_change_feed.json";
 const CHANGE_FEED_SCHEMA_VERSION: u32 = 1;
 const MAX_TRACKED_ROOT_ENTRIES: usize = 32_768;
 const MAX_TRACKED_ROOTS: usize = 256;
+/// Force a full rebuild if the last successful full scan was more than 24 hours ago.
+const MAX_BASELINE_AGE_MS: u64 = 24 * 60 * 60 * 1000;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PathFingerprint {
@@ -168,6 +170,28 @@ pub fn plan_subdir_scan(
             deleted: Vec::new(),
             scan_path: ScanPath::FullRebuild,
             reason: "no-baseline",
+            root_key,
+            snapshot_entries,
+        };
+    }
+
+    // Force a full rebuild if the baseline is explicitly stale (>24h since
+    // last full scan). A missing timestamp (None) means no full scan has been
+    // recorded yet — defer to the normal diff logic rather than forcing a rebuild.
+    let baseline_stale = with_change_feed_read(|feed| {
+        feed.last_successful_full_scan_ms
+            .is_some_and(|ts| unix_now_ms().saturating_sub(ts) > MAX_BASELINE_AGE_MS)
+    });
+    if baseline_stale {
+        return CandidatePlan {
+            changed: candidates.to_vec(),
+            unchanged: Vec::new(),
+            deleted: previous_entries
+                .values()
+                .map(|entry| PathBuf::from(&entry.path))
+                .collect(),
+            scan_path: ScanPath::FullRebuild,
+            reason: "baseline-stale",
             root_key,
             snapshot_entries,
         };
@@ -531,6 +555,40 @@ mod tests {
             root_count <= MAX_TRACKED_ROOTS,
             "expected at most {MAX_TRACKED_ROOTS} roots, got {root_count}"
         );
+
+        clear_all();
+    }
+
+    #[test]
+    fn stale_baseline_forces_full_rebuild() {
+        let _guard = lock_discovery_test();
+        clear_all();
+
+        let root = tempfile::TempDir::new().unwrap();
+        let game = root.path().join("GameA");
+        fs::create_dir_all(&game).unwrap();
+        fs::write(game.join("game.exe"), vec![1_u8; 64]).unwrap();
+        let candidates = vec![("GameA".to_owned(), game.clone())];
+
+        // Build baseline and mark a full scan success.
+        let first = plan_subdir_scan(root.path(), &candidates, DiscoveryScanMode::Full);
+        first.commit();
+        mark_full_scan_success();
+
+        // Verify incremental works with a fresh timestamp.
+        let second = plan_subdir_scan(root.path(), &candidates, DiscoveryScanMode::Full);
+        assert_eq!(second.scan_path, ScanPath::Incremental);
+        assert_eq!(second.reason, "metadata-match");
+
+        // Simulate a stale timestamp (>24h ago).
+        with_change_feed_write(|feed| {
+            feed.last_successful_full_scan_ms =
+                Some(unix_now_ms().saturating_sub(MAX_BASELINE_AGE_MS + 1000));
+        });
+
+        let third = plan_subdir_scan(root.path(), &candidates, DiscoveryScanMode::Full);
+        assert_eq!(third.scan_path, ScanPath::FullRebuild);
+        assert_eq!(third.reason, "baseline-stale");
 
         clear_all();
     }

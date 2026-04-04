@@ -2,10 +2,13 @@ use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;
 
 #[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
+use std::time::Duration;
 
 #[cfg(windows)]
 use windows::core::PCWSTR;
@@ -59,6 +62,8 @@ pub fn normalize_path_key(path: &Path) -> String {
 
 /// Write a file via a sibling temp file and atomic replace where supported.
 pub fn atomic_write(path: &Path, contents: &[u8]) -> io::Result<()> {
+    static ATOMIC_WRITE_SEQ: AtomicU64 = AtomicU64::new(0);
+
     let parent = path
         .parent()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "path has no parent"))?;
@@ -70,11 +75,13 @@ pub fn atomic_write(path: &Path, contents: &[u8]) -> io::Result<()> {
             "path has no terminal file name",
         )
     })?;
+    let sequence = ATOMIC_WRITE_SEQ.fetch_add(1, Ordering::Relaxed);
     let temp_name = OsString::from(format!(
-        ".{}.tmp-{}-{}",
+        ".{}.tmp-{}-{}-{}",
         file_name.to_string_lossy(),
         std::process::id(),
-        unix_now_ms()
+        unix_now_ms(),
+        sequence,
     ));
     let temp_path = parent.join(temp_name);
 
@@ -109,17 +116,89 @@ fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
         .chain(std::iter::once(0))
         .collect();
 
-    unsafe {
-        MoveFileExW(
-            PCWSTR(source_wide.as_ptr()),
-            PCWSTR(destination_wide.as_ptr()),
-            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
-        )
+    const MAX_ATTEMPTS: usize = 8;
+
+    for attempt in 0..MAX_ATTEMPTS {
+        match unsafe {
+            MoveFileExW(
+                PCWSTR(source_wide.as_ptr()),
+                PCWSTR(destination_wide.as_ptr()),
+                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+            )
+        } {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                let code = windows_error_code(&error);
+                let retryable = matches!(code, Some(5 | 32 | 33));
+                if retryable && attempt + 1 < MAX_ATTEMPTS {
+                    std::thread::sleep(Duration::from_millis(2_u64 << attempt));
+                    continue;
+                }
+                return Err(windows_error_to_io(error));
+            }
+        }
     }
-    .map_err(io::Error::other)
+
+    Err(io::Error::other("unreachable replace_file retry state"))
 }
 
 #[cfg(not(windows))]
 fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     fs::rename(source, destination)
+}
+
+#[cfg(windows)]
+fn windows_error_code(error: &windows::core::Error) -> Option<i32> {
+    let hresult = error.code().0 as u32;
+    if (hresult & 0xFFFF0000) == 0x80070000 {
+        Some((hresult & 0xFFFF) as i32)
+    } else {
+        None
+    }
+}
+
+#[cfg(windows)]
+fn windows_error_to_io(error: windows::core::Error) -> io::Error {
+    match windows_error_code(&error) {
+        Some(code) => io::Error::from_raw_os_error(code),
+        None => io::Error::other(error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Barrier};
+    use std::thread;
+
+    use super::*;
+
+    #[test]
+    fn atomic_write_allows_overlapping_writes_to_same_target() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("shared.json");
+        let writer_count = 8usize;
+        let barrier = Arc::new(Barrier::new(writer_count));
+
+        let handles: Vec<_> = (0..writer_count)
+            .map(|i| {
+                let barrier = Arc::clone(&barrier);
+                let path = path.clone();
+                thread::spawn(move || {
+                    let payload = format!(r#"{{"writer":{i}}}"#);
+                    barrier.wait();
+                    atomic_write(&path, payload.as_bytes())
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().unwrap().unwrap();
+        }
+
+        let final_contents = fs::read_to_string(&path).unwrap();
+        assert!(
+            (0..writer_count).any(|i| final_contents == format!(r#"{{"writer":{i}}}"#)),
+            "final file should contain one complete writer payload, got {final_contents}"
+        );
+    }
 }

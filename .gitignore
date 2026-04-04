@@ -89,3 +89,9 @@ SPEC.md
 .claude/settings.local.json
 SETUP.md
 assets/fonts/Inter-Variable.ttf
+.claude/skills/flutter-architecture/assets/result.dart
+.claude/skills/flutter-architecture/assets/command.dart
+.claude/skills/flutter-animations/assets/templates/staggered_animation.dart
+.claude/skills/flutter-animations/assets/templates/implicit_animation.dart
+.claude/skills/flutter-animations/assets/templates/hero_transition.dart
+.claude/skills/flutter-animations/assets/templates/explicit_animation.dart

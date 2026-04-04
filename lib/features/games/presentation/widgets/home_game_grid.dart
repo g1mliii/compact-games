@@ -29,6 +29,13 @@ class _HomeGameGridState extends ConsumerState<HomeGameGrid> {
   Widget? _cachedGridViewport;
 
   @override
+  void dispose() {
+    _cachedSignature = null;
+    _cachedGridViewport = null;
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Use .select() so the grid only rebuilds when loading/error state
     // actually changes, not on every game-list data mutation.

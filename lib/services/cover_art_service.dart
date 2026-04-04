@@ -11,8 +11,8 @@ import 'package:path_provider/path_provider.dart';
 import '../core/constants/app_constants.dart';
 import '../models/compression_estimate.dart';
 import '../models/game_info.dart';
+import 'rust_bridge_service.dart';
 
-part 'cover_art_service_scan.dart';
 part 'cover_art_service_steam.dart';
 part 'cover_art_service_api.dart';
 part 'cover_art_service_api_lifecycle.dart';
@@ -24,11 +24,12 @@ part 'cover_art_service_runtime_memory.dart';
 enum CoverArtSource {
   cache,
   steamLibraryCache,
-  launcherLocal,
-  gameFolderImage,
   steamGridDbApi,
+  exeIcon,
   none,
 }
+
+enum CoverArtType { poster, icon }
 
 class CoverArtResult {
   const CoverArtResult({
@@ -64,24 +65,18 @@ class CoverArtService {
   static final Map<String, Future<CoverArtResult>> _inFlight =
       <String, Future<CoverArtResult>>{};
   static Directory? _cachedCacheDir;
-  static final LinkedHashMap<
-    String,
-    ({String? artworkPath, String? executablePath})
-  >
-  _estimateHints =
-      LinkedHashMap<String, ({String? artworkPath, String? executablePath})>();
+  static final LinkedHashMap<String, String> _estimateHints =
+      LinkedHashMap<String, String>();
   static final LinkedHashMap<String, bool> _coverQualityPathCache =
       LinkedHashMap<String, bool>();
   static final LinkedHashMap<String, _SteamManifestIndex> _steamManifestCache =
       LinkedHashMap<String, _SteamManifestIndex>();
 
   void primeEstimateHints(String gamePath, CompressionEstimate estimate) {
+    final exePath = estimate.executableCandidatePath;
+    if (exePath == null) return;
     final key = _cacheKey(gamePath);
-    final next = (
-      artworkPath: estimate.artworkCandidatePath,
-      executablePath: estimate.executableCandidatePath,
-    );
-    _writeEstimateHint(key, next);
+    _writeEstimateHint(key, exePath);
   }
 
   void invalidateCoverForGame(String gamePath) {
@@ -121,6 +116,7 @@ class CoverArtService {
   Future<CoverArtResult> resolveCover(
     GameInfo game, {
     String? steamGridDbApiKey,
+    RustBridgeService? rustBridge,
   }) {
     final cacheKey = _cacheKey(game.path);
     final memory = _readMemoryCache(cacheKey);
@@ -142,6 +138,7 @@ class CoverArtService {
       game,
       cacheKey,
       steamGridDbApiKey: steamGridDbApiKey,
+      rustBridge: rustBridge,
     );
     _inFlight[cacheKey] = future;
     return future.whenComplete(() {
@@ -155,10 +152,11 @@ class CoverArtService {
     GameInfo game,
     String cacheKey, {
     String? steamGridDbApiKey,
+    RustBridgeService? rustBridge,
   }) async {
-    // Applications skip SteamGridDB — only try local/cache sources.
     final isApp = game.platform == Platform.application;
 
+    // 1. Disk cache
     final cached = await _readCachedCover(cacheKey);
     if (cached != null) {
       if (!isApp) {
@@ -182,37 +180,23 @@ class CoverArtService {
       return cached;
     }
 
-    final sourcePath = await _resolveLocalSourcePath(game);
-    if (sourcePath != null) {
-      if (!isApp) {
-        final localNeedsUpgrade = await _needsApiUpgradeForPath(
-          sourcePath,
-          apiKey: steamGridDbApiKey,
+    // 2. Steam library cache (Steam games only)
+    if (game.platform == Platform.steam) {
+      final steamCover = await _resolveSteamLibraryCover(game.path);
+      if (steamCover != null) {
+        final copied = await _copyIntoCache(cacheKey, steamCover);
+        final revision = _bumpCoverRevision(cacheKey);
+        final result = CoverArtResult(
+          uri: File(copied).uri.toString(),
+          source: CoverArtSource.steamLibraryCache,
+          revision: revision,
         );
-        if (localNeedsUpgrade) {
-          final upgraded = await _resolveApiCover(
-            game,
-            cacheKey: cacheKey,
-            apiKey: steamGridDbApiKey,
-          );
-          if (upgraded != null) {
-            _writeMemoryCache(cacheKey, upgraded);
-            return upgraded;
-          }
-        }
+        _writeMemoryCache(cacheKey, result);
+        return result;
       }
-
-      final copied = await _copyIntoCache(cacheKey, sourcePath);
-      final revision = _bumpCoverRevision(cacheKey);
-      final result = CoverArtResult(
-        uri: File(copied).uri.toString(),
-        source: _sourceForPath(game, sourcePath),
-        revision: revision,
-      );
-      _writeMemoryCache(cacheKey, result);
-      return result;
     }
 
+    // 3. SteamGridDB API (non-apps)
     if (!isApp) {
       final result = await _resolveApiCover(
         game,
@@ -225,24 +209,47 @@ class CoverArtService {
       }
     }
 
+    // 4. EXE icon fallback
+    final iconResult = await _resolveExeIconCover(
+      game,
+      cacheKey: cacheKey,
+      rustBridge: rustBridge,
+    );
+    if (iconResult != null) {
+      _writeMemoryCache(cacheKey, iconResult);
+      return iconResult;
+    }
+
+    // 5. Placeholder
     const none = CoverArtResult.none();
     _writeMemoryCache(cacheKey, none);
     return none;
   }
 
-  CoverArtSource _sourceForPath(GameInfo game, String sourcePath) {
-    final lower = sourcePath.toLowerCase();
-    if (lower.contains(r'\appcache\librarycache\')) {
-      return CoverArtSource.steamLibraryCache;
+  Future<CoverArtResult?> _resolveExeIconCover(
+    GameInfo game, {
+    required String cacheKey,
+    RustBridgeService? rustBridge,
+  }) async {
+    if (rustBridge == null) return null;
+    final exePath = _readEstimateHint(cacheKey);
+    if (exePath == null) return null;
+    try {
+      final pngBytes = rustBridge.extractExeIcon(exePath: exePath);
+      if (pngBytes == null || pngBytes.isEmpty) return null;
+      final cacheDir = await _ensureCacheDir();
+      final file = File(p.join(cacheDir.path, '$cacheKey.img'));
+      await file.writeAsBytes(pngBytes);
+      _scheduleCacheEviction(cacheDir);
+      final revision = _bumpCoverRevision(cacheKey);
+      return CoverArtResult(
+        uri: file.uri.toString(),
+        source: CoverArtSource.exeIcon,
+        revision: revision,
+      );
+    } catch (_) {
+      return null;
     }
-    if (lower.contains(r'\.egstore\') || lower.contains('launcher')) {
-      return CoverArtSource.launcherLocal;
-    }
-    if (p.isWithin(game.path, sourcePath) ||
-        p.dirname(sourcePath).startsWith(game.path)) {
-      return CoverArtSource.gameFolderImage;
-    }
-    return CoverArtSource.launcherLocal;
   }
 
   Future<CoverArtResult?> _readCachedCover(String cacheKey) async {
@@ -346,47 +353,6 @@ class CoverArtService {
     }
   }
 
-  Future<String?> _resolveLocalSourcePath(GameInfo game) async {
-    final hinted = await _resolveEstimateHintPath(game);
-    if (hinted != null) {
-      return hinted;
-    }
-
-    if (game.platform == Platform.steam) {
-      final steamCover = await _resolveSteamLibraryCover(game.path);
-      if (steamCover != null) {
-        return steamCover;
-      }
-    }
-
-    final launcherLocal = await _resolveLauncherSpecificCover(game);
-    if (launcherLocal != null) {
-      return launcherLocal;
-    }
-
-    return _findFolderImageCandidate(game.path);
-  }
-
-  Future<String?> _resolveEstimateHintPath(GameInfo game) async {
-    final hint = _readEstimateHint(_cacheKey(game.path));
-    final artworkPath = hint?.artworkPath;
-    if (artworkPath != null && await File(artworkPath).exists()) {
-      return artworkPath;
-    }
-
-    final executablePath = hint?.executablePath;
-    if (executablePath == null) {
-      return null;
-    }
-    final exeFile = File(executablePath);
-    if (!await exeFile.exists()) {
-      return null;
-    }
-
-    final exeDir = p.dirname(executablePath);
-    return _findImageCandidate(rootPath: exeDir, maxDepth: 1, maxFiles: 120);
-  }
-
   String _cacheKey(String path) {
     return base64UrlEncode(utf8.encode(path.toLowerCase())).replaceAll('=', '');
   }
@@ -429,9 +395,7 @@ class CoverArtService {
     return next;
   }
 
-  ({String? artworkPath, String? executablePath})? _readEstimateHint(
-    String cacheKey,
-  ) {
+  String? _readEstimateHint(String cacheKey) {
     final cached = _estimateHints.remove(cacheKey);
     if (cached != null) {
       _estimateHints[cacheKey] = cached;
@@ -439,12 +403,9 @@ class CoverArtService {
     return cached;
   }
 
-  void _writeEstimateHint(
-    String cacheKey,
-    ({String? artworkPath, String? executablePath}) hint,
-  ) {
+  void _writeEstimateHint(String cacheKey, String exePath) {
     _estimateHints.remove(cacheKey);
-    _estimateHints[cacheKey] = hint;
+    _estimateHints[cacheKey] = exePath;
     _trimLru(_estimateHints, _maxEstimateHintEntries);
   }
 

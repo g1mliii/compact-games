@@ -6,6 +6,7 @@ import '../../models/compression_algorithm.dart';
 import '../../models/compression_progress.dart';
 import '../games/game_list_provider.dart';
 import '../settings/settings_provider.dart';
+import 'completed_game_refresh.dart';
 import 'compression_state.dart';
 
 final compressionProvider =
@@ -190,7 +191,16 @@ class CompressionNotifier extends Notifier<CompressionState> {
     final completedJob = job.copyWith(status: CompressionJobStatus.completed);
     _archiveJob(completedJob);
 
-    unawaited(_refreshCompletedGame(completedJob));
+    unawaited(
+      refreshCompletedGameAfterJob(
+        read: ref.read,
+        gamePath: completedJob.gamePath,
+        jobType: completedJob.type,
+        completedAt: completedJob.type == CompressionJobType.compression
+            ? DateTime.now()
+            : null,
+      ),
+    );
   }
 
   void _failJob(String message) {
@@ -281,47 +291,5 @@ class CompressionNotifier extends Notifier<CompressionState> {
       onDone: _onDone,
       cancelOnError: false,
     );
-  }
-
-  Future<void> _refreshCompletedGame(CompressionJobState job) async {
-    final bridge = ref.read(rustBridgeServiceProvider);
-    final gameListNotifier = ref.read(gameListProvider.notifier);
-    try {
-      bridge.clearDiscoveryCacheEntry(job.gamePath);
-    } catch (_) {
-      // Best-effort cache eviction; hydration/refresh fallback still applies.
-    }
-
-    final gameListState = ref.read(gameListProvider).valueOrNull;
-    if (gameListState == null) {
-      gameListNotifier.requestHydration(job.gamePath);
-      return;
-    }
-
-    final matchIndex = gameListState.games.indexWhere(
-      (g) => g.path == job.gamePath,
-    );
-    final existingGame = matchIndex >= 0
-        ? gameListState.games[matchIndex]
-        : null;
-    if (existingGame == null) {
-      return;
-    }
-
-    try {
-      final hydrated = await bridge.hydrateGame(
-        gamePath: existingGame.path,
-        gameName: existingGame.name,
-        platform: existingGame.platform,
-      );
-      if (_disposed) return;
-      if (hydrated != null) {
-        gameListNotifier.updateGame(hydrated);
-        return;
-      }
-      gameListNotifier.requestHydration(job.gamePath);
-    } catch (_) {
-      gameListNotifier.requestHydration(job.gamePath);
-    }
   }
 }

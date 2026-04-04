@@ -9,6 +9,7 @@ import '../../../../../core/localization/app_localization.dart';
 import '../../../../../core/localization/presentation_labels.dart';
 import '../../../../../core/utils/byte_formatting.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../models/game_info.dart';
 import '../../../../../providers/compression/compression_provider.dart';
@@ -66,6 +67,10 @@ class GameDetailsInfoCard extends ConsumerWidget {
             false,
       ),
     );
+    final statusSection = _StatusSectionHeader(
+      game: game,
+      isExcluded: isExcluded,
+    );
 
     return RepaintBoundary(
       child: Card(
@@ -75,7 +80,7 @@ class GameDetailsInfoCard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StatusSectionHeader(game: game, isExcluded: isExcluded),
+              statusSection,
               _StatLine(
                 label: _InfoLabel(l10n.gameDetailsPlatformLabel),
                 value: game.platform.localizedLabel(l10n),

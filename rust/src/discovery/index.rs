@@ -9,7 +9,7 @@ use std::sync::{LazyLock, RwLock};
 const INDEX_FILE_NAME: &str = "discovery_index.json";
 const INDEX_SCHEMA_VERSION: u32 = 1;
 const MAX_INDEX_ENTRIES: usize = 16_384;
-const MAX_INDEX_AGE_MS: u64 = 30 * 60 * 1000; // 30 minutes
+const MAX_INDEX_AGE_MS: u64 = 5 * 60 * 1000; // 5 minutes — safe because incremental scans are cheap
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct IndexEntry {

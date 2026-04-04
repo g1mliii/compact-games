@@ -57,7 +57,6 @@ CompressionEstimate _mapFrbEstimate(rust_types.FrbCompressionEstimate frb) {
     estimatedCompressedBytes: frb.estimatedCompressedBytes.toInt(),
     estimatedSavedBytes: frb.estimatedSavedBytes.toInt(),
     estimatedSavingsRatio: frb.estimatedSavingsRatio,
-    artworkCandidatePath: frb.artworkCandidatePath,
     executableCandidatePath: frb.executableCandidatePath,
   );
 }

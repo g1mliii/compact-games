@@ -5,7 +5,6 @@ class CompressionEstimate {
   final int estimatedCompressedBytes;
   final int estimatedSavedBytes;
   final double estimatedSavingsRatio;
-  final String? artworkCandidatePath;
   final String? executableCandidatePath;
 
   const CompressionEstimate({
@@ -14,7 +13,6 @@ class CompressionEstimate {
     required this.estimatedCompressedBytes,
     required this.estimatedSavedBytes,
     required this.estimatedSavingsRatio,
-    this.artworkCandidatePath,
     this.executableCandidatePath,
   });
 

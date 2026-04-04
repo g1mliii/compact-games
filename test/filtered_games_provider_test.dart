@@ -10,6 +10,7 @@ import 'package:pressplay/models/compression_estimate.dart';
 import 'package:pressplay/models/compression_progress.dart';
 import 'package:pressplay/models/watcher_event.dart';
 import 'package:pressplay/services/rust_bridge_service.dart';
+import 'dart:typed_data';
 
 const int _gib = 1024 * 1024 * 1024;
 
@@ -322,6 +323,8 @@ class _MinimalBridgeService implements RustBridgeService {
   void stopAutoCompression() {}
   @override
   Future<int> fetchCommunityUnsupportedList() async => 0;
+  @override
+  Uint8List? extractExeIcon({required String exePath}) => null;
   @override
   Stream<WatcherEvent> watchWatcherEvents() => const Stream.empty();
   @override

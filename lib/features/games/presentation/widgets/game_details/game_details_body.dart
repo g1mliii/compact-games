@@ -109,43 +109,13 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
                 return _cachedViewport!;
               }
 
-              final header = _GameDetailsHeaderHost(
-                gamePath: widget.gamePath,
-                decodeWidth: headerDecodeWidth,
+              final viewport = _buildViewport(
+                contentWidth: contentWidth,
+                wide: wide,
+                compactRow: compactRow,
+                headerDecodeWidth: headerDecodeWidth,
+                coverDecodeWidth: coverDecodeWidth,
                 deferred: deferred,
-              );
-              final cover = _GameDetailsCoverHost(
-                gamePath: widget.gamePath,
-                decodeWidth: coverDecodeWidth,
-                deferred: deferred,
-              );
-              final rightColumn = _DetailsRightColumnHost(
-                gamePath: widget.gamePath,
-              );
-
-              final viewport = Center(
-                child: SizedBox(
-                  width: contentWidth,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      header,
-                      const SizedBox(height: 16),
-                      if (wide)
-                        _buildWideLayout(cover: cover, rightColumn: rightColumn)
-                      else if (compactRow)
-                        _buildCompactRowLayout(
-                          cover: cover,
-                          rightColumn: rightColumn,
-                        )
-                      else
-                        _buildStackedLayout(
-                          cover: cover,
-                          rightColumn: rightColumn,
-                        ),
-                    ],
-                  ),
-                ),
               );
 
               _cachedSignature = nextSignature;
@@ -155,6 +125,46 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildViewport({
+    required double contentWidth,
+    required bool wide,
+    required bool compactRow,
+    required int headerDecodeWidth,
+    required int coverDecodeWidth,
+    required bool deferred,
+  }) {
+    final header = _GameDetailsHeaderHost(
+      gamePath: widget.gamePath,
+      decodeWidth: headerDecodeWidth,
+      deferred: deferred,
+    );
+    final cover = _GameDetailsCoverHost(
+      gamePath: widget.gamePath,
+      decodeWidth: coverDecodeWidth,
+      deferred: deferred,
+    );
+    final rightColumn = _DetailsRightColumnHost(gamePath: widget.gamePath);
+
+    return Center(
+      child: SizedBox(
+        width: contentWidth,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            header,
+            const SizedBox(height: 16),
+            if (wide)
+              _buildWideLayout(cover: cover, rightColumn: rightColumn)
+            else if (compactRow)
+              _buildCompactRowLayout(cover: cover, rightColumn: rightColumn)
+            else
+              _buildStackedLayout(cover: cover, rightColumn: rightColumn),
+          ],
+        ),
+      ),
     );
   }
 
@@ -305,6 +315,7 @@ class _GameDetailsHeaderHost extends ConsumerWidget {
           : l10n.gameDetailsLastCompressedBadge(headerData.lastCompressedText!),
       activityLabel: activityLabel,
       coverProvider: _coverImageProviderFromSnapshot(coverSnapshot),
+      coverArtType: coverArtTypeFromSource(coverSnapshot.source),
       decodeWidth: decodeWidth,
       deferred: deferred,
     );
@@ -337,21 +348,26 @@ class _GameDetailsCoverHost extends ConsumerWidget {
     return GameDetailsCover(
       platform: platform,
       coverProvider: _coverImageProviderFromSnapshot(coverSnapshot),
+      coverArtType: coverArtTypeFromSource(coverSnapshot.source),
       decodeWidth: decodeWidth,
       deferred: deferred,
     );
   }
 }
 
-({String? uri, int revision}) _selectCoverArtSnapshot(
+({String? uri, int revision, CoverArtSource source}) _selectCoverArtSnapshot(
   AsyncValue<CoverArtResult> value,
 ) {
   final result = value.valueOrNull;
-  return (uri: result?.uri, revision: result?.revision ?? 0);
+  return (
+    uri: result?.uri,
+    revision: result?.revision ?? 0,
+    source: result?.source ?? CoverArtSource.none,
+  );
 }
 
 ImageProvider<Object>? _coverImageProviderFromSnapshot(
-  ({String? uri, int revision}) coverSnapshot,
+  ({String? uri, int revision, CoverArtSource source}) coverSnapshot,
 ) {
   final coverUri = coverSnapshot.uri;
   return imageProviderFromCover(

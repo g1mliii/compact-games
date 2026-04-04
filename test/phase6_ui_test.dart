@@ -703,6 +703,9 @@ void main() {
     const actionRowKey = ValueKey<String>('detailsStatusActionRow');
     const primaryActionKey = ValueKey<String>('detailsStatusPrimaryAction');
     const excludeActionKey = ValueKey<String>('detailsStatusExcludeAction');
+    Finder tooltipMessage(String message) => find.byWidgetPredicate(
+      (widget) => widget is Tooltip && widget.message == message,
+    );
 
     final infoCardFinder = find.byKey(infoCardKey);
     final actionRowFinder = find.byKey(actionRowKey);
@@ -715,7 +718,7 @@ void main() {
     expect(find.byKey(primaryActionKey), findsOneWidget);
     expect(find.byKey(excludeActionKey), findsOneWidget);
     expect(find.text('Decompress'), findsOneWidget);
-    expect(find.text('Exclude From Auto-Compression'), findsOneWidget);
+    expect(tooltipMessage('Exclude From Auto-Compression'), findsOneWidget);
 
     final statusRect = tester.getRect(find.text('Status'));
     final actionRect = tester.getRect(actionRowFinder);
@@ -737,7 +740,7 @@ void main() {
           .contains(game.path),
       isTrue,
     );
-    expect(find.text('Include In Auto-Compression'), findsOneWidget);
+    expect(tooltipMessage('Include In Auto-Compression'), findsOneWidget);
   });
 
   testWidgets('Game details status actions reflow on compact resize', (
@@ -778,6 +781,9 @@ void main() {
     const actionRowKey = ValueKey<String>('detailsStatusActionRow');
     const excludeActionKey = ValueKey<String>('detailsStatusExcludeAction');
     final actionRowFinder = find.byKey(actionRowKey);
+    Finder tooltipMessage(String message) => find.byWidgetPredicate(
+      (widget) => widget is Tooltip && widget.message == message,
+    );
 
     final wideStatusRect = tester.getRect(find.text('Status'));
     final wideActionRect = tester.getRect(actionRowFinder);
@@ -799,7 +805,7 @@ void main() {
     await tester.tap(find.byKey(excludeActionKey));
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
-    expect(find.text('Include In Auto-Compression'), findsOneWidget);
+    expect(tooltipMessage('Include In Auto-Compression'), findsOneWidget);
   });
 
   testWidgets('Game details install path stays overflow-free at narrow width', (
