@@ -1,4 +1,4 @@
-//! Running game detection via process enumeration.
+﻿//! Running game detection via process enumeration.
 //!
 //! Thread-safe: all public methods take `&self` via interior `Mutex`.
 //! Only requests executable-path information from the OS, skipping
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn nonexistent_game_not_running() {
         let checker = ProcessChecker::new();
-        assert!(!checker.is_game_running(Path::new(r"C:\__nonexistent_pressplay_test__")));
+        assert!(!checker.is_game_running(Path::new(r"C:\__nonexistent_compact_games_test__")));
     }
 
     #[test]
@@ -111,9 +111,9 @@ mod tests {
         let checker = Arc::new(ProcessChecker::new());
         let checker2 = checker.clone();
         let handle = std::thread::spawn(move || {
-            checker2.is_game_running(Path::new(r"C:\__nonexistent_pressplay_test__"))
+            checker2.is_game_running(Path::new(r"C:\__nonexistent_compact_games_test__"))
         });
-        let r1 = checker.is_game_running(Path::new(r"C:\__nonexistent_pressplay_test__"));
+        let r1 = checker.is_game_running(Path::new(r"C:\__nonexistent_compact_games_test__"));
         let r2 = handle.join().unwrap();
         assert!(!r1);
         assert!(!r2);

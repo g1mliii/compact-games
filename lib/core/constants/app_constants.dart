@@ -1,6 +1,6 @@
 /// Application-wide constants.
 abstract final class AppConstants {
-  static const String appName = 'PressPlay';
+  static const String appName = 'Compact Games';
   static const String appVersion = '0.1.0';
 
   // Window

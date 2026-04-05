@@ -1152,7 +1152,7 @@
   "@gameDetailsStorageLegendSaved": {
     "description": "Localized message for game details storage legend saved."
   },
-  "trayOpenApp": "打开 PressPlay",
+  "trayOpenApp": "打开 Compact Games",
   "@trayOpenApp": {
     "description": "Localized message for tray open app."
   },

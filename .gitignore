@@ -46,8 +46,8 @@ Thumbs.db
 # Logs
 *.log
 ownership-map-out/
-ownership-map-out-pressplay-sensitive/
-ownership-map-out-pressplay-sensitive-*/
+ownership-map-out-compact-games-sensitive/
+ownership-map-out-compact-games-sensitive-*/
 dist/unsupported-community/
 
 # Environment

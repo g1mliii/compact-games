@@ -1,4 +1,4 @@
-import 'package:pressplay/l10n/app_localizations.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
 
 const int _bytesPerGiB = 1024 * 1024 * 1024;
 const int _bytesPerMiB = 1024 * 1024;

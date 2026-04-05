@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// PressPlay color palette.
+/// Compact Games color palette.
 /// Cinematic desert palette with deep horizon tones and warm highlights.
 abstract final class AppColors {
   // Core palette

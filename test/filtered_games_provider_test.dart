@@ -1,15 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/models/game_info.dart';
-import 'package:pressplay/providers/games/filtered_games_provider.dart';
-import 'package:pressplay/providers/games/game_list_provider.dart';
-import 'package:pressplay/providers/games/game_list_state.dart';
-import 'package:pressplay/models/automation_state.dart';
-import 'package:pressplay/models/compression_algorithm.dart';
-import 'package:pressplay/models/compression_estimate.dart';
-import 'package:pressplay/models/compression_progress.dart';
-import 'package:pressplay/models/watcher_event.dart';
-import 'package:pressplay/services/rust_bridge_service.dart';
+import 'package:compact_games/models/game_info.dart';
+import 'package:compact_games/providers/games/filtered_games_provider.dart';
+import 'package:compact_games/providers/games/game_list_provider.dart';
+import 'package:compact_games/providers/games/game_list_state.dart';
+import 'package:compact_games/models/automation_state.dart';
+import 'package:compact_games/models/compression_algorithm.dart';
+import 'package:compact_games/models/compression_estimate.dart';
+import 'package:compact_games/models/compression_progress.dart';
+import 'package:compact_games/models/watcher_event.dart';
+import 'package:compact_games/services/rust_bridge_service.dart';
+import 'package:compact_games/src/rust/api/update.dart' as rust_update;
 import 'dart:typed_data';
 
 const int _gib = 1024 * 1024 * 1024;
@@ -347,4 +348,21 @@ class _MinimalBridgeService implements RustBridgeService {
   SchedulerState getSchedulerState() => SchedulerState.idle;
   @override
   List<AutomationJob> getAutomationQueue() => const [];
+  @override
+  Future<rust_update.UpdateCheckResult> checkForUpdate({
+    required String currentVersion,
+  }) async => const rust_update.UpdateCheckResult(
+    updateAvailable: false,
+    latestVersion: '0.1.0',
+    downloadUrl: '',
+    releaseNotes: '',
+    checksumSha256: '',
+    publishedAt: '',
+  );
+  @override
+  Future<String> downloadUpdate({
+    required String url,
+    required String destPath,
+    required String expectedSha256,
+  }) async => destPath;
 }

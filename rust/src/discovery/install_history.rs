@@ -160,7 +160,7 @@ fn history_path() -> Result<PathBuf, std::io::Error> {
                 .unwrap_or_default()
                 .as_nanos();
             std::env::temp_dir().join(format!(
-                "pressplay-discovery-history-tests-{}-{now}",
+                "compact-games-discovery-history-tests-{}-{now}",
                 std::process::id()
             ))
         });
@@ -173,14 +173,14 @@ fn history_path() -> Result<PathBuf, std::io::Error> {
     {
         let config_dir = dirs::config_dir()
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-        let pressplay_dir = config_dir.join("pressplay");
+        let compact_games_dir = config_dir.join("compact_games");
 
         if !HISTORY_DIR_CREATED.load(Ordering::Relaxed) {
-            fs::create_dir_all(&pressplay_dir)?;
+            fs::create_dir_all(&compact_games_dir)?;
             HISTORY_DIR_CREATED.store(true, Ordering::Relaxed);
         }
 
-        Ok(pressplay_dir.join(HISTORY_FILE_NAME))
+        Ok(compact_games_dir.join(HISTORY_FILE_NAME))
     }
 }
 

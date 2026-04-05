@@ -1,9 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/providers/compression/compression_state.dart';
-import 'package:pressplay/providers/system/auto_compression_status_provider.dart';
-import 'package:pressplay/providers/system/tray_status_sync_provider.dart';
-import 'package:pressplay/services/tray_service.dart';
+import 'package:compact_games/providers/compression/compression_state.dart';
+import 'package:compact_games/providers/system/auto_compression_status_provider.dart';
+import 'package:compact_games/providers/system/tray_status_sync_provider.dart';
+import 'package:compact_games/services/tray_service.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 void main() {
@@ -74,7 +74,7 @@ void main() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 5),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
       );
       await service.init();
       expect(fakeTray.menuItemForKey('toggle_auto')?.disabled, isTrue);

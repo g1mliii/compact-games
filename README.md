@@ -17,7 +17,7 @@ Compact Games is a game manager that silently compresses your games in the backg
 
 ## Why Compact Games?
 
-Modern games can consume hundreds of gigabytes of storage. Windows NTFS compression can reduce game sizes by 20-60% without noticeable performance impact on most titles. PressPlay makes this process automatic, safe, and beautiful.
+Modern games can consume hundreds of gigabytes of storage. Windows NTFS compression can reduce game sizes by 20-60% without noticeable performance impact on most titles. Compact Games makes this process automatic, safe, and beautiful.
 
 ## Technology Stack
 
@@ -36,8 +36,8 @@ Modern games can consume hundreds of gigabytes of storage. Windows NTFS compress
 ### Installation
 
 ```cmd
-git clone https://github.com/yourusername/pressplay.git
-cd pressplay
+git clone https://github.com/g1mliii/compact-games.git
+cd compact_games
 ```
 
 ### Build from Source
@@ -113,7 +113,7 @@ Target performance metrics:
 ## FAQ
 
 **Q: Will compression slow down my games?**
-A: For most games, no. NTFS compression is transparent and modern CPUs decompress faster than SSDs can read. However, DirectStorage-enabled games should NOT be compressed, which is why PressPlay detects and skips them.
+A: For most games, no. NTFS compression is transparent and modern CPUs decompress faster than SSDs can read. However, DirectStorage-enabled games should NOT be compressed, which is why Compact Games detects and skips them.
 
 **Q: How much space can I save?**
 A: Typically 20-60% depending on the game. Games with many text files, scripts, and uncompressed assets compress better.
@@ -139,9 +139,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- Report bugs: [GitHub Issues](https://github.com/yourusername/pressplay/issues)
-- Feature requests: [GitHub Discussions](https://github.com/yourusername/pressplay/discussions)
-- Documentation: [Wiki](https://github.com/yourusername/pressplay/wiki)
+- Report bugs: [GitHub Issues](https://github.com/g1mliii/compact-games/issues)
+- Feature requests: [GitHub Discussions](https://github.com/g1mliii/compact-games/discussions)
+- Documentation: [Wiki](https://github.com/g1mliii/compact-games/wiki)
 
 ---
 

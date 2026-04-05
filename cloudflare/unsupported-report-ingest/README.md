@@ -78,7 +78,7 @@ submission history, plus a per-IP submission cap.
 1. Create the D1 database:
 
 ```bash
-npx wrangler d1 create pressplay-unsupported-reports
+npx wrangler d1 create compact-games-unsupported-reports
 ```
 
 2. Copy the returned `database_id` into [wrangler.toml](./wrangler.toml).
@@ -86,7 +86,7 @@ npx wrangler d1 create pressplay-unsupported-reports
 3. Apply the schema:
 
 ```bash
-npx wrangler d1 execute pressplay-unsupported-reports --remote --file=./schema.sql
+npx wrangler d1 execute compact-games-unsupported-reports --remote --file=./schema.sql
 ```
 
 4. Deploy:
@@ -135,10 +135,10 @@ The regression suite covers:
 Point the desktop client at the Worker using either:
 
 - Environment variable: `PRESSPLAY_UNSUPPORTED_REPORT_ENDPOINT`
-- Config file in the PressPlay config directory:
+- Config file in the Compact Games config directory:
   - `unsupported_report_endpoint.txt`
   - contents: the full Worker URL, for example
-    `https://pressplay-unsupported-report-ingest.example.workers.dev/unsupported-reports`
+    `https://compact-games-unsupported-report-ingest.example.workers.dev/unsupported-reports`
 
 The client only submits:
 

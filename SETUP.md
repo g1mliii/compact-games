@@ -1,11 +1,11 @@
-# PressPlay Development Setup
+# Compact Games Development Setup
 
 This document describes the scaffolded project structure and how to get started.
 
 ## Project Structure
 
 ```
-pressplay/
+compact_games/
 ├── rust/                       # Rust backend (compression engine)
 │   ├── src/
 │   │   ├── api/               # Flutter bridge API surface
@@ -89,7 +89,7 @@ flutter test
 flutter run -d windows
 ```
 
-The app will launch the main PressPlay game grid screen.
+The app will launch the main Compact Games game grid screen.
 
 ## Development Workflow
 
@@ -114,7 +114,7 @@ When you add new Rust functions to expose to Dart:
 1. Add `#[flutter_rust_bridge::frb(sync)]` annotation to Rust function
 2. Run `pwsh ./scripts/generate-frb.ps1` to regenerate bindings
 3. Generated Dart code appears in `lib/src/rust/`
-4. Import and use in Dart: `import 'package:pressplay/src/rust/api/minimal.dart';`
+4. Import and use in Dart: `import 'package:compact_games/src/rust/api/minimal.dart';`
 
 ## Current Status
 

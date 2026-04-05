@@ -8,7 +8,7 @@ enum HomeViewMode { grid, list }
 /// Application settings with JSON persistence.
 @immutable
 class AppSettings {
-  static const int currentSchemaVersion = 4;
+  static const int currentSchemaVersion = 5;
 
   final int schemaVersion;
   final CompressionAlgorithm algorithm;
@@ -27,6 +27,7 @@ class AppSettings {
   final bool minimizeToTray;
   final HomeViewMode homeViewMode;
   final String? localeTag;
+  final bool autoCheckUpdates;
 
   const AppSettings({
     this.schemaVersion = currentSchemaVersion,
@@ -46,6 +47,7 @@ class AppSettings {
     this.minimizeToTray = true,
     this.homeViewMode = HomeViewMode.grid,
     this.localeTag,
+    this.autoCheckUpdates = true,
   });
 
   /// Clamp values to safe ranges.
@@ -68,6 +70,7 @@ class AppSettings {
       minimizeToTray: minimizeToTray,
       homeViewMode: homeViewMode,
       localeTag: _normalizedLocaleTag(localeTag),
+      autoCheckUpdates: autoCheckUpdates,
     );
   }
 
@@ -88,6 +91,7 @@ class AppSettings {
     bool? minimizeToTray,
     HomeViewMode? homeViewMode,
     String? Function()? localeTag,
+    bool? autoCheckUpdates,
   }) {
     return AppSettings(
       schemaVersion: schemaVersion,
@@ -113,6 +117,7 @@ class AppSettings {
       minimizeToTray: minimizeToTray ?? this.minimizeToTray,
       homeViewMode: homeViewMode ?? this.homeViewMode,
       localeTag: localeTag != null ? localeTag() : this.localeTag,
+      autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
     );
   }
 
@@ -134,6 +139,7 @@ class AppSettings {
     'minimizeToTray': minimizeToTray,
     'homeViewMode': homeViewMode.name,
     'localeTag': localeTag,
+    'autoCheckUpdates': autoCheckUpdates,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -170,6 +176,7 @@ class AppSettings {
         orElse: () => HomeViewMode.grid,
       ),
       localeTag: _normalizedLocaleTag(json['localeTag'] as String?),
+      autoCheckUpdates: json['autoCheckUpdates'] as bool? ?? true,
     ).validated();
   }
 

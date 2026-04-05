@@ -36,7 +36,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Keep the initial native window size aligned with the Dart-side
   // window_manager startup options to avoid early surface churn.
   Win32Window::Size size(1200, 800);
-  if (!window.Create(L"pressplay", origin, size)) {
+  if (!window.Create(L"compact_games", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

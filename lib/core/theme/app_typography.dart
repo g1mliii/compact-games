@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// PressPlay typography system using platform system fonts.
+/// Compact Games typography system using platform system fonts.
 abstract final class AppTypography {
   static const String bodyFontFamily = 'Segoe UI Variable Text';
   static const String monoFontFamily = 'Consolas';

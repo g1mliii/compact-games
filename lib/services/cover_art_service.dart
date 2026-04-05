@@ -320,7 +320,7 @@ class CoverArtService {
     }
     final base = await getApplicationSupportDirectory();
     final dir = Directory(
-      p.join(base.path, 'PressPlay', AppConstants.coverCacheDir),
+      p.join(base.path, 'Compact Games', AppConstants.coverCacheDir),
     );
     if (!await dir.exists()) {
       await dir.create(recursive: true);

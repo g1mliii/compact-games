@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const DEFAULT_WORKER_URL =
-  "https://pressplay-unsupported-report-ingest.pressplay-subai.workers.dev";
+  "https://compact-games-unsupported-report-ingest.pressplay-subai.workers.dev";
 const DEFAULT_OUTPUT_DIR = "dist/unsupported-community";
 const DEFAULTS = {
   minReporters: "3",
@@ -14,11 +14,19 @@ const DEFAULTS = {
 
 async function main() {
   const workerUrl = normalizeWorkerBaseUrl(
-    readOption("worker-url", process.env.PRESSPLAY_UNSUPPORTED_WORKER_URL) ??
+    readOption(
+      "worker-url",
+      process.env.COMPACT_GAMES_UNSUPPORTED_WORKER_URL ??
+        process.env.PRESSPLAY_UNSUPPORTED_WORKER_URL,
+    ) ??
       DEFAULT_WORKER_URL,
   );
   const outputDir = path.resolve(
-    readOption("out-dir", process.env.PRESSPLAY_UNSUPPORTED_OUTPUT_DIR) ??
+    readOption(
+      "out-dir",
+      process.env.COMPACT_GAMES_UNSUPPORTED_OUTPUT_DIR ??
+        process.env.PRESSPLAY_UNSUPPORTED_OUTPUT_DIR,
+    ) ??
       DEFAULT_OUTPUT_DIR,
   );
   const bundleUrl = new URL("/release-bundle", workerUrl);
@@ -26,7 +34,8 @@ async function main() {
     "min_reporters",
     readOption(
       "min-reporters",
-      process.env.PRESSPLAY_UNSUPPORTED_MIN_REPORTERS,
+      process.env.COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS ??
+        process.env.PRESSPLAY_UNSUPPORTED_MIN_REPORTERS,
       DEFAULTS.minReporters,
     ),
   );
@@ -34,7 +43,8 @@ async function main() {
     "min_repeat_reporters",
     readOption(
       "min-repeat-reporters",
-      process.env.PRESSPLAY_UNSUPPORTED_MIN_REPEAT_REPORTERS,
+      process.env.COMPACT_GAMES_UNSUPPORTED_MIN_REPEAT_REPORTERS ??
+        process.env.PRESSPLAY_UNSUPPORTED_MIN_REPEAT_REPORTERS,
       DEFAULTS.minRepeatReporters,
     ),
   );
@@ -42,7 +52,8 @@ async function main() {
     "max_age_days",
     readOption(
       "max-age-days",
-      process.env.PRESSPLAY_UNSUPPORTED_MAX_AGE_DAYS,
+      process.env.COMPACT_GAMES_UNSUPPORTED_MAX_AGE_DAYS ??
+        process.env.PRESSPLAY_UNSUPPORTED_MAX_AGE_DAYS,
       DEFAULTS.maxAgeDays,
     ),
   );
@@ -50,7 +61,7 @@ async function main() {
   const response = await fetch(bundleUrl, {
     headers: {
       accept: "application/json",
-      "user-agent": "PressPlay-Unsupported-Export/1",
+      "user-agent": "CompactGames-Unsupported-Export/1",
     },
   });
 

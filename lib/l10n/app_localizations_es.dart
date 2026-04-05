@@ -853,7 +853,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get gameDetailsStorageLegendSaved => 'Ahorrado';
 
   @override
-  String get trayOpenApp => 'Abrir PressPlay';
+  String get trayOpenApp => 'Abrir Compact Games';
 
   @override
   String get trayPauseAutoCompression => 'Pausar compresión automática';

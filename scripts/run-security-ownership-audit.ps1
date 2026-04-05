@@ -1,6 +1,6 @@
 param(
   [string]$Since = "12 months ago",
-  [string]$OutDir = "ownership-map-out-pressplay-sensitive",
+  [string]$OutDir = "ownership-map-out-compact-games-sensitive",
   [switch]$EmitCommits
 )
 

@@ -1,0 +1,222 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.2.0)"
+        required: true
+      release_notes:
+        description: "Release notes (one paragraph)"
+        required: false
+        default: ""
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: "3.32.1"
+  RUST_TOOLCHAIN: "stable"
+
+jobs:
+  build:
+    name: Build Windows Release
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            # Extract version from release tag (e.g. v0.2.0 -> 0.2.0)
+            TAG="${{ github.event.release.tag_name }}"
+            echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate source version
+        shell: bash
+        run: |
+          EXPECTED_VERSION="${{ steps.version.outputs.version }}"
+          PUBSPEC_VERSION=$(python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("pubspec.yaml").read_text(encoding="utf-8")
+          match = re.search(r"^version:\s*([0-9]+\.[0-9]+\.[0-9]+)", text, re.MULTILINE)
+          if not match:
+              raise SystemExit("Failed to read version from pubspec.yaml")
+          print(match.group(1))
+          PY
+          )
+          APP_CONSTANTS_VERSION=$(python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("lib/core/constants/app_constants.dart").read_text(encoding="utf-8")
+          match = re.search(r"appVersion\s*=\s*'([^']+)'", text)
+          if not match:
+              raise SystemExit("Failed to read AppConstants.appVersion")
+          print(match.group(1))
+          PY
+          )
+
+          if [ "$EXPECTED_VERSION" != "$PUBSPEC_VERSION" ] || [ "$EXPECTED_VERSION" != "$APP_CONSTANTS_VERSION" ]; then
+            echo "Release version $EXPECTED_VERSION does not match source versions (pubspec=$PUBSPEC_VERSION, app_constants=$APP_CONSTANTS_VERSION)." >&2
+            exit 1
+          fi
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rust-${{ runner.os }}-
+
+      - name: Install flutter_rust_bridge_codegen
+        run: cargo install flutter_rust_bridge_codegen@2.11.1
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Generate FRB bindings
+        run: flutter_rust_bridge_codegen generate
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-build
+          path: build/windows/x64/runner/Release/
+
+  package:
+    name: Package Installer
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release-build
+          path: build/windows/x64/runner/Release/
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ needs.build.outputs.version }} installer\compact_games.iss
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum CompactGames-Setup-${{ needs.build.outputs.version }}.exe > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: Generate latest.json manifest
+        shell: bash
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          CHECKSUM=$(awk '{print $1}' dist/sha256sums.txt)
+          NOTES="${{ github.event.inputs.release_notes || github.event.release.body || '' }}"
+          PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          cat > dist/latest.json << MANIFEST_EOF
+          {
+            "version": "${VERSION}",
+            "download_url": "https://github.com/${{ github.repository }}/releases/latest/download/CompactGames-Setup-${VERSION}.exe",
+            "checksum_sha256": "${CHECKSUM}",
+            "release_notes": $(echo "$NOTES" | python -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))"),
+            "published_at": "${PUBLISHED_AT}"
+          }
+          MANIFEST_EOF
+
+          echo "Generated latest.json:"
+          cat dist/latest.json
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-artifacts
+          path: |
+            dist/CompactGames-Setup-*.exe
+            dist/latest.json
+            dist/sha256sums.txt
+
+  release:
+    name: Attach to GitHub Release
+    needs: [build, package]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: Download installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: installer-artifacts
+          path: dist/
+
+      - name: Attach assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/CompactGames-Setup-*.exe
+            dist/latest.json
+            dist/sha256sums.txt
+
+  release-dispatch:
+    name: Create Draft Release (manual trigger)
+    needs: [build, package]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Download installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: installer-artifacts
+          path: dist/
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          NOTES="${{ github.event.inputs.release_notes }}"
+          gh release create "v${VERSION}" \
+            --repo "${{ github.repository }}" \
+            --title "Compact Games v${VERSION}" \
+            --notes "${NOTES:-Release v${VERSION}}" \
+            --draft \
+            dist/CompactGames-Setup-${VERSION}.exe \
+            dist/latest.json \
+            dist/sha256sums.txt

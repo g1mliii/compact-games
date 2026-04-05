@@ -59,7 +59,7 @@ BoxDecoration buildAppSurfaceDecoration({
   );
 }
 
-/// Builds the PressPlay cinematic desert theme.
+/// Builds the Compact Games cinematic desert theme.
 ThemeData buildAppTheme() {
   final outlinedBackground = WidgetStateProperty.resolveWith<Color?>((states) {
     if (states.contains(WidgetState.disabled)) {

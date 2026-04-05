@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/services/startup_window_coordinator.dart';
+import 'package:compact_games/services/startup_window_coordinator.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() {
@@ -17,7 +17,7 @@ void main() {
         size: const Size(1280, 720),
         minimumSize: const Size(960, 640),
         center: true,
-        title: 'PressPlay',
+        title: 'Compact Games',
         titleBarStyle: TitleBarStyle.hidden,
       );
       final trayErrors = <Object>[];

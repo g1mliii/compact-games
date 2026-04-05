@@ -263,7 +263,7 @@ mod stats_properties {
 #[test]
 fn nonexistent_path_returns_error() {
     let engine = CompressionEngine::new(CompressionAlgorithm::default());
-    let result = engine.compress_folder(Path::new(r"C:\__nonexistent_pressplay_test__"));
+    let result = engine.compress_folder(Path::new(r"C:\__nonexistent_compact_games_test__"));
     assert!(matches!(result, Err(CompressionError::PathNotFound(_))));
 }
 
@@ -279,14 +279,15 @@ fn file_path_returns_not_a_directory() {
 #[test]
 fn decompress_nonexistent_path_returns_error() {
     let engine = CompressionEngine::new(CompressionAlgorithm::default());
-    let result = engine.decompress_folder(Path::new(r"C:\__nonexistent_pressplay_test__"));
+    let result = engine.decompress_folder(Path::new(r"C:\__nonexistent_compact_games_test__"));
     assert!(matches!(result, Err(CompressionError::PathNotFound(_))));
 }
 
 #[test]
 fn ratio_nonexistent_path_returns_error() {
-    let result =
-        CompressionEngine::get_compression_ratio(Path::new(r"C:\__nonexistent_pressplay_test__"));
+    let result = CompressionEngine::get_compression_ratio(Path::new(
+        r"C:\__nonexistent_compact_games_test__",
+    ));
     assert!(matches!(result, Err(CompressionError::PathNotFound(_))));
 }
 

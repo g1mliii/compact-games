@@ -233,13 +233,14 @@ class _StatusActionButtons extends ConsumerWidget {
     Widget primaryAction,
     List<Widget> actionIcons,
   ) {
-    return Row(
+    return Wrap(
       key: _detailsStatusActionRowKey,
-      mainAxisSize: MainAxisSize.min,
+      spacing: 4,
+      runSpacing: 4,
+      alignment: WrapAlignment.end,
       children: [
         primaryAction,
-        const SizedBox(width: 4),
-        ..._interleaveSpacing(actionIcons),
+        ...actionIcons,
       ],
     );
   }

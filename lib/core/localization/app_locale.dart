@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pressplay/l10n/app_localizations.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
 
 enum AppLocaleAvailability { bundled, pack }
 

@@ -12,7 +12,7 @@ const IP_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const IP_RATE_LIMIT_MAX_SUBMISSIONS = 15;
 const IP_NEW_REPORTER_WINDOW_MS = 24 * 60 * 60 * 1000;
 const IP_NEW_REPORTER_MAX_REPORTERS = 10;
-const REPORTER_TOKEN_HEADER = "x-pressplay-reporter-token";
+const REPORTER_TOKEN_HEADER = "x-compactgames-reporter-token";
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "access-control-allow-origin": "*",

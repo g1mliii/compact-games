@@ -1,4 +1,4 @@
-part of '../tray_service_test.dart';
+﻿part of '../tray_service_test.dart';
 
 void _defineTrayServiceStressTests() {
   test(
@@ -16,7 +16,7 @@ void _defineTrayServiceStressTests() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 1),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
       );
 
       await service.init();
@@ -38,7 +38,7 @@ void _defineTrayServiceStressTests() {
       );
 
       await Future<void>.delayed(const Duration(milliseconds: 160));
-      expect(fakeTray.lastTooltip, 'PressPlay');
+      expect(fakeTray.lastTooltip, 'Compact Games');
     },
   );
 
@@ -52,7 +52,7 @@ void _defineTrayServiceStressTests() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 1),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
       );
 
       await service.init();

@@ -1561,7 +1561,7 @@ abstract class AppLocalizations {
   /// Localized message for tray open app.
   ///
   /// In en, this message translates to:
-  /// **'Open PressPlay'**
+  /// **'Open Compact Games'**
   String get trayOpenApp;
 
   /// Localized message for tray pause auto compression.

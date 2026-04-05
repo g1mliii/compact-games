@@ -36,13 +36,13 @@ const REPORT_STABILITY_WINDOW_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 const REPORT_SUBMISSION_INTERVAL_MS: u64 = 24 * 60 * 60 * 1000;
 const COMMUNITY_FETCH_INTERVAL_MS: u64 = 24 * 60 * 60 * 1000;
 #[cfg(not(test))]
-const REPORT_SUBMISSION_ENDPOINT_ENV: &str = "PRESSPLAY_UNSUPPORTED_REPORT_ENDPOINT";
+const REPORT_SUBMISSION_ENDPOINT_ENV: &str = "COMPACT_GAMES_UNSUPPORTED_REPORT_ENDPOINT";
 const REPORT_SUBMISSION_ENDPOINT_FILE: &str = "unsupported_report_endpoint.txt";
 
 // Default endpoints.
 #[cfg(not(test))]
 const DEFAULT_REPORT_SUBMISSION_ENDPOINT: &str =
-    "https://pressplay-unsupported-report-ingest.pressplay-subai.workers.dev/unsupported-reports";
+    "https://compact-games-unsupported-report-ingest.pressplay-subai.workers.dev/unsupported-reports";
 // Community list is fetched from GitHub Releases (exported by the repo workflow).
 pub(crate) const DEFAULT_COMMUNITY_LIST_ENDPOINT: &str =
     "https://github.com/g1mliii/compact-games/releases/latest/download/unsupported_games.json";

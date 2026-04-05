@@ -99,7 +99,7 @@ pub fn start_auto_compression() -> Result<(), FrbAutomationError> {
     let (config_tx, config_rx) = channel::<FrbAutomationConfig>();
 
     let handle = thread::Builder::new()
-        .name("pressplay-auto-compression".to_owned())
+        .name("compact-games-auto-compression".to_owned())
         .spawn(move || {
             worker::auto_loop(stop_rx, config_rx);
         })

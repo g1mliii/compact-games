@@ -87,7 +87,7 @@ fn config_dir() -> Result<PathBuf, std::io::Error> {
                 .unwrap_or_default()
                 .as_nanos();
             std::env::temp_dir().join(format!(
-                "pressplay-unsupported-tests-{}-{nanos}",
+                "compact-games-unsupported-tests-{}-{nanos}",
                 std::process::id()
             ))
         });
@@ -99,12 +99,12 @@ fn config_dir() -> Result<PathBuf, std::io::Error> {
     {
         let dir = dirs::config_dir()
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-        let pressplay_dir = dir.join("pressplay");
+        let compact_games_dir = dir.join("compact_games");
         if !CONFIG_DIR_CREATED.load(std::sync::atomic::Ordering::Relaxed) {
-            fs::create_dir_all(&pressplay_dir)?;
+            fs::create_dir_all(&compact_games_dir)?;
             CONFIG_DIR_CREATED.store(true, std::sync::atomic::Ordering::Relaxed);
         }
-        Ok(pressplay_dir)
+        Ok(compact_games_dir)
     }
 }
 
@@ -213,7 +213,7 @@ fn save_worker(rx: Receiver<SaveTarget>) {
 static SAVE_QUEUE: LazyLock<Option<SyncSender<SaveTarget>>> = LazyLock::new(|| {
     let (tx, rx) = sync_channel(8);
     match std::thread::Builder::new()
-        .name("pressplay-unsupported-writer".to_string())
+        .name("compact-games-unsupported-writer".to_string())
         .spawn(move || save_worker(rx))
     {
         Ok(_) => Some(tx),

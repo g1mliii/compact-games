@@ -3,8 +3,8 @@ List<String> buildRustLibraryCandidates({
   required bool isProfileMode,
   required bool preferDebugRustDll,
 }) {
-  const releaseDll = 'rust/target/release/pressplay_core.dll';
-  const debugDll = 'rust/target/debug/pressplay_core.dll';
+  const releaseDll = 'rust/target/release/compact_games_core.dll';
+  const debugDll = 'rust/target/debug/compact_games_core.dll';
 
   if (isReleaseMode) {
     return const [releaseDll];

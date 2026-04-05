@@ -809,7 +809,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameDetailsStorageLegendSaved => '已节省';
 
   @override
-  String get trayOpenApp => '打开 PressPlay';
+  String get trayOpenApp => '打开 Compact Games';
 
   @override
   String get trayPauseAutoCompression => '暂停自动压缩';

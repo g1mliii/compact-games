@@ -12,7 +12,7 @@ class _TrayIconCache {
 
     final data = await rootBundle.load('assets/icons/app_icon.ico');
     final tempDir = await getTemporaryDirectory();
-    final iconFile = File('${tempDir.path}/pressplay_tray.ico');
+    final iconFile = File('${tempDir.path}/compact_games_tray.ico');
     await iconFile.writeAsBytes(
       data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
       flush: true,

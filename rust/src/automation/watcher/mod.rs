@@ -148,7 +148,7 @@ impl GameWatcher {
         let watch_paths = self.config.watch_paths.clone();
 
         let handle = std::thread::Builder::new()
-            .name("pressplay-watcher".to_owned())
+            .name("compact-games-watcher".to_owned())
             .spawn(move || {
                 watcher_worker(notify_rx, event_tx, stop_flag, cooldown, watch_paths);
             })?;

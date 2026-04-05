@@ -361,14 +361,14 @@ fn save_cache_file(cache: &CacheFile) -> Result<(), Box<dyn std::error::Error>> 
 fn cache_path() -> Result<PathBuf, std::io::Error> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    let pressplay_dir = config_dir.join("pressplay");
+    let compact_games_dir = config_dir.join("compact_games");
 
     if !CACHE_DIR_CREATED.load(Ordering::Relaxed) {
-        fs::create_dir_all(&pressplay_dir)?;
+        fs::create_dir_all(&compact_games_dir)?;
         CACHE_DIR_CREATED.store(true, Ordering::Relaxed);
     }
 
-    Ok(pressplay_dir.join(CACHE_FILE_NAME))
+    Ok(compact_games_dir.join(CACHE_FILE_NAME))
 }
 
 fn metadata_modified_ms(metadata: &fs::Metadata) -> Option<u64> {

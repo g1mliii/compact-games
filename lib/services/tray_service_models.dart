@@ -5,8 +5,8 @@ enum TrayStatusMode { idle, compressing, paused, error }
 @immutable
 class TrayStrings {
   const TrayStrings({
-    this.appName = 'PressPlay',
-    this.openAppLabel = 'Open PressPlay',
+    this.appName = 'Compact Games',
+    this.openAppLabel = 'Open Compact Games',
     this.pauseAutoCompressionLabel = 'Pause Auto-Compression',
     this.resumeAutoCompressionLabel = 'Resume Auto-Compression',
     this.quitLabel = 'Quit',

@@ -164,9 +164,9 @@ fn submit_report_payload(
     let mut request = agent
         .post(endpoint)
         .header("Content-Type", "application/json")
-        .header("User-Agent", "PressPlay-Unsupported-Reports/1");
+        .header("User-Agent", "CompactGames-Unsupported-Reports/1");
     if let Some(reporter_token) = reporter_token {
-        request = request.header("X-PressPlay-Reporter-Token", reporter_token);
+        request = request.header("X-CompactGames-Reporter-Token", reporter_token);
     }
 
     let mut response = request

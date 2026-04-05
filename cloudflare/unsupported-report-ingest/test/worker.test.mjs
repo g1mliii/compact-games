@@ -6,7 +6,7 @@ import worker from "../src/index.js";
 import { FakeD1Database } from "./support/fake-d1.mjs";
 
 const BASE_TIME_MS = 1_740_000_000_000;
-const REPORTER_TOKEN_HEADER = "x-pressplay-reporter-token";
+const REPORTER_TOKEN_HEADER = "x-compactgames-reporter-token";
 
 function createEnv() {
   return { DB: new FakeD1Database() };
@@ -108,7 +108,7 @@ test("router handles health, options, and not-found responses", async () => {
   assert.equal(options.status, 204);
   assert.equal(
     options.headers.get("access-control-allow-headers"),
-    "content-type,x-pressplay-reporter-token",
+    "content-type,x-compactgames-reporter-token",
   );
 
   const notFound = await fetchJson(env, "/missing");

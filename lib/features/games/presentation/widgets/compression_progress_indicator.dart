@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pressplay/l10n/app_localizations.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/localization/app_localization.dart';
@@ -242,17 +242,50 @@ class _ActivityLeadingIcon extends StatelessWidget {
   final Color accentColor;
   final IconData icon;
 
+  // Pre-cached decorations for the two known accent colors to avoid
+  // withValues allocations on each build (called up to 10×/sec during compression).
+  static final BoxDecoration _richGoldNormal = BoxDecoration(
+    color: AppColors.richGold.withValues(alpha: 0.12),
+    borderRadius: const BorderRadius.all(Radius.circular(10)),
+    border: Border.all(color: AppColors.richGold.withValues(alpha: 0.2)),
+  );
+  static final BoxDecoration _richGoldCompact = BoxDecoration(
+    color: AppColors.richGold.withValues(alpha: 0.12),
+    borderRadius: const BorderRadius.all(Radius.circular(8)),
+    border: Border.all(color: AppColors.richGold.withValues(alpha: 0.2)),
+  );
+  static final BoxDecoration _successNormal = BoxDecoration(
+    color: AppColors.success.withValues(alpha: 0.12),
+    borderRadius: const BorderRadius.all(Radius.circular(10)),
+    border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
+  );
+  static final BoxDecoration _successCompact = BoxDecoration(
+    color: AppColors.success.withValues(alpha: 0.12),
+    borderRadius: const BorderRadius.all(Radius.circular(8)),
+    border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
+  );
+
+  BoxDecoration _decoration() {
+    if (accentColor == AppColors.richGold) {
+      return compact ? _richGoldCompact : _richGoldNormal;
+    }
+    if (accentColor == AppColors.success) {
+      return compact ? _successCompact : _successNormal;
+    }
+    return BoxDecoration(
+      color: accentColor.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(compact ? 8 : 10),
+      border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final iconSize = compact ? 12.0 : 14.0;
     final containerSize = compact ? 24.0 : 28.0;
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: accentColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(compact ? 8 : 10),
-        border: Border.all(color: accentColor.withValues(alpha: 0.2)),
-      ),
+      decoration: _decoration(),
       child: SizedBox(
         width: containerSize,
         height: containerSize,

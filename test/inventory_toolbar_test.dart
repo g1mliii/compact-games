@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/core/theme/app_colors.dart';
-import 'package:pressplay/core/widgets/status_badge.dart';
-import 'package:pressplay/features/games/presentation/widgets/inventory_components.dart';
-import 'package:pressplay/models/game_info.dart';
+import 'package:compact_games/core/theme/app_colors.dart';
+import 'package:compact_games/core/widgets/status_badge.dart';
+import 'package:compact_games/features/games/presentation/widgets/inventory_components.dart';
+import 'package:compact_games/models/game_info.dart';
 
 void main() {
   testWidgets('Inventory search and sort controls share width on wide layout', (

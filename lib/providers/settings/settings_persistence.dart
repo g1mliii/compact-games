@@ -3,8 +3,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/app_settings.dart';
 
-const _settingsKey = 'pressplay_settings';
-const _steamGridDbApiKeyKey = 'pressplay_steamgriddb_api_key';
+const _settingsKey = 'compact_games_settings';
+const _steamGridDbApiKeyKey = 'compact_games_steamgriddb_api_key';
 
 /// Read/write AppSettings to SharedPreferences.
 class SettingsPersistence {
@@ -19,7 +19,9 @@ class SettingsPersistence {
 
     final secureApiKey = await _readSecureApiKey();
     if (secureApiKey != null) {
-      final sanitized = settings.copyWith(steamGridDbApiKey: () => null).validated();
+      final sanitized = settings
+          .copyWith(steamGridDbApiKey: () => null)
+          .validated();
       if (settings.steamGridDbApiKey != null) {
         await _persistSettingsBestEffort(prefs, sanitized);
       }
@@ -37,9 +39,13 @@ class SettingsPersistence {
         return settings.validated();
       }
 
-      final migrated = settings.copyWith(steamGridDbApiKey: () => null).validated();
+      final migrated = settings
+          .copyWith(steamGridDbApiKey: () => null)
+          .validated();
       await _persistSettingsBestEffort(prefs, migrated);
-      return migrated.copyWith(steamGridDbApiKey: () => legacyApiKey).validated();
+      return migrated
+          .copyWith(steamGridDbApiKey: () => legacyApiKey)
+          .validated();
     }
 
     return settings.validated();
@@ -47,16 +53,22 @@ class SettingsPersistence {
 
   Future<void> save(AppSettings settings) async {
     final prefs = await _prefsFuture;
-    final sanitized = settings.copyWith(steamGridDbApiKey: () => null).validated();
+    final sanitized = settings
+        .copyWith(steamGridDbApiKey: () => null)
+        .validated();
     await _writeSecureApiKey(settings.steamGridDbApiKey);
     await _writeSettingsToPrefs(prefs, sanitized);
   }
 
   AppSettings _loadSettingsFromPrefs(SharedPreferences prefs) {
     final json = prefs.getString(_settingsKey);
-    if (json == null) {
-      return const AppSettings();
+    if (json != null) {
+      return _decodeSettings(json);
     }
+    return const AppSettings();
+  }
+
+  AppSettings _decodeSettings(String json) {
     try {
       final map = jsonDecode(json) as Map<String, dynamic>;
       return AppSettings.fromJson(map);

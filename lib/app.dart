@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pressplay/l10n/app_localizations.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
 import 'core/localization/app_locale.dart';
 import 'core/navigation/app_routes.dart';
 import 'core/performance/perf_overlay.dart';
@@ -18,7 +18,9 @@ import 'models/automation_state.dart';
 import 'providers/games/game_list_provider.dart';
 import 'providers/localization/locale_provider.dart';
 import 'providers/system/route_state_provider.dart';
+import 'providers/settings/settings_provider.dart';
 import 'providers/system/tray_status_sync_provider.dart';
+import 'providers/update/update_provider.dart';
 import 'services/unsupported_report_sync_service.dart';
 
 /// Cached theme — buildAppTheme() is pure with no dynamic inputs,
@@ -28,17 +30,17 @@ final ThemeData _appTheme = buildAppTheme();
 final bool _usesCustomDesktopFrame =
     !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
-class PressPlayApp extends StatelessWidget {
-  const PressPlayApp({super.key});
+class CompactGamesApp extends StatelessWidget {
+  const CompactGamesApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const _PressPlayRoot();
+    return const _CompactGamesRoot();
   }
 }
 
-class _PressPlayRoot extends ConsumerWidget {
-  const _PressPlayRoot();
+class _CompactGamesRoot extends ConsumerWidget {
+  const _CompactGamesRoot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -128,12 +130,32 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
       final container = ProviderScope.containerOf(context, listen: false);
       UnsupportedReportSyncService.instance.notePotentialChange(container);
       unawaited(() async {
+        // Community-list fetch and settings load run in parallel.
+        final communityFuture = ref
+            .read(rustBridgeServiceProvider)
+            .fetchCommunityUnsupportedList();
+
+        // Await settings so autoCheckUpdates is always respected, even on
+        // first launch when settings haven't resolved before this callback.
+        var autoCheckUpdates = true;
         try {
-          await ref
-              .read(rustBridgeServiceProvider)
-              .fetchCommunityUnsupportedList();
+          autoCheckUpdates =
+              (await ref.read(settingsProvider.future)).settings.autoCheckUpdates;
+        } catch (_) {}
+
+        try {
+          await communityFuture;
         } catch (_) {
           // Best effort; cache/interval handled in Rust.
+        }
+
+        // Auto-check for app updates after both complete.
+        try {
+          if (autoCheckUpdates) {
+            await ref.read(updateProvider.notifier).checkForUpdate();
+          }
+        } catch (_) {
+          // Best effort; rate-limited in Rust.
         }
       }());
     });

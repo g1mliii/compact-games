@@ -33,7 +33,7 @@ fn cache_path() -> PathBuf {
         .or_else(|| std::env::current_dir().ok())
         .unwrap_or_else(|| PathBuf::from("."));
     config_dir
-        .join("pressplay")
+        .join("compact_games")
         .join("compression_history.json")
 }
 

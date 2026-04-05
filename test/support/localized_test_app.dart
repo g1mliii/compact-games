@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/core/localization/app_locale.dart';
-import 'package:pressplay/l10n/app_localizations.dart';
+import 'package:compact_games/core/localization/app_locale.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
 
 Widget buildLocalizedTestApp({
   required Widget home,

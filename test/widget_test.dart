@@ -5,35 +5,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:pressplay/app.dart';
-import 'package:pressplay/core/widgets/cinematic_background.dart';
-import 'package:pressplay/core/widgets/film_grain_overlay.dart';
-import 'package:pressplay/core/widgets/status_badge.dart';
-import 'package:pressplay/features/games/presentation/component_test_screen.dart';
-import 'package:pressplay/features/games/presentation/home_screen.dart';
-import 'package:pressplay/features/games/presentation/widgets/compression_activity_overlay.dart';
-import 'package:pressplay/features/games/presentation/widgets/compression_progress_indicator.dart';
-import 'package:pressplay/features/games/presentation/widgets/game_card.dart';
-import 'package:pressplay/features/games/presentation/widgets/home_game_grid.dart';
-import 'package:pressplay/features/games/presentation/widgets/home_compression_banner.dart';
-import 'package:pressplay/models/app_settings.dart';
-import 'package:pressplay/models/automation_state.dart';
-import 'package:pressplay/models/compression_algorithm.dart';
-import 'package:pressplay/models/compression_estimate.dart';
-import 'package:pressplay/models/compression_progress.dart';
-import 'package:pressplay/models/game_info.dart';
-import 'package:pressplay/models/watcher_event.dart';
-import 'package:pressplay/providers/compression/compression_progress_provider.dart';
-import 'package:pressplay/providers/compression/compression_provider.dart';
-import 'package:pressplay/providers/compression/compression_state.dart';
-import 'package:pressplay/providers/games/game_list_provider.dart';
-import 'package:pressplay/providers/settings/settings_persistence.dart';
-import 'package:pressplay/providers/settings/settings_provider.dart';
-import 'package:pressplay/providers/system/route_state_provider.dart';
-import 'package:pressplay/providers/system/platform_shell_provider.dart';
-import 'package:pressplay/services/rust_bridge_service.dart';
-import 'package:pressplay/services/platform_shell_service.dart';
-import 'package:pressplay/services/unsupported_report_sync_service.dart';
+import 'package:compact_games/app.dart';
+import 'package:compact_games/core/widgets/cinematic_background.dart';
+import 'package:compact_games/core/widgets/film_grain_overlay.dart';
+import 'package:compact_games/core/widgets/status_badge.dart';
+import 'package:compact_games/features/games/presentation/component_test_screen.dart';
+import 'package:compact_games/features/games/presentation/home_screen.dart';
+import 'package:compact_games/features/games/presentation/widgets/compression_activity_overlay.dart';
+import 'package:compact_games/features/games/presentation/widgets/compression_progress_indicator.dart';
+import 'package:compact_games/features/games/presentation/widgets/game_card.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_game_grid.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_compression_banner.dart';
+import 'package:compact_games/models/app_settings.dart';
+import 'package:compact_games/models/automation_state.dart';
+import 'package:compact_games/models/compression_algorithm.dart';
+import 'package:compact_games/models/compression_estimate.dart';
+import 'package:compact_games/models/compression_progress.dart';
+import 'package:compact_games/models/game_info.dart';
+import 'package:compact_games/models/watcher_event.dart';
+import 'package:compact_games/providers/compression/compression_progress_provider.dart';
+import 'package:compact_games/providers/compression/compression_provider.dart';
+import 'package:compact_games/providers/compression/compression_state.dart';
+import 'package:compact_games/providers/games/game_list_provider.dart';
+import 'package:compact_games/providers/settings/settings_persistence.dart';
+import 'package:compact_games/providers/settings/settings_provider.dart';
+import 'package:compact_games/providers/system/route_state_provider.dart';
+import 'package:compact_games/providers/system/platform_shell_provider.dart';
+import 'package:compact_games/services/rust_bridge_service.dart';
+import 'package:compact_games/src/rust/api/update.dart' as rust_update;
+import 'package:compact_games/services/platform_shell_service.dart';
+import 'package:compact_games/services/unsupported_report_sync_service.dart';
 
 part 'support/rust_bridge_test_doubles.dart';
 part 'support/widget_progress_indicator_tests.dart';
@@ -61,7 +62,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
-        child: const PressPlayApp(),
+        child: const CompactGamesApp(),
       ),
     );
     await tester.pumpAndSettle();
@@ -857,7 +858,7 @@ void main() {
             rustBridgeServiceProvider.overrideWithValue(bridge),
             settingsPersistenceProvider.overrideWithValue(persistence),
           ],
-          child: const PressPlayApp(),
+          child: const CompactGamesApp(),
         ),
       );
 
@@ -887,7 +888,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const PressPlayApp(),
+          child: const CompactGamesApp(),
         ),
       );
 
@@ -940,7 +941,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const PressPlayApp(),
+          child: const CompactGamesApp(),
         ),
       );
       await tester.pumpAndSettle();
@@ -1009,7 +1010,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const PressPlayApp(),
+          child: const CompactGamesApp(),
         ),
       );
       await tester.pumpAndSettle();
@@ -1080,7 +1081,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const PressPlayApp(),
+          child: const CompactGamesApp(),
         ),
       );
 

@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.pressplay" "\0"
-            VALUE "FileDescription", "pressplay" "\0"
+            VALUE "CompanyName", "Compact Games" "\0"
+            VALUE "FileDescription", "Compact Games" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "pressplay" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.pressplay. All rights reserved." "\0"
-            VALUE "OriginalFilename", "pressplay.exe" "\0"
-            VALUE "ProductName", "pressplay" "\0"
+            VALUE "InternalName", "compact_games" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Compact Games. All rights reserved." "\0"
+            VALUE "OriginalFilename", "compact_games.exe" "\0"
+            VALUE "ProductName", "Compact Games" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -62,7 +62,7 @@ pub fn fetch_community_unsupported_list() -> Result<u32, String> {
     for _ in 0..=MAX_REDIRECTS {
         let mut response = agent
             .get(&next_url)
-            .header("User-Agent", "PressPlay-Community-List/1")
+            .header("User-Agent", "CompactGames-Community-List/1")
             .call()
             .map_err(|e| format!("HTTP request failed: {e}"))?;
 

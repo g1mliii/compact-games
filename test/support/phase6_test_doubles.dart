@@ -235,6 +235,25 @@ class _TestRustBridgeService implements RustBridgeService {
 
   @override
   Uint8List? extractExeIcon({required String exePath}) => null;
+
+  @override
+  Future<rust_update.UpdateCheckResult> checkForUpdate({
+    required String currentVersion,
+  }) async => const rust_update.UpdateCheckResult(
+    updateAvailable: false,
+    latestVersion: '0.1.0',
+    downloadUrl: '',
+    releaseNotes: '',
+    checksumSha256: '',
+    publishedAt: '',
+  );
+
+  @override
+  Future<String> downloadUpdate({
+    required String url,
+    required String destPath,
+    required String expectedSha256,
+  }) async => destPath;
 }
 
 class _DelayedActivityRustBridgeService extends _TestRustBridgeService {

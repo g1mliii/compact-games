@@ -12,6 +12,7 @@ import 'sections/language_section.dart';
 import 'widgets/scaled_switch_row.dart';
 import 'widgets/settings_section_card.dart';
 import 'widgets/settings_slider_row.dart';
+import 'sections/about_section.dart';
 import 'sections/compression_section.dart';
 import 'sections/cover_art_section.dart';
 import 'sections/safety_section.dart';
@@ -35,20 +36,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final isLoading = ref.watch(settingsProvider.select((s) => s.isLoading));
-    final hasError = ref.watch(settingsProvider.select((s) => s.hasError));
-    final errorValue = ref.watch(
-      settingsProvider.select((s) => s.hasError ? s.error : null),
+    final loadState = ref.watch(
+      settingsProvider.select(
+        (s) => (isLoading: s.isLoading, error: s.hasError ? s.error : null),
+      ),
     );
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settingsTitle)),
-      body: isLoading
+      body: loadState.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : hasError
+          : loadState.error != null
           ? Center(
               child: Text(
-                l10n.settingsLoadFailed('${errorValue ?? ''}'),
+                l10n.settingsLoadFailed('${loadState.error ?? ''}'),
                 style: AppTypography.bodyMedium,
               ),
             )
@@ -70,6 +71,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const CoverArtSection(),
                       const SizedBox(height: 14),
                       const SafetySection(),
+                      const SizedBox(height: 14),
+                      const AboutSection(),
                     ],
                   ),
                 ),

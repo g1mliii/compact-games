@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/core/performance/perf_overlay.dart';
+import 'package:compact_games/core/performance/perf_overlay.dart';
 
 void main() {
   testWidgets('F12 overlay toggle works without Directionality crashes', (

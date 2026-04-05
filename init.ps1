@@ -1,4 +1,4 @@
-# PressPlay Project Initialization Script
+# Compact Games Project Initialization Script
 # Run once to bootstrap the development environment.
 # Usage: .\init.ps1 [-SkipRust] [-SkipFlutter] [-SkipBridge]
 
@@ -92,7 +92,7 @@ if (!$SkipFlutter) {
 
     if (!(Test-Path (Join-Path $ProjectRoot "pubspec.yaml"))) {
         Push-Location $ProjectRoot
-        flutter create . --org com.pressplay --project-name pressplay --platforms windows 2>&1
+        flutter create . --org com.compactgames --project-name compact_games --platforms windows 2>&1
         Pop-Location
         Write-Ok "Flutter project created"
     } else {

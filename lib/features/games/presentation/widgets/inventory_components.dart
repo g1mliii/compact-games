@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pressplay/l10n/app_localizations.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/localization/app_localization.dart';

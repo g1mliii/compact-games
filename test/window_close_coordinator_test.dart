@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/core/performance/ui_memory_lifecycle.dart';
-import 'package:pressplay/services/window_close_coordinator.dart';
+import 'package:compact_games/core/performance/ui_memory_lifecycle.dart';
+import 'package:compact_games/services/window_close_coordinator.dart';
 
 void main() {
   test('close hides to tray when minimize-to-tray is enabled', () async {

@@ -86,7 +86,7 @@ pub(super) fn spawn_compression_job(
     let spawn_fail_tx = result_tx.clone();
     let spawn_fail_key = idempotency_key.clone();
     let spawn_result = std::thread::Builder::new()
-        .name("pressplay-auto-compress".to_owned())
+        .name("compact-games-auto-compress".to_owned())
         .spawn(move || {
             let policy = compute_thread_policy(
                 &game_path,

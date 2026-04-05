@@ -41,7 +41,7 @@ static LEARNED_GAMES: LazyLock<RwLock<HashSet<String>>> = LazyLock::new(|| {
 static SAVE_QUEUE: LazyLock<Option<SyncSender<()>>> = LazyLock::new(|| {
     let (tx, rx) = sync_channel(1);
     match std::thread::Builder::new()
-        .name("pressplay-ds-cache-writer".to_string())
+        .name("compact-games-ds-cache-writer".to_string())
         .spawn(move || save_worker(rx))
     {
         Ok(_handle) => Some(tx),
@@ -147,7 +147,7 @@ fn learned_games_path() -> Result<PathBuf, std::io::Error> {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_nanos();
-            std::env::temp_dir().join(format!("pressplay-tests-{}-{now}", std::process::id()))
+            std::env::temp_dir().join(format!("compact-games-tests-{}-{now}", std::process::id()))
         });
 
         fs::create_dir_all(&*TEST_CONFIG_DIR)?;
@@ -158,14 +158,14 @@ fn learned_games_path() -> Result<PathBuf, std::io::Error> {
     {
         let config_dir = dirs::config_dir()
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-        let pressplay_dir = config_dir.join("pressplay");
+        let compact_games_dir = config_dir.join("compact_games");
 
         if !CONFIG_DIR_CREATED.load(std::sync::atomic::Ordering::Relaxed) {
-            fs::create_dir_all(&pressplay_dir)?;
+            fs::create_dir_all(&compact_games_dir)?;
             CONFIG_DIR_CREATED.store(true, std::sync::atomic::Ordering::Relaxed);
         }
 
-        Ok(pressplay_dir.join("learned_directstorage_games.json"))
+        Ok(compact_games_dir.join("learned_directstorage_games.json"))
     }
 }
 

@@ -10,7 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/constants/app_constants.dart';
 import 'core/performance/perf_monitor.dart';
-import 'core/performance/pressplay_shader_warm_up.dart';
+import 'core/performance/compact_games_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
 import 'services/rust_library_candidates.dart';
@@ -19,8 +19,8 @@ import 'services/tray_service.dart';
 import 'services/window_close_coordinator.dart';
 import 'src/rust/frb_generated.dart';
 
-final _windowListener = _PressPlayWindowListener();
-final _memoryObserver = _PressPlayMemoryObserver();
+final _windowListener = _CompactGamesWindowListener();
+final _memoryObserver = _CompactGamesMemoryObserver();
 final _windowCloseCoordinator = WindowCloseCoordinator(
   tray: _TrayLifecycleWindowAdapter(TrayService.instance),
   window: const _WindowLifecycleWindowManagerAdapter(),
@@ -35,7 +35,7 @@ final _startupTray = TrayStartupAdapter(TrayService.instance);
 Future<void> main() async {
   PerfMonitor.markStartupBegin();
   if (!kIsWeb && _enableShaderWarmUp) {
-    PaintingBinding.shaderWarmUp = const PressPlayShaderWarmUp();
+    PaintingBinding.shaderWarmUp = const CompactGamesShaderWarmUp();
   }
   WidgetsFlutterBinding.ensureInitialized();
   if (kDebugMode) {
@@ -88,17 +88,17 @@ Future<void> main() async {
     },
   );
 
-  runApp(const _RustBridgeReloadHost(child: PressPlayApp()));
+  runApp(const _RustBridgeReloadHost(child: CompactGamesApp()));
   PerfMonitor.markStartupEnd();
 }
 
 const bool _enableShaderWarmUp = bool.fromEnvironment(
-  'PRESSPLAY_SHADER_WARM_UP',
+  'COMPACT_GAMES_SHADER_WARM_UP',
   defaultValue: true,
 );
 
 const bool _preferDebugRustDll = bool.fromEnvironment(
-  'PRESSPLAY_PREFER_DEBUG_RUST_DLL',
+  'COMPACT_GAMES_PREFER_DEBUG_RUST_DLL',
   defaultValue: true,
 );
 
@@ -214,7 +214,7 @@ class _RustBridgeReloadHostState extends State<_RustBridgeReloadHost> {
   }
 }
 
-class _PressPlayWindowListener extends WindowListener {
+class _CompactGamesWindowListener extends WindowListener {
   @override
   void onWindowClose() {
     unawaited(_windowCloseCoordinator.onWindowClose());
@@ -226,7 +226,7 @@ class _PressPlayWindowListener extends WindowListener {
   }
 }
 
-class _PressPlayMemoryObserver with WidgetsBindingObserver {
+class _CompactGamesMemoryObserver with WidgetsBindingObserver {
   bool _trimmedForBackground = false;
 
   @override

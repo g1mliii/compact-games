@@ -2,10 +2,10 @@ import 'dart:io' as io;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:pressplay/models/compression_algorithm.dart';
-import 'package:pressplay/models/game_info.dart';
-import 'package:pressplay/services/rust_bridge_service.dart';
-import 'package:pressplay/src/rust/frb_generated.dart';
+import 'package:compact_games/models/compression_algorithm.dart';
+import 'package:compact_games/models/game_info.dart';
+import 'package:compact_games/services/rust_bridge_service.dart';
+import 'package:compact_games/src/rust/frb_generated.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +41,7 @@ void main() {
     'real bridge request-response maps application folder metadata',
     () async {
       final temp = await io.Directory.systemTemp.createTemp(
-        'pressplay-bridge-app-',
+        'compact-games-bridge-app-',
       );
       addTearDown(() => temp.delete(recursive: true));
 
@@ -71,7 +71,7 @@ void main() {
     'real bridge stream returns completion snapshot for empty folder compression',
     () async {
       final temp = await io.Directory.systemTemp.createTemp(
-        'pressplay-bridge-compress-',
+        'compact-games-bridge-compress-',
       );
       addTearDown(() => temp.delete(recursive: true));
 
@@ -136,8 +136,8 @@ Future<void> _initRustBridgeForTest() async {
 List<String> _rustLibraryCandidates() {
   final cwd = io.Directory.current.path;
   return <String>[
-    '$cwd\\rust\\target\\debug\\pressplay_core.dll',
-    '$cwd\\rust\\target\\release\\pressplay_core.dll',
+    '$cwd\\rust\\target\\debug\\compact_games_core.dll',
+    '$cwd\\rust\\target\\release\\compact_games_core.dll',
   ];
 }
 

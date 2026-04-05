@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:pressplay/l10n/app_localizations.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -538,9 +538,12 @@ class _OverviewPanelToggleButton extends StatelessWidget {
         splashRadius: 22,
         visualDensity: VisualDensity.compact,
         style: ButtonStyle(
-          overlayColor: WidgetStateProperty.resolveWith(
-            (_) => Colors.transparent,
-          ),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.hovered)) {
+              return AppColors.textSecondary.withValues(alpha: 0.06);
+            }
+            return Colors.transparent;
+          }),
         ),
         icon: Icon(
           collapsed ? LucideIcons.chevronDown : LucideIcons.chevronUp,

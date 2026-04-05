@@ -694,7 +694,7 @@ void runPhase6OversizeSplitTests() {
       await tester.tap(find.text('Resident Evil Requiem'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Remove from Library'));
+      await tester.tap(find.byTooltip('Remove from Library'));
       await tester.pump();
 
       expect(bridge.removeGameFromDiscoveryCalls, 1);
@@ -1291,7 +1291,7 @@ void runPhase6OversizeSplitTests() {
       const ValueKey<String>('detailsStatusUnsupportedAction'),
     );
     await tester.ensureVisible(unsupportedAction);
-    expect(find.text('Mark as Unsupported'), findsOneWidget);
+    expect(find.byTooltip('Mark as Unsupported'), findsOneWidget);
 
     await tester.tap(unsupportedAction);
     await tester.pumpAndSettle();
@@ -1302,7 +1302,7 @@ void runPhase6OversizeSplitTests() {
       container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
       isTrue,
     );
-    expect(find.text('Mark as Supported'), findsOneWidget);
+    expect(find.byTooltip('Mark as Supported'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey<String>('detailsStatusUnsupportedAction')),
@@ -1315,7 +1315,7 @@ void runPhase6OversizeSplitTests() {
       container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
       isFalse,
     );
-    expect(find.text('Mark as Unsupported'), findsOneWidget);
+    expect(find.byTooltip('Mark as Unsupported'), findsOneWidget);
   });
 
   testWidgets('Game details unsupported toggle only rebuilds header metadata', (
@@ -1377,7 +1377,7 @@ void runPhase6OversizeSplitTests() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Mark as Supported'), findsOneWidget);
+    expect(find.byTooltip('Mark as Supported'), findsOneWidget);
   });
 
   testWidgets(
@@ -1409,7 +1409,7 @@ void runPhase6OversizeSplitTests() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Remove from Library'));
+      await tester.tap(find.byTooltip('Remove from Library'));
       await tester.pump();
 
       expect(bridge.removeGameFromDiscoveryCalls, 1);

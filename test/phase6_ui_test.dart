@@ -1,45 +1,46 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:pressplay/core/navigation/app_routes.dart';
-import 'package:pressplay/core/theme/app_colors.dart';
-import 'package:pressplay/core/theme/app_theme.dart';
-import 'package:pressplay/features/games/presentation/game_details_screen.dart';
-import 'package:pressplay/features/games/presentation/home_screen.dart';
-import 'package:pressplay/features/games/presentation/widgets/compression_activity_overlay.dart';
-import 'package:pressplay/features/games/presentation/widgets/game_card.dart';
-import 'package:pressplay/features/games/presentation/widgets/game_card_adapter.dart';
-import 'package:pressplay/features/games/presentation/widgets/game_card_adapter_intents.dart';
-import 'package:pressplay/features/games/presentation/widgets/game_details/details_media.dart';
-import 'package:pressplay/features/games/presentation/widgets/home_compression_banner.dart';
-import 'package:pressplay/features/games/presentation/widgets/home_cover_art_nudge.dart';
-import 'package:pressplay/features/games/presentation/widgets/home_game_grid.dart';
-import 'package:pressplay/features/games/presentation/widgets/home_game_list_view.dart';
-import 'package:pressplay/features/games/presentation/widgets/home_header.dart';
-import 'package:pressplay/features/games/presentation/widgets/home_overview_panel.dart';
-import 'package:pressplay/features/games/presentation/widgets/inventory_components.dart';
-import 'package:pressplay/features/settings/presentation/sections/compression_section.dart';
-import 'package:pressplay/features/settings/presentation/widgets/scaled_switch_row.dart';
-import 'package:pressplay/features/settings/presentation/widgets/settings_slider_row.dart';
-import 'package:pressplay/models/app_settings.dart';
-import 'package:pressplay/models/automation_state.dart';
-import 'package:pressplay/models/compression_algorithm.dart';
-import 'package:pressplay/models/compression_estimate.dart';
-import 'package:pressplay/models/compression_progress.dart';
-import 'package:pressplay/models/game_info.dart';
-import 'package:pressplay/models/watcher_event.dart';
-import 'package:pressplay/providers/cover_art/cover_art_provider.dart';
-import 'package:pressplay/providers/compression/compression_provider.dart';
-import 'package:pressplay/providers/games/game_list_provider.dart';
-import 'package:pressplay/providers/games/selected_game_provider.dart';
-import 'package:pressplay/providers/settings/settings_persistence.dart';
-import 'package:pressplay/providers/settings/settings_provider.dart';
-import 'package:pressplay/providers/system/route_state_provider.dart';
-import 'package:pressplay/services/cover_art_service.dart';
-import 'package:pressplay/services/rust_bridge_service.dart';
+import 'package:compact_games/core/navigation/app_routes.dart';
+import 'package:compact_games/core/theme/app_colors.dart';
+import 'package:compact_games/core/theme/app_theme.dart';
+import 'package:compact_games/features/games/presentation/game_details_screen.dart';
+import 'package:compact_games/features/games/presentation/home_screen.dart';
+import 'package:compact_games/features/games/presentation/widgets/compression_activity_overlay.dart';
+import 'package:compact_games/features/games/presentation/widgets/game_card.dart';
+import 'package:compact_games/features/games/presentation/widgets/game_card_adapter.dart';
+import 'package:compact_games/features/games/presentation/widgets/game_card_adapter_intents.dart';
+import 'package:compact_games/features/games/presentation/widgets/game_details/details_media.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_compression_banner.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_cover_art_nudge.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_game_grid.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_game_list_view.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_header.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_overview_panel.dart';
+import 'package:compact_games/features/games/presentation/widgets/inventory_components.dart';
+import 'package:compact_games/features/settings/presentation/sections/compression_section.dart';
+import 'package:compact_games/features/settings/presentation/widgets/scaled_switch_row.dart';
+import 'package:compact_games/features/settings/presentation/widgets/settings_slider_row.dart';
+import 'package:compact_games/models/app_settings.dart';
+import 'package:compact_games/models/automation_state.dart';
+import 'package:compact_games/models/compression_algorithm.dart';
+import 'package:compact_games/models/compression_estimate.dart';
+import 'package:compact_games/models/compression_progress.dart';
+import 'package:compact_games/models/game_info.dart';
+import 'package:compact_games/models/watcher_event.dart';
+import 'package:compact_games/providers/cover_art/cover_art_provider.dart';
+import 'package:compact_games/providers/compression/compression_provider.dart';
+import 'package:compact_games/providers/games/game_list_provider.dart';
+import 'package:compact_games/providers/games/selected_game_provider.dart';
+import 'package:compact_games/providers/settings/settings_persistence.dart';
+import 'package:compact_games/providers/settings/settings_provider.dart';
+import 'package:compact_games/providers/system/route_state_provider.dart';
+import 'package:compact_games/services/cover_art_service.dart';
+import 'package:compact_games/services/rust_bridge_service.dart';
+import 'package:compact_games/src/rust/api/update.dart' as rust_update;
 
 part 'support/phase6_test_doubles.dart';
 part 'support/phase6_ui_split_tests.dart';
@@ -61,7 +62,7 @@ final List<GameInfo> _sampleGames = <GameInfo>[
 ];
 
 String _sameUriCoverFixture(String name) {
-  return Uri.file('C:\\PressPlayCoverFixtures\\$name.png').toString();
+  return Uri.file('C:\\CompactGamesCoverFixtures\\$name.png').toString();
 }
 
 Widget _buildRouteAwareTestApp({
@@ -1075,7 +1076,7 @@ void main() {
       final persistence = _InMemorySettingsPersistence();
       await persistence.save(
         const AppSettings(
-          steamGridDbApiKey: 'pressplay-demo-key',
+          steamGridDbApiKey: 'compact-games-demo-key',
           idleDurationMinutes: 23,
           cpuThreshold: 19,
         ),

@@ -263,7 +263,7 @@ extension _CoverArtServiceApi on CoverArtService {
         headers: <String, String>{
           'Authorization': authorization,
           'Accept': 'application/json',
-          'User-Agent': 'PressPlay/0.1',
+          'User-Agent': 'CompactGames/0.1',
         },
       );
       if (response == null) {
@@ -302,7 +302,7 @@ extension _CoverArtServiceApi on CoverArtService {
     final response = await _sendStrictImageGetWithRetries(
       uri: uri,
       timeout: _apiImageRequestTimeout,
-      headers: const <String, String>{'User-Agent': 'PressPlay/0.1'},
+      headers: const <String, String>{'User-Agent': 'CompactGames/0.1'},
     );
     if (response == null || response.statusCode != 200) {
       return null;

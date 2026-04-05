@@ -4,10 +4,10 @@ import 'package:flutter/painting.dart';
 
 import '../theme/app_colors.dart';
 
-/// Warms up common PressPlay gradients, rounded clips, and strokes so
+/// Warms up common Compact Games gradients, rounded clips, and strokes so
 /// first-interaction rasterization is less likely to hitch on cold shader cache.
-class PressPlayShaderWarmUp extends ShaderWarmUp {
-  const PressPlayShaderWarmUp();
+class CompactGamesShaderWarmUp extends ShaderWarmUp {
+  const CompactGamesShaderWarmUp();
 
   @override
   ui.Size get size => const ui.Size(220, 220);

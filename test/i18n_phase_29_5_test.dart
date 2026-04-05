@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:pressplay/app.dart';
-import 'package:pressplay/core/localization/app_locale.dart';
-import 'package:pressplay/core/utils/date_time_format.dart';
-import 'package:pressplay/features/games/presentation/widgets/compression_progress_indicator.dart';
-import 'package:pressplay/features/games/presentation/widgets/game_details/details_info_card.dart';
-import 'package:pressplay/features/settings/presentation/sections/language_section.dart';
-import 'package:pressplay/l10n/app_localizations.dart';
-import 'package:pressplay/models/app_settings.dart';
-import 'package:pressplay/models/compression_algorithm.dart';
-import 'package:pressplay/models/game_info.dart';
-import 'package:pressplay/providers/compression/compression_progress_provider.dart';
-import 'package:pressplay/providers/compression/compression_state.dart';
-import 'package:pressplay/providers/localization/locale_pack_provider.dart';
-import 'package:pressplay/providers/localization/locale_provider.dart';
-import 'package:pressplay/providers/settings/settings_persistence.dart';
-import 'package:pressplay/providers/settings/settings_provider.dart';
-import 'package:pressplay/services/locale_pack_persistence.dart';
-import 'package:pressplay/services/tray_service.dart';
+import 'package:compact_games/app.dart';
+import 'package:compact_games/core/localization/app_locale.dart';
+import 'package:compact_games/core/utils/date_time_format.dart';
+import 'package:compact_games/features/games/presentation/widgets/compression_progress_indicator.dart';
+import 'package:compact_games/features/games/presentation/widgets/game_details/details_info_card.dart';
+import 'package:compact_games/features/settings/presentation/sections/language_section.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
+import 'package:compact_games/models/app_settings.dart';
+import 'package:compact_games/models/compression_algorithm.dart';
+import 'package:compact_games/models/game_info.dart';
+import 'package:compact_games/providers/compression/compression_progress_provider.dart';
+import 'package:compact_games/providers/compression/compression_state.dart';
+import 'package:compact_games/providers/localization/locale_pack_provider.dart';
+import 'package:compact_games/providers/localization/locale_provider.dart';
+import 'package:compact_games/providers/settings/settings_persistence.dart';
+import 'package:compact_games/providers/settings/settings_provider.dart';
+import 'package:compact_games/services/locale_pack_persistence.dart';
+import 'package:compact_games/services/tray_service.dart';
 
 import 'support/localized_test_app.dart';
 
@@ -146,7 +146,7 @@ void main() {
       progressPercent: 42,
       autoCompressionEnabled: false,
       strings: TrayStrings(
-        openAppLabel: 'Abrir PressPlay',
+        openAppLabel: 'Abrir Compact Games',
         pauseAutoCompressionLabel: 'Pausar compresión automática',
         resumeAutoCompressionLabel: 'Reanudar compresión automática',
         quitLabel: 'Salir',
@@ -163,9 +163,9 @@ void main() {
     );
 
     expect(items[2].label, 'Comprimiendo: Halo');
-    expect(items[4].label, 'Abrir PressPlay');
+    expect(items[4].label, 'Abrir Compact Games');
     expect(items[5].label, 'Reanudar compresión automática');
-    expect(trayTooltipForStatus(status), 'PressPlay - Comprimiendo Halo (42%)');
+    expect(trayTooltipForStatus(status), 'Compact Games - Comprimiendo Halo (42%)');
   });
 
   test('formatLocalMonthDayTime uses locale-aware month formatting', () {
@@ -366,7 +366,7 @@ void main() {
   );
 
   testWidgets(
-    'PressPlayApp applies persisted Spanish locale to home and settings',
+    'CompactGamesApp applies persisted Spanish locale to home and settings',
     (tester) async {
       final spanishL10n = lookupAppLocalizations(const Locale('es'));
       final persistence = _MemorySettingsPersistence(
@@ -385,7 +385,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const PressPlayApp(),
+          child: const CompactGamesApp(),
         ),
       );
       await tester.pumpAndSettle();
@@ -400,7 +400,7 @@ void main() {
   );
 
   testWidgets(
-    'PressPlayApp applies persisted Spanish locale to inventory shell',
+    'CompactGamesApp applies persisted Spanish locale to inventory shell',
     (tester) async {
       final persistence = _MemorySettingsPersistence(
         const AppSettings(localeTag: 'es'),
@@ -418,7 +418,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const PressPlayApp(),
+          child: const CompactGamesApp(),
         ),
       );
       await tester.pumpAndSettle();
@@ -504,7 +504,7 @@ void main() {
     },
   );
 
-  testWidgets('PressPlayApp applies persisted Chinese locale to home', (
+  testWidgets('CompactGamesApp applies persisted Chinese locale to home', (
     tester,
   ) async {
     final chineseL10n = lookupAppLocalizations(const Locale('zh'));
@@ -524,7 +524,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const PressPlayApp(),
+        child: const CompactGamesApp(),
       ),
     );
     await tester.pumpAndSettle();

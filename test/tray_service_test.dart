@@ -1,7 +1,7 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/services/tray_service.dart';
+import 'package:compact_games/services/tray_service.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 part 'support/tray_service_test_extras.dart';
@@ -24,7 +24,7 @@ void main() {
       trayPlatform: fakeTray,
       windowPlatform: fakeWindow,
       debounceDuration: const Duration(milliseconds: 5),
-      iconPathOverride: r'C:\test\pressplay_tray.ico',
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
     );
 
     await service.init();
@@ -53,7 +53,7 @@ void main() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 5),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
       );
 
       await service.init();
@@ -83,7 +83,7 @@ void main() {
       trayPlatform: fakeTray,
       windowPlatform: fakeWindow,
       debounceDuration: const Duration(milliseconds: 50),
-      iconPathOverride: r'C:\test\pressplay_tray.ico',
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
     );
 
     await service.init();
@@ -114,7 +114,7 @@ void main() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 50),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
       );
 
       await service.init();
@@ -131,7 +131,7 @@ void main() {
       await service.flushPendingUpdateForTest();
 
       expect(fakeTray.setContextMenuCalls, menuCallsBefore);
-      expect(fakeTray.lastTooltip, 'PressPlay');
+      expect(fakeTray.lastTooltip, 'Compact Games');
     },
   );
 
@@ -143,7 +143,7 @@ void main() {
       trayPlatform: fakeTray,
       windowPlatform: fakeWindow,
       debounceDuration: const Duration(milliseconds: 5),
-      iconPathOverride: r'C:\test\pressplay_tray.ico',
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
     );
 
     service.update(
@@ -158,7 +158,7 @@ void main() {
 
     expect(fakeTray.setContextMenuCalls, 1);
     expect(fakeTray.menuLabelForKey('status'), 'Compressing: Boot Game');
-    expect(fakeTray.lastTooltip, 'PressPlay - Compressing Boot Game (7%)');
+    expect(fakeTray.lastTooltip, 'Compact Games - Compressing Boot Game (7%)');
   });
 
   test(
@@ -171,12 +171,12 @@ void main() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 5),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
       );
 
       await service.init();
       expect(fakeTray.setToolTipCalls, 1);
-      expect(fakeTray.lastTooltip, 'PressPlay');
+      expect(fakeTray.lastTooltip, 'Compact Games');
 
       service.update(
         const TrayStatus(
@@ -187,7 +187,7 @@ void main() {
       await service.flushPendingUpdateForTest();
 
       expect(fakeTray.setToolTipCalls, 1);
-      expect(fakeTray.lastTooltip, 'PressPlay');
+      expect(fakeTray.lastTooltip, 'Compact Games');
       expect(fakeTray.menuLabelForKey('toggle_auto'), 'Pause Auto-Compression');
 
       service.update(
@@ -199,7 +199,7 @@ void main() {
       await service.flushPendingUpdateForTest();
 
       expect(fakeTray.setToolTipCalls, 2);
-      expect(fakeTray.lastTooltip, 'PressPlay - Paused');
+      expect(fakeTray.lastTooltip, 'Compact Games - Paused');
     },
   );
 
@@ -213,7 +213,7 @@ void main() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 5),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
       );
 
       await service.init();
@@ -225,7 +225,7 @@ void main() {
           mode: TrayStatusMode.idle,
           autoCompressionEnabled: true,
           strings: TrayStrings(
-            openAppLabel: 'Abrir PressPlay',
+            openAppLabel: 'Abrir Compact Games',
             pauseAutoCompressionLabel: 'Pausar compresion automatica',
             resumeAutoCompressionLabel: 'Reanudar compresion automatica',
             quitLabel: 'Salir',
@@ -236,13 +236,13 @@ void main() {
 
       expect(fakeTray.setContextMenuCalls, menuCallsBefore + 1);
       expect(fakeTray.setToolTipCalls, tooltipCallsBefore);
-      expect(fakeTray.menuLabelForKey('show'), 'Abrir PressPlay');
+      expect(fakeTray.menuLabelForKey('show'), 'Abrir Compact Games');
       expect(
         fakeTray.menuLabelForKey('toggle_auto'),
         'Pausar compresion automatica',
       );
       expect(fakeTray.menuLabelForKey('quit'), 'Salir');
-      expect(fakeTray.lastTooltip, 'PressPlay');
+      expect(fakeTray.lastTooltip, 'Compact Games');
     },
   );
 
@@ -258,7 +258,7 @@ void main() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 5),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
         setAutoCompressionEnabled: (enabled) async {
           requests.add(enabled);
           await releaseToggle.future;
@@ -309,7 +309,7 @@ void main() {
       trayPlatform: fakeTray,
       windowPlatform: fakeWindow,
       debounceDuration: const Duration(milliseconds: 5),
-      iconPathOverride: r'C:\test\pressplay_tray.ico',
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
     );
 
     await service.init();
@@ -356,7 +356,7 @@ void main() {
       trayPlatform: fakeTray,
       windowPlatform: fakeWindow,
       debounceDuration: const Duration(milliseconds: 5),
-      iconPathOverride: r'C:\test\pressplay_tray.ico',
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
     );
 
     await service.init();
@@ -400,7 +400,7 @@ void main() {
         trayPlatform: fakeTray,
         windowPlatform: fakeWindow,
         debounceDuration: const Duration(milliseconds: 30),
-        iconPathOverride: r'C:\test\pressplay_tray.ico',
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
       );
 
       await service.init();

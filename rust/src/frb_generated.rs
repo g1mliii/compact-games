@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 662929232;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1790114409;
 
 // Section: executor
 
@@ -109,6 +109,39 @@ fn wire__crate__api__compression__cancel_compression_impl(
                 })?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__update__check_for_update_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "check_for_update",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_current_version = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::update::check_for_update(api_current_version)?;
+                    Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -266,6 +299,45 @@ fn wire__crate__api__compression__decompress_game_impl(
                     Ok(output_ok)
                 })(
                 ))
+            }
+        },
+    )
+}
+fn wire__crate__api__update__download_update_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "download_update",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_url = <String>::sse_decode(&mut deserializer);
+            let api_dest_path = <String>::sse_decode(&mut deserializer);
+            let api_expected_sha256 = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::update::download_update(
+                        api_url,
+                        api_dest_path,
+                        api_expected_sha256,
+                    )?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -1946,6 +2018,26 @@ impl SseDecode for () {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
 }
 
+impl SseDecode for crate::api::update::UpdateCheckResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_updateAvailable = <bool>::sse_decode(deserializer);
+        let mut var_latestVersion = <String>::sse_decode(deserializer);
+        let mut var_downloadUrl = <String>::sse_decode(deserializer);
+        let mut var_releaseNotes = <String>::sse_decode(deserializer);
+        let mut var_checksumSha256 = <String>::sse_decode(deserializer);
+        let mut var_publishedAt = <String>::sse_decode(deserializer);
+        return crate::api::update::UpdateCheckResult {
+            update_available: var_updateAvailable,
+            latest_version: var_latestVersion,
+            download_url: var_downloadUrl,
+            release_notes: var_releaseNotes,
+            checksum_sha256: var_checksumSha256,
+            published_at: var_publishedAt,
+        };
+    }
+}
+
 fn pde_ffi_dispatcher_primary_impl(
     func_id: i32,
     port: flutter_rust_bridge::for_generated::MessagePort,
@@ -1961,84 +2053,86 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        5 => wire__crate__api__compression__compress_game_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__compression__decompress_game_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__compression__estimate_compression_savings_impl(
+        3 => wire__crate__api__update__check_for_update_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__compression__compress_game_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__compression__decompress_game_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__update__download_update_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__compression__estimate_compression_savings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        8 => wire__crate__api__icon__platform__extract_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__unsupported__fetch_community_unsupported_list_impl(
+        10 => wire__crate__api__icon__platform__extract_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__unsupported__fetch_community_unsupported_list_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
-        12 => {
+        13 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
+        14 => {
             wire__crate__api__discovery__get_all_games_quick_impl(port, ptr, rust_vec_len, data_len)
         }
-        15 => wire__crate__api__compression__get_compression_ratio_impl(
+        17 => wire__crate__api__compression__get_compression_ratio_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__discovery__remove_game_from_discovery_impl(
+        20 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__discovery__remove_game_from_discovery_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => {
+        28 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        27 => wire__crate__api__automation__shared_auto_state_default_impl(
+        29 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__automation__start_auto_compression_impl(
+        30 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
+        32 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        32 => wire__crate__api__automation__update_automation_config_impl(
+        34 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        35 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__automation__watch_automation_queue_impl(
+        36 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__automation__watch_scheduler_state_impl(
+        37 => wire__crate__api__automation__watch_scheduler_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__automation__watch_watcher_events_impl(
+        38 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2057,41 +2151,41 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         2 => wire__crate__api__compression__cancel_compression_impl(ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__discovery__clear_discovery_cache_impl(ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__discovery__clear_discovery_cache_entry_impl(
+        4 => wire__crate__api__discovery__clear_discovery_cache_impl(ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__discovery__clear_discovery_cache_entry_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        9 => wire__crate__api__icon__extract_exe_icon_impl(ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__automation__get_automation_queue_impl(ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__compression__get_compression_progress_impl(
+        11 => wire__crate__api__icon__extract_exe_icon_impl(ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__automation__get_automation_queue_impl(ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__compression__get_compression_progress_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        16 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
-        17 => {
+        18 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
+        19 => {
             wire__crate__api__automation__get_watcher_diagnostics_impl(ptr, rust_vec_len, data_len)
         }
-        19 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__automation__is_auto_compression_running_impl(
+        21 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__automation__is_auto_compression_running_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__compression__persist_compression_history_impl(
+        23 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__compression__persist_compression_history_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => {
+        27 => {
             wire__crate__api__unsupported__report_unsupported_game_impl(ptr, rust_vec_len, data_len)
         }
-        29 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
+        31 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -2586,6 +2680,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::automation::SharedAutoState>
     for crate::api::automation::SharedAutoState
 {
     fn into_into_dart(self) -> crate::api::automation::SharedAutoState {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update::UpdateCheckResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.update_available.into_into_dart().into_dart(),
+            self.latest_version.into_into_dart().into_dart(),
+            self.download_url.into_into_dart().into_dart(),
+            self.release_notes.into_into_dart().into_dart(),
+            self.checksum_sha256.into_into_dart().into_dart(),
+            self.published_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update::UpdateCheckResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update::UpdateCheckResult>
+    for crate::api::update::UpdateCheckResult
+{
+    fn into_into_dart(self) -> crate::api::update::UpdateCheckResult {
         self
     }
 }
@@ -3148,6 +3267,18 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for crate::api::update::UpdateCheckResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.update_available, serializer);
+        <String>::sse_encode(self.latest_version, serializer);
+        <String>::sse_encode(self.download_url, serializer);
+        <String>::sse_encode(self.release_notes, serializer);
+        <String>::sse_encode(self.checksum_sha256, serializer);
+        <String>::sse_encode(self.published_at, serializer);
+    }
 }
 
 #[cfg(not(target_family = "wasm"))]

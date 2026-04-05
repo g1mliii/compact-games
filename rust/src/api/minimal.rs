@@ -10,6 +10,6 @@ pub fn init_app() -> String {
     {
         log::warn!("Failed to configure global thread pool: {e}");
     }
-    log::info!("PressPlay core initialized");
-    String::from("PressPlay core ready")
+    log::info!("Compact Games core initialized");
+    String::from("Compact Games core ready")
 }

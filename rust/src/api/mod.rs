@@ -6,3 +6,4 @@ pub mod icon;
 pub mod minimal;
 pub mod types;
 pub mod unsupported;
+pub mod update;

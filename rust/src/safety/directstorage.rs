@@ -1,4 +1,4 @@
-//! DirectStorage detection for game directories.
+﻿//! DirectStorage detection for game directories.
 //!
 //! Games using DirectStorage must NOT be compressed, as WOF
 //! compression interferes with DirectStorage's GPU-direct I/O path.
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn nonexistent_path_returns_false() {
         assert!(!is_directstorage_game(Path::new(
-            r"C:\__nonexistent_pressplay_test__"
+            r"C:\__nonexistent_compact_games_test__"
         )));
     }
 

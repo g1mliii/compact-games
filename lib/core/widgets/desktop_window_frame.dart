@@ -17,7 +17,7 @@ class DesktopWindowFrame extends StatelessWidget {
       color: AppColors.background,
       child: Column(
         children: [
-          const RepaintBoundary(child: _PressPlayWindowTitleBar()),
+          const RepaintBoundary(child: _CompactGamesWindowTitleBar()),
           Expanded(child: RepaintBoundary(child: child)),
         ],
       ),
@@ -25,15 +25,15 @@ class DesktopWindowFrame extends StatelessWidget {
   }
 }
 
-class _PressPlayWindowTitleBar extends StatefulWidget {
-  const _PressPlayWindowTitleBar();
+class _CompactGamesWindowTitleBar extends StatefulWidget {
+  const _CompactGamesWindowTitleBar();
 
   @override
-  State<_PressPlayWindowTitleBar> createState() =>
-      _PressPlayWindowTitleBarState();
+  State<_CompactGamesWindowTitleBar> createState() =>
+      _CompactGamesWindowTitleBarState();
 }
 
-class _PressPlayWindowTitleBarState extends State<_PressPlayWindowTitleBar>
+class _CompactGamesWindowTitleBarState extends State<_CompactGamesWindowTitleBar>
     with WindowListener {
   static const double _titleBarHeight = 32;
   static const ValueKey<String> _titleBarKey = ValueKey<String>(

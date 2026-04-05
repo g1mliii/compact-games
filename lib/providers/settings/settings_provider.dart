@@ -144,6 +144,22 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     _updateSetting((s) => s.copyWith(localeTag: () => canonicalTag));
   }
 
+  void setAutoCheckUpdates(bool enabled) {
+    _updateSetting((s) => s.copyWith(autoCheckUpdates: enabled));
+  }
+
+  Future<void> flush() async {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+
+    final current = state.valueOrNull;
+    if (current == null) {
+      return;
+    }
+
+    await _saveSettings(current.settings);
+  }
+
   void _updateSetting(AppSettings Function(AppSettings) updater) {
     final current = state.valueOrNull;
     if (current == null) return;
@@ -160,13 +176,17 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
   void _debounceSave(AppSettings settings) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      try {
-        final persistence = ref.read(settingsPersistenceProvider);
-        await persistence.save(settings);
-      } catch (_) {
-        // Settings are in memory; save failure is non-fatal
-      }
+      await _saveSettings(settings);
     });
+  }
+
+  Future<void> _saveSettings(AppSettings settings) async {
+    try {
+      final persistence = ref.read(settingsPersistenceProvider);
+      await persistence.save(settings);
+    } catch (_) {
+      // Settings are in memory; save failure is non-fatal.
+    }
   }
 }
 
@@ -187,5 +207,6 @@ bool _settingsEqual(AppSettings a, AppSettings b) {
       a.inventoryAdvancedScanEnabled == b.inventoryAdvancedScanEnabled &&
       a.minimizeToTray == b.minimizeToTray &&
       a.homeViewMode == b.homeViewMode &&
-      a.localeTag == b.localeTag;
+      a.localeTag == b.localeTag &&
+      a.autoCheckUpdates == b.autoCheckUpdates;
 }

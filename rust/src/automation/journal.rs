@@ -88,14 +88,14 @@ impl JournalWriter {
         }
     }
 
-    /// Create a writer using the default `%APPDATA%/pressplay/automation_journal.json` path.
+    /// Create a writer using the default `%APPDATA%/compact_games/automation_journal.json` path.
     pub fn default_path() -> Result<Self, std::io::Error> {
         let config_dir = dirs::config_dir().ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::NotFound, "no config directory found")
         })?;
-        let pressplay_dir = config_dir.join("pressplay");
-        fs::create_dir_all(&pressplay_dir)?;
-        Ok(Self::new(pressplay_dir.join("automation_journal.json")))
+        let compact_games_dir = config_dir.join("compact_games");
+        fs::create_dir_all(&compact_games_dir)?;
+        Ok(Self::new(compact_games_dir.join("automation_journal.json")))
     }
 
     /// Insert an entry, deduplicating by idempotency key.

@@ -1,4 +1,4 @@
-import 'package:pressplay/l10n/app_localizations.dart';
+import 'package:compact_games/l10n/app_localizations.dart';
 
 import '../../models/compression_algorithm.dart';
 import '../../models/game_info.dart';

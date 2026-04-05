@@ -1,5 +1,5 @@
 {
-  "name": "pressplay-unsupported-report-ingest",
+  "name": "compact-games-unsupported-report-ingest",
   "private": true,
   "type": "module",
   "engines": {

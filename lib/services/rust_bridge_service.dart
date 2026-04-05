@@ -14,6 +14,7 @@ import '../src/rust/api/automation_types.dart' as rust_automation_types;
 import '../src/rust/api/compression.dart' as rust_compression;
 import '../src/rust/api/discovery.dart' as rust_discovery;
 import '../src/rust/api/unsupported.dart' as rust_unsupported;
+import '../src/rust/api/update.dart' as rust_update;
 import '../src/rust/api/icon.dart' as rust_icon;
 import '../src/rust/frb_generated.dart';
 import '../src/rust/api/minimal.dart' as rust_minimal;
@@ -244,6 +245,24 @@ class RustBridgeService {
 
   Future<int> fetchCommunityUnsupportedList() {
     return rust_unsupported.fetchCommunityUnsupportedList();
+  }
+
+  Future<rust_update.UpdateCheckResult> checkForUpdate({
+    required String currentVersion,
+  }) {
+    return rust_update.checkForUpdate(currentVersion: currentVersion);
+  }
+
+  Future<String> downloadUpdate({
+    required String url,
+    required String destPath,
+    required String expectedSha256,
+  }) {
+    return rust_update.downloadUpdate(
+      url: url,
+      destPath: destPath,
+      expectedSha256: expectedSha256,
+    );
   }
 
   Future<void> startAutoCompression() {

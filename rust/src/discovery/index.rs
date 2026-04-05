@@ -195,14 +195,14 @@ fn save_index_file(index: &IndexFile) -> Result<(), Box<dyn std::error::Error>> 
 fn index_path() -> Result<PathBuf, std::io::Error> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    let pressplay_dir = config_dir.join("pressplay");
+    let compact_games_dir = config_dir.join("compact_games");
 
     if !INDEX_DIR_CREATED.load(Ordering::Relaxed) {
-        fs::create_dir_all(&pressplay_dir)?;
+        fs::create_dir_all(&compact_games_dir)?;
         INDEX_DIR_CREATED.store(true, Ordering::Relaxed);
     }
 
-    Ok(pressplay_dir.join(INDEX_FILE_NAME))
+    Ok(compact_games_dir.join(INDEX_FILE_NAME))
 }
 
 fn prune_if_needed(index: &mut IndexFile, incoming_key: &str) {

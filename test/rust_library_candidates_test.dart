@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pressplay/services/rust_library_candidates.dart';
+import 'package:compact_games/services/rust_library_candidates.dart';
 
 void main() {
   test('profile mode prefers the release Rust DLL', () {
@@ -10,8 +10,8 @@ void main() {
         preferDebugRustDll: true,
       ),
       const [
-        'rust/target/release/pressplay_core.dll',
-        'rust/target/debug/pressplay_core.dll',
+        'rust/target/release/compact_games_core.dll',
+        'rust/target/debug/compact_games_core.dll',
       ],
     );
   });
@@ -24,8 +24,8 @@ void main() {
         preferDebugRustDll: true,
       ),
       const [
-        'rust/target/debug/pressplay_core.dll',
-        'rust/target/release/pressplay_core.dll',
+        'rust/target/debug/compact_games_core.dll',
+        'rust/target/release/compact_games_core.dll',
       ],
     );
   });
