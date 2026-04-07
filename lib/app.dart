@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:compact_games/l10n/app_localizations.dart';
 import 'core/localization/app_locale.dart';
 import 'core/navigation/app_routes.dart';
-import 'core/performance/perf_overlay.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/widgets/desktop_window_frame.dart';
@@ -51,19 +50,17 @@ class _CompactGamesRoot extends ConsumerWidget {
         // Effect-only watcher — zero pixels, never causes child rebuilds.
         const _EffectProviderHost(),
         Expanded(
-          child: PerfOverlayManager(
-            child: MaterialApp(
-              title: AppConstants.appName,
-              debugShowCheckedModeBanner: false,
-              theme: _appTheme,
-              locale: locale,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: appSupportedLocales,
-              navigatorObservers: [routeObserver],
-              builder: _appBuilder,
-              initialRoute: AppRoutes.home,
-              onGenerateRoute: AppRoutes.onGenerateRoute,
-            ),
+          child: MaterialApp(
+            title: AppConstants.appName,
+            debugShowCheckedModeBanner: false,
+            theme: _appTheme,
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: appSupportedLocales,
+            navigatorObservers: [routeObserver],
+            builder: _appBuilder,
+            initialRoute: AppRoutes.home,
+            onGenerateRoute: AppRoutes.onGenerateRoute,
           ),
         ),
       ],

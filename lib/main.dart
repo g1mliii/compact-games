@@ -9,7 +9,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/constants/app_constants.dart';
-import 'core/performance/perf_monitor.dart';
 import 'core/performance/compact_games_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
@@ -33,7 +32,6 @@ const _startupWindow = WindowManagerStartupAdapter();
 final _startupTray = TrayStartupAdapter(TrayService.instance);
 
 Future<void> main() async {
-  PerfMonitor.markStartupBegin();
   if (!kIsWeb && _enableShaderWarmUp) {
     PaintingBinding.shaderWarmUp = const CompactGamesShaderWarmUp();
   }
@@ -44,10 +42,8 @@ Future<void> main() async {
     debugPaintBaselinesEnabled = false;
   }
 
-  // Cap decoded image memory at 50MB / 300 entries to stay under budget.
-  final imageCache = PaintingBinding.instance.imageCache;
-  imageCache.maximumSizeBytes = 50 * 1024 * 1024;
-  imageCache.maximumSize = 300;
+  // Cap decoded image memory to stay under budget.
+  UiMemoryLifecycle.configureImageCache();
 
   WidgetsBinding.instance
     ..removeObserver(_memoryObserver)
@@ -89,7 +85,6 @@ Future<void> main() async {
   );
 
   runApp(const _RustBridgeReloadHost(child: CompactGamesApp()));
-  PerfMonitor.markStartupEnd();
 }
 
 const bool _enableShaderWarmUp = bool.fromEnvironment(

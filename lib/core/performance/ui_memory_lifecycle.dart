@@ -7,13 +7,23 @@ enum UiMemoryTrimLevel { background, trayHide, pressure, shutdown }
 
 /// Centralized memory trim hooks for desktop lifecycle events.
 abstract final class UiMemoryLifecycle {
-  /// Current decoded image cache usage in bytes (for debug overlay).
+  /// Hard cap on decoded image bytes held by Flutter's [ImageCache].
+  static const int imageCacheMaxBytes = 50 * 1024 * 1024;
+
+  /// Hard cap on decoded image entries held by Flutter's [ImageCache].
+  static const int imageCacheMaxEntries = 300;
+
+  /// Apply the production image cache limits. Call once from `main()`.
+  static void configureImageCache() {
+    final imageCache = PaintingBinding.instance.imageCache;
+    imageCache.maximumSizeBytes = imageCacheMaxBytes;
+    imageCache.maximumSize = imageCacheMaxEntries;
+  }
+
+  /// Current decoded image cache usage in bytes. Exposed for memory-aware
+  /// production logic (e.g. gating `wantKeepAlive` on scroll-heavy widgets).
   static int get currentImageCacheBytes =>
       PaintingBinding.instance.imageCache.currentSizeBytes;
-
-  /// Current decoded image cache entry count (for debug overlay).
-  static int get currentImageCacheCount =>
-      PaintingBinding.instance.imageCache.currentSize;
 
   static void trim(UiMemoryTrimLevel level) {
     final imageCache = PaintingBinding.instance.imageCache;

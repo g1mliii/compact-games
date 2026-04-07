@@ -342,24 +342,26 @@ class _ActivityProgressBar extends StatelessWidget {
           ],
         ),
         SizedBox(height: compact ? 6 : 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          clipBehavior: Clip.hardEdge,
-          child: SizedBox(
-            height: compact ? 7 : 8,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const ColoredBox(color: AppColors.surfaceElevated),
-                if (activity.hasKnownFileTotal)
-                  FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: progress,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(gradient: gradient),
+        RepaintBoundary(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(
+              height: compact ? 7 : 8,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const ColoredBox(color: AppColors.surfaceElevated),
+                  if (activity.hasKnownFileTotal)
+                    FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: progress,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(gradient: gradient),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

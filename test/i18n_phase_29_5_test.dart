@@ -18,10 +18,12 @@ import 'package:compact_games/providers/localization/locale_pack_provider.dart';
 import 'package:compact_games/providers/localization/locale_provider.dart';
 import 'package:compact_games/providers/settings/settings_persistence.dart';
 import 'package:compact_games/providers/settings/settings_provider.dart';
+import 'package:compact_games/providers/games/game_list_provider.dart';
 import 'package:compact_games/services/locale_pack_persistence.dart';
 import 'package:compact_games/services/tray_service.dart';
 
 import 'support/localized_test_app.dart';
+import 'support/noop_rust_bridge_service.dart';
 
 class _MemorySettingsPersistence implements SettingsPersistence {
   _MemorySettingsPersistence([this.current = const AppSettings()]);
@@ -374,6 +376,9 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            const NoOpRustBridgeService(),
+          ),
           settingsPersistenceProvider.overrideWithValue(persistence),
           localePackPersistenceProvider.overrideWithValue(
             _MemoryLocalePackPersistence(),
@@ -407,6 +412,9 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            const NoOpRustBridgeService(),
+          ),
           settingsPersistenceProvider.overrideWithValue(persistence),
           localePackPersistenceProvider.overrideWithValue(
             _MemoryLocalePackPersistence(),
@@ -513,6 +521,9 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          const NoOpRustBridgeService(),
+        ),
         settingsPersistenceProvider.overrideWithValue(persistence),
         localePackPersistenceProvider.overrideWithValue(
           _MemoryLocalePackPersistence(),
