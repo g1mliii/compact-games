@@ -20,6 +20,7 @@ class GameCard extends StatelessWidget {
     this.coverImageUrl,
     this.coverImageProvider,
     this.heroTag,
+    this.focusNode,
     this.isCompressed = false,
     this.isDirectStorage = false,
     this.isUnsupported = false,
@@ -27,6 +28,7 @@ class GameCard extends StatelessWidget {
     this.lastCompressedText,
     this.coverArtType,
     this.assumeBoundedHeight = true,
+    this.isFocused = false,
     this.onTap,
     this.onSecondaryTapDown,
     super.key,
@@ -39,6 +41,7 @@ class GameCard extends StatelessWidget {
   final String? coverImageUrl;
   final ImageProvider<Object>? coverImageProvider;
   final String? heroTag;
+  final FocusNode? focusNode;
   final bool isCompressed;
   final bool isDirectStorage;
   final bool isUnsupported;
@@ -46,6 +49,7 @@ class GameCard extends StatelessWidget {
   final String? lastCompressedText;
   final CoverArtType? coverArtType;
   final bool assumeBoundedHeight;
+  final bool isFocused;
   final VoidCallback? onTap;
   final GestureTapDownCallback? onSecondaryTapDown;
   static const BorderRadius _cardBorderRadius = BorderRadius.all(
@@ -54,6 +58,10 @@ class GameCard extends StatelessWidget {
   static const double _sizeInfoRegionHeight = 34;
   static final BoxDecoration _cardDecoration = buildAppSurfaceDecoration(
     borderRadius: _cardBorderRadius,
+  );
+  static final BoxDecoration _focusedDecoration = BoxDecoration(
+    borderRadius: _cardBorderRadius,
+    border: Border.all(color: AppColors.focusRing, width: 1.6),
   );
   static const BoxDecoration _placeholderDecoration = BoxDecoration(
     gradient: LinearGradient(
@@ -65,7 +73,7 @@ class GameCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final body = GestureDetector(
       onTap: onTap,
       onSecondaryTapDown: onSecondaryTapDown,
       child: DecoratedBox(
@@ -73,6 +81,25 @@ class GameCard extends StatelessWidget {
         child: assumeBoundedHeight
             ? _buildBoundedBody(context)
             : _buildAdaptiveBody(context),
+      ),
+    );
+
+    final focusNode = this.focusNode;
+    if (focusNode == null) {
+      return _FocusAwareCardShell(
+        gameName: gameName,
+        isFocused: isFocused,
+        child: body,
+      );
+    }
+
+    return ListenableBuilder(
+      listenable: focusNode,
+      child: body,
+      builder: (context, child) => _FocusAwareCardShell(
+        gameName: gameName,
+        isFocused: focusNode.hasFocus,
+        child: child!,
       ),
     );
   }
@@ -400,6 +427,42 @@ class GameCard extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _FocusAwareCardShell extends StatelessWidget {
+  const _FocusAwareCardShell({
+    required this.gameName,
+    required this.isFocused,
+    required this.child,
+  });
+
+  final String gameName;
+  final bool isFocused;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      focusable: true,
+      focused: isFocused,
+      label: gameName,
+      child: isFocused
+          ? Stack(
+              children: [
+                child,
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: GameCard._focusedDecoration,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : child,
     );
   }
 }

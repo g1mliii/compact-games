@@ -300,6 +300,61 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsSteamGridDbRemoveButton => 'Quitar clave';
 
   @override
+  String get settingsAboutSectionTitle => 'Acerca de';
+
+  @override
+  String get settingsAboutVersionLabel => 'Versión';
+
+  @override
+  String get settingsAboutAutoCheckUpdatesLabel =>
+      'Buscar actualizaciones automáticamente';
+
+  @override
+  String get settingsAboutCheckingForUpdatesStatus =>
+      'Buscando actualizaciones...';
+
+  @override
+  String get settingsAboutUpdateFailedTitle => 'La actualización falló';
+
+  @override
+  String get settingsAboutRetryDownloadAction => 'Reintentar descarga';
+
+  @override
+  String get settingsAboutRetryCheckAction => 'Reintentar búsqueda';
+
+  @override
+  String get settingsAboutCheckForUpdatesAction => 'Buscar actualizaciones';
+
+  @override
+  String settingsAboutUpdateAvailableStatus(Object version) {
+    return 'Actualización disponible: v$version';
+  }
+
+  @override
+  String settingsAboutReleasedLabel(Object publishedAt) {
+    return 'Publicado: $publishedAt';
+  }
+
+  @override
+  String get settingsAboutDownloadUpdateAction => 'Descargar actualización';
+
+  @override
+  String get settingsAboutDownloadingUpdateStatus =>
+      'Descargando actualización...';
+
+  @override
+  String get settingsAboutUpdateReadyToInstallStatus =>
+      'La actualización se descargó y está lista para instalarse';
+
+  @override
+  String get settingsAboutWaitingForCompressionStatus =>
+      'Esperando a que termine la compresión...';
+
+  @override
+  String get settingsAboutInstallUpdateAndRestartAction =>
+      'Instalar actualización y reiniciar';
+
+  @override
   String get settingsSafetySectionTitle => 'Seguridad';
 
   @override

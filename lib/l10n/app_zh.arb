@@ -386,6 +386,72 @@
   "@settingsSteamGridDbRemoveButton": {
     "description": "Localized message for settings steam grid db remove button."
   },
+  "settingsAboutSectionTitle": "关于",
+  "@settingsAboutSectionTitle": {
+    "description": "Localized message for the About settings section title."
+  },
+  "settingsAboutVersionLabel": "版本",
+  "@settingsAboutVersionLabel": {
+    "description": "Localized message for the app version label in settings."
+  },
+  "settingsAboutAutoCheckUpdatesLabel": "自动检查更新",
+  "@settingsAboutAutoCheckUpdatesLabel": {
+    "description": "Localized message for the automatic update check toggle."
+  },
+  "settingsAboutCheckingForUpdatesStatus": "正在检查更新...",
+  "@settingsAboutCheckingForUpdatesStatus": {
+    "description": "Localized message shown while the app checks for updates."
+  },
+  "settingsAboutUpdateFailedTitle": "更新失败",
+  "@settingsAboutUpdateFailedTitle": {
+    "description": "Localized title shown when update checking fails."
+  },
+  "settingsAboutRetryDownloadAction": "重试下载",
+  "@settingsAboutRetryDownloadAction": {
+    "description": "Localized button label to retry downloading an update."
+  },
+  "settingsAboutRetryCheckAction": "重新检查",
+  "@settingsAboutRetryCheckAction": {
+    "description": "Localized button label to retry checking for updates."
+  },
+  "settingsAboutCheckForUpdatesAction": "检查更新",
+  "@settingsAboutCheckForUpdatesAction": {
+    "description": "Localized button label to manually check for updates."
+  },
+  "settingsAboutUpdateAvailableStatus": "发现更新：v{version}",
+  "@settingsAboutUpdateAvailableStatus": {
+    "description": "Localized message shown when an update is available.",
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "settingsAboutReleasedLabel": "发布时间：{publishedAt}",
+  "@settingsAboutReleasedLabel": {
+    "description": "Localized label for an update release date.",
+    "placeholders": {
+      "publishedAt": {}
+    }
+  },
+  "settingsAboutDownloadUpdateAction": "下载更新",
+  "@settingsAboutDownloadUpdateAction": {
+    "description": "Localized button label to download an available update."
+  },
+  "settingsAboutDownloadingUpdateStatus": "正在下载更新...",
+  "@settingsAboutDownloadingUpdateStatus": {
+    "description": "Localized message shown while an update is downloading."
+  },
+  "settingsAboutUpdateReadyToInstallStatus": "更新已下载并可安装",
+  "@settingsAboutUpdateReadyToInstallStatus": {
+    "description": "Localized message shown when an update is ready to install."
+  },
+  "settingsAboutWaitingForCompressionStatus": "正在等待压缩完成...",
+  "@settingsAboutWaitingForCompressionStatus": {
+    "description": "Localized message shown when installation must wait for compression to finish."
+  },
+  "settingsAboutInstallUpdateAndRestartAction": "安装更新并重启",
+  "@settingsAboutInstallUpdateAndRestartAction": {
+    "description": "Localized button label to install an update and restart the app."
+  },
   "settingsSafetySectionTitle": "安全",
   "@settingsSafetySectionTitle": {
     "description": "Localized message for settings safety section title."

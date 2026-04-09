@@ -1,0 +1,21 @@
+{
+  "name": "Compact Games",
+  "short_name": "Compact Games",
+  "description": "Compact Games helps Windows users recover storage space by compressing game installs carefully.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#091422",
+  "theme_color": "#091422",
+  "icons": [
+    {
+      "src": "./assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}

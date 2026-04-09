@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/compression/compression_provider.dart';
@@ -16,6 +17,7 @@ class AboutSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final autoCheck = ref.watch(
       settingsProvider.select((s) => s.valueOrNull?.settings.autoCheckUpdates),
     );
@@ -33,26 +35,26 @@ class AboutSection extends ConsumerWidget {
 
     return SettingsSectionCard(
       icon: LucideIcons.info,
-      title: 'About',
+      title: l10n.settingsAboutSectionTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text('Version', style: AppTypography.bodyMedium),
+              Text(l10n.settingsAboutVersionLabel, style: AppTypography.bodyMedium),
               const SizedBox(width: 8),
               Text(
                 AppConstants.appVersion,
-                style: AppTypography.bodyMedium.copyWith(
+                style: AppTypography.mono.copyWith(
                   color: AppColors.textSecondary,
-                  fontFamily: 'JetBrains Mono',
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           ScaledSwitchRow(
-            label: 'Check for updates automatically',
+            label: l10n.settingsAboutAutoCheckUpdatesLabel,
             value: autoCheck,
             onChanged: (v) =>
                 ref.read(settingsProvider.notifier).setAutoCheckUpdates(v),
@@ -61,15 +63,15 @@ class AboutSection extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           if (status == UpdateStatus.checking)
-            const _SpinningStatusRow(
-              label: 'Checking for updates...',
+            _SpinningStatusRow(
+              label: l10n.settingsAboutCheckingForUpdatesStatus,
               color: AppColors.textSecondary,
             ),
 
           if (status == UpdateStatus.error && error != null) ...[
             _buildStatusRow(
               LucideIcons.alertCircle,
-              'Update failed',
+              l10n.settingsAboutUpdateFailedTitle,
               AppColors.error,
             ),
             const SizedBox(height: 8),
@@ -90,7 +92,11 @@ class AboutSection extends ConsumerWidget {
                 canRetryDownload ? LucideIcons.download : LucideIcons.refreshCw,
                 size: 16,
               ),
-              label: Text(canRetryDownload ? 'Retry Download' : 'Retry Check'),
+              label: Text(
+                canRetryDownload
+                    ? l10n.settingsAboutRetryDownloadAction
+                    : l10n.settingsAboutRetryCheckAction,
+              ),
             ),
           ],
 
@@ -99,19 +105,19 @@ class AboutSection extends ConsumerWidget {
               onPressed: () =>
                   ref.read(updateProvider.notifier).checkForUpdate(),
               icon: const Icon(LucideIcons.refreshCw, size: 16),
-              label: const Text('Check for Updates'),
+              label: Text(l10n.settingsAboutCheckForUpdatesAction),
             ),
 
           if (status == UpdateStatus.available && info != null) ...[
             _buildStatusRow(
               LucideIcons.download,
-              'Update available: v${info.latestVersion}',
+              l10n.settingsAboutUpdateAvailableStatus(info.latestVersion),
               AppColors.success,
             ),
             if (info.publishedAt.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
-                'Released: ${info.publishedAt}',
+                l10n.settingsAboutReleasedLabel(info.publishedAt),
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -141,13 +147,13 @@ class AboutSection extends ConsumerWidget {
               onPressed: () =>
                   ref.read(updateProvider.notifier).downloadUpdate(),
               icon: const Icon(LucideIcons.download, size: 16),
-              label: const Text('Download Update'),
+              label: Text(l10n.settingsAboutDownloadUpdateAction),
             ),
           ],
 
           if (status == UpdateStatus.downloading) ...[
-            const _SpinningStatusRow(
-              label: 'Downloading update...',
+            _SpinningStatusRow(
+              label: l10n.settingsAboutDownloadingUpdateStatus,
               color: AppColors.richGold,
             ),
             const SizedBox(height: 8),
@@ -160,7 +166,7 @@ class AboutSection extends ConsumerWidget {
           if (status == UpdateStatus.downloaded) ...[
             _buildStatusRow(
               LucideIcons.checkCircle,
-              'Update downloaded and ready to install',
+              l10n.settingsAboutUpdateReadyToInstallStatus,
               AppColors.success,
             ),
             const SizedBox(height: 12),
@@ -171,8 +177,8 @@ class AboutSection extends ConsumerWidget {
               icon: const Icon(LucideIcons.rocket, size: 16),
               label: Text(
                 hasActiveCompression
-                    ? 'Waiting for compression to finish...'
-                    : 'Install Update & Restart',
+                    ? l10n.settingsAboutWaitingForCompressionStatus
+                    : l10n.settingsAboutInstallUpdateAndRestartAction,
               ),
             ),
           ],

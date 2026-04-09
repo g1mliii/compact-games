@@ -610,6 +610,96 @@ abstract class AppLocalizations {
   /// **'Remove key'**
   String get settingsSteamGridDbRemoveButton;
 
+  /// Localized message for the About settings section title.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get settingsAboutSectionTitle;
+
+  /// Localized message for the app version label in settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get settingsAboutVersionLabel;
+
+  /// Localized message for the automatic update check toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates automatically'**
+  String get settingsAboutAutoCheckUpdatesLabel;
+
+  /// Localized message shown while the app checks for updates.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates...'**
+  String get settingsAboutCheckingForUpdatesStatus;
+
+  /// Localized title shown when update checking fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed'**
+  String get settingsAboutUpdateFailedTitle;
+
+  /// Localized button label to retry downloading an update.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry download'**
+  String get settingsAboutRetryDownloadAction;
+
+  /// Localized button label to retry checking for updates.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry check'**
+  String get settingsAboutRetryCheckAction;
+
+  /// Localized button label to manually check for updates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get settingsAboutCheckForUpdatesAction;
+
+  /// Localized message shown when an update is available.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available: v{version}'**
+  String settingsAboutUpdateAvailableStatus(Object version);
+
+  /// Localized label for an update release date.
+  ///
+  /// In en, this message translates to:
+  /// **'Released: {publishedAt}'**
+  String settingsAboutReleasedLabel(Object publishedAt);
+
+  /// Localized button label to download an available update.
+  ///
+  /// In en, this message translates to:
+  /// **'Download update'**
+  String get settingsAboutDownloadUpdateAction;
+
+  /// Localized message shown while an update is downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update...'**
+  String get settingsAboutDownloadingUpdateStatus;
+
+  /// Localized message shown when an update is ready to install.
+  ///
+  /// In en, this message translates to:
+  /// **'Update downloaded and ready to install'**
+  String get settingsAboutUpdateReadyToInstallStatus;
+
+  /// Localized message shown when installation must wait for compression to finish.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for compression to finish...'**
+  String get settingsAboutWaitingForCompressionStatus;
+
+  /// Localized button label to install an update and restart the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Install update and restart'**
+  String get settingsAboutInstallUpdateAndRestartAction;
+
   /// Localized message for settings safety section title.
   ///
   /// In en, this message translates to:

@@ -293,6 +293,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSteamGridDbRemoveButton => 'Remove key';
 
   @override
+  String get settingsAboutSectionTitle => 'About';
+
+  @override
+  String get settingsAboutVersionLabel => 'Version';
+
+  @override
+  String get settingsAboutAutoCheckUpdatesLabel =>
+      'Check for updates automatically';
+
+  @override
+  String get settingsAboutCheckingForUpdatesStatus => 'Checking for updates...';
+
+  @override
+  String get settingsAboutUpdateFailedTitle => 'Update failed';
+
+  @override
+  String get settingsAboutRetryDownloadAction => 'Retry download';
+
+  @override
+  String get settingsAboutRetryCheckAction => 'Retry check';
+
+  @override
+  String get settingsAboutCheckForUpdatesAction => 'Check for updates';
+
+  @override
+  String settingsAboutUpdateAvailableStatus(Object version) {
+    return 'Update available: v$version';
+  }
+
+  @override
+  String settingsAboutReleasedLabel(Object publishedAt) {
+    return 'Released: $publishedAt';
+  }
+
+  @override
+  String get settingsAboutDownloadUpdateAction => 'Download update';
+
+  @override
+  String get settingsAboutDownloadingUpdateStatus => 'Downloading update...';
+
+  @override
+  String get settingsAboutUpdateReadyToInstallStatus =>
+      'Update downloaded and ready to install';
+
+  @override
+  String get settingsAboutWaitingForCompressionStatus =>
+      'Waiting for compression to finish...';
+
+  @override
+  String get settingsAboutInstallUpdateAndRestartAction =>
+      'Install update and restart';
+
+  @override
   String get settingsSafetySectionTitle => 'Safety';
 
   @override

@@ -282,6 +282,55 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSteamGridDbRemoveButton => '移除密钥';
 
   @override
+  String get settingsAboutSectionTitle => '关于';
+
+  @override
+  String get settingsAboutVersionLabel => '版本';
+
+  @override
+  String get settingsAboutAutoCheckUpdatesLabel => '自动检查更新';
+
+  @override
+  String get settingsAboutCheckingForUpdatesStatus => '正在检查更新...';
+
+  @override
+  String get settingsAboutUpdateFailedTitle => '更新失败';
+
+  @override
+  String get settingsAboutRetryDownloadAction => '重试下载';
+
+  @override
+  String get settingsAboutRetryCheckAction => '重新检查';
+
+  @override
+  String get settingsAboutCheckForUpdatesAction => '检查更新';
+
+  @override
+  String settingsAboutUpdateAvailableStatus(Object version) {
+    return '发现更新：v$version';
+  }
+
+  @override
+  String settingsAboutReleasedLabel(Object publishedAt) {
+    return '发布时间：$publishedAt';
+  }
+
+  @override
+  String get settingsAboutDownloadUpdateAction => '下载更新';
+
+  @override
+  String get settingsAboutDownloadingUpdateStatus => '正在下载更新...';
+
+  @override
+  String get settingsAboutUpdateReadyToInstallStatus => '更新已下载并可安装';
+
+  @override
+  String get settingsAboutWaitingForCompressionStatus => '正在等待压缩完成...';
+
+  @override
+  String get settingsAboutInstallUpdateAndRestartAction => '安装更新并重启';
+
+  @override
   String get settingsSafetySectionTitle => '安全';
 
   @override

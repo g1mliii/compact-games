@@ -386,6 +386,72 @@
   "@settingsSteamGridDbRemoveButton": {
     "description": "Localized message for settings steam grid db remove button."
   },
+  "settingsAboutSectionTitle": "Acerca de",
+  "@settingsAboutSectionTitle": {
+    "description": "Localized message for the About settings section title."
+  },
+  "settingsAboutVersionLabel": "Versión",
+  "@settingsAboutVersionLabel": {
+    "description": "Localized message for the app version label in settings."
+  },
+  "settingsAboutAutoCheckUpdatesLabel": "Buscar actualizaciones automáticamente",
+  "@settingsAboutAutoCheckUpdatesLabel": {
+    "description": "Localized message for the automatic update check toggle."
+  },
+  "settingsAboutCheckingForUpdatesStatus": "Buscando actualizaciones...",
+  "@settingsAboutCheckingForUpdatesStatus": {
+    "description": "Localized message shown while the app checks for updates."
+  },
+  "settingsAboutUpdateFailedTitle": "La actualización falló",
+  "@settingsAboutUpdateFailedTitle": {
+    "description": "Localized title shown when update checking fails."
+  },
+  "settingsAboutRetryDownloadAction": "Reintentar descarga",
+  "@settingsAboutRetryDownloadAction": {
+    "description": "Localized button label to retry downloading an update."
+  },
+  "settingsAboutRetryCheckAction": "Reintentar búsqueda",
+  "@settingsAboutRetryCheckAction": {
+    "description": "Localized button label to retry checking for updates."
+  },
+  "settingsAboutCheckForUpdatesAction": "Buscar actualizaciones",
+  "@settingsAboutCheckForUpdatesAction": {
+    "description": "Localized button label to manually check for updates."
+  },
+  "settingsAboutUpdateAvailableStatus": "Actualización disponible: v{version}",
+  "@settingsAboutUpdateAvailableStatus": {
+    "description": "Localized message shown when an update is available.",
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "settingsAboutReleasedLabel": "Publicado: {publishedAt}",
+  "@settingsAboutReleasedLabel": {
+    "description": "Localized label for an update release date.",
+    "placeholders": {
+      "publishedAt": {}
+    }
+  },
+  "settingsAboutDownloadUpdateAction": "Descargar actualización",
+  "@settingsAboutDownloadUpdateAction": {
+    "description": "Localized button label to download an available update."
+  },
+  "settingsAboutDownloadingUpdateStatus": "Descargando actualización...",
+  "@settingsAboutDownloadingUpdateStatus": {
+    "description": "Localized message shown while an update is downloading."
+  },
+  "settingsAboutUpdateReadyToInstallStatus": "La actualización se descargó y está lista para instalarse",
+  "@settingsAboutUpdateReadyToInstallStatus": {
+    "description": "Localized message shown when an update is ready to install."
+  },
+  "settingsAboutWaitingForCompressionStatus": "Esperando a que termine la compresión...",
+  "@settingsAboutWaitingForCompressionStatus": {
+    "description": "Localized message shown when installation must wait for compression to finish."
+  },
+  "settingsAboutInstallUpdateAndRestartAction": "Instalar actualización y reiniciar",
+  "@settingsAboutInstallUpdateAndRestartAction": {
+    "description": "Localized button label to install an update and restart the app."
+  },
   "settingsSafetySectionTitle": "Seguridad",
   "@settingsSafetySectionTitle": {
     "description": "Localized message for settings safety section title."

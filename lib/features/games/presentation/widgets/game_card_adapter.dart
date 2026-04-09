@@ -229,6 +229,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         coverImageProvider: coverImageProvider,
         coverArtType: coverArtType,
         heroTag: null,
+        focusNode: _focusNode,
         onTap: () => unawaited(_showContextMenu(game: game)),
         onSecondaryTapDown: (details) =>
             unawaited(_showContextMenu(game: game, tapDown: details)),
