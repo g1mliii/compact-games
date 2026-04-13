@@ -53,6 +53,9 @@ pub fn lookup(path: &Path, token: &ChangeToken) -> Option<GameInfo> {
         if entry.token != *token {
             return None;
         }
+        if compression_history_is_newer(path, entry.updated_at_ms) {
+            return None;
+        }
         if now.saturating_sub(entry.updated_at_ms) > MAX_INDEX_AGE_MS {
             return None;
         }
@@ -69,6 +72,9 @@ pub fn lookup_recent(path: &Path) -> Option<GameInfo> {
     let now = unix_now_ms();
     with_index_read(|index| {
         let entry = index.entries.get(&key)?;
+        if compression_history_is_newer(path, entry.updated_at_ms) {
+            return None;
+        }
         if now.saturating_sub(entry.updated_at_ms) > MAX_INDEX_AGE_MS {
             return None;
         }
@@ -226,11 +232,41 @@ fn unix_now_ms() -> u64 {
     crate::utils::unix_now_ms()
 }
 
+fn compression_history_is_newer(path: &Path, metadata_updated_at_ms: u64) -> bool {
+    crate::compression::history::is_newer_than(path, metadata_updated_at_ms)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::discovery::cache::compute_change_token;
+    use crate::compression::algorithm::CompressionAlgorithm;
+    use crate::compression::history::{
+        record_compression, ActualStats, CompressionHistoryEntry, EstimateSnapshot,
+    };
+    use crate::discovery::cache::{compute_change_token, normalize_path_key};
     use crate::discovery::platform::Platform;
+    use std::path::Path;
+
+    fn history_entry(path: &Path, timestamp_ms: u64) -> CompressionHistoryEntry {
+        CompressionHistoryEntry {
+            game_path: path.to_string_lossy().into_owned(),
+            game_name: "Index History Game".to_owned(),
+            timestamp_ms,
+            estimate: EstimateSnapshot {
+                scanned_files: 0,
+                sampled_bytes: 0,
+                estimated_saved_bytes: 0,
+            },
+            actual_stats: ActualStats {
+                original_bytes: 10_000,
+                compressed_bytes: 8_000,
+                actual_saved_bytes: 2_000,
+                files_processed: 10,
+            },
+            algorithm: CompressionAlgorithm::Xpress8K,
+            duration_ms: 100,
+        }
+    }
 
     #[test]
     fn upsert_lookup_roundtrip_with_token() {
@@ -253,5 +289,37 @@ mod tests {
         let hit = lookup(dir.path(), &token).expect("index hit expected");
         assert_eq!(hit.name, game.name);
         assert_eq!(hit.path, game.path);
+    }
+
+    #[test]
+    fn lookup_rejects_entries_older_than_compression_history() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let token = compute_change_token(dir.path(), false);
+        let key = normalize_path_key(dir.path());
+        record_compression(history_entry(dir.path(), 2_000));
+
+        with_index_write(|index| {
+            index.entries.insert(
+                key,
+                IndexEntry {
+                    token: token.clone(),
+                    game: GameInfo {
+                        name: "Stale".to_owned(),
+                        path: dir.path().to_path_buf(),
+                        platform: Platform::Application,
+                        size_bytes: 10_000,
+                        compressed_size: None,
+                        is_compressed: false,
+                        is_directstorage: false,
+                        is_unsupported: false,
+                        excluded: false,
+                        last_played: None,
+                    },
+                    updated_at_ms: 1_000,
+                },
+            );
+        });
+
+        assert!(lookup(dir.path(), &token).is_none());
     }
 }

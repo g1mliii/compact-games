@@ -90,6 +90,27 @@ fn ensure_loaded() {
 
 /// Record a compression result.
 pub fn record_compression(entry: CompressionHistoryEntry) {
+    evict_stale_discovery_metadata(&entry.game_path);
+
+    // Keep the latest-timestamp index fresh so read-path consumers
+    // (discovery cache/index lookup, watcher classification) can skip
+    // flushing pending writes to see this entry.
+    ensure_loaded();
+    {
+        let mut index_guard = LATEST_TIMESTAMP_INDEX.write().unwrap();
+        if let Some(index) = index_guard.as_mut() {
+            let key = normalize_game_path(Path::new(&entry.game_path));
+            index
+                .entry(key)
+                .and_modify(|current| {
+                    if entry.timestamp_ms > *current {
+                        *current = entry.timestamp_ms;
+                    }
+                })
+                .or_insert(entry.timestamp_ms);
+        }
+    }
+
     let mut pending = PENDING_UPDATES.lock().unwrap();
     pending.push(entry);
 
@@ -140,8 +161,10 @@ pub fn get_historical_stats() -> Vec<CompressionHistoryEntry> {
 
 /// Return the most recent compression timestamp (milliseconds since Unix epoch)
 /// for a specific game path, if available.
+///
+/// `record_compression` keeps the timestamp index fresh synchronously, so this
+/// read path stays lock-light and safe to call from discovery/watcher hot paths.
 pub fn latest_compression_timestamp_ms(game_path: &Path) -> Option<u64> {
-    flush_pending();
     ensure_loaded();
 
     let target = normalize_game_path(game_path);
@@ -151,18 +174,24 @@ pub fn latest_compression_timestamp_ms(game_path: &Path) -> Option<u64> {
 
 /// Return the latest compression timestamps keyed by normalized game path.
 pub fn latest_compression_timestamps_by_path() -> HashMap<String, u64> {
-    flush_pending();
     ensure_loaded();
 
     let guard = LATEST_TIMESTAMP_INDEX.read().unwrap();
     guard.as_ref().cloned().unwrap_or_default()
 }
 
+/// True when a compression record for `path` is newer than the given
+/// metadata timestamp. Used by discovery cache/index lookups to drop
+/// entries whose compression state is now out of date.
+pub fn is_newer_than(path: &Path, metadata_updated_at_ms: u64) -> bool {
+    latest_compression_timestamp_ms(path)
+        .is_some_and(|last_compressed_ms| last_compressed_ms > metadata_updated_at_ms)
+}
+
 /// Borrow the latest compression timestamp index without cloning it.
 pub fn with_latest_compression_timestamps_by_path<R>(
     f: impl FnOnce(&HashMap<String, u64>) -> R,
 ) -> R {
-    flush_pending();
     ensure_loaded();
 
     let guard = LATEST_TIMESTAMP_INDEX.read().unwrap();
@@ -195,8 +224,31 @@ pub fn persist_if_dirty() {
     if let Ok(json) = serde_json::to_string_pretty(cache) {
         if crate::utils::atomic_write(&path, json.as_bytes()).is_ok() {
             *CACHE_DIRTY.lock().unwrap() = false;
+            persist_discovery_metadata_if_dirty();
         }
     }
+}
+
+fn evict_stale_discovery_metadata(game_path: &str) {
+    let path = Path::new(game_path);
+    evict_stale_discovery_metadata_for_path(path);
+
+    let content_path = path.join("Content");
+    if content_path.is_dir() {
+        evict_stale_discovery_metadata_for_path(&content_path);
+    }
+}
+
+fn evict_stale_discovery_metadata_for_path(path: &Path) {
+    crate::discovery::cache::remove(path);
+    crate::discovery::index::remove(path);
+    crate::discovery::change_feed::remove(path);
+}
+
+fn persist_discovery_metadata_if_dirty() {
+    crate::discovery::cache::persist_if_dirty();
+    crate::discovery::index::persist_if_dirty();
+    crate::discovery::change_feed::persist_if_dirty();
 }
 
 #[cfg(test)]
@@ -204,6 +256,10 @@ mod tests {
     use super::*;
     use crate::compression::algorithm::CompressionAlgorithm;
     use crate::compression::history::{ActualStats, EstimateSnapshot};
+    use crate::discovery::cache::{self as discovery_cache, CachedGameStats};
+    use crate::discovery::index as discovery_index;
+    use crate::discovery::platform::{GameInfo, Platform};
+    use crate::discovery::test_sync::lock_discovery_test;
 
     fn unique_test_path(prefix: &str) -> PathBuf {
         let nanos = std::time::SystemTime::now()
@@ -262,5 +318,42 @@ mod tests {
         let key = normalize_game_path(&path);
         let map = latest_compression_timestamps_by_path();
         assert_eq!(map.get(&key), Some(&2500));
+    }
+
+    #[test]
+    fn record_compression_evicts_stale_discovery_metadata_for_game_path() {
+        let _guard = lock_discovery_test();
+        discovery_cache::clear_all();
+        discovery_index::clear_all();
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let game_path = dir.path();
+        let token = discovery_cache::compute_change_token(game_path, false);
+        discovery_cache::upsert(
+            game_path,
+            token.clone(),
+            CachedGameStats::from_parts(10_000, 8_000, true, false),
+        );
+        discovery_index::upsert(
+            game_path,
+            token.clone(),
+            &GameInfo {
+                name: "Cached Game".to_owned(),
+                path: game_path.to_path_buf(),
+                platform: Platform::Application,
+                size_bytes: 10_000,
+                compressed_size: Some(8_000),
+                is_compressed: true,
+                is_directstorage: false,
+                is_unsupported: false,
+                excluded: false,
+                last_played: None,
+            },
+        );
+
+        record_compression(history_entry(game_path, 1_700_000_123_456));
+
+        assert!(discovery_cache::lookup_stale(game_path).is_none());
+        assert!(discovery_index::lookup(game_path, &token).is_none());
     }
 }

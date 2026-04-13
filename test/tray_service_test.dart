@@ -75,6 +75,30 @@ void main() {
     },
   );
 
+  test('show window command runs lifecycle hook before focus', () async {
+    final fakeTray = _FakeTrayPlatformAdapter();
+    final fakeWindow = _FakeWindowPlatformAdapter();
+    final service = TrayService.instance;
+    var showHookCalls = 0;
+    service.configureForTest(
+      trayPlatform: fakeTray,
+      windowPlatform: fakeWindow,
+      debounceDuration: const Duration(milliseconds: 5),
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
+      onShowWindow: () {
+        showHookCalls += 1;
+      },
+    );
+
+    await service.init();
+    fakeTray.triggerMenuClick('show');
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    expect(showHookCalls, 1);
+    expect(fakeWindow.showCalls, 1);
+    expect(fakeWindow.focusCalls, 1);
+  });
+
   test('dispose cancels pending coalesced status update', () async {
     final fakeTray = _FakeTrayPlatformAdapter();
     final fakeWindow = _FakeWindowPlatformAdapter();

@@ -1,6 +1,31 @@
 use std::path::Path;
 
 use super::*;
+use crate::compression::algorithm::CompressionAlgorithm;
+use crate::compression::history::{
+    record_compression, ActualStats, CompressionHistoryEntry, EstimateSnapshot,
+};
+
+fn history_entry(path: &Path, timestamp_ms: u64) -> CompressionHistoryEntry {
+    CompressionHistoryEntry {
+        game_path: path.to_string_lossy().into_owned(),
+        game_name: "Cache History Game".to_owned(),
+        timestamp_ms,
+        estimate: EstimateSnapshot {
+            scanned_files: 0,
+            sampled_bytes: 0,
+            estimated_saved_bytes: 0,
+        },
+        actual_stats: ActualStats {
+            original_bytes: 10_000,
+            compressed_bytes: 8_000,
+            actual_saved_bytes: 2_000,
+            files_processed: 10,
+        },
+        algorithm: CompressionAlgorithm::Xpress8K,
+        duration_ms: 100,
+    }
+}
 
 #[test]
 fn change_token_detects_child_count_changes() {
@@ -74,6 +99,26 @@ fn lookup_fresh_accepts_recent_entries() {
     );
     // Entry was just created, so lookup_fresh should find it.
     assert!(lookup_fresh(dir.path(), &token).is_some());
+}
+
+#[test]
+fn lookup_rejects_entries_older_than_compression_history() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let token = compute_change_token(dir.path(), false);
+    record_compression(history_entry(dir.path(), 2_000));
+    upsert(
+        dir.path(),
+        token.clone(),
+        CachedGameStats {
+            logical_size: 10_000,
+            physical_size: 10_000,
+            is_compressed: false,
+            is_directstorage: false,
+            updated_at_ms: 1_000,
+        },
+    );
+
+    assert!(lookup(dir.path(), &token).is_none());
 }
 
 #[cfg(windows)]

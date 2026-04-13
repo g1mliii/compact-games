@@ -2,7 +2,7 @@
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use super::WatchEvent;
@@ -123,26 +123,50 @@ pub(crate) fn is_noise_path(path: &std::path::Path) -> bool {
     false
 }
 
-/// Given a filesystem event path and a set of watched root directories,
-/// determine the game folder (first child directory under a watch root).
+/// Resolved game root for a filesystem event.
+pub(crate) struct ResolvedGameFolder {
+    pub path: PathBuf,
+    pub matched_watch_root: PathBuf,
+}
+
+/// Given a filesystem event path and a set of watched directories,
+/// determine the game folder.
 pub(crate) fn resolve_game_folder(
-    event_path: &std::path::Path,
+    event_path: &Path,
     watch_paths: &[PathBuf],
-) -> Option<PathBuf> {
+) -> Option<ResolvedGameFolder> {
     for root in watch_paths {
         if let Ok(stripped) = event_path.strip_prefix(root) {
+            if is_known_game_watch_root(root) {
+                return Some(ResolvedGameFolder {
+                    path: root.clone(),
+                    matched_watch_root: root.clone(),
+                });
+            }
             if let Some(first_component) = stripped.components().next() {
                 let game_folder = root.join(first_component);
-                return Some(game_folder);
+                return Some(ResolvedGameFolder {
+                    path: game_folder,
+                    matched_watch_root: root.clone(),
+                });
             }
+            return Some(ResolvedGameFolder {
+                path: root.clone(),
+                matched_watch_root: root.clone(),
+            });
         }
     }
     None
 }
 
 /// Extract a human-readable game name from a game folder path.
-pub(crate) fn game_name_from_path(path: &std::path::Path) -> Option<String> {
+pub(crate) fn game_name_from_path(path: &Path) -> Option<String> {
     path.file_name()
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
+}
+
+fn is_known_game_watch_root(root: &Path) -> bool {
+    crate::compression::history::latest_compression_timestamp_ms(root).is_some()
+        || crate::discovery::cache::has_entry(root)
 }

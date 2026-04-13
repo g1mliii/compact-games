@@ -1,6 +1,11 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::compression::algorithm::CompressionAlgorithm;
+use crate::compression::history::{
+    record_compression, ActualStats, CompressionHistoryEntry, EstimateSnapshot,
+};
+
 use super::coalescer::*;
 use super::*;
 
@@ -129,14 +134,91 @@ fn resolve_game_folder_returns_first_child() {
     let watch_paths = vec![PathBuf::from(r"C:\Games")];
     let event_path = PathBuf::from(r"C:\Games\MyGame\data\level1.pak");
     let result = resolve_game_folder(&event_path, &watch_paths);
-    assert_eq!(result, Some(PathBuf::from(r"C:\Games\MyGame")));
+    assert_eq!(
+        result.map(|resolved| resolved.path),
+        Some(PathBuf::from(r"C:\Games\MyGame"))
+    );
+}
+
+#[test]
+fn resolve_game_folder_returns_known_watch_root_for_child_event() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("ExistingGame");
+    std::fs::create_dir_all(&game_dir).unwrap();
+    record_compression(CompressionHistoryEntry {
+        game_path: game_dir.to_string_lossy().into_owned(),
+        game_name: "ExistingGame".to_owned(),
+        timestamp_ms: 1_700_000_123_456,
+        estimate: EstimateSnapshot {
+            scanned_files: 0,
+            sampled_bytes: 0,
+            estimated_saved_bytes: 0,
+        },
+        actual_stats: ActualStats {
+            original_bytes: 10_000,
+            compressed_bytes: 8_000,
+            actual_saved_bytes: 2_000,
+            files_processed: 10,
+        },
+        algorithm: CompressionAlgorithm::Xpress8K,
+        duration_ms: 10,
+    });
+
+    let watch_paths = vec![game_dir.clone()];
+    let event_path = game_dir.join("PatchFolder").join("payload.bin");
+    let result = resolve_game_folder(&event_path, &watch_paths);
+    assert_eq!(result.map(|resolved| resolved.path), Some(game_dir));
+}
+
+#[test]
+fn create_folder_under_known_watch_root_emits_modified_for_game_root() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("WatchedGame");
+    std::fs::create_dir_all(&game_dir).unwrap();
+    record_compression(CompressionHistoryEntry {
+        game_path: game_dir.to_string_lossy().into_owned(),
+        game_name: "WatchedGame".to_owned(),
+        timestamp_ms: 1_700_000_123_456,
+        estimate: EstimateSnapshot {
+            scanned_files: 0,
+            sampled_bytes: 0,
+            estimated_saved_bytes: 0,
+        },
+        actual_stats: ActualStats {
+            original_bytes: 10_000,
+            compressed_bytes: 8_000,
+            actual_saved_bytes: 2_000,
+            files_processed: 10,
+        },
+        algorithm: CompressionAlgorithm::Xpress8K,
+        duration_ms: 10,
+    });
+
+    let new_folder = game_dir.join("PatchFolder");
+    let event = notify::Event {
+        kind: notify::EventKind::Create(notify::event::CreateKind::Folder),
+        paths: vec![new_folder],
+        attrs: notify::event::EventAttributes::new(),
+    };
+    let mut coalescer = EventCoalescer::new(Duration::ZERO);
+
+    process_notify_event(&event, std::slice::from_ref(&game_dir), &mut coalescer);
+    let settled = coalescer.drain_settled();
+
+    assert_eq!(
+        settled,
+        vec![WatchEvent::GameModified {
+            path: game_dir,
+            game_name: Some("WatchedGame".to_owned()),
+        }]
+    );
 }
 
 #[test]
 fn resolve_game_folder_returns_none_for_unmatched() {
     let watch_paths = vec![PathBuf::from(r"C:\Games")];
     let event_path = PathBuf::from(r"D:\Other\stuff.txt");
-    assert_eq!(resolve_game_folder(&event_path, &watch_paths), None);
+    assert!(resolve_game_folder(&event_path, &watch_paths).is_none());
 }
 
 #[test]
@@ -146,6 +228,62 @@ fn game_name_extraction() {
         game_name_from_path(&path),
         Some("Cyberpunk 2077".to_string())
     );
+}
+
+#[test]
+fn update_config_starts_watcher_after_initial_empty_config() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let mut watcher = GameWatcher::new(WatcherConfig::default());
+
+    watcher.start().unwrap();
+    assert!(!watcher.is_running());
+
+    watcher.update_config(WatcherConfig {
+        watch_paths: vec![temp.path().to_path_buf()],
+        cooldown: Duration::from_millis(10),
+    });
+
+    assert!(watcher.is_running());
+    assert!(watcher.event_channel().is_some());
+    watcher.stop();
+}
+
+#[test]
+fn update_config_stops_watcher_when_paths_become_empty() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let mut watcher = GameWatcher::new(WatcherConfig {
+        watch_paths: vec![temp.path().to_path_buf()],
+        cooldown: Duration::from_millis(10),
+    });
+
+    watcher.start().unwrap();
+    assert!(watcher.is_running());
+
+    watcher.update_config(WatcherConfig::default());
+
+    assert!(!watcher.is_running());
+    assert!(watcher.event_channel().is_none());
+}
+
+#[test]
+fn update_config_keeps_running_watcher_when_config_is_unchanged() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let config = WatcherConfig {
+        watch_paths: vec![temp.path().to_path_buf()],
+        cooldown: Duration::from_millis(10),
+    };
+    let mut watcher = GameWatcher::new(config.clone());
+
+    watcher.start().unwrap();
+    assert!(watcher.is_running());
+    let channel_before = watcher.event_channel().unwrap() as *const _;
+
+    watcher.update_config(config);
+
+    assert!(watcher.is_running());
+    let channel_after = watcher.event_channel().unwrap() as *const _;
+    assert_eq!(channel_before, channel_after);
+    watcher.stop();
 }
 
 #[cfg(test)]

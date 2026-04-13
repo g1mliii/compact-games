@@ -2,6 +2,7 @@ import 'package:flutter/painting.dart';
 
 import '../../services/cover_art_service.dart';
 import '../widgets/film_grain_overlay.dart';
+import 'windows_working_set.dart';
 
 enum UiMemoryTrimLevel { background, trayHide, pressure, shutdown }
 
@@ -34,14 +35,21 @@ abstract final class UiMemoryLifecycle {
         trimCoverArtRuntimeCaches(aggressive: false);
         break;
       case UiMemoryTrimLevel.trayHide:
-        // Window fully hidden — release all cached images and grain textures.
-        // Keeps cover-art metadata caches (non-aggressive) so restore is fast.
+        // Window fully hidden — prefer low tray memory over instant restore.
+        // Shrink image cache limits so the framework won't re-populate while
+        // hidden; configureImageCache() restores production limits on resume.
+        imageCache.maximumSizeBytes = 0;
+        imageCache.maximumSize = 0;
         imageCache.clear();
         imageCache.clearLiveImages();
-        trimCoverArtRuntimeCaches(aggressive: false);
+        releaseCoverArtRuntimeCaches();
         FilmGrainOverlay.clearNoiseCache();
+        WindowsWorkingSet.trimCurrentProcess();
         break;
       case UiMemoryTrimLevel.pressure:
+        // Foreground memory-pressure signals must stay jank-free: reclaim
+        // caches but skip `SetProcessWorkingSetSize`, which forces a hard
+        // page-out that the next visible frame would have to fault back in.
         imageCache.clear();
         imageCache.clearLiveImages();
         trimCoverArtRuntimeCaches(aggressive: true);

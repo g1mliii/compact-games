@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use rayon::prelude::*;
 use walkdir::WalkDir;
 
 use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
@@ -19,6 +20,8 @@ const STEAM_LIBRARY_FOLDER: &str = "steamlibrary";
 const MAX_SCAN_DEPTH: usize = 6;
 const MAX_SIZE_SAMPLE_DEPTH: usize = 3;
 const MAX_SIZE_SAMPLE_FILES: usize = 50;
+/// Max non-directory entries allowed in a wrapper folder (e.g. a readme or shortcut).
+const MAX_WRAPPER_LOOSE_FILES: usize = 3;
 
 /// Non-game folders to always skip.
 const SKIP_FOLDERS: &[&str] = &[
@@ -123,7 +126,7 @@ fn scan_custom_path(
         }
     }
 
-    // Otherwise scan subdirectories for game folders
+    // Collect raw subdirectory entries (cheap read_dir, no I/O-heavy heuristics).
     let entries = match std::fs::read_dir(root) {
         Ok(e) => e,
         Err(e) => {
@@ -132,32 +135,169 @@ fn scan_custom_path(
         }
     };
 
-    let subdir_games: Vec<GameInfo> = entries
+    let raw_entries: Vec<(String, PathBuf)> = entries
         .filter_map(|e| e.ok())
         .filter_map(|e| {
-            let game_path = e.path();
-            if !game_path.is_dir() {
+            let path = e.path();
+            if !path.is_dir() {
                 return None;
             }
-
-            let folder_name = e.file_name().to_string_lossy().into_owned();
-            let folder_name_lower = folder_name.to_ascii_lowercase();
-            if SKIP_FOLDERS.iter().any(|skip| folder_name_lower == *skip) {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let name_lower = name.to_ascii_lowercase();
+            if SKIP_FOLDERS.iter().any(|skip| name_lower == *skip) {
                 return None;
             }
-
-            if !is_game_folder(&game_path) {
-                return None;
-            }
-
-            let name = folder_name;
-            utils::build_game_info_with_mode(name, game_path, Platform::Custom, mode)
+            Some((name, path))
         })
         .collect();
 
+    // Phase 1: identify game candidates via heuristics (is_game_folder /
+    // wrapper detection). Each check is independent so we can parallelise
+    // when the candidate list is large enough to justify the overhead.
+    let resolve = |name: String, path: PathBuf| -> Option<(String, PathBuf)> {
+        let resolved = resolve_game_candidate(&path)?;
+        let display_name = match resolved.inner_name {
+            Some(inner) => inner,
+            None => name,
+        };
+        Some((display_name, resolved.path))
+    };
+    let candidates: Vec<(String, PathBuf)> = if raw_entries.len() >= PARALLEL_HEURISTIC_MIN {
+        raw_entries
+            .into_par_iter()
+            .filter_map(|(name, path)| resolve(name, path))
+            .collect()
+    } else {
+        raw_entries
+            .into_iter()
+            .filter_map(|(name, path)| resolve(name, path))
+            .collect()
+    };
+
+    // Phase 2: build metadata for accepted candidates. This goes through
+    // the shared build_games_from_candidates helper which already applies
+    // rayon parallelisation on SSDs with enough candidates.
+    let subdir_games = utils::build_games_from_candidates(root, candidates, Platform::Custom, mode);
     utils::merge_games(&mut games, subdir_games);
 
     Ok(games)
+}
+
+/// Minimum subdirectory count before parallelising the is_game_folder
+/// heuristic phase. Below this the rayon thread-pool overhead dominates.
+const PARALLEL_HEURISTIC_MIN: usize = 6;
+
+struct ResolvedCandidate {
+    path: PathBuf,
+    /// When the candidate was resolved via wrapper unwrap, this is the
+    /// inner folder's basename — used as the display name since users
+    /// often rename the outer wrapper to something short/arbitrary.
+    inner_name: Option<String>,
+}
+
+/// Returns the resolved game path if `path` (or its single wrapped child)
+/// passes `is_game_folder`. Returns `None` if neither qualifies.
+fn resolve_game_candidate(path: &Path) -> Option<ResolvedCandidate> {
+    if is_game_folder(path) {
+        return Some(ResolvedCandidate {
+            path: path.to_path_buf(),
+            inner_name: None,
+        });
+    }
+
+    // Wrapper folder pattern: a folder containing exactly one subfolder
+    // and few/no loose files (e.g. "Goblin-Nest/Goblin Nest/<game files>").
+    // Relax the heuristic for the inner folder: the wrapper pattern itself
+    // is strong signal of a game install, so a valid large exe is enough
+    // even when the size sample is below MIN_GAME_SIZE.
+    if let Some(inner) = unwrap_single_subfolder(path) {
+        if is_game_folder_relaxed(&inner) {
+            let inner_name = inner
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned());
+            log::debug!(
+                "Custom: detected wrapper folder, inner=\"{}\"",
+                inner.display()
+            );
+            return Some(ResolvedCandidate {
+                path: inner,
+                inner_name,
+            });
+        }
+    }
+
+    None
+}
+
+/// Like `is_game_folder` but trusts a valid large exe without requiring
+/// either a game-indicator subdir or a MIN_GAME_SIZE size sample. Use only
+/// when surrounding context (wrapper pattern) already indicates game intent.
+fn is_game_folder_relaxed(path: &Path) -> bool {
+    if is_known_library_container(path) {
+        return false;
+    }
+    if has_unity_layout(path) {
+        return true;
+    }
+    if is_game_folder(path) {
+        return true;
+    }
+    has_valid_large_exe(path)
+}
+
+fn has_valid_large_exe(path: &Path) -> bool {
+    WalkDir::new(path)
+        .max_depth(MAX_SCAN_DEPTH)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .any(|entry| {
+            let is_exe = entry
+                .path()
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"));
+            if !is_exe {
+                return false;
+            }
+            let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+            if is_non_game_exe(&name) {
+                return false;
+            }
+            entry
+                .metadata()
+                .ok()
+                .is_some_and(|m| m.len() >= MIN_EXE_SIZE)
+        })
+}
+
+/// If `path` contains exactly one subdirectory and at most a few loose files,
+/// return that subdirectory. This handles the common pattern where an extracted
+/// archive creates a wrapper folder around the actual game folder.
+///
+/// Designed for fast early-exit: bails as soon as a second subdir or too many
+/// files are seen, so the cost for non-wrapper folders is a partial `read_dir`.
+fn unwrap_single_subfolder(path: &Path) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(path).ok()?;
+    let mut sole_subdir: Option<PathBuf> = None;
+    let mut file_count = 0_usize;
+
+    for entry in entries.filter_map(|e| e.ok()) {
+        let ft = entry.file_type().ok()?;
+        if ft.is_dir() {
+            if sole_subdir.is_some() {
+                return None; // second subdir → not a wrapper
+            }
+            sole_subdir = Some(entry.path());
+        } else {
+            file_count += 1;
+            if file_count > MAX_WRAPPER_LOOSE_FILES {
+                return None;
+            }
+        }
+    }
+
+    sole_subdir
 }
 
 /// Heuristic check: does this folder look like a game installation?

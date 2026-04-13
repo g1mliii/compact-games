@@ -21,13 +21,7 @@ part 'cover_art_service_cache_maintenance.dart';
 part 'cover_art_service_quality.dart';
 part 'cover_art_service_runtime_memory.dart';
 
-enum CoverArtSource {
-  cache,
-  steamLibraryCache,
-  steamGridDbApi,
-  exeIcon,
-  none,
-}
+enum CoverArtSource { cache, steamLibraryCache, steamGridDbApi, exeIcon, none }
 
 enum CoverArtType { poster, icon }
 
@@ -240,6 +234,7 @@ class CoverArtService {
       final cacheDir = await _ensureCacheDir();
       final file = File(p.join(cacheDir.path, '$cacheKey.img'));
       await file.writeAsBytes(pngBytes);
+      await _writeCachedCoverSource(cacheDir, cacheKey, CoverArtSource.exeIcon);
       _scheduleCacheEviction(cacheDir);
       final revision = _bumpCoverRevision(cacheKey);
       return CoverArtResult(
@@ -255,11 +250,16 @@ class CoverArtService {
   Future<CoverArtResult?> _readCachedCover(String cacheKey) async {
     final cacheDir = await _ensureCacheDir();
     final file = File(p.join(cacheDir.path, '$cacheKey.img'));
-    if (!await file.exists()) {
+
+    final FileStat stat;
+    try {
+      stat = await file.stat();
+    } catch (_) {
       return null;
     }
-
-    final stat = await file.stat();
+    if (stat.type == FileSystemEntityType.notFound) {
+      return null;
+    }
     final now = DateTime.now();
     final age = now.difference(stat.modified);
     if (age.inDays > AppConstants.coverCacheDays) {
@@ -276,9 +276,10 @@ class CoverArtService {
       cacheKey,
       fallbackModified: stat.modified,
     );
+    final source = await _readCachedCoverSource(cacheDir, cacheKey);
     return CoverArtResult(
       uri: file.uri.toString(),
-      source: CoverArtSource.cache,
+      source: source,
       revision: revision,
     );
   }
@@ -309,8 +310,49 @@ class CoverArtService {
     final sourceFile = File(sourcePath);
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await sourceFile.copy(target.path);
+    await _clearCachedCoverSource(cacheDir, cacheKey);
     _scheduleCacheEviction(cacheDir);
     return target.path;
+  }
+
+  Future<CoverArtSource> _readCachedCoverSource(
+    Directory cacheDir,
+    String cacheKey,
+  ) async {
+    final sourceFile = _cachedCoverSourceFile(cacheDir, cacheKey);
+    try {
+      final value = (await sourceFile.readAsString()).trim();
+      if (value == CoverArtSource.exeIcon.name) {
+        return CoverArtSource.exeIcon;
+      }
+    } catch (_) {}
+    return CoverArtSource.cache;
+  }
+
+  Future<void> _writeCachedCoverSource(
+    Directory cacheDir,
+    String cacheKey,
+    CoverArtSource source,
+  ) async {
+    try {
+      await _cachedCoverSourceFile(
+        cacheDir,
+        cacheKey,
+      ).writeAsString(source.name, flush: true);
+    } catch (_) {}
+  }
+
+  Future<void> _clearCachedCoverSource(
+    Directory cacheDir,
+    String cacheKey,
+  ) async {
+    try {
+      await _cachedCoverSourceFile(cacheDir, cacheKey).delete();
+    } catch (_) {}
+  }
+
+  File _cachedCoverSourceFile(Directory cacheDir, String cacheKey) {
+    return File(p.join(cacheDir.path, '$cacheKey.source'));
   }
 
   Future<Directory> _ensureCacheDir() async {
@@ -330,27 +372,58 @@ class CoverArtService {
   }
 
   Future<void> _evictCacheIfNeeded(Directory cacheDir) async {
-    final entries = await cacheDir
+    final files = await cacheDir
         .list(followLinks: false)
         .where((entity) => entity is File)
         .cast<File>()
         .toList();
-    if (entries.length <= _maxCacheFiles + 20) {
+
+    final imageFiles = <File>[];
+    final sourceFilesByKey = <String, File>{};
+    for (final file in files) {
+      final extension = p.extension(file.path);
+      if (extension == '.img') {
+        imageFiles.add(file);
+      } else if (extension == '.source') {
+        sourceFilesByKey[p.basenameWithoutExtension(file.path)] = file;
+      }
+    }
+
+    final imageKeys = imageFiles
+        .map((file) => p.basenameWithoutExtension(file.path))
+        .toSet();
+    for (final entry in sourceFilesByKey.entries) {
+      if (!imageKeys.contains(entry.key)) {
+        await _deleteCacheFile(entry.value);
+      }
+    }
+
+    if (imageFiles.length <= _maxCacheFiles + 20) {
       return;
     }
 
     final withStats = <({File file, DateTime modified})>[];
-    for (final file in entries) {
+    for (final file in imageFiles) {
       final stat = await file.stat();
       withStats.add((file: file, modified: stat.modified));
     }
     withStats.sort((a, b) => a.modified.compareTo(b.modified));
-    final removeCount = withStats.length - _maxCacheFiles;
+    final removeCount = imageFiles.length - _maxCacheFiles;
     for (var i = 0; i < removeCount; i++) {
-      try {
-        await withStats[i].file.delete();
-      } catch (_) {}
+      final imageFile = withStats[i].file;
+      await _deleteCacheFile(imageFile);
+      final cacheKey = p.basenameWithoutExtension(imageFile.path);
+      final sourceFile = sourceFilesByKey[cacheKey];
+      if (sourceFile != null) {
+        await _deleteCacheFile(sourceFile);
+      }
     }
+  }
+
+  Future<void> _deleteCacheFile(File file) async {
+    try {
+      await file.delete();
+    } catch (_) {}
   }
 
   String _cacheKey(String path) {

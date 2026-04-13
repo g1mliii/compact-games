@@ -14,7 +14,7 @@ use crate::discovery::storage::{
 };
 
 use super::dedupe::merge_games;
-use super::game_info::build_game_info_with_mode;
+use super::game_info::{build_game_info_with_mode, refresh_dynamic_game_metadata};
 
 const PARALLEL_MIN_CANDIDATES: usize = 3;
 const PARALLEL_UNKNOWN_MIN_CANDIDATES: usize = 8;
@@ -72,6 +72,7 @@ pub fn scan_game_subdirs(
             cached.name = name.clone();
             cached.path = path.clone();
             cached.platform = platform;
+            refresh_dynamic_game_metadata(&mut cached);
             results.push(cached);
         } else {
             index_miss_count = index_miss_count.saturating_add(1);

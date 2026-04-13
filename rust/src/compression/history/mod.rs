@@ -4,8 +4,9 @@ pub mod adaptive;
 pub mod cache;
 
 pub use cache::{
-    get_historical_stats, latest_compression_timestamp_ms, latest_compression_timestamps_by_path,
-    persist_if_dirty, record_compression, with_latest_compression_timestamps_by_path,
+    get_historical_stats, is_newer_than, latest_compression_timestamp_ms,
+    latest_compression_timestamps_by_path, persist_if_dirty, record_compression,
+    with_latest_compression_timestamps_by_path,
 };
 
 use super::algorithm::CompressionAlgorithm;

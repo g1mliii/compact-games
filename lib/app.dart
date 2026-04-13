@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:compact_games/l10n/app_localizations.dart';
+import 'core/lifecycle/app_window_visibility.dart';
 import 'core/localization/app_locale.dart';
 import 'core/navigation/app_routes.dart';
 import 'core/theme/app_theme.dart';
@@ -48,19 +49,34 @@ class _CompactGamesRoot extends ConsumerWidget {
     return Column(
       children: [
         // Effect-only watcher — zero pixels, never causes child rebuilds.
+        // Sits above AnimatedBuilder so visibility toggles don't touch it.
         const _EffectProviderHost(),
         Expanded(
-          child: MaterialApp(
-            title: AppConstants.appName,
-            debugShowCheckedModeBanner: false,
-            theme: _appTheme,
-            locale: locale,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: appSupportedLocales,
-            navigatorObservers: [routeObserver],
-            builder: _appBuilder,
-            initialRoute: AppRoutes.home,
-            onGenerateRoute: AppRoutes.onGenerateRoute,
+          child: AnimatedBuilder(
+            animation: appWindowVisibilityController,
+            builder: (context, _) {
+              final isHiddenToTray =
+                  appWindowVisibilityController.isHiddenToTray;
+              return TickerMode(
+                enabled: !isHiddenToTray,
+                child: Offstage(
+                  offstage: isHiddenToTray,
+                  child: MaterialApp(
+                    title: AppConstants.appName,
+                    debugShowCheckedModeBanner: false,
+                    theme: _appTheme,
+                    locale: locale,
+                    localizationsDelegates:
+                        AppLocalizations.localizationsDelegates,
+                    supportedLocales: appSupportedLocales,
+                    navigatorObservers: [routeObserver],
+                    builder: _appBuilder,
+                    initialRoute: AppRoutes.home,
+                    onGenerateRoute: AppRoutes.onGenerateRoute,
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -136,8 +152,9 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
         // first launch when settings haven't resolved before this callback.
         var autoCheckUpdates = true;
         try {
-          autoCheckUpdates =
-              (await ref.read(settingsProvider.future)).settings.autoCheckUpdates;
+          autoCheckUpdates = (await ref.read(
+            settingsProvider.future,
+          )).settings.autoCheckUpdates;
         } catch (_) {}
 
         try {

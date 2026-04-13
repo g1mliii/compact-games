@@ -40,9 +40,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Update failed'), findsOneWidget);
-    expect(find.text('Retry Check'), findsOneWidget);
+    expect(find.text('Retry check'), findsOneWidget);
 
-    await tester.tap(find.text('Retry Check'));
+    await tester.tap(find.text('Retry check'));
     await tester.pump();
 
     expect(checkCalls, 1);
@@ -86,9 +86,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Retry Download'), findsOneWidget);
+      expect(find.text('Retry download'), findsOneWidget);
 
-      await tester.tap(find.text('Retry Download'));
+      await tester.tap(find.text('Retry download'));
       await tester.pump();
 
       expect(downloadCalls, 1);

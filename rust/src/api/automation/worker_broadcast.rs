@@ -64,6 +64,10 @@ pub(super) fn update_shared_state(scheduler: &AutoScheduler, watcher: &GameWatch
         .into_iter()
         .map(Into::into)
         .collect();
-    guard.watched_path_count = watcher.watched_path_count() as u32;
+    guard.watched_path_count = if watcher.is_running() {
+        watcher.watched_path_count() as u32
+    } else {
+        0
+    };
     guard.queue_depth = scheduler.pending_queue_len() as u32;
 }

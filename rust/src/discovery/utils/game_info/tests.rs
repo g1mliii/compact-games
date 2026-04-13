@@ -1,5 +1,6 @@
 use std::fs::{self, File};
 use std::path::Path;
+use std::time::{Duration, UNIX_EPOCH};
 
 use crate::compression::algorithm::CompressionAlgorithm;
 use crate::compression::history::{
@@ -8,7 +9,7 @@ use crate::compression::history::{
 use crate::discovery::cache;
 use crate::discovery::hidden_paths;
 use crate::discovery::install_history;
-use crate::discovery::platform::{DiscoveryScanMode, Platform};
+use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform};
 use crate::discovery::test_sync::lock_discovery_test;
 
 use super::{build_game_info_with_mode_and_stats_path, compression_timestamp_for_game_path};
@@ -546,4 +547,66 @@ fn compression_timestamp_only_exposed_for_compressed_games() {
         None,
         "non-compressed entries should hide last-compressed timestamp"
     );
+}
+
+#[test]
+fn indexed_game_refreshes_last_compressed_timestamp_from_history() {
+    let _guard = lock_discovery_test();
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("IndexedCompressionStamp");
+    fs::create_dir_all(&game_dir).unwrap();
+    File::create(game_dir.join("payload.bin"))
+        .unwrap()
+        .set_len(10_000)
+        .unwrap();
+
+    let timestamp_ms = 1_700_000_123_456;
+    record_compression(CompressionHistoryEntry {
+        game_path: game_dir.to_string_lossy().into_owned(),
+        game_name: "Indexed Compression Stamp".to_string(),
+        timestamp_ms,
+        estimate: EstimateSnapshot {
+            scanned_files: 0,
+            sampled_bytes: 0,
+            estimated_saved_bytes: 0,
+        },
+        actual_stats: ActualStats {
+            original_bytes: 10_000,
+            compressed_bytes: 8_000,
+            actual_saved_bytes: 2_000,
+            files_processed: 10,
+        },
+        algorithm: CompressionAlgorithm::Xpress8K,
+        duration_ms: 10,
+    });
+
+    let token = cache::compute_change_token(&game_dir, false);
+    crate::discovery::index::upsert(
+        &game_dir,
+        token,
+        &GameInfo {
+            name: "Stale Indexed Name".to_owned(),
+            path: game_dir.clone(),
+            platform: Platform::Application,
+            size_bytes: 10_000,
+            compressed_size: Some(8_000),
+            is_compressed: true,
+            is_directstorage: false,
+            is_unsupported: false,
+            excluded: false,
+            last_played: None,
+        },
+    );
+
+    let game = build_game_info_with_mode_and_stats_path(
+        "Fresh Indexed Name".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Application,
+        DiscoveryScanMode::Full,
+    )
+    .expect("indexed application should hydrate");
+
+    let expected = UNIX_EPOCH + Duration::from_millis(timestamp_ms);
+    assert_eq!(game.last_played, Some(expected));
 }

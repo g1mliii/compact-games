@@ -17,6 +17,21 @@ pub(crate) mod platform {
     use windows::Win32::UI::Shell::ExtractIconExW;
     use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO};
 
+    /// Cap on how many icon resources we probe per EXE. `ExtractIconExW`
+    /// returns icons roughly in descending size, and a single probe already
+    /// runs GetDIBits to read the color bitmap; a tight cap keeps cover-art
+    /// resolution parallelizable across many games without multiplying the
+    /// per-EXE Win32 cost.
+    const MAX_ICON_RESOURCES_TO_PROBE: u32 = 4;
+    /// An icon whose longest side meets this threshold is treated as "good
+    /// enough"; we accept it immediately and stop probing further resources.
+    const ICON_EARLY_EXIT_EDGE_PIXELS: i32 = 96;
+
+    struct IconDimensions {
+        width: i32,
+        height: i32,
+    }
+
     /// Extract the largest icon from an EXE and return it as PNG bytes.
     pub fn extract(exe_path: &str) -> Option<Vec<u8>> {
         let path = Path::new(exe_path);
@@ -25,30 +40,65 @@ pub(crate) mod platform {
         }
 
         let wide_path: Vec<u16> = exe_path.encode_utf16().chain(std::iter::once(0)).collect();
-
-        // Try to extract a large icon (48x48 or larger).
-        let mut large_icon = HICON::default();
-        let extracted = unsafe {
-            ExtractIconExW(
-                PCWSTR(wide_path.as_ptr()),
-                0,
-                Some(&mut large_icon),
-                None,
-                1,
-            )
-        };
-        if extracted == 0 || large_icon.is_invalid() {
+        let icon_count = unsafe { ExtractIconExW(PCWSTR(wide_path.as_ptr()), -1, None, None, 0) };
+        if icon_count == 0 {
             return None;
         }
 
-        let result = icon_to_png(large_icon);
+        let mut best_icon: Option<(HICON, IconDimensions)> = None;
+        let max_icons_to_probe = icon_count.min(MAX_ICON_RESOURCES_TO_PROBE);
+        for index in 0..max_icons_to_probe {
+            let mut large_icon = HICON::default();
+            let extracted = unsafe {
+                ExtractIconExW(
+                    PCWSTR(wide_path.as_ptr()),
+                    index as i32,
+                    Some(&mut large_icon),
+                    None,
+                    1,
+                )
+            };
+            if extracted == 0 || large_icon.is_invalid() {
+                continue;
+            }
+
+            let Some(dimensions) = icon_dimensions(large_icon) else {
+                unsafe {
+                    let _ = DestroyIcon(large_icon);
+                }
+                continue;
+            };
+            let icon_area = dimensions.width.saturating_mul(dimensions.height);
+            let best_area = best_icon
+                .as_ref()
+                .map(|(_, best)| best.width.saturating_mul(best.height))
+                .unwrap_or(0);
+            let longest_edge = dimensions.width.max(dimensions.height);
+            if icon_area > best_area {
+                if let Some((old_icon, _)) = best_icon.replace((large_icon, dimensions)) {
+                    unsafe {
+                        let _ = DestroyIcon(old_icon);
+                    }
+                }
+            } else {
+                unsafe {
+                    let _ = DestroyIcon(large_icon);
+                }
+            }
+            if longest_edge >= ICON_EARLY_EXIT_EDGE_PIXELS {
+                break;
+            }
+        }
+
+        let (best_icon, dims) = best_icon?;
+        let result = icon_to_png(best_icon, dims.width, dims.height);
         unsafe {
-            let _ = DestroyIcon(large_icon);
+            let _ = DestroyIcon(best_icon);
         }
         result
     }
 
-    fn icon_to_png(icon: HICON) -> Option<Vec<u8>> {
+    fn icon_dimensions(icon: HICON) -> Option<IconDimensions> {
         unsafe {
             let mut icon_info: ICONINFO = mem::zeroed();
             let ok = GetIconInfo(icon, &mut icon_info);
@@ -56,7 +106,6 @@ pub(crate) mod platform {
                 return None;
             }
 
-            // Clean up mask bitmap; we only need the color bitmap.
             if !icon_info.hbmMask.is_invalid() {
                 let _ = DeleteObject(icon_info.hbmMask);
             }
@@ -70,30 +119,64 @@ pub(crate) mod platform {
                 let _ = DeleteObject(color_bmp);
                 return None;
             }
-            let _old = SelectObject(hdc, color_bmp);
+            let old_object = SelectObject(hdc, color_bmp);
 
-            // Query bitmap dimensions.
             let mut bmi: BITMAPINFO = mem::zeroed();
             bmi.bmiHeader.biSize = mem::size_of::<BITMAPINFOHEADER>() as u32;
             let got = GetDIBits(hdc, color_bmp, 0, 0, None, &mut bmi, DIB_RGB_COLORS);
+
+            if !old_object.is_invalid() {
+                let _ = SelectObject(hdc, old_object);
+            }
+            let _ = DeleteDC(hdc);
+            let _ = DeleteObject(color_bmp);
+
             if got == 0 {
-                let _ = DeleteDC(hdc);
-                let _ = DeleteObject(color_bmp);
                 return None;
             }
 
             let width = bmi.bmiHeader.biWidth;
             let height = bmi.bmiHeader.biHeight.abs();
             if width <= 0 || height <= 0 || width > 512 || height > 512 {
-                let _ = DeleteDC(hdc);
-                let _ = DeleteObject(color_bmp);
                 return None;
             }
 
-            // Request 32-bit BGRA, top-down.
+            Some(IconDimensions { width, height })
+        }
+    }
+
+    /// Convert an HICON to PNG bytes. Accepts pre-computed dimensions from
+    /// `icon_dimensions()` to avoid a redundant GetIconInfo+GetDIBits probe.
+    fn icon_to_png(icon: HICON, width: i32, height: i32) -> Option<Vec<u8>> {
+        unsafe {
+            let mut icon_info: ICONINFO = mem::zeroed();
+            let ok = GetIconInfo(icon, &mut icon_info);
+            if ok.is_err() {
+                return None;
+            }
+
+            if !icon_info.hbmMask.is_invalid() {
+                let _ = DeleteObject(icon_info.hbmMask);
+            }
+            let color_bmp = icon_info.hbmColor;
+            if color_bmp.is_invalid() {
+                return None;
+            }
+
+            let hdc = CreateCompatibleDC(None);
+            if hdc.is_invalid() {
+                let _ = DeleteObject(color_bmp);
+                return None;
+            }
+            let old_object = SelectObject(hdc, color_bmp);
+
+            // Use pre-computed dimensions; configure for 32-bit BGRA, top-down.
+            let mut bmi: BITMAPINFO = mem::zeroed();
+            bmi.bmiHeader.biSize = mem::size_of::<BITMAPINFOHEADER>() as u32;
+            bmi.bmiHeader.biWidth = width;
+            bmi.bmiHeader.biHeight = -height; // top-down
             bmi.bmiHeader.biBitCount = 32;
             bmi.bmiHeader.biCompression = BI_RGB.0;
-            bmi.bmiHeader.biHeight = -height; // top-down
             bmi.bmiHeader.biSizeImage = 0;
 
             let row_bytes = (width as usize) * 4;
@@ -110,6 +193,9 @@ pub(crate) mod platform {
                 DIB_RGB_COLORS,
             );
 
+            if !old_object.is_invalid() {
+                let _ = SelectObject(hdc, old_object);
+            }
             let _ = DeleteDC(hdc);
             let _ = DeleteObject(color_bmp);
 

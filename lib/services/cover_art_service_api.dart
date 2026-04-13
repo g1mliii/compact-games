@@ -196,7 +196,10 @@ extension _CoverArtServiceApi on CoverArtService {
   }) async {
     for (final dimension in _steamGridDimensionPreference) {
       final endpoint = '$endpointBase?types=static&dimensions=$dimension';
-      final json = await _steamGridDbGetJson(endpoint: endpoint, apiKey: apiKey);
+      final json = await _steamGridDbGetJson(
+        endpoint: endpoint,
+        apiKey: apiKey,
+      );
       final resolved = _selectSteamGridUrl(json);
       if (resolved != null) {
         return resolved;
@@ -325,6 +328,7 @@ extension _CoverArtServiceApi on CoverArtService {
     final cacheDir = await _ensureCacheDir();
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await target.writeAsBytes(response.bodyBytes, flush: true);
+    await _clearCachedCoverSource(cacheDir, cacheKey);
     _scheduleCacheEviction(cacheDir);
     return target.path;
   }
@@ -336,7 +340,9 @@ extension _CoverArtServiceApi on CoverArtService {
   }) {
     return _withApiRetries<http.Response>(() async {
       final response = await _withApiPermit(
-        () => _getCoverArtApiHttpClient().get(uri, headers: headers).timeout(timeout),
+        () => _getCoverArtApiHttpClient()
+            .get(uri, headers: headers)
+            .timeout(timeout),
       );
       if (response.statusCode == 429 || response.statusCode >= 500) {
         throw const _RetryableApiException();

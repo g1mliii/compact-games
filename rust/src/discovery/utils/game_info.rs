@@ -29,6 +29,11 @@ const INSTALL_PROBE_MAX_DEPTH: usize = 3;
 const INSTALL_PROBE_MAX_FILES: usize = 256;
 const UNITY_DATA_SUFFIX: &str = "_data";
 
+fn evict_candidate(path: &Path) {
+    cache::remove(path);
+    index::remove(path);
+}
+
 /// Build a GameInfo from a name, path, and platform.
 /// Returns None if the directory is empty.
 pub fn build_game_info(name: String, game_path: PathBuf, platform: Platform) -> Option<GameInfo> {
@@ -55,8 +60,7 @@ pub fn build_game_info_with_mode_and_stats_path(
     mode: DiscoveryScanMode,
 ) -> Option<GameInfo> {
     if !stats_path.exists() {
-        cache::remove(&stats_path);
-        index::remove(&stats_path);
+        evict_candidate(&stats_path);
         log_candidate_decision(
             "skip",
             platform,
@@ -70,8 +74,7 @@ pub fn build_game_info_with_mode_and_stats_path(
 
     let hidden_token = cache::compute_change_token(&stats_path, false);
     if hidden_paths::should_hide(&stats_path, &hidden_token) {
-        cache::remove(&stats_path);
-        index::remove(&stats_path);
+        evict_candidate(&stats_path);
         log_candidate_decision(
             "skip",
             platform,
@@ -89,8 +92,7 @@ pub fn build_game_info_with_mode_and_stats_path(
     if mode == DiscoveryScanMode::Quick {
         if let Some(cached) = cache::lookup(&stats_path, &token) {
             if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
-                cache::remove(&stats_path);
-                index::remove(&stats_path);
+                evict_candidate(&stats_path);
                 log_candidate_decision(
                     "skip",
                     platform,
@@ -119,8 +121,7 @@ pub fn build_game_info_with_mode_and_stats_path(
                 .probe_total_size
                 .unwrap_or_else(|| dir_stats_quick(&stats_path).logical_size);
             if current_sample_logical_size == 0 {
-                cache::remove(&stats_path);
-                index::remove(&stats_path);
+                evict_candidate(&stats_path);
                 log_candidate_decision(
                     "skip",
                     platform,
@@ -137,8 +138,7 @@ pub fn build_game_info_with_mode_and_stats_path(
                 current_sample_logical_size,
                 platform,
             ) {
-                cache::remove(&stats_path);
-                index::remove(&stats_path);
+                evict_candidate(&stats_path);
                 log_candidate_decision(
                     "skip",
                     platform,
@@ -151,8 +151,7 @@ pub fn build_game_info_with_mode_and_stats_path(
             }
 
             if is_probable_uninstall_remnant(&stats_path, current_sample_logical_size) {
-                cache::remove(&stats_path);
-                index::remove(&stats_path);
+                evict_candidate(&stats_path);
                 log_candidate_decision(
                     "skip",
                     platform,
@@ -177,8 +176,7 @@ pub fn build_game_info_with_mode_and_stats_path(
 
         let stats = dir_stats_quick(&stats_path);
         if stats.logical_size == 0 {
-            cache::remove(&stats_path);
-            index::remove(&stats_path);
+            evict_candidate(&stats_path);
             log_candidate_decision(
                 "skip",
                 platform,
@@ -191,8 +189,7 @@ pub fn build_game_info_with_mode_and_stats_path(
         }
 
         if !is_likely_installed_game(&stats_path, stats.logical_size, platform) {
-            cache::remove(&stats_path);
-            index::remove(&stats_path);
+            evict_candidate(&stats_path);
             log_candidate_decision(
                 "skip",
                 platform,
@@ -226,8 +223,7 @@ pub fn build_game_info_with_mode_and_stats_path(
 
     if let Some(mut indexed_game) = index::lookup(&stats_path, &token) {
         if !is_likely_installed_game(&stats_path, indexed_game.size_bytes, platform) {
-            cache::remove(&stats_path);
-            index::remove(&stats_path);
+            evict_candidate(&stats_path);
             log_candidate_decision(
                 "skip",
                 platform,
@@ -242,6 +238,7 @@ pub fn build_game_info_with_mode_and_stats_path(
         indexed_game.name = name;
         indexed_game.path = game_path;
         indexed_game.platform = platform;
+        refresh_dynamic_game_metadata(&mut indexed_game);
         index::upsert(&stats_path, token.clone(), &indexed_game);
         install_history::record_authoritative_size(&stats_path, indexed_game.size_bytes);
         log_candidate_decision(
@@ -259,8 +256,7 @@ pub fn build_game_info_with_mode_and_stats_path(
     // re-verified even when the change token still matches.
     if let Some(cached) = cache::lookup_fresh(&stats_path, &token) {
         if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
-            cache::remove(&stats_path);
-            index::remove(&stats_path);
+            evict_candidate(&stats_path);
             log_candidate_decision(
                 "skip",
                 platform,
@@ -289,8 +285,7 @@ pub fn build_game_info_with_mode_and_stats_path(
 
     let stats = dir_stats(&stats_path);
     if stats.logical_size == 0 {
-        cache::remove(&stats_path);
-        index::remove(&stats_path);
+        evict_candidate(&stats_path);
         log_candidate_decision(
             "skip",
             platform,
@@ -303,8 +298,7 @@ pub fn build_game_info_with_mode_and_stats_path(
     }
 
     if !is_likely_installed_game(&stats_path, stats.logical_size, platform) {
-        cache::remove(&stats_path);
-        index::remove(&stats_path);
+        evict_candidate(&stats_path);
         log_candidate_decision(
             "skip",
             platform,
@@ -317,8 +311,7 @@ pub fn build_game_info_with_mode_and_stats_path(
     }
 
     if is_probable_uninstall_remnant(&stats_path, stats.logical_size) {
-        cache::remove(&stats_path);
-        index::remove(&stats_path);
+        evict_candidate(&stats_path);
         log_candidate_decision(
             "skip",
             platform,
@@ -394,9 +387,7 @@ fn game_info_from_parts(
     is_compressed: bool,
     is_directstorage: bool,
 ) -> GameInfo {
-    let is_unsupported = crate::safety::unsupported_games::is_unsupported_game(&game_path);
-    let last_compressed = compression_timestamp_for_game_path(&game_path, is_compressed);
-    GameInfo {
+    let mut game = GameInfo {
         name,
         path: game_path,
         platform,
@@ -404,12 +395,19 @@ fn game_info_from_parts(
         compressed_size: is_compressed.then_some(physical_size),
         is_compressed,
         is_directstorage,
-        is_unsupported,
+        is_unsupported: false,
         excluded: false,
-        // Reuse `last_played` transport slot as "last compressed" timestamp.
-        // The old last-played source is not currently populated.
-        last_played: last_compressed,
-    }
+        last_played: None,
+    };
+    refresh_dynamic_game_metadata(&mut game);
+    game
+}
+
+pub(crate) fn refresh_dynamic_game_metadata(game: &mut GameInfo) {
+    game.is_unsupported = crate::safety::unsupported_games::is_unsupported_game(&game.path);
+    // Reuse `last_played` transport slot as "last compressed" timestamp.
+    // The old last-played source is not currently populated.
+    game.last_played = compression_timestamp_for_game_path(&game.path, game.is_compressed);
 }
 
 fn compression_timestamp_for_game_path(path: &Path, is_compressed: bool) -> Option<SystemTime> {
@@ -445,7 +443,10 @@ fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) 
     }
 
     if logical_size < MIN_LIKELY_INSTALL_SIZE_BYTES {
-        return false;
+        // Custom folders come from user-curated "Games" directories where small
+        // indie titles are common. Allow them through if they contain a real
+        // game executable, rather than applying the launcher-oriented size floor.
+        return platform == Platform::Custom && has_game_executable(path);
     }
 
     has_game_executable(path)

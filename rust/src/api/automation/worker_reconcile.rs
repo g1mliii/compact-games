@@ -176,6 +176,12 @@ fn maybe_enqueue_reconcile_candidate(
     }
 
     attempted_paths.insert(path_key);
+    log::debug!(
+        "[automation][reconcile] queued modified game path=\"{}\" modified_ms={} last_compressed_ms={}",
+        game_path.display(),
+        modified_ms,
+        last_compressed_ms
+    );
     true
 }
 

@@ -171,6 +171,9 @@ fn lookup_inner(
         if entry.token != *token {
             return false;
         }
+        if compression_history_is_newer(path, entry.stats.updated_at_ms) {
+            return false;
+        }
         if let Some(max_age) = max_age_ms {
             if now.saturating_sub(entry.stats.updated_at_ms) > max_age {
                 return false;
@@ -200,12 +203,20 @@ fn lookup_inner(
 
 pub fn lookup_stale(path: &Path) -> Option<CachedGameStats> {
     let key = normalize_path_key(path);
-    if let Some(stats) =
-        with_pending_read(|pending| pending.entries.get(&key).map(|entry| entry.stats.clone()))
-    {
+    if let Some(stats) = with_pending_read(|pending| {
+        pending.entries.get(&key).and_then(|entry| {
+            (!compression_history_is_newer(path, entry.stats.updated_at_ms))
+                .then(|| entry.stats.clone())
+        })
+    }) {
         return Some(stats);
     }
-    with_cache_read(|cache| cache.entries.get(&key).map(|entry| entry.stats.clone()))
+    with_cache_read(|cache| {
+        cache.entries.get(&key).and_then(|entry| {
+            (!compression_history_is_newer(path, entry.stats.updated_at_ms))
+                .then(|| entry.stats.clone())
+        })
+    })
 }
 
 pub fn remove(path: &Path) {
@@ -390,6 +401,10 @@ fn max_optional_u64(lhs: Option<u64>, rhs: Option<u64>) -> Option<u64> {
 
 fn unix_now_ms() -> u64 {
     crate::utils::unix_now_ms()
+}
+
+fn compression_history_is_newer(path: &Path, metadata_updated_at_ms: u64) -> bool {
+    crate::compression::history::is_newer_than(path, metadata_updated_at_ms)
 }
 
 pub fn normalize_path_key(path: &Path) -> String {

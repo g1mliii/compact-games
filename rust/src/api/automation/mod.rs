@@ -269,7 +269,7 @@ pub fn get_watcher_diagnostics() -> FrbWatcherDiagnostics {
         poisoned.into_inner()
     });
     FrbWatcherDiagnostics {
-        is_watching: is_auto_compression_running(),
+        is_watching: guard.watched_path_count > 0,
         watched_path_count: guard.watched_path_count,
         queue_depth: guard.queue_depth,
         last_error: guard.last_error.clone(),

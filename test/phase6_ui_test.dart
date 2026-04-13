@@ -1078,7 +1078,7 @@ void main() {
         const AppSettings(
           steamGridDbApiKey: 'compact-games-demo-key',
           idleDurationMinutes: 23,
-          cpuThreshold: 19,
+          cpuThreshold: 36,
         ),
       );
       final container = ProviderContainer(
@@ -1104,7 +1104,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final idleLabel = tester.widget<Text>(find.text('23 min'));
-      final cpuLabel = tester.widget<Text>(find.text('19%'));
+      final cpuLabel = tester.widget<Text>(find.text('36%'));
       expect(idleLabel.style?.color, AppColors.success);
       expect(cpuLabel.style?.color, AppColors.error);
 
@@ -1192,16 +1192,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(sliderValueField, '17');
+    await tester.enterText(sliderValueField, '41');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Set'));
     await tester.pumpAndSettle();
 
     expect(
       container.read(settingsProvider).valueOrNull?.settings.cpuThreshold,
-      17,
+      40,
     );
-    expect(find.text('17%'), findsOneWidget);
+    expect(find.text('40%'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 600));
   });

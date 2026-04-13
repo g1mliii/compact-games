@@ -94,6 +94,7 @@ impl AutoScheduler {
                 return;
             }
         };
+        let event_path = path.clone();
 
         let path_str = path.to_string_lossy().to_ascii_lowercase();
 
@@ -138,10 +139,15 @@ impl AutoScheduler {
         };
 
         self.enqueue_job(job);
+        log::debug!(
+            "[automation][scheduler] queued {:?} job path=\"{}\"",
+            kind,
+            event_path.display()
+        );
 
         // Record in journal
         let entry = JournalEntry::with_idempotency_key(
-            event.path().clone(),
+            event_path,
             event.game_name().map(|s| s.to_string()),
             match kind {
                 JobKind::NewInstall => JournalEventKind::NewInstall,

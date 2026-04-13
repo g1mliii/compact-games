@@ -14,6 +14,7 @@ void main() {
     final trims = <UiMemoryTrimLevel>[];
     var cleanupCalls = 0;
     var appExitCalls = 0;
+    var hiddenToTrayCalls = 0;
 
     final coordinator = WindowCloseCoordinator(
       tray: tray,
@@ -26,6 +27,9 @@ void main() {
       requestAppExit: () async {
         appExitCalls += 1;
       },
+      onHiddenToTray: () {
+        hiddenToTrayCalls += 1;
+      },
     );
 
     await coordinator.onWindowClose();
@@ -34,6 +38,7 @@ void main() {
     expect(shutdown.shutdownCalls, 0);
     expect(tray.disposeCalls, 0);
     expect(trims, <UiMemoryTrimLevel>[UiMemoryTrimLevel.trayHide]);
+    expect(hiddenToTrayCalls, 1);
     expect(cleanupCalls, 0);
     expect(appExitCalls, 0);
   });
@@ -51,6 +56,7 @@ void main() {
       final trims = <UiMemoryTrimLevel>[];
       var cleanupCalls = 0;
       var appExitCalls = 0;
+      var hiddenToTrayCalls = 0;
 
       final coordinator = WindowCloseCoordinator(
         tray: tray,
@@ -62,6 +68,9 @@ void main() {
         },
         requestAppExit: () async {
           appExitCalls += 1;
+        },
+        onHiddenToTray: () {
+          hiddenToTrayCalls += 1;
         },
       );
 
@@ -75,6 +84,7 @@ void main() {
       expect(window.destroyCalls, 1);
       expect(window.closeCalls, 0);
       expect(trims, <UiMemoryTrimLevel>[UiMemoryTrimLevel.shutdown]);
+      expect(hiddenToTrayCalls, 0);
       expect(cleanupCalls, 1);
       expect(appExitCalls, 0);
     },
@@ -91,6 +101,7 @@ void main() {
     final trims = <UiMemoryTrimLevel>[];
     var cleanupCalls = 0;
     var appExitCalls = 0;
+    var hiddenToTrayCalls = 0;
 
     final coordinator = WindowCloseCoordinator(
       tray: tray,
@@ -102,6 +113,9 @@ void main() {
       },
       requestAppExit: () async {
         appExitCalls += 1;
+      },
+      onHiddenToTray: () {
+        hiddenToTrayCalls += 1;
       },
     );
 
@@ -115,6 +129,7 @@ void main() {
     expect(window.destroyCalls, 1);
     expect(window.closeCalls, 0);
     expect(trims, <UiMemoryTrimLevel>[UiMemoryTrimLevel.shutdown]);
+    expect(hiddenToTrayCalls, 0);
     expect(cleanupCalls, 1);
     expect(appExitCalls, 0);
   });
@@ -170,6 +185,9 @@ class _LoopRunContext {
       requestAppExit: () async {
         appExitCalls += 1;
       },
+      onHiddenToTray: () {
+        hiddenToTrayCalls += 1;
+      },
     );
   }
 
@@ -180,6 +198,7 @@ class _LoopRunContext {
   late final WindowCloseCoordinator coordinator;
   int cleanupCalls = 0;
   int appExitCalls = 0;
+  int hiddenToTrayCalls = 0;
 }
 
 class _FakeTrayLifecycleAdapter implements TrayLifecycleAdapter {

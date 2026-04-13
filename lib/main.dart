@@ -9,6 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/constants/app_constants.dart';
+import 'core/lifecycle/app_window_visibility.dart';
 import 'core/performance/compact_games_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
@@ -27,6 +28,7 @@ final _windowCloseCoordinator = WindowCloseCoordinator(
   trimMemory: UiMemoryLifecycle.trim,
   cleanupLifecycleHooks: _cleanupLifecycleHooks,
   requestAppExit: _requestAppExit,
+  onHiddenToTray: appWindowVisibilityController.markHiddenToTray,
 );
 const _startupWindow = WindowManagerStartupAdapter();
 final _startupTray = TrayStartupAdapter(TrayService.instance);
@@ -83,6 +85,10 @@ Future<void> main() async {
       debugPrint('[tray] Init failed (non-fatal): $error');
     },
   );
+  TrayService.instance.registerShowWindowHook(() {
+    UiMemoryLifecycle.configureImageCache();
+    appWindowVisibilityController.markVisible();
+  });
 
   runApp(const _RustBridgeReloadHost(child: CompactGamesApp()));
 }
@@ -234,6 +240,8 @@ class _CompactGamesMemoryObserver with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         _trimmedForBackground = false;
+        UiMemoryLifecycle.configureImageCache();
+        appWindowVisibilityController.markVisible();
         break;
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:

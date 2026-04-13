@@ -150,6 +150,78 @@ fn detects_unity_layout_from_library_root() {
 }
 
 #[test]
+fn wrapper_folder_with_unity_game_detected() {
+    let root = TempDir::new().unwrap();
+    let games_root = root.path().join("Games");
+
+    // "Third Crisis Neon Nights/Third Crisis Neon Nights/<Unity files>"
+    let wrapper = games_root.join("Third Crisis Neon Nights");
+    let inner = wrapper.join("Third Crisis Neon Nights");
+    let data_dir = inner.join("Third Crisis Neon Nights_Data");
+
+    std::fs::create_dir_all(&data_dir).unwrap();
+    File::create(inner.join("Third Crisis Neon Nights.exe"))
+        .unwrap()
+        .set_len(MIN_UNITY_BOOTSTRAP_EXE_SIZE + 1)
+        .unwrap();
+    File::create(data_dir.join("globalgamemanagers"))
+        .unwrap()
+        .set_len(2 * 1024 * 1024)
+        .unwrap();
+
+    let games = scan_custom_path(&games_root, DiscoveryScanMode::Full, false).unwrap();
+    assert!(
+        games.iter().any(|g| g.name == "Third Crisis Neon Nights"),
+        "Unity game inside wrapper folder should be discovered; got: {:?}",
+        games.iter().map(|g| &g.name).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn wrapper_folder_with_large_exe_game_detected() {
+    let root = TempDir::new().unwrap();
+    let games_root = root.path().join("Games");
+
+    // "Goblin-Nest/Goblin Nest/<game files>"
+    let wrapper = games_root.join("Goblin-Nest");
+    let inner = wrapper.join("Goblin Nest");
+
+    std::fs::create_dir_all(&inner).unwrap();
+    File::create(inner.join("GoblinNest.exe"))
+        .unwrap()
+        .set_len(MIN_EXE_SIZE + 1)
+        .unwrap();
+    File::create(inner.join("data.win"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
+
+    let games = scan_custom_path(&games_root, DiscoveryScanMode::Full, false).unwrap();
+    assert!(
+        games.iter().any(|g| g.name == "Goblin-Nest"),
+        "game inside wrapper folder should be discovered; got: {:?}",
+        games.iter().map(|g| &g.name).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn wrapper_folder_not_triggered_for_multi_subfolder() {
+    let root = TempDir::new().unwrap();
+    let games_root = root.path().join("Games");
+    let folder = games_root.join("NotAWrapper");
+
+    // Two subdirectories → not a wrapper
+    std::fs::create_dir_all(folder.join("SubA")).unwrap();
+    std::fs::create_dir_all(folder.join("SubB")).unwrap();
+
+    let result = unwrap_single_subfolder(&folder);
+    assert!(
+        result.is_none(),
+        "folders with multiple subdirectories should not be treated as wrappers"
+    );
+}
+
+#[test]
 fn steamapps_container_root_is_not_detected_as_game() {
     let root = TempDir::new().unwrap();
     let steamapps = root.path().join("steamapps");

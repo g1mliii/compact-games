@@ -35,6 +35,7 @@ void trimCoverArtRuntimeCaches({required bool aggressive}) {
 
 void releaseCoverArtRuntimeCaches() {
   trimCoverArtRuntimeCaches(aggressive: true);
+  _disposeCoverArtApiHttpClient();
   _resetCacheEvictionScheduler();
 }
 

@@ -60,6 +60,7 @@ impl WatchEvent {
 }
 
 /// Configuration for the directory watcher.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WatcherConfig {
     /// Directories to monitor for game installations.
     pub watch_paths: Vec<PathBuf>,
@@ -179,17 +180,24 @@ impl GameWatcher {
         self.config.watch_paths.len()
     }
 
-    /// Update the watch paths. Requires stop/start cycle.
+    /// Update the watch paths, starting or restarting the watcher as needed.
     pub fn update_config(&mut self, config: WatcherConfig) {
         let was_running = self.is_running();
+        if self.config == config && (was_running || config.watch_paths.is_empty()) {
+            log::debug!("GameWatcher::update_config: watcher config unchanged");
+            return;
+        }
         if was_running {
             self.stop();
         }
         self.config = config;
-        if was_running {
-            if let Err(e) = self.start() {
-                log::error!("Failed to restart watcher with new config: {e}");
-            }
+        if self.config.watch_paths.is_empty() {
+            log::info!("GameWatcher::update_config: no watch paths configured");
+            return;
+        }
+        if let Err(e) = self.start() {
+            let action = if was_running { "restart" } else { "start" };
+            log::error!("Failed to {action} watcher with new config: {e}");
         }
     }
 }
@@ -272,23 +280,29 @@ fn process_notify_event(
             continue;
         }
 
-        let game_folder = match resolve_game_folder(path, watch_paths) {
-            Some(f) => f,
+        let resolved = match resolve_game_folder(path, watch_paths) {
+            Some(resolved) => resolved,
             None => continue,
         };
+        let game_folder = resolved.path;
 
         let game_name = game_name_from_path(&game_folder);
+        let is_watched_game_root = game_folder == resolved.matched_watch_root;
 
         let kind = match event.kind {
             notify::EventKind::Create(_) => {
-                if path == &game_folder || path.parent() == Some(game_folder.as_path()) {
+                if path == &game_folder
+                    || (!is_watched_game_root && path.parent() == Some(game_folder.as_path()))
+                {
                     WatchEventKind::Installed
                 } else {
                     WatchEventKind::Modified
                 }
             }
             notify::EventKind::Remove(_) => {
-                if path == &game_folder || path.parent() == Some(game_folder.as_path()) {
+                if path == &game_folder
+                    || (!is_watched_game_root && path.parent() == Some(game_folder.as_path()))
+                {
                     WatchEventKind::Uninstalled
                 } else {
                     WatchEventKind::Modified

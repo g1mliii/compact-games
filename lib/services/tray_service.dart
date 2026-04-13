@@ -36,6 +36,7 @@ class TrayService with TrayListener {
   Future<void> _lifecycleQueue = Future<void>.value();
   Future<void> _updateQueue = Future<void>.value();
   Future<void> Function(bool enabled)? _setAutoCompressionEnabled;
+  VoidCallback? _onShowWindow;
   Object? _autoCompressionToggleOwner;
   bool _autoCompressionToggleInFlight = false;
 
@@ -129,6 +130,7 @@ class TrayService with TrayListener {
     _lifecycleQueue = Future<void>.value();
     _updateQueue = Future<void>.value();
     _setAutoCompressionEnabled = null;
+    _onShowWindow = null;
     _autoCompressionToggleOwner = null;
     _autoCompressionToggleInFlight = false;
   }
@@ -140,6 +142,7 @@ class TrayService with TrayListener {
     Duration? debounceDuration,
     String? iconPathOverride,
     Future<void> Function(bool enabled)? setAutoCompressionEnabled,
+    VoidCallback? onShowWindow,
   }) {
     _trayPlatform = trayPlatform ?? _trayPlatform;
     _windowPlatform = windowPlatform ?? _windowPlatform;
@@ -147,9 +150,14 @@ class TrayService with TrayListener {
     _iconCache.testIconPathOverride = iconPathOverride;
     _setAutoCompressionEnabled =
         setAutoCompressionEnabled ?? _setAutoCompressionEnabled;
+    _onShowWindow = onShowWindow ?? _onShowWindow;
     if (setAutoCompressionEnabled != null) {
       _autoCompressionToggleOwner = null;
     }
+  }
+
+  void registerShowWindowHook(VoidCallback onShowWindow) {
+    _onShowWindow = onShowWindow;
   }
 
   @visibleForTesting
@@ -331,6 +339,7 @@ class TrayService with TrayListener {
 
   Future<void> _showAndFocusWindow() async {
     try {
+      _onShowWindow?.call();
       await _windowPlatform.show();
       await _windowPlatform.focus();
     } catch (_) {}

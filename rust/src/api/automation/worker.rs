@@ -25,6 +25,8 @@ use crate::automation::watcher::{GameWatcher, WatchEvent, WatcherConfig};
 use crate::compression::algorithm::CompressionAlgorithm;
 use crate::safety::process::ProcessChecker;
 
+const WATCHER_EVENT_COALESCE_DELAY: Duration = Duration::from_secs(1);
+
 pub(super) fn broadcast_auto_status(is_running: bool) {
     worker_broadcast::broadcast_auto_status(is_running);
 }
@@ -109,6 +111,7 @@ pub(super) fn auto_loop(
                 &mut scheduler,
                 &mut watcher,
             );
+            worker_broadcast::update_shared_state(&scheduler, &watcher);
             let has_pending_startup_reconcile = startup_reconcile_pending_watch_paths.is_some();
             let pending_paths_changed = has_pending_startup_reconcile
                 && normalized_watch_paths != startup_reconcile_pending_normalized_watch_paths;
@@ -270,9 +273,20 @@ fn apply_config(
         watch_paths: watch_paths.clone(),
     });
 
+    log::info!(
+        "[automation][config] watch_paths={} scheduler_cooldown_seconds={} idle_duration_seconds={} watcher_event_delay_seconds={}",
+        watch_paths.len(),
+        config.cooldown_seconds,
+        config.idle_duration_seconds,
+        WATCHER_EVENT_COALESCE_DELAY.as_secs()
+    );
+    for path in &watch_paths {
+        log::debug!("[automation][config] watching path=\"{}\"", path.display());
+    }
+
     watcher.update_config(WatcherConfig {
         watch_paths,
-        cooldown: Duration::from_secs(config.cooldown_seconds),
+        cooldown: WATCHER_EVENT_COALESCE_DELAY,
     });
 }
 
