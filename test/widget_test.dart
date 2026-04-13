@@ -9,7 +9,6 @@ import 'package:compact_games/app.dart';
 import 'package:compact_games/core/widgets/cinematic_background.dart';
 import 'package:compact_games/core/widgets/film_grain_overlay.dart';
 import 'package:compact_games/core/widgets/status_badge.dart';
-import 'package:compact_games/features/games/presentation/component_test_screen.dart';
 import 'package:compact_games/features/games/presentation/home_screen.dart';
 import 'package:compact_games/features/games/presentation/widgets/compression_activity_overlay.dart';
 import 'package:compact_games/features/games/presentation/widgets/compression_progress_indicator.dart';
@@ -55,6 +54,91 @@ final List<GameInfo> _sampleGames = <GameInfo>[
   ),
 ];
 
+class _ComponentTestHarness extends StatelessWidget {
+  const _ComponentTestHarness();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Component Test Screen'),
+          const SizedBox(height: 8),
+          const Text('Reusable UI components from plan section 2.2.'),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: const [
+              SizedBox(
+                width: 280,
+                child: GameCard(
+                  gameName: 'Cyber Quest',
+                  platform: Platform.steam,
+                  totalSizeBytes: 120 * _oneGiB,
+                  isCompressed: false,
+                  assumeBoundedHeight: false,
+                ),
+              ),
+              SizedBox(
+                width: 280,
+                child: GameCard(
+                  gameName: 'Racing Legends',
+                  platform: Platform.epicGames,
+                  totalSizeBytes: 200 * _oneGiB,
+                  compressedSizeBytes: 176 * _oneGiB,
+                  isCompressed: true,
+                  assumeBoundedHeight: false,
+                ),
+              ),
+              SizedBox(
+                width: 280,
+                child: GameCard(
+                  gameName: 'Galactic Frontline',
+                  platform: Platform.xboxGamePass,
+                  totalSizeBytes: 80 * _oneGiB,
+                  isDirectStorage: true,
+                  assumeBoundedHeight: false,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: 420,
+            child: CompressionProgressIndicator(
+              activity: CompressionActivityUiModel(
+                type: CompressionJobType.compression,
+                gameName: 'Racing Legends',
+                filesProcessed: 2400,
+                filesTotal: 6000,
+                percent: 40,
+                bytesDelta: 26 * _oneGiB,
+                hasKnownFileTotal: true,
+                isFileCountApproximate: false,
+                canCancel: true,
+                etaSeconds: 190,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              StatusBadge.notCompressed(),
+              StatusBadge.compressing(),
+              StatusBadge.directStorage(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 void main() {
   testWidgets('App loads without crashing', (WidgetTester tester) async {
     final bridge = _StaticRustBridgeService(games: _sampleGames);
@@ -75,7 +159,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: ComponentTestScreen())),
+      const MaterialApp(home: Scaffold(body: _ComponentTestHarness())),
     );
 
     expect(find.text('Component Test Screen'), findsOneWidget);
