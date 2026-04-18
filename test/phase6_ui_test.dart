@@ -9,6 +9,7 @@ import 'package:compact_games/core/theme/app_colors.dart';
 import 'package:compact_games/core/theme/app_theme.dart';
 import 'package:compact_games/features/games/presentation/game_details_screen.dart';
 import 'package:compact_games/features/games/presentation/home_screen.dart';
+import 'package:compact_games/features/games/presentation/inventory_screen.dart';
 import 'package:compact_games/features/games/presentation/widgets/compression_activity_overlay.dart';
 import 'package:compact_games/features/games/presentation/widgets/game_card.dart';
 import 'package:compact_games/features/games/presentation/widgets/game_card_adapter.dart';
@@ -21,6 +22,7 @@ import 'package:compact_games/features/games/presentation/widgets/home_game_list
 import 'package:compact_games/features/games/presentation/widgets/home_header.dart';
 import 'package:compact_games/features/games/presentation/widgets/home_overview_panel.dart';
 import 'package:compact_games/features/games/presentation/widgets/inventory_components.dart';
+import 'package:compact_games/features/settings/presentation/settings_screen.dart';
 import 'package:compact_games/features/settings/presentation/sections/compression_section.dart';
 import 'package:compact_games/features/settings/presentation/widgets/scaled_switch_row.dart';
 import 'package:compact_games/features/settings/presentation/widgets/settings_slider_row.dart';
@@ -121,6 +123,41 @@ void main() {
     await tester.tap(find.byTooltip('Open compression inventory'));
     await tester.pumpAndSettle();
     expect(find.text('Compression Inventory'), findsOneWidget);
+    expect(find.byKey(InventoryScreen.backButtonKey), findsOneWidget);
+    expect(find.byIcon(LucideIcons.arrowLeft), findsOneWidget);
+  });
+
+  testWidgets('Header route button navigates to settings', (
+    WidgetTester tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          initialRoute: AppRoutes.home,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Open settings'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.byKey(SettingsScreen.backButtonKey), findsOneWidget);
+    expect(find.byIcon(LucideIcons.arrowLeft), findsOneWidget);
   });
 
   testWidgets(
@@ -174,37 +211,6 @@ void main() {
       expect(find.text('Open inventory'), findsNothing);
     },
   );
-
-  testWidgets('Header route button navigates to settings', (
-    WidgetTester tester,
-  ) async {
-    final container = ProviderContainer(
-      overrides: [
-        rustBridgeServiceProvider.overrideWithValue(
-          _TestRustBridgeService(games: _sampleGames),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildAppTheme(),
-          initialRoute: AppRoutes.home,
-          onGenerateRoute: AppRoutes.onGenerateRoute,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byTooltip('Open settings'), findsOneWidget);
-    await tester.tap(find.byTooltip('Open settings'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
-    expect(find.text('Settings'), findsOneWidget);
-  });
 
   testWidgets('Card context menu compress action starts compression directly', (
     WidgetTester tester,
@@ -280,6 +286,7 @@ void main() {
     );
     expect(backButtonFinder, findsOneWidget);
     expect(tester.getSize(backButtonFinder).width, greaterThanOrEqualTo(56));
+    expect(find.byIcon(LucideIcons.arrowLeft), findsOneWidget);
   });
 
   testWidgets(
@@ -724,6 +731,11 @@ void main() {
     final statusRect = tester.getRect(find.text('Status'));
     final actionRect = tester.getRect(actionRowFinder);
     expect(actionRect.center.dx, greaterThan(statusRect.center.dx + 120));
+    final alignmentDelta =
+        (tester.getCenter(find.byKey(primaryActionKey)).dy -
+                tester.getCenter(find.byKey(excludeActionKey)).dy)
+            .abs();
+    expect(alignmentDelta, lessThanOrEqualTo(2));
 
     await tester.tap(find.byKey(primaryActionKey));
     await tester.pumpAndSettle();

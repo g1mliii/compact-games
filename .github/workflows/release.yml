@@ -105,8 +105,34 @@ jobs:
       - name: Generate FRB bindings
         run: flutter_rust_bridge_codegen generate
 
+      - name: Build Rust release
+        shell: bash
+        run: cd rust && cargo build --release
+
       - name: Build Windows release
         run: flutter build windows --release
+
+      - name: Copy Rust DLL to release bundle
+        shell: bash
+        run: cp rust/target/release/compact_games_core.dll build/windows/x64/runner/Release/
+
+      - name: Bundle VC++ runtime DLLs
+        shell: powershell
+        run: |
+          $vcrtDir = Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Recurse -Directory -Filter "Microsoft.VC*.CRT" |
+            Where-Object { $_.FullName -match 'x64' -and (Test-Path (Join-Path $_.FullName 'vcruntime140.dll')) } |
+            Select-Object -First 1
+          if (-not $vcrtDir) {
+            $vcrtDir = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio" -Recurse -Directory -Filter "Microsoft.VC*.CRT" |
+              Where-Object { $_.FullName -match 'x64' -and (Test-Path (Join-Path $_.FullName 'vcruntime140.dll')) } |
+              Select-Object -First 1
+          }
+          if (-not $vcrtDir) { throw "VC++ runtime DLLs not found" }
+          $dest = "build\windows\x64\runner\Release"
+          Copy-Item (Join-Path $vcrtDir.FullName "vcruntime140.dll") $dest
+          Copy-Item (Join-Path $vcrtDir.FullName "vcruntime140_1.dll") $dest
+          Copy-Item (Join-Path $vcrtDir.FullName "msvcp140.dll") $dest
+          Write-Host "Bundled VC++ runtime from $($vcrtDir.FullName)"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

@@ -12,10 +12,15 @@ import '../../../providers/games/game_list_provider.dart';
 import '../../../providers/games/refresh_games_helper.dart';
 import '../../../providers/settings/settings_provider.dart';
 import '../../../providers/system/auto_compression_status_provider.dart';
+import '../../../core/widgets/route_back_icon_button.dart';
 import 'widgets/inventory_components.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
+
+  static const ValueKey<String> backButtonKey = ValueKey<String>(
+    'inventoryBackButton',
+  );
 
   @override
   ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
@@ -95,8 +100,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final excludedSignature = _excludedSignature(excludedPathKeys);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: buildRouteAppBar(
+        context,
         title: Text(l10n.inventoryTitle),
+        backButtonKey: InventoryScreen.backButtonKey,
         actions: [
           IconButton(
             tooltip: l10n.inventoryRefreshTooltip,

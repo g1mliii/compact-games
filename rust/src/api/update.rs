@@ -17,6 +17,8 @@ const LATEST_JSON_URL: &str =
 const TIMEOUT_SECS: u64 = 15;
 const MAX_REDIRECTS: usize = 5;
 const MAX_BODY_BYTES: u64 = 512 * 1024; // 512 KB
+const ALLOWED_DOWNLOAD_URL_PREFIX: &str =
+    "https://github.com/g1mliii/compact-games/releases/";
 
 static LAST_CHECK_MS: RwLock<u64> = RwLock::new(0);
 static LAST_RESULT: RwLock<Option<UpdateCheckResult>> = RwLock::new(None);
@@ -60,6 +62,14 @@ pub fn check_for_update(current_version: String) -> Result<UpdateCheckResult, St
     let body = fetch_text(LATEST_JSON_URL, TIMEOUT_SECS)?;
     let manifest: LatestManifest =
         serde_json::from_str(&body).map_err(|e| format!("Invalid latest.json: {e}"))?;
+
+    if !is_allowed_download_url(&manifest.download_url) {
+        return Err(format!(
+            "Manifest download_url is not from an allowed origin: {}",
+            manifest.download_url
+        ));
+    }
+
     let result = UpdateCheckResult {
         update_available: is_newer(&manifest.version, &current_version),
         latest_version: manifest.version,
@@ -99,6 +109,12 @@ pub fn download_update(
 ) -> Result<String, String> {
     use sha2::{Digest, Sha256};
     use std::fs;
+
+    if !is_allowed_download_url(&url) {
+        return Err(format!(
+            "Download URL is not from an allowed origin: {url}"
+        ));
+    }
 
     let dest = Path::new(&dest_path);
     if let Some(parent) = dest.parent() {
@@ -170,6 +186,10 @@ fn replace_existing_file(from: &Path, to: &Path) -> Result<(), String> {
     }
 
     std::fs::rename(from, to).map_err(|e| format!("Failed to rename temp file: {e}"))
+}
+
+fn is_allowed_download_url(url: &str) -> bool {
+    url.starts_with(ALLOWED_DOWNLOAD_URL_PREFIX)
 }
 
 /// Simple semver comparison: returns true if `latest` is newer than `current`.
@@ -329,5 +349,23 @@ mod tests {
             std::fs::read_to_string(&dest).expect("read dest"),
             "new installer"
         );
+    }
+
+    #[test]
+    fn test_allowed_download_url() {
+        assert!(is_allowed_download_url(
+            "https://github.com/g1mliii/compact-games/releases/download/v0.1.0/CompactGames-Setup-0.1.0.exe"
+        ));
+        assert!(is_allowed_download_url(
+            "https://github.com/g1mliii/compact-games/releases/latest/download/CompactGames-Setup.exe"
+        ));
+        assert!(!is_allowed_download_url(
+            "https://evil.com/g1mliii/compact-games/releases/download/malware.exe"
+        ));
+        assert!(!is_allowed_download_url(
+            "http://github.com/g1mliii/compact-games/releases/download/v0.1.0/file.exe"
+        ));
+        assert!(!is_allowed_download_url("https://github.com/other-repo/releases/download/file.exe"));
+        assert!(!is_allowed_download_url(""));
     }
 }

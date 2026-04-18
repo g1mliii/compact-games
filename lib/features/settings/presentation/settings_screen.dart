@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/localization/app_localization.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/route_back_icon_button.dart';
 import '../../../providers/settings/settings_provider.dart';
 import 'sections/language_section.dart';
 import 'widgets/scaled_switch_row.dart';
@@ -19,6 +20,10 @@ import 'sections/safety_section.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
+
+  static const ValueKey<String> backButtonKey = ValueKey<String>(
+    'settingsBackButton',
+  );
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -43,7 +48,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.settingsTitle)),
+      appBar: buildRouteAppBar(
+        context,
+        title: Text(l10n.settingsTitle),
+        backButtonKey: SettingsScreen.backButtonKey,
+      ),
       body: loadState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : loadState.error != null

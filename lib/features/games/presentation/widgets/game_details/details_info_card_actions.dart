@@ -114,7 +114,7 @@ class _StatusActionButtons extends ConsumerWidget {
 
   // Pre-computed color constants — zero runtime allocation on hover/resize.
   // Values derived from the design-system palette (see app_colors.dart).
-  static const Color _kIconBg = Color(0x1F2A3B4E);        // surfaceElevated @12%
+  static const Color _kIconBg = Color(0x1F2A3B4E); // surfaceElevated @12%
   static const Color _kDestructiveBg = Color(0x14DA7453); // error @8%
   static const Color _kDestructiveBorder = Color(0x59DA7453); // error @35%
 
@@ -238,10 +238,8 @@ class _StatusActionButtons extends ConsumerWidget {
       spacing: 4,
       runSpacing: 4,
       alignment: WrapAlignment.end,
-      children: [
-        primaryAction,
-        ...actionIcons,
-      ],
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [primaryAction, ...actionIcons],
     );
   }
 

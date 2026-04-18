@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../localization/app_localization.dart';
+import '../widgets/route_back_icon_button.dart';
 import '../../features/games/presentation/game_details_screen.dart';
 import '../../features/games/presentation/home_screen.dart';
 import '../../features/games/presentation/inventory_screen.dart';
@@ -74,7 +75,7 @@ class _UnknownRouteScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.routeNotFoundTitle)),
+      appBar: buildRouteAppBar(context, title: Text(l10n.routeNotFoundTitle)),
       body: Center(child: Text(l10n.routeNotFoundMessage)),
     );
   }

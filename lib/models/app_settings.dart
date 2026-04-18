@@ -32,7 +32,7 @@ class AppSettings {
   const AppSettings({
     this.schemaVersion = currentSchemaVersion,
     this.algorithm = CompressionAlgorithm.xpress8k,
-    this.autoCompress = false,
+    this.autoCompress = true,
     this.cpuThreshold = 10.0,
     this.idleDurationMinutes = 5,
     this.cooldownMinutes = 5,

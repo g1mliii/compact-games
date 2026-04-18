@@ -13,11 +13,14 @@ const IP_RATE_LIMIT_MAX_SUBMISSIONS = 15;
 const IP_NEW_REPORTER_WINDOW_MS = 24 * 60 * 60 * 1000;
 const IP_NEW_REPORTER_MAX_REPORTERS = 10;
 const REPORTER_TOKEN_HEADER = "x-compactgames-reporter-token";
-const JSON_HEADERS = {
+const READ_ONLY_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+};
+const CORS_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,POST,OPTIONS",
-  "access-control-allow-headers": `content-type,${REPORTER_TOKEN_HEADER}`,
+  "access-control-allow-methods": "GET,OPTIONS",
+  "access-control-allow-headers": "content-type",
 };
 
 export default {
@@ -25,11 +28,11 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: JSON_HEADERS });
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
     if (request.method === "GET" && url.pathname === "/health") {
-      return json({ ok: true, service: "unsupported-report-ingest" });
+      return jsonResponse({ ok: true, service: "unsupported-report-ingest" }, 200, CORS_HEADERS);
     }
 
     if (request.method === "POST" && url.pathname === "/unsupported-reports") {
@@ -48,7 +51,7 @@ export default {
       return handleReleaseBundle(request, env);
     }
 
-    return json({ error: "Not found" }, 404);
+    return jsonResponse({ error: "Not found" }, 404, READ_ONLY_HEADERS);
   },
 };
 
@@ -326,11 +329,10 @@ function resolveClientIp(request) {
 }
 
 async function anonymizeIp(ip, env) {
-  // Prefer anonymizing with an HMAC key so we never store raw IPs in D1.
-  // If the secret isn't configured, fall back to raw IP so rate limiting still works.
   const secret =
     typeof env?.IP_HASH_SECRET === "string" ? env.IP_HASH_SECRET.trim() : "";
   if (!secret) {
+    console.warn("IP_HASH_SECRET is not configured — raw IPs will be stored in D1 for rate limiting");
     return ip;
   }
   return await hmacSha256Hex(secret, ip);
@@ -738,8 +740,9 @@ function readInteger(value) {
 }
 
 function json(payload, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: JSON_HEADERS,
-  });
+  return jsonResponse(payload, status, READ_ONLY_HEADERS);
+}
+
+function jsonResponse(payload, status, headers) {
+  return new Response(JSON.stringify(payload), { status, headers });
 }
