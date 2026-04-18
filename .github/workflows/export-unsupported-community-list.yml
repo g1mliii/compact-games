@@ -6,7 +6,7 @@ on:
       min_reporters:
         description: "Minimum unique reporters required"
         required: false
-        default: "3"
+        default: "1"
       min_repeat_reporters:
         description: "Minimum reporters with report_count >= 2"
         required: false
@@ -39,7 +39,7 @@ jobs:
       - name: Export unsupported community bundle
         env:
           COMPACT_GAMES_UNSUPPORTED_WORKER_URL: ${{ vars.COMPACT_GAMES_UNSUPPORTED_WORKER_URL || 'https://compact-games-unsupported-report-ingest.pressplay-subai.workers.dev' }}
-          COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS: ${{ github.event.inputs.min_reporters || vars.COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS || '3' }}
+          COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS: ${{ github.event.inputs.min_reporters || vars.COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS || '1' }}
           COMPACT_GAMES_UNSUPPORTED_MIN_REPEAT_REPORTERS: ${{ github.event.inputs.min_repeat_reporters || vars.COMPACT_GAMES_UNSUPPORTED_MIN_REPEAT_REPORTERS || '1' }}
           COMPACT_GAMES_UNSUPPORTED_MAX_AGE_DAYS: ${{ github.event.inputs.max_age_days || vars.COMPACT_GAMES_UNSUPPORTED_MAX_AGE_DAYS || '180' }}
         run: node ./scripts/export-unsupported-community-list.mjs
