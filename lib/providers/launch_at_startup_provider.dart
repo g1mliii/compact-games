@@ -18,12 +18,18 @@ class LaunchAtStartupNotifier extends AsyncNotifier<bool> {
   }
 
   Future<void> setEnabled(bool enabled) async {
-    state = const AsyncValue.loading();
+    // Optimistic update: flip the switch immediately and keep the prior value
+    // if the registry write fails. Avoids a visible flicker (loading → false →
+    // true) while reg.exe runs.
+    final previous = state.valueOrNull ?? !enabled;
+    state = AsyncValue.data(enabled);
     try {
       await ref.read(launchAtStartupServiceProvider).setEnabled(enabled);
-      state = AsyncValue.data(enabled);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      state = AsyncValue<bool>.error(
+        e,
+        st,
+      ).copyWithPrevious(AsyncValue<bool>.data(previous));
     }
   }
 }

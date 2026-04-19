@@ -206,16 +206,14 @@ class _LaunchAtStartupToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final state = ref.watch(launchAtStartupProvider);
-    final enabled = state.valueOrNull ?? false;
-    final busy = state.isLoading;
+    final enabled = ref.watch(
+      launchAtStartupProvider.select((s) => s.valueOrNull ?? false),
+    );
     return ScaledSwitchRow(
       label: l10n.settingsLaunchAtStartupLabel,
       value: enabled,
-      onChanged: (v) {
-        if (busy) return;
-        ref.read(launchAtStartupProvider.notifier).setEnabled(v);
-      },
+      onChanged: (v) =>
+          ref.read(launchAtStartupProvider.notifier).setEnabled(v),
       enableLabelSurfaceHover: false,
       showLabelSurfaceDecoration: false,
     );
