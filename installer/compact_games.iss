@@ -37,6 +37,11 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
+; Preserve previously-selected [Tasks] (desktop icon, autostart) on upgrade,
+; including under silent /SILENT upgrades triggered by the in-app updater.
+UsePreviousTasks=yes
+CloseApplications=force
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -61,7 +66,9 @@ Root: HKCU; Subkey: "Software\{#AppPublisher}\{#AppName}"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\{#AppPublisher}"; Flags: uninsdeletekeyifempty
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+; `skipifsilent` removed so the in-app updater (which runs /SILENT) still
+; auto-relaunches the app after a successful upgrade.
+Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall
 
 [Code]
 

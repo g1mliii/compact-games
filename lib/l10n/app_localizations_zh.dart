@@ -143,6 +143,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsMinimizeToTrayOnCloseLabel => '关闭时最小化到托盘';
 
   @override
+  String get settingsLaunchAtStartupLabel => '随 Windows 启动';
+
+  @override
   String get settingsPathsSectionTitle => '自定义路径';
 
   @override

@@ -144,6 +144,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsMinimizeToTrayOnCloseLabel => 'Minimize to tray on close';
 
   @override
+  String get settingsLaunchAtStartupLabel => 'Launch at Windows startup';
+
+  @override
   String get settingsPathsSectionTitle => 'Custom Paths';
 
   @override

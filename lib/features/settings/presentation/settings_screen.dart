@@ -8,6 +8,7 @@ import '../../../core/localization/app_localization.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/route_back_icon_button.dart';
+import '../../../providers/launch_at_startup_provider.dart';
 import '../../../providers/settings/settings_provider.dart';
 import 'sections/language_section.dart';
 import 'widgets/scaled_switch_row.dart';
@@ -191,8 +192,32 @@ class _AutomationSection extends ConsumerWidget {
               enableLabelSurfaceHover: false,
               showLabelSurfaceDecoration: false,
             ),
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows)
+            const _LaunchAtStartupToggle(),
         ],
       ),
+    );
+  }
+}
+
+class _LaunchAtStartupToggle extends ConsumerWidget {
+  const _LaunchAtStartupToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final state = ref.watch(launchAtStartupProvider);
+    final enabled = state.valueOrNull ?? false;
+    final busy = state.isLoading;
+    return ScaledSwitchRow(
+      label: l10n.settingsLaunchAtStartupLabel,
+      value: enabled,
+      onChanged: (v) {
+        if (busy) return;
+        ref.read(launchAtStartupProvider.notifier).setEnabled(v);
+      },
+      enableLabelSurfaceHover: false,
+      showLabelSurfaceDecoration: false,
     );
   }
 }

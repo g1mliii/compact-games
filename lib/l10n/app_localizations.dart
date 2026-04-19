@@ -340,6 +340,12 @@ abstract class AppLocalizations {
   /// **'Minimize to tray on close'**
   String get settingsMinimizeToTrayOnCloseLabel;
 
+  /// Localized message for the launch-at-startup toggle in settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Launch at Windows startup'**
+  String get settingsLaunchAtStartupLabel;
+
   /// Localized message for settings paths section title.
   ///
   /// In en, this message translates to:

@@ -145,6 +145,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'Minimizar a la bandeja al cerrar';
 
   @override
+  String get settingsLaunchAtStartupLabel => 'Iniciar con Windows';
+
+  @override
   String get settingsPathsSectionTitle => 'Rutas personalizadas';
 
   @override

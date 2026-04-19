@@ -201,6 +201,10 @@
   "@settingsMinimizeToTrayOnCloseLabel": {
     "description": "Localized message for settings minimize to tray on close label."
   },
+  "settingsLaunchAtStartupLabel": "Launch at Windows startup",
+  "@settingsLaunchAtStartupLabel": {
+    "description": "Localized message for the launch-at-startup toggle in settings."
+  },
   "settingsPathsSectionTitle": "Custom Paths",
   "@settingsPathsSectionTitle": {
     "description": "Localized message for settings paths section title."
