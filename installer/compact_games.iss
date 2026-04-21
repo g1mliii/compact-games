@@ -56,11 +56,16 @@ Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignore
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+; `Check: not IsUpgrade` keeps the desktop icon a first-install-only
+; action. Without it, every silent /SILENT upgrade would recreate the
+; shortcut even after the user manually deleted it.
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon; Check: not IsUpgrade
 
 [Registry]
-; Autostart entry — removed on uninstall if the task was selected
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppName}"; ValueData: """{app}\{#AppExeName}"" --minimized"; Flags: uninsdeletevalue; Tasks: autostart
+; Autostart entry — first install only. The in-app Settings toggle is
+; the source of truth for this value post-install, so upgrades must not
+; re-assert it (would clobber a user who disabled autostart in settings).
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppName}"; ValueData: """{app}\{#AppExeName}"" --minimized"; Flags: uninsdeletevalue; Tasks: autostart; Check: not IsUpgrade
 ; App registry subtree — removed on uninstall if empty
 Root: HKCU; Subkey: "Software\{#AppPublisher}\{#AppName}"; Flags: uninsdeletekeyifempty
 Root: HKCU; Subkey: "Software\{#AppPublisher}"; Flags: uninsdeletekeyifempty
@@ -74,6 +79,21 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait
 
 var
   DeleteUserDataCheckbox: TNewCheckBox;
+
+// ---------------------------------------------------------------------------
+// IsUpgrade: true when our AppId is already installed (any prior version).
+// Used to gate shortcut / autostart creation to first-install only so that
+// user deletions (desktop shortcut) or settings toggles (autostart) are not
+// reverted by subsequent silent upgrades.
+// ---------------------------------------------------------------------------
+function IsUpgrade(): Boolean;
+var
+  PrevVersion: String;
+begin
+  Result :=
+    RegQueryStringValue(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1', 'DisplayVersion', PrevVersion) or
+    RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1', 'DisplayVersion', PrevVersion);
+end;
 
 // ---------------------------------------------------------------------------
 // Uninstall: add "remove user data" checkbox above the progress bar.
