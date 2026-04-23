@@ -738,6 +738,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gameMenuCompressNow => 'Compress Now';
 
   @override
+  String get gameMenuRecompress => 'Recompress';
+
+  @override
   String get gameMenuDecompress => 'Decompress';
 
   @override

@@ -1212,6 +1212,57 @@ void runPhase6OversizeSplitTests() {
   );
 
   testWidgets(
+    'Game details disable recompress for compressed DirectStorage games while keeping decompression available',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Details DS Recompress Guard',
+        path: r'C:\Games\details_ds_recompress_guard',
+        platform: Platform.steam,
+        sizeBytes: 96 * _oneGiB,
+        compressedSize: 72 * _oneGiB,
+        isCompressed: true,
+        isDirectStorage: true,
+      );
+      final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: GameDetailsScreen(gamePath: game.path),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final primaryAction = tester.widget<FilledButton>(
+        find.byKey(const ValueKey<String>('detailsStatusPrimaryAction')),
+      );
+      final decompressAction = find.byKey(
+        const ValueKey<String>('detailsStatusDecompressAction'),
+      );
+
+      expect(find.text('Recompress'), findsOneWidget);
+      expect(find.text('Decompress'), findsOneWidget);
+      expect(primaryAction.onPressed, isNull);
+
+      await tester.tap(decompressAction);
+      await tester.pumpAndSettle();
+
+      expect(bridge.compressCalls, 0);
+      expect(bridge.decompressCalls, 1);
+    },
+  );
+
+  testWidgets(
     'Game details compress action allows unsupported games without DirectStorage override',
     (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 900));

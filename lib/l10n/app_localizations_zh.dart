@@ -707,6 +707,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameMenuCompressNow => '立即压缩';
 
   @override
+  String get gameMenuRecompress => '重新压缩';
+
+  @override
   String get gameMenuDecompress => '解压';
 
   @override

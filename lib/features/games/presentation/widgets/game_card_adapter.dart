@@ -68,8 +68,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
 
   /// Read the current game fresh from the provider. Used by keyboard action
   /// callbacks so they never act on a stale cached reference.
-  GameInfo? _readCurrentGame() =>
-      ref.read(singleGameProvider(widget.gamePath));
+  GameInfo? _readCurrentGame() => ref.read(singleGameProvider(widget.gamePath));
 
   static const _shortcuts = <ShortcutActivator, Intent>{
     SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
@@ -95,7 +94,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     CompressIntent: CallbackAction<CompressIntent>(
       onInvoke: (_) {
         final game = _readCurrentGame();
-        if (game != null) unawaited(_onGameTap(game));
+        if (game != null) {
+          unawaited(_startCompressionAction(game));
+        }
         return null;
       },
     ),
@@ -349,6 +350,25 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         );
   }
 
+  Future<void> _startCompressionAction(GameInfo game) async {
+    final allowDirectStorageOverride = _readDirectStorageOverride();
+    if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) {
+      return;
+    }
+
+    await ref.read(compressionProvider.notifier).startCompression(
+      gamePath: game.path,
+      gameName: game.name,
+      allowDirectStorageOverride: allowDirectStorageOverride,
+    );
+  }
+
+  Future<void> _startDecompressionAction(GameInfo game) async {
+    await ref
+        .read(compressionProvider.notifier)
+        .startDecompression(gamePath: game.path, gameName: game.name);
+  }
+
   void _openDetails(String gamePath) {
     Navigator.of(context).pushNamed(AppRoutes.gameDetails(gamePath));
   }
@@ -417,6 +437,13 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
           child: _buildMenuLabel(l10n.gameMenuCompressNow, LucideIcons.archive),
         ),
         PopupMenuItem(
+          value: GameContextAction.recompress,
+          enabled:
+              game.isCompressed &&
+              !_isDirectStorageBlocked(game, allowDirectStorageOverride),
+          child: _buildMenuLabel(l10n.gameMenuRecompress, LucideIcons.archive),
+        ),
+        PopupMenuItem(
           value: GameContextAction.decompress,
           enabled: game.isCompressed,
           child: _buildMenuLabel(
@@ -479,18 +506,11 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         _openDetails(game.path);
         break;
       case GameContextAction.compress:
-        await ref
-            .read(compressionProvider.notifier)
-            .startCompression(
-              gamePath: game.path,
-              gameName: game.name,
-              allowDirectStorageOverride: allowDirectStorageOverride,
-            );
+      case GameContextAction.recompress:
+        await _startCompressionAction(game);
         break;
       case GameContextAction.decompress:
-        await ref
-            .read(compressionProvider.notifier)
-            .startDecompression(gamePath: game.path, gameName: game.name);
+        await _startDecompressionAction(game);
         break;
       case GameContextAction.markUnsupported:
         _setUnsupportedStatus(game, isUnsupported: true);

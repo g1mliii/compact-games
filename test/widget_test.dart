@@ -667,78 +667,89 @@ void main() {
     expect(bridge.compressCalls, 1);
   });
 
-  testWidgets('Tapping compressed card opens menu before decompression', (
-    WidgetTester tester,
-  ) async {
-    final compressedGames = <GameInfo>[
-      GameInfo(
-        name: 'Compressed Quest',
-        path: r'C:\Games\compressed_quest',
-        platform: Platform.steam,
-        sizeBytes: 58 * _oneGiB,
-        compressedSize: 53 * _oneGiB,
-        isCompressed: true,
-      ),
-    ];
-    final bridge = _RecordingRustBridgeService(games: compressedGames);
+  testWidgets(
+    'Tapping compressed card opens menu with recompress and decompress',
+    (WidgetTester tester) async {
+      final compressedGames = <GameInfo>[
+        GameInfo(
+          name: 'Compressed Quest',
+          path: r'C:\Games\compressed_quest',
+          platform: Platform.steam,
+          sizeBytes: 58 * _oneGiB,
+          compressedSize: 53 * _oneGiB,
+          isCompressed: true,
+        ),
+      ];
+      final bridge = _RecordingRustBridgeService(games: compressedGames);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
-        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
-      ),
-    );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+          child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+        ),
+      );
 
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(GameCard).first);
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(GameCard).first);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Confirm Compression'), findsNothing);
-    expect(find.text('Decompress'), findsOneWidget);
-    expect(bridge.decompressCalls, 0);
+      expect(find.text('Confirm Compression'), findsNothing);
+      expect(find.text('Recompress'), findsOneWidget);
+      expect(find.text('Decompress'), findsOneWidget);
+      expect(bridge.compressCalls, 0);
+      expect(bridge.decompressCalls, 0);
 
-    await tester.tap(find.text('Decompress'));
-    await tester.pumpAndSettle();
-    expect(bridge.decompressCalls, 1);
-  });
+      await tester.tap(find.text('Recompress'));
+      await tester.pumpAndSettle();
 
-  testWidgets('Compressed DirectStorage card menu still allows decompression', (
-    WidgetTester tester,
-  ) async {
-    final compressedDirectStorageGames = <GameInfo>[
-      GameInfo(
-        name: 'DirectStorage Runner',
-        path: r'C:\Games\ds_runner',
-        platform: Platform.steam,
-        sizeBytes: 58 * _oneGiB,
-        compressedSize: 53 * _oneGiB,
-        isCompressed: true,
-        isDirectStorage: true,
-      ),
-    ];
-    final bridge = _RecordingRustBridgeService(
-      games: compressedDirectStorageGames,
-    );
+      expect(bridge.compressCalls, 1);
+      expect(bridge.decompressCalls, 0);
+    },
+  );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
-        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
-      ),
-    );
+  testWidgets(
+    'Compressed DirectStorage card menu disables recompress but still allows decompression',
+    (WidgetTester tester) async {
+      final compressedDirectStorageGames = <GameInfo>[
+        GameInfo(
+          name: 'DirectStorage Runner',
+          path: r'C:\Games\ds_runner',
+          platform: Platform.steam,
+          sizeBytes: 58 * _oneGiB,
+          compressedSize: 53 * _oneGiB,
+          isCompressed: true,
+          isDirectStorage: true,
+        ),
+      ];
+      final bridge = _RecordingRustBridgeService(
+        games: compressedDirectStorageGames,
+      );
 
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(GameCard).first);
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+          child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+        ),
+      );
 
-    expect(find.text('Confirm Compression'), findsNothing);
-    expect(find.text('Decompress'), findsOneWidget);
-    expect(bridge.decompressCalls, 0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(GameCard).first);
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Decompress'));
-    await tester.pumpAndSettle();
-    expect(bridge.decompressCalls, 1);
-  });
+      expect(find.text('Confirm Compression'), findsNothing);
+      expect(find.text('Recompress'), findsOneWidget);
+      expect(find.text('Decompress'), findsOneWidget);
+      await tester.tap(find.text('Recompress'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(bridge.decompressCalls, 0);
+      expect(bridge.compressCalls, 0);
+
+      await tester.tap(find.text('Decompress'));
+      await tester.pumpAndSettle();
+      expect(bridge.decompressCalls, 1);
+      expect(bridge.compressCalls, 0);
+    },
+  );
 
   testWidgets('DirectStorage override enables context-menu compression', (
     WidgetTester tester,
@@ -993,6 +1004,54 @@ void main() {
 
       expect(bridge.updateAutomationConfigCalls, initialUpdateCalls);
       expect(bridge.startAutoCompressionCalls, initialStartCalls);
+    },
+  );
+
+  testWidgets(
+    'Changing the selected algorithm updates automation config without recompressing other games',
+    (WidgetTester tester) async {
+      final bridge = _RecordingRustBridgeService(games: _sampleGames);
+      final persistence = _FixedSettingsPersistence(
+        const AppSettings(autoCompress: true),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const CompactGamesApp(),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final initialUpdateCalls = bridge.updateAutomationConfigCalls;
+      expect(initialUpdateCalls, greaterThan(0));
+      bridge.compressCalls = 0;
+      bridge.decompressCalls = 0;
+
+      container
+          .read(settingsProvider.notifier)
+          .updateAlgorithm(CompressionAlgorithm.lzx);
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(
+        container.read(settingsProvider).valueOrNull?.settings.algorithm,
+        CompressionAlgorithm.lzx,
+      );
+      expect(
+        bridge.updateAutomationConfigCalls,
+        greaterThan(initialUpdateCalls),
+      );
+      expect(bridge.compressCalls, 0);
+      expect(bridge.decompressCalls, 0);
     },
   );
 

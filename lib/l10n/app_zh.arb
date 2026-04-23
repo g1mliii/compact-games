@@ -1004,6 +1004,10 @@
   "@gameMenuCompressNow": {
     "description": "Localized message for game menu compress now."
   },
+  "gameMenuRecompress": "重新压缩",
+  "@gameMenuRecompress": {
+    "description": "Localized message for game menu recompress."
+  },
   "gameMenuDecompress": "解压",
   "@gameMenuDecompress": {
     "description": "Localized message for game menu decompress."

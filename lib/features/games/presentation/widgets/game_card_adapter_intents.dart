@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 enum GameContextAction {
   viewDetails,
   compress,
+  recompress,
   decompress,
   markUnsupported,
   markSupported,

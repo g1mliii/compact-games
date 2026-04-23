@@ -1372,6 +1372,12 @@ abstract class AppLocalizations {
   /// **'Compress Now'**
   String get gameMenuCompressNow;
 
+  /// Localized message for game menu recompress.
+  ///
+  /// In en, this message translates to:
+  /// **'Recompress'**
+  String get gameMenuRecompress;
+
   /// Localized message for game menu decompress.
   ///
   /// In en, this message translates to:

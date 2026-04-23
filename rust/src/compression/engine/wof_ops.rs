@@ -110,13 +110,43 @@ impl CompressionEngine {
                 return Ok(());
             }
 
-            // Skip already-compressed files
-            let physical = wof::get_physical_size(path).unwrap_or(file_size);
-            if physical < file_size {
-                self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
-                self.bytes_compressed.fetch_add(physical, Ordering::Relaxed);
-                self.files_processed.fetch_add(1, Ordering::Relaxed);
-                return Ok(());
+            // WOF does not overlay a second backing on an already-backed file,
+            // so recompression with a different algorithm must clear the old
+            // backing before applying the new one.
+            match wof::wof_get_compression(path) {
+                Ok(Some(current_algo)) if current_algo == algorithm => {
+                    let physical = wof::get_physical_size(path).unwrap_or(file_size);
+                    self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                    self.bytes_compressed.fetch_add(physical, Ordering::Relaxed);
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
+                Ok(Some(_)) => {
+                    if let Err(e) = wof::wof_decompress_file(path) {
+                        log::warn!(
+                            "Skipping {} during re-apply: could not clear WOF backing: {e}",
+                            path.display()
+                        );
+                        self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                        self.bytes_compressed
+                            .fetch_add(file_size, Ordering::Relaxed);
+                        skipped.fetch_add(1, Ordering::Relaxed);
+                        self.files_processed.fetch_add(1, Ordering::Relaxed);
+                        return Ok(());
+                    }
+                }
+                _ => {
+                    // Not WOF-backed (or query failed). Legacy heuristic: if
+                    // physical < logical the file is NTFS LZNT1 or sparse, so
+                    // leave it alone rather than layering WOF on top.
+                    let physical = wof::get_physical_size(path).unwrap_or(file_size);
+                    if physical < file_size {
+                        self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                        self.bytes_compressed.fetch_add(physical, Ordering::Relaxed);
+                        self.files_processed.fetch_add(1, Ordering::Relaxed);
+                        return Ok(());
+                    }
+                }
             }
 
             if has_multiple_links(path) {

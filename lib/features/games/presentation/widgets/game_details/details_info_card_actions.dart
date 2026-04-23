@@ -124,6 +124,11 @@ class _StatusActionButtons extends ConsumerWidget {
     minimumSize: const Size(0, 32),
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
   );
+  static final ButtonStyle _secondaryStyle = OutlinedButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    minimumSize: const Size(0, 32),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
 
   // Outlined icon button using the same 12 px radius as every other button
   // in the app (appButtonRadius / StatusBadge). Uses appInteractionOverlay for
@@ -161,6 +166,7 @@ class _StatusActionButtons extends ConsumerWidget {
       ref,
       allowDirectStorageOverride,
     );
+    final secondaryAction = _buildDecompressionButton(context, ref);
     final actionIcons = <Widget>[
       Tooltip(
         message: l10n.commonOpenFolder,
@@ -223,14 +229,23 @@ class _StatusActionButtons extends ConsumerWidget {
             constraints.maxWidth.isFinite &&
             constraints.maxWidth < _compactLayoutBreakpoint;
         return compact
-            ? _buildCompactActionLayout(primaryAction, actionIcons)
-            : _buildWideActionLayout(primaryAction, actionIcons);
+            ? _buildCompactActionLayout(
+                primaryAction,
+                secondaryAction,
+                actionIcons,
+              )
+            : _buildWideActionLayout(
+                primaryAction,
+                secondaryAction,
+                actionIcons,
+              );
       },
     );
   }
 
   Widget _buildWideActionLayout(
     Widget primaryAction,
+    Widget? secondaryAction,
     List<Widget> actionIcons,
   ) {
     return Wrap(
@@ -239,12 +254,17 @@ class _StatusActionButtons extends ConsumerWidget {
       runSpacing: 4,
       alignment: WrapAlignment.end,
       crossAxisAlignment: WrapCrossAlignment.center,
-      children: [primaryAction, ...actionIcons],
+      children: [
+        primaryAction,
+        ?secondaryAction,
+        ...actionIcons,
+      ],
     );
   }
 
   Widget _buildCompactActionLayout(
     Widget primaryAction,
+    Widget? secondaryAction,
     List<Widget> actionIcons,
   ) {
     return Column(
@@ -252,7 +272,12 @@ class _StatusActionButtons extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: [
-        primaryAction,
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 4,
+          runSpacing: 4,
+          children: [primaryAction, ?secondaryAction],
+        ),
         const SizedBox(height: 4),
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -315,18 +340,7 @@ class _StatusActionButtons extends ConsumerWidget {
     WidgetRef ref,
     bool allowDirectStorageOverride,
   ) {
-    if (game.isCompressed) {
-      return FilledButton.icon(
-        key: _detailsStatusPrimaryActionKey,
-        style: _primaryStyle,
-        onPressed: () => ref
-            .read(compressionProvider.notifier)
-            .startDecompression(gamePath: game.path, gameName: game.name),
-        icon: const Icon(LucideIcons.archiveRestore, size: 15),
-        label: Text(context.l10n.gameMenuDecompress),
-      );
-    }
-
+    final l10n = context.l10n;
     return FilledButton.icon(
       key: _detailsStatusPrimaryActionKey,
       style: _primaryStyle,
@@ -340,7 +354,25 @@ class _StatusActionButtons extends ConsumerWidget {
                   allowDirectStorageOverride: allowDirectStorageOverride,
                 ),
       icon: const Icon(LucideIcons.archive, size: 15),
-      label: Text(context.l10n.gameMenuCompressNow),
+      label: Text(
+        game.isCompressed ? l10n.gameMenuRecompress : l10n.gameMenuCompressNow,
+      ),
+    );
+  }
+
+  Widget? _buildDecompressionButton(BuildContext context, WidgetRef ref) {
+    if (!game.isCompressed) {
+      return null;
+    }
+
+    return OutlinedButton.icon(
+      key: _detailsStatusDecompressActionKey,
+      style: _secondaryStyle,
+      onPressed: () => ref
+          .read(compressionProvider.notifier)
+          .startDecompression(gamePath: game.path, gameName: game.name),
+      icon: const Icon(LucideIcons.archiveRestore, size: 15),
+      label: Text(context.l10n.gameMenuDecompress),
     );
   }
 }

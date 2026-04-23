@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -456,11 +456,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      final primaryAction = find.byKey(
-        const ValueKey<String>('detailsStatusPrimaryAction'),
+      final decompressAction = find.byKey(
+        const ValueKey<String>('detailsStatusDecompressAction'),
       );
-      await tester.ensureVisible(primaryAction);
-      await tester.tap(primaryAction);
+      await tester.ensureVisible(decompressAction);
+      await tester.tap(decompressAction);
       await tester.pump();
 
       final floatingHost = find.byKey(compressionFloatingActivityHostKey);
@@ -710,6 +710,9 @@ void main() {
     const infoCardKey = ValueKey<String>('detailsInfoCard');
     const actionRowKey = ValueKey<String>('detailsStatusActionRow');
     const primaryActionKey = ValueKey<String>('detailsStatusPrimaryAction');
+    const decompressActionKey = ValueKey<String>(
+      'detailsStatusDecompressAction',
+    );
     const excludeActionKey = ValueKey<String>('detailsStatusExcludeAction');
     Finder tooltipMessage(String message) => find.byWidgetPredicate(
       (widget) => widget is Tooltip && widget.message == message,
@@ -724,7 +727,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(primaryActionKey), findsOneWidget);
+    expect(find.byKey(decompressActionKey), findsOneWidget);
     expect(find.byKey(excludeActionKey), findsOneWidget);
+    expect(find.text('Recompress'), findsOneWidget);
     expect(find.text('Decompress'), findsOneWidget);
     expect(tooltipMessage('Exclude From Auto-Compression'), findsOneWidget);
 
@@ -738,6 +743,11 @@ void main() {
     expect(alignmentDelta, lessThanOrEqualTo(2));
 
     await tester.tap(find.byKey(primaryActionKey));
+    await tester.pumpAndSettle();
+    expect(bridge.compressCalls, 1);
+    expect(bridge.decompressCalls, 0);
+
+    await tester.tap(find.byKey(decompressActionKey));
     await tester.pumpAndSettle();
     expect(bridge.decompressCalls, 1);
 

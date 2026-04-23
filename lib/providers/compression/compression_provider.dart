@@ -76,6 +76,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
       _subscribeToProgressStream(stream);
     } catch (e) {
       _failJob('Failed to start: $e');
+      return;
     }
   }
 

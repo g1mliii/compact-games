@@ -31,6 +31,9 @@ const ValueKey<String> _detailsInfoCardKey = ValueKey<String>(
 const ValueKey<String> _detailsStatusPrimaryActionKey = ValueKey<String>(
   'detailsStatusPrimaryAction',
 );
+const ValueKey<String> _detailsStatusDecompressActionKey = ValueKey<String>(
+  'detailsStatusDecompressAction',
+);
 const ValueKey<String> _detailsStatusExcludeActionKey = ValueKey<String>(
   'detailsStatusExcludeAction',
 );
