@@ -86,8 +86,6 @@ Compact Games includes multiple safety mechanisms:
 
 ## Screenshots
 
-_Coming soon (candid captures will be updated after the cinematic UI pass is finalized)._
-
 ## Contributing
 
 Contributions are welcome!
