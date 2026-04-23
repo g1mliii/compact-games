@@ -34,28 +34,12 @@ Modern games can consume hundreds of gigabytes of storage. Windows NTFS compress
 - Flutter SDK (https://flutter.dev/docs/get-started/install)
 
 ### Installation
+-Install from site or download release and run .exe
+https://g1mliii.github.io/compact-games/
 
 ```cmd
 git clone https://github.com/g1mliii/compact-games.git
 cd compact_games
-```
-
-### Build from Source
-
-```cmd
-REM Install Rust dependencies
-cd rust
-cargo build --release
-
-REM Install Flutter dependencies
-cd ..
-flutter pub get
-
-REM Regenerate Flutter-Rust bindings (required after API changes)
-pwsh ./scripts/generate-frb.ps1
-
-REM Run the app
-flutter run
 ```
 
 ## How It Works
@@ -83,8 +67,6 @@ Compact Games includes multiple safety mechanisms:
 - **XPRESS8K**: Balanced speed and compression
 - **XPRESS16K**: Better compression, still fast
 - **LZX**: Maximum compression (not recommended for games)
-
-## Screenshots
 
 ## Contributing
 
