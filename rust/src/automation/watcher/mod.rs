@@ -9,7 +9,7 @@ pub(crate) mod coalescer;
 #[cfg(test)]
 mod tests;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -18,8 +18,10 @@ use std::time::Duration;
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
-use coalescer::{game_name_from_path, is_noise_path, resolve_game_folder};
+use coalescer::{game_name_from_path, is_noise_path, is_user_state_subpath, resolve_game_folder};
 use coalescer::{EventCoalescer, WatchEventKind};
+
+const RECENT_SELF_COMPRESSION_SUPPRESSION_MS: u64 = 30_000;
 
 /// Events emitted by the game directory watcher.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -285,6 +287,11 @@ fn process_notify_event(
             None => continue,
         };
         let game_folder = resolved.path;
+        let relative_event_path = path.strip_prefix(&game_folder).unwrap_or(path.as_path());
+
+        if is_user_state_subpath(relative_event_path) {
+            continue;
+        }
 
         let game_name = game_name_from_path(&game_folder);
         let is_watched_game_root = game_folder == resolved.matched_watch_root;
@@ -312,6 +319,48 @@ fn process_notify_event(
             _ => continue,
         };
 
+        if kind == WatchEventKind::Modified
+            && should_suppress_recent_self_compression_event(&game_folder, path)
+        {
+            continue;
+        }
+
         coalescer.ingest(game_folder, kind, game_name);
     }
+}
+
+fn should_suppress_recent_self_compression_event(game_folder: &Path, event_path: &Path) -> bool {
+    let Some(last_compressed_ms) =
+        crate::compression::history::latest_compression_timestamp_ms(game_folder)
+    else {
+        return false;
+    };
+
+    let now_ms = crate::utils::unix_now_ms();
+    if now_ms.saturating_sub(last_compressed_ms) > RECENT_SELF_COMPRESSION_SUPPRESSION_MS {
+        return false;
+    }
+
+    let Some(event_modified_ms) = path_modified_ms(event_path) else {
+        return false;
+    };
+    if event_modified_ms > last_compressed_ms {
+        return false;
+    }
+
+    log::debug!(
+        "[automation][watcher] suppressing self-compression echo path=\"{}\" game=\"{}\" age_ms={}",
+        event_path.display(),
+        game_folder.display(),
+        now_ms.saturating_sub(last_compressed_ms)
+    );
+    true
+}
+
+fn path_modified_ms(path: &Path) -> Option<u64> {
+    std::fs::metadata(path)
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as u64)
 }

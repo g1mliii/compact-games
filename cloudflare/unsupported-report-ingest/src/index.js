@@ -19,8 +19,8 @@ const READ_ONLY_HEADERS = {
 const CORS_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,OPTIONS",
-  "access-control-allow-headers": "content-type",
+  "access-control-allow-methods": "GET,OPTIONS,POST",
+  "access-control-allow-headers": `content-type,${REPORTER_TOKEN_HEADER}`,
 };
 
 export default {
@@ -58,19 +58,19 @@ export default {
 async function handleSubmission(request, env) {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().includes("application/json")) {
-    return json({ error: "Expected application/json body" }, 415);
+    return submissionJson({ error: "Expected application/json body" }, 415);
   }
 
   let payload;
   try {
     payload = await request.json();
   } catch {
-    return json({ error: "Invalid JSON body" }, 400);
+    return submissionJson({ error: "Invalid JSON body" }, 400);
   }
 
   const validated = validatePayload(payload);
   if (validated.error) {
-    return json({ error: validated.error }, 400);
+    return submissionJson({ error: validated.error }, 400);
   }
 
   const submittedAtMs = Date.now();
@@ -89,7 +89,7 @@ async function handleSubmission(request, env) {
       .bind(clientIpKey, ipRateLimitWindowStartMs)
       .first();
     if (readInteger(recentIpCount?.cnt) >= IP_RATE_LIMIT_MAX_SUBMISSIONS) {
-      return json({ error: "Rate limit exceeded. Try again later." }, 429);
+      return submissionJson({ error: "Rate limit exceeded. Try again later." }, 429);
     }
   }
 
@@ -112,7 +112,7 @@ async function handleSubmission(request, env) {
     .bind(installId, rateLimitWindowStartMs)
     .first();
   if (readInteger(recentSubmissionCount?.cnt) >= RATE_LIMIT_MAX_SUBMISSIONS) {
-    return json({ error: "Rate limit exceeded. Try again later." }, 429);
+    return submissionJson({ error: "Rate limit exceeded. Try again later." }, 429);
   }
 
   // Secondary guard: limit the number of brand new reporter identities that can
@@ -128,7 +128,7 @@ async function handleSubmission(request, env) {
       .bind(clientIpKey, ipNewReporterWindowStartMs)
       .first();
     if (readInteger(recentNewReporters?.cnt) >= IP_NEW_REPORTER_MAX_REPORTERS) {
-      return json({ error: "Rate limit exceeded. Try again later." }, 429);
+      return submissionJson({ error: "Rate limit exceeded. Try again later." }, 429);
     }
   }
 
@@ -298,7 +298,7 @@ async function handleSubmission(request, env) {
 
   await env.DB.batch(statements);
 
-  return json({
+  return submissionJson({
     ok: true,
     acceptedReports: validated.reports.length,
     reporterId: installId,
@@ -741,6 +741,10 @@ function readInteger(value) {
 
 function json(payload, status = 200) {
   return jsonResponse(payload, status, READ_ONLY_HEADERS);
+}
+
+function submissionJson(payload, status = 200) {
+  return jsonResponse(payload, status, CORS_HEADERS);
 }
 
 function jsonResponse(payload, status, headers) {

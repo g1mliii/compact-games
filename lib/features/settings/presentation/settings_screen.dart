@@ -134,10 +134,10 @@ class _AutomationSection extends ConsumerWidget {
         children: [
           SettingsSliderRow(
             label: l10n.settingsIdleThresholdLabel,
-            value: idleMinutes.clamp(3, 30).toDouble(),
+            value: idleMinutes.clamp(3, 15).toDouble(),
             min: 3,
-            max: 30,
-            divisions: 27,
+            max: 15,
+            divisions: 12,
             valueKey: _idleThresholdValueKey,
             valueLabelBuilder: (v) => l10n.settingsMinutesShort(v.round()),
             valueColorBuilder: _idleThresholdColor,
@@ -158,10 +158,10 @@ class _AutomationSection extends ConsumerWidget {
           ),
           SettingsSliderRow(
             label: l10n.settingsCpuThresholdLabel,
-            value: cpuThreshold.clamp(5, 40),
+            value: cpuThreshold.clamp(5, 80),
             min: 5,
-            max: 40,
-            divisions: 35,
+            max: 80,
+            divisions: 75,
             valueKey: _cpuThresholdValueKey,
             valueLabelBuilder: (v) =>
                 l10n.settingsPercentShort(v.toStringAsFixed(0)),
@@ -294,26 +294,26 @@ class _PathsSection extends ConsumerWidget {
 }
 
 Color _idleThresholdColor(double value) {
-  if (value <= 8) {
+  if (value <= 5) {
     return AppColors.warning;
   }
-  if (value >= 22) {
+  if (value >= 11) {
     return AppColors.success;
   }
-  if (value >= 15) {
+  if (value >= 8) {
     return AppColors.richGold;
   }
   return AppColors.textPrimary;
 }
 
 Color _cpuThresholdColor(double value) {
-  if (value >= 35) {
+  if (value >= 65) {
     return AppColors.error;
   }
-  if (value >= 25) {
+  if (value >= 50) {
     return AppColors.warning;
   }
-  if (value >= 15) {
+  if (value >= 30) {
     return AppColors.richGold;
   }
   return AppColors.textPrimary;

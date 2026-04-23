@@ -125,6 +125,7 @@ test("submission validation rejects non-json and malformed payloads", async () =
     body: "nope",
   });
   assert.equal(nonJson.response.status, 415);
+  assert.equal(nonJson.response.headers.get("access-control-allow-origin"), "*");
   assert.deepEqual(nonJson.json, { error: "Expected application/json body" });
 
   const invalid = await fetchJson(
@@ -192,6 +193,7 @@ test("submission accepts a valid payload and canonicalizes current reports", asy
   );
 
   assert.equal(result.response.status, 200);
+  assert.equal(result.response.headers.get("access-control-allow-origin"), "*");
   assert.equal(result.json.reporterId, "legacy-install-1");
   assert.equal(result.json.acceptedReports, 1);
   assert.equal(env.DB.clientSubmissions.get("legacy-install-1").report_count, 1);

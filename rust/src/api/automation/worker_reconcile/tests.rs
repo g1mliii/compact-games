@@ -10,6 +10,8 @@ use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 
+const OLDER_THAN_RECENT_WINDOW_MS: u64 = 60_000;
+
 fn test_scheduler(journal_dir: &tempfile::TempDir) -> AutoScheduler {
     AutoScheduler::new(
         SchedulerConfig::default(),
@@ -50,7 +52,10 @@ fn startup_reconcile_queues_modified_game_when_last_compressed_is_older() {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
-    add_compression_history(&game_dir, now_ms.saturating_sub(5_000));
+    add_compression_history(
+        &game_dir,
+        now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+    );
     fs::write(game_dir.join("patch.bin"), vec![1_u8; 1024]).unwrap();
 
     let mut scheduler = test_scheduler(&journal_dir);
@@ -144,7 +149,10 @@ fn startup_reconcile_dedupes_equivalent_watch_roots() {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
-    add_compression_history(&game_dir, now_ms.saturating_sub(5_000));
+    add_compression_history(
+        &game_dir,
+        now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+    );
     fs::write(game_dir.join("patch.bin"), vec![1_u8; 1024]).unwrap();
 
     let mut root_with_separator = watch_root.path().to_string_lossy().into_owned();
@@ -178,7 +186,10 @@ fn startup_reconcile_handles_watch_path_that_is_itself_a_game_folder() {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
-    add_compression_history(game_dir.path(), now_ms.saturating_sub(5_000));
+    add_compression_history(
+        game_dir.path(),
+        now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+    );
     fs::write(game_dir.path().join("patch.bin"), vec![1_u8; 1024]).unwrap();
 
     let mut scheduler = test_scheduler(&journal_dir);
@@ -197,6 +208,149 @@ fn startup_reconcile_handles_watch_path_that_is_itself_a_game_folder() {
 }
 
 #[test]
+fn startup_change_marker_ignores_save_only_changes() {
+    let game_dir = tempfile::TempDir::new().unwrap();
+    fs::create_dir_all(game_dir.path().join("Save")).unwrap();
+    fs::write(game_dir.path().join("game.exe"), vec![0_u8; 4096]).unwrap();
+
+    let before = game_change_marker_ms(game_dir.path());
+    fs::write(
+        game_dir.path().join("Save").join("slot1.sav"),
+        vec![1_u8; 1024],
+    )
+    .unwrap();
+    let after = game_change_marker_ms(game_dir.path());
+
+    assert_eq!(after, before);
+}
+
+#[test]
+fn startup_reconcile_skips_recent_self_compression_echo() {
+    let journal_dir = tempfile::TempDir::new().unwrap();
+    let game_dir = tempfile::TempDir::new().unwrap();
+    fs::write(game_dir.path().join("game.exe"), vec![0_u8; 4096]).unwrap();
+
+    add_compression_history(game_dir.path(), crate::utils::unix_now_ms());
+
+    let mut scheduler = test_scheduler(&journal_dir);
+    let mut attempted = HashSet::new();
+    let queued = enqueue_closed_session_reconcile_jobs(
+        &mut scheduler,
+        &[game_dir.path().to_string_lossy().into_owned()],
+        &mut attempted,
+    );
+
+    assert_eq!(queued.queued, 0);
+    assert!(!queued.hit_cap);
+    assert!(scheduler.queue_snapshot().is_empty());
+}
+
+#[test]
+fn startup_reconcile_queues_recent_content_change_after_compression() {
+    let journal_dir = tempfile::TempDir::new().unwrap();
+    let game_dir = tempfile::TempDir::new().unwrap();
+    fs::create_dir_all(game_dir.path().join("game").join("bin")).unwrap();
+    add_compression_history(
+        game_dir.path(),
+        crate::utils::unix_now_ms().saturating_sub(5_000),
+    );
+    fs::write(
+        game_dir.path().join("game").join("bin").join("patch.bin"),
+        vec![1_u8; 4096],
+    )
+    .unwrap();
+
+    let mut scheduler = test_scheduler(&journal_dir);
+    let mut attempted = HashSet::new();
+    let queued = enqueue_closed_session_reconcile_jobs(
+        &mut scheduler,
+        &[game_dir.path().to_string_lossy().into_owned()],
+        &mut attempted,
+    );
+
+    assert_eq!(queued.queued, 1);
+    assert!(!queued.hit_cap);
+    assert_eq!(scheduler.queue_snapshot().len(), 1);
+}
+
+#[test]
+fn startup_reconcile_still_queues_content_changes() {
+    let journal_dir = tempfile::TempDir::new().unwrap();
+    let game_dir = tempfile::TempDir::new().unwrap();
+    fs::create_dir_all(game_dir.path().join("game").join("bin")).unwrap();
+    fs::write(
+        game_dir.path().join("game").join("bin").join("engine2.dll"),
+        vec![0_u8; 4096],
+    )
+    .unwrap();
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    add_compression_history(
+        game_dir.path(),
+        now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+    );
+    fs::write(
+        game_dir.path().join("game").join("bin").join("engine2.dll"),
+        vec![1_u8; 8192],
+    )
+    .unwrap();
+
+    let mut scheduler = test_scheduler(&journal_dir);
+    let mut attempted = HashSet::new();
+    let queued = enqueue_closed_session_reconcile_jobs(
+        &mut scheduler,
+        &[game_dir.path().to_string_lossy().into_owned()],
+        &mut attempted,
+    );
+
+    assert_eq!(queued.queued, 1);
+    assert!(!queued.hit_cap);
+    assert_eq!(scheduler.queue_snapshot().len(), 1);
+}
+
+#[test]
+fn startup_reconcile_allows_content_change_under_ancestor_named_cache_dir() {
+    let journal_dir = tempfile::TempDir::new().unwrap();
+    let ancestor_dir = tempfile::TempDir::new().unwrap();
+    let game_dir = ancestor_dir.path().join("cache").join("RealGame");
+    fs::create_dir_all(game_dir.join("game").join("bin")).unwrap();
+    fs::write(
+        game_dir.join("game").join("bin").join("engine2.dll"),
+        vec![0_u8; 4096],
+    )
+    .unwrap();
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    add_compression_history(
+        &game_dir,
+        now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+    );
+    fs::write(
+        game_dir.join("game").join("bin").join("engine2.dll"),
+        vec![1_u8; 8192],
+    )
+    .unwrap();
+
+    let mut scheduler = test_scheduler(&journal_dir);
+    let mut attempted = HashSet::new();
+    let queued = enqueue_closed_session_reconcile_jobs(
+        &mut scheduler,
+        &[game_dir.to_string_lossy().into_owned()],
+        &mut attempted,
+    );
+
+    assert_eq!(queued.queued, 1);
+    assert!(!queued.hit_cap);
+    assert_eq!(scheduler.queue_snapshot().len(), 1);
+}
+
+#[test]
 fn startup_reconcile_caps_jobs_per_pass() {
     let journal_dir = tempfile::TempDir::new().unwrap();
     let watch_root = tempfile::TempDir::new().unwrap();
@@ -210,7 +364,10 @@ fn startup_reconcile_caps_jobs_per_pass() {
         let game_dir = watch_root.path().join(format!("ReconcileCapGame_{i}"));
         fs::create_dir_all(&game_dir).unwrap();
         fs::write(game_dir.join("game.exe"), vec![0_u8; 4096]).unwrap();
-        add_compression_history(&game_dir, now_ms.saturating_sub(5_000));
+        add_compression_history(
+            &game_dir,
+            now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+        );
         fs::write(game_dir.join("patch.bin"), vec![1_u8; 1024]).unwrap();
     }
 
@@ -253,7 +410,10 @@ fn startup_reconcile_skips_paths_already_attempted_in_prior_passes() {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
-    add_compression_history(&game_dir, now_ms.saturating_sub(5_000));
+    add_compression_history(
+        &game_dir,
+        now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+    );
     fs::write(game_dir.join("patch.bin"), vec![1_u8; 1024]).unwrap();
 
     let mut attempted = HashSet::new();
@@ -293,7 +453,10 @@ fn startup_reconcile_reaches_candidates_beyond_first_capped_batch() {
         let game_dir = watch_root.path().join(format!("LaterPassGame_{i:03}"));
         fs::create_dir_all(&game_dir).unwrap();
         fs::write(game_dir.join("game.exe"), vec![0_u8; 4096]).unwrap();
-        add_compression_history(&game_dir, now_ms.saturating_sub(5_000));
+        add_compression_history(
+            &game_dir,
+            now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+        );
         fs::write(game_dir.join("patch.bin"), vec![1_u8; 1024]).unwrap();
     }
 

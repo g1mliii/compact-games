@@ -9,12 +9,14 @@
       content="Terms of service for Compact Games, a Windows game compression utility."
     />
     <meta name="theme-color" content="#091422" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self' mailto:; img-src 'self' data: https://g1mliii.github.io; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com; manifest-src 'self'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="index,follow" />
     <meta name="author" content="Subaig S" />
     <link rel="canonical" href="https://g1mliii.github.io/compact-games/tos.html" />
-    <link rel="icon" href="./assets/app_icon.ico" />
-    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="./assets/app_icon.ico?v=20260421" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260421" />
+    <link rel="stylesheet" href="./styles.css?v=20260423" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -22,10 +24,10 @@
       <div class="page-noise" aria-hidden="true"></div>
 
       <header class="site-header">
-        <a class="brand-lockup" href="./">
+        <a class="brand-lockup" href="./" aria-label="Compact Games home">
           <img
             class="brand-icon"
-            src="./assets/app_icon.ico"
+            src="./assets/app_icon.ico?v=20260421"
             alt="Compact Games icon"
             width="42"
             height="42"
@@ -59,9 +61,10 @@
             <h2>Description of Service</h2>
             <p>
               Compact Games is a free, open-source Windows desktop utility that
-              applies native NTFS compression (WOF) to game installs to reduce
-              disk space usage. The Software is provided as a convenience tool
-              and is not affiliated with any game publisher or platform.
+              applies Windows Overlay Filter (WOF) compression to game installs
+              to reduce disk space usage. The Software is provided as a
+              convenience tool and is not affiliated with any game publisher or
+              platform.
             </p>
 
             <h2>Use at Your Own Risk</h2>
@@ -158,7 +161,7 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <span>2026 Compact Games. All rights reserved.</span>
+          <span>&copy; 2026 Compact Games. All rights reserved.</span>
           <span>Built for Windows users who want space back without deleting installed games.</span>
         </div>
       </footer>

@@ -315,8 +315,8 @@ mod tests {
         let _guard = TEST_MUTEX.lock().unwrap();
         stop_if_running();
         let result = update_automation_config(FrbAutomationConfig {
-            cpu_threshold_percent: 15.0,
-            idle_duration_seconds: 180,
+            cpu_threshold_percent: 40.0,
+            idle_duration_seconds: 300,
             cooldown_seconds: 300,
             watch_paths: vec![],
             excluded_paths: vec![],

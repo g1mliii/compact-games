@@ -1089,8 +1089,8 @@ void main() {
       await persistence.save(
         const AppSettings(
           steamGridDbApiKey: 'compact-games-demo-key',
-          idleDurationMinutes: 23,
-          cpuThreshold: 36,
+          idleDurationMinutes: 14,
+          cpuThreshold: 72,
         ),
       );
       final container = ProviderContainer(
@@ -1115,8 +1115,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final idleLabel = tester.widget<Text>(find.text('23 min'));
-      final cpuLabel = tester.widget<Text>(find.text('36%'));
+      final idleLabel = tester.widget<Text>(find.text('14 min'));
+      final cpuLabel = tester.widget<Text>(find.text('72%'));
       expect(idleLabel.style?.color, AppColors.success);
       expect(cpuLabel.style?.color, AppColors.error);
 
@@ -1184,7 +1184,7 @@ void main() {
       const ValueKey<String>('settingsSliderValueField'),
     );
     expect(sliderValueField, findsOneWidget);
-    await tester.enterText(sliderValueField, '31');
+    await tester.enterText(sliderValueField, '16');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Set'));
     await tester.pumpAndSettle();
@@ -1195,25 +1195,25 @@ void main() {
           .valueOrNull
           ?.settings
           .idleDurationMinutes,
-      30,
+      15,
     );
-    expect(find.text('30 min'), findsOneWidget);
+    expect(find.text('15 min'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey<String>('settingsCpuThresholdValue')),
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(sliderValueField, '41');
+    await tester.enterText(sliderValueField, '81');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Set'));
     await tester.pumpAndSettle();
 
     expect(
       container.read(settingsProvider).valueOrNull?.settings.cpuThreshold,
-      40,
+      80,
     );
-    expect(find.text('40%'), findsOneWidget);
+    expect(find.text('80%'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 600));
   });

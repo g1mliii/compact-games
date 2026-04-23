@@ -40,5 +40,20 @@ target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "winmm.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
+find_program(CARGO_EXECUTABLE cargo REQUIRED)
+
+add_custom_target(build_rust_core
+  COMMAND
+    ${CARGO_EXECUTABLE}
+    build
+    --manifest-path
+    "${CMAKE_SOURCE_DIR}/../rust/Cargo.toml"
+    $<$<NOT:$<CONFIG:Debug>>:--release>
+  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/../rust"
+  COMMENT "Building Rust core library"
+  VERBATIM
+)
+
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+add_dependencies(${BINARY_NAME} build_rust_core)

@@ -107,6 +107,20 @@ impl EventCoalescer {
 /// File extensions and names to ignore during watch events.
 const NOISE_EXTENSIONS: &[&str] = &["tmp", "bak", "log", "crdownload", "partial"];
 const NOISE_FILENAMES: &[&str] = &["desktop.ini", "thumbs.db", ".ds_store"];
+const USER_STATE_DIR_NAMES: &[&str] = &[
+    "save",
+    "saves",
+    "saved",
+    "cfg",
+    "config",
+    "configs",
+    "logs",
+    "log",
+    "cache",
+    "shadercache",
+];
+const USER_STATE_EXTENSIONS: &[&str] = &["cfg", "vcfg", "ini", "sav", "save", "soc", "stats"];
+const USER_STATE_SUFFIXES: &[&str] = &["_lastclouded"];
 
 pub(crate) fn is_noise_path(path: &std::path::Path) -> bool {
     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -121,6 +135,44 @@ pub(crate) fn is_noise_path(path: &std::path::Path) -> bool {
         }
     }
     false
+}
+
+pub(crate) fn is_user_state_subpath(path: &std::path::Path) -> bool {
+    if path.components().any(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .map(|segment| {
+                let segment_lower = segment.to_ascii_lowercase();
+                USER_STATE_DIR_NAMES
+                    .iter()
+                    .any(|name| segment_lower == *name)
+            })
+            .unwrap_or(false)
+    }) {
+        return true;
+    }
+
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    let name_lower = name.to_ascii_lowercase();
+
+    if USER_STATE_SUFFIXES
+        .iter()
+        .any(|suffix| name_lower.ends_with(suffix))
+    {
+        return true;
+    }
+
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|ext| {
+            USER_STATE_EXTENSIONS
+                .iter()
+                .any(|allowed| ext.eq_ignore_ascii_case(allowed))
+        })
+        .unwrap_or(false)
 }
 
 /// Resolved game root for a filesystem event.

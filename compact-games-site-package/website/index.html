@@ -9,6 +9,8 @@
       content="Compact Games helps Windows users save disk space by compressing supported game installs. Download the latest build and read the FAQ."
     />
     <meta name="theme-color" content="#091422" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self' mailto:; img-src 'self' data: https://g1mliii.github.io; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com; manifest-src 'self'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <meta name="author" content="Subaig S" />
     <link rel="canonical" href="https://g1mliii.github.io/compact-games/" />
@@ -25,7 +27,7 @@
     <meta property="og:url" content="https://g1mliii.github.io/compact-games/" />
     <meta
       property="og:image"
-      content="https://g1mliii.github.io/compact-games/assets/icon-512.png"
+      content="https://g1mliii.github.io/compact-games/assets/icon-512.png?v=20260421"
     />
     <meta name="twitter:card" content="summary" />
     <meta
@@ -38,14 +40,14 @@
     />
     <meta
       name="twitter:image"
-      content="https://g1mliii.github.io/compact-games/assets/icon-512.png"
+      content="https://g1mliii.github.io/compact-games/assets/icon-512.png?v=20260421"
     />
-    <link rel="icon" href="./assets/app_icon.ico" />
-    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
-    <link rel="manifest" href="./site.webmanifest" />
+    <link rel="icon" href="./assets/app_icon.ico?v=20260421" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260421" />
+    <link rel="manifest" href="./site.webmanifest?v=20260421" />
     <link rel="dns-prefetch" href="https://api.github.com" />
     <link rel="preconnect" href="https://api.github.com" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260423" />
     <script src="./app.js" defer></script>
     <script type="application/ld+json">
       {
@@ -80,10 +82,10 @@
     <div class="page-shell">
       <div class="page-noise" aria-hidden="true"></div>
       <header class="site-header">
-        <div class="brand-lockup">
+        <a class="brand-lockup" href="./" aria-label="Compact Games home">
           <img
             class="brand-icon"
-            src="./assets/app_icon.ico"
+            src="./assets/app_icon.ico?v=20260421"
             alt="Compact Games icon"
             width="42"
             height="42"
@@ -92,7 +94,7 @@
             <div class="brand-name" translate="no">Compact Games</div>
             <div class="brand-tag">Windows storage tool for installed games</div>
           </div>
-        </div>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a href="#features">Features</a>
           <a href="#primary-download">Download</a>
@@ -107,7 +109,7 @@
           <div class="hero-copy">
             <div class="eyebrow">
               <span class="eyebrow-dot"></span>
-              <span id="release-badge" aria-live="polite">Latest GitHub release</span>
+              <span id="release-badge" aria-live="polite">v0.1.3 published</span>
             </div>
             <h1>
               Save space.
@@ -144,70 +146,155 @@
                 View release notes
               </a>
             </div>
+            <ul class="trust-checklist" aria-label="What to expect">
+              <li>No account, analytics, or telemetry</li>
+              <li>Compression can be restored later</li>
+              <li>Same installer for first install and updates</li>
+              <li>Open source, with SHA-256 checksums published</li>
+            </ul>
             <p class="platform-note" id="platform-note" aria-live="polite">
               Compact Games is a Windows app. If you are on a phone, tablet, or
               another desktop OS, open this page on a Windows 10 or 11 PC to
               install the Windows installer.
             </p>
-            <div class="hero-meta">
+            <div class="hero-meta hero-meta-v2">
               <div>
-                <span class="meta-label">Works on</span>
-                <strong>Windows 10 and 11</strong>
+                <span class="meta-label">Version + file size</span>
+                <strong id="hero-version-size">v0.1.3 &middot; 14.0 MB</strong>
               </div>
               <div>
-                <span class="meta-label">Best for</span>
-                <strong>Windows PCs running low on space</strong>
+                <span class="meta-label">Install size</span>
+                <strong>~40 MB unpacked</strong>
               </div>
               <div>
-                <span class="meta-label">Price</span>
-                <strong>Free download</strong>
+                <span class="meta-label">Supported launchers</span>
+                <strong>Steam, Epic, GOG, Ubisoft, EA, Battle.net, Xbox PC</strong>
               </div>
             </div>
           </div>
 
           <div class="hero-panel">
-            <div class="signal-card">
-              <div class="signal-topline">Latest release</div>
+            <div class="signal-card release-card" id="release-card">
+              <div class="signal-card-header">
+                <div class="signal-topline">Latest release</div>
+                <p class="signal-caption">
+                  Live GitHub release details for the current Windows installer.
+                </p>
+              </div>
               <div class="signal-grid">
-                <div class="stat-card accent">
+                <article class="stat-card stat-card-emphasis">
                   <span class="stat-label">Version</span>
-                  <strong id="manifest-version" aria-live="polite">Checking...</strong>
-                </div>
-                <div class="stat-card">
+                  <strong
+                    class="stat-value"
+                    id="manifest-version"
+                    aria-live="polite"
+                  >
+                    v0.1.3
+                  </strong>
+                </article>
+                <article class="stat-card">
                   <span class="stat-label">Published</span>
-                  <strong id="manifest-date" aria-live="polite">Pending</strong>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">Status</span>
-                  <code id="manifest-checksum" aria-live="polite">Official GitHub release path</code>
-                </div>
+                  <strong class="stat-value" id="manifest-date" aria-live="polite">
+                    Apr 21, 2026
+                  </strong>
+                </article>
+                <article class="stat-card stat-card-status">
+                  <span class="stat-label">Checksum</span>
+                  <code
+                    class="stat-code"
+                    id="manifest-checksum"
+                    aria-live="polite"
+                  >
+                    2894b10e8493...bb2f584f06c2
+                  </code>
+                </article>
               </div>
             </div>
 
-            <div class="terminal-card">
-              <div class="terminal-topline">
-                <span>Why people trust it</span>
-                <span class="terminal-status">clear and reversible</span>
+            <figure class="proof-card">
+              <figcaption class="proof-card-header">
+                <div class="signal-topline">Inside the app</div>
+              </figcaption>
+              <div class="appshots-tabs" role="tablist" aria-label="Product screenshots">
+                <button class="appshots-tab is-active" id="appshot-tab-browse" type="button" role="tab" aria-selected="true" aria-controls="appshot-panel-browse" data-appshot-tab="browse">
+                  Browse
+                  <small>Scan &amp; pick</small>
+                </button>
+                <button class="appshots-tab" id="appshot-tab-warn" type="button" role="tab" aria-selected="false" aria-controls="appshot-panel-warn" data-appshot-tab="warn">
+                  Warn
+                  <small>Before risky changes</small>
+                </button>
+                <button class="appshots-tab" id="appshot-tab-restore" type="button" role="tab" aria-selected="false" aria-controls="appshot-panel-restore" data-appshot-tab="restore">
+                  Restore
+                  <small>One-click undo</small>
+                </button>
               </div>
-              <div class="terminal-body">
-                <div class="terminal-row">
-                  <span>launcher support</span>
-                  <strong>Works with major PC game launchers and custom folders</strong>
+              <div class="proof-shot-frame">
+                <div class="appshot-panel is-active" id="appshot-panel-browse" role="tabpanel" aria-labelledby="appshot-tab-browse" data-appshot-panel="browse">
+                  <img
+                    class="proof-shot"
+                    src="./assets/hero-app-deadlock.png?v=20260422"
+                    alt="Compact Games showing a Deadlock game card with saved space and storage totals."
+                    width="323"
+                    height="568"
+                    loading="eager"
+                    decoding="async"
+                  />
                 </div>
-                <div class="terminal-row">
-                  <span>safer choices</span>
-                  <strong>Warns you before compressing games that may be risky</strong>
+                <div class="appshot-panel" id="appshot-panel-warn" role="tabpanel" aria-labelledby="appshot-tab-warn" data-appshot-panel="warn" hidden>
+                  <div class="proof-shot-mock" role="img" aria-label="Warning dialog mock">
+                    <div class="mock-titlebar">Compact Games - Warning</div>
+                    <div class="mock-dialog">
+                      <div class="mock-dialog-title">
+                        Compression may affect this title
+                      </div>
+                      <div class="mock-dialog-body">
+                        <strong>Star Citizen</strong>
+                        <br />
+                        Community reports indicate this game can crash on launch after file compression. Compact Games recommends leaving it alone.
+                      </div>
+                      <div class="mock-dialog-actions">
+                        <span class="mock-pill">Cancel</span>
+                        <span class="mock-pill is-primary">Continue anyway</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="terminal-row">
-                  <span>easy rollback</span>
-                  <strong>You can restore a game back to normal later</strong>
-                </div>
-                <div class="terminal-row">
-                  <span>official download</span>
-                  <strong>The website points to the official GitHub release page</strong>
+                <div class="appshot-panel" id="appshot-panel-restore" role="tabpanel" aria-labelledby="appshot-tab-restore" data-appshot-panel="restore" hidden>
+                  <div class="proof-shot-mock" role="img" aria-label="Restore view mock">
+                    <div class="mock-titlebar">Compact Games - Library</div>
+                    <div class="mock-game-row">
+                      <div class="tile" aria-hidden="true"></div>
+                      <div>
+                        <div class="name">Baldur's Gate 3</div>
+                        <div class="sub">Saved 24.8 GB</div>
+                      </div>
+                      <span class="status compressed">Compressed</span>
+                    </div>
+                    <div class="mock-game-row">
+                      <div class="tile" aria-hidden="true"></div>
+                      <div>
+                        <div class="name">Cyberpunk 2077</div>
+                        <div class="sub">Restoring &middot; 62%</div>
+                        <div class="mock-progress"><span></span></div>
+                      </div>
+                      <span class="status restoring">Restoring</span>
+                    </div>
+                    <div class="mock-game-row">
+                      <div class="tile" aria-hidden="true"></div>
+                      <div>
+                        <div class="name">Red Dead Redemption 2</div>
+                        <div class="sub">Back to original</div>
+                      </div>
+                      <span class="status restored">Restored</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+              <p class="appshots-caption" id="appshots-caption">
+                Scans your installed libraries and shows saved-space totals per title.
+              </p>
+            </figure>
           </div>
         </section>
 
@@ -244,6 +331,66 @@
               a chore.
             </p>
           </article>
+        </section>
+
+        <section class="changelog-section" id="changelog">
+          <div class="changelog-panel">
+            <div class="changelog-intro">
+              <span class="card-kicker">What's new</span>
+              <h2>Active development, small honest releases.</h2>
+              <p>
+                Recent release notes are pulled from the same GitHub source as
+                the download card, then fall back to this static snapshot if the
+                request is unavailable.
+              </p>
+              <a
+                class="button button-secondary"
+                href="https://github.com/g1mliii/compact-games/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Full release history
+              </a>
+            </div>
+
+            <ol class="changelog-list" id="changelog-list">
+              <li class="changelog-entry">
+                <div class="changelog-version">
+                  v0.1.3
+                  <span class="changelog-date">Apr 21, 2026</span>
+                </div>
+                <div class="changelog-body">
+                  <strong>Installer shortcut and autostart fix.</strong>
+                  Desktop shortcut and autostart registry entries now fire only
+                  on first install, so silent upgrades preserve choices you
+                  already made.
+                </div>
+              </li>
+              <li class="changelog-entry">
+                <div class="changelog-version">
+                  v0.1.2
+                  <span class="changelog-date">Apr 19, 2026</span>
+                </div>
+                <div class="changelog-body">
+                  <strong>Installer and update UX fixes.</strong>
+                  In-app update now relaunches after silent install, and
+                  upgrade installs preserve first-install shortcut and autostart
+                  choices.
+                </div>
+              </li>
+              <li class="changelog-entry">
+                <div class="changelog-version">
+                  v0.1.1
+                  <span class="changelog-date">Apr 19, 2026</span>
+                </div>
+                <div class="changelog-body">
+                  <strong>Update-flow and compatibility refresh test release.</strong>
+                  Validates in-app update flow and community unsupported-list
+                  refresh behavior.
+                </div>
+              </li>
+            </ol>
+          </div>
         </section>
 
         <section class="unsupported-section" id="unsupported">
@@ -390,7 +537,7 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <span>2026 Compact Games. All rights reserved.</span>
+          <span>&copy; 2026 Compact Games. All rights reserved.</span>
           <span>Built for Windows users who want space back without deleting installed games.</span>
         </div>
       </footer>

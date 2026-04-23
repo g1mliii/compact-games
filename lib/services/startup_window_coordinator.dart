@@ -20,11 +20,23 @@ abstract interface class StartupTrayAdapter {
   Future<void> init();
 }
 
+bool shouldStartHiddenInTrayOnLaunch({
+  required bool isWeb,
+  required TargetPlatform targetPlatform,
+  required List<String> args,
+}) {
+  if (isWeb || targetPlatform != TargetPlatform.windows) {
+    return false;
+  }
+  return args.contains('--minimized');
+}
+
 Future<void> initializeStartupWindow({
   required StartupWindowAdapter window,
   required StartupTrayAdapter tray,
   required WindowListener listener,
   required WindowOptions options,
+  required bool startHiddenInTray,
   required bool isWeb,
   required TargetPlatform targetPlatform,
   void Function(Object error)? onTrayInitError,
@@ -38,7 +50,9 @@ Future<void> initializeStartupWindow({
   }
 
   await window.waitUntilReadyToShow(options, () async {
-    await window.showInactive();
+    if (!startHiddenInTray) {
+      await window.showInactive();
+    }
     try {
       await tray.init();
     } catch (error) {

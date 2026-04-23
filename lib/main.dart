@@ -33,7 +33,7 @@ final _windowCloseCoordinator = WindowCloseCoordinator(
 const _startupWindow = WindowManagerStartupAdapter();
 final _startupTray = TrayStartupAdapter(TrayService.instance);
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   if (!kIsWeb && _enableShaderWarmUp) {
     PaintingBinding.shaderWarmUp = const CompactGamesShaderWarmUp();
   }
@@ -74,21 +74,34 @@ Future<void> main() async {
     titleBarStyle: titleBarStyle,
   );
 
+  final startHiddenInTray = shouldStartHiddenInTrayOnLaunch(
+    isWeb: kIsWeb,
+    targetPlatform: defaultTargetPlatform,
+    args: args,
+  );
+  if (startHiddenInTray) {
+    appWindowVisibilityController.markHiddenToTray();
+  } else {
+    appWindowVisibilityController.markVisible();
+  }
+
+  TrayService.instance.registerShowWindowHook(() {
+    UiMemoryLifecycle.configureImageCache();
+    appWindowVisibilityController.markVisible();
+  });
+
   await initializeStartupWindow(
     window: _startupWindow,
     tray: _startupTray,
     listener: _windowListener,
     options: windowOptions,
+    startHiddenInTray: startHiddenInTray,
     isWeb: kIsWeb,
     targetPlatform: defaultTargetPlatform,
     onTrayInitError: (error) {
       debugPrint('[tray] Init failed (non-fatal): $error');
     },
   );
-  TrayService.instance.registerShowWindowHook(() {
-    UiMemoryLifecycle.configureImageCache();
-    appWindowVisibilityController.markVisible();
-  });
 
   runApp(const _RustBridgeReloadHost(child: CompactGamesApp()));
 }

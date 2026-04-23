@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::compression::algorithm::CompressionAlgorithm;
@@ -8,6 +8,31 @@ use crate::compression::history::{
 
 use super::coalescer::*;
 use super::*;
+
+fn record_test_compression(game_dir: &Path, timestamp_ms: u64) {
+    record_compression(CompressionHistoryEntry {
+        game_path: game_dir.to_string_lossy().into_owned(),
+        game_name: game_dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("TestGame")
+            .to_owned(),
+        timestamp_ms,
+        estimate: EstimateSnapshot {
+            scanned_files: 0,
+            sampled_bytes: 0,
+            estimated_saved_bytes: 0,
+        },
+        actual_stats: ActualStats {
+            original_bytes: 10_000,
+            compressed_bytes: 8_000,
+            actual_saved_bytes: 2_000,
+            files_processed: 10,
+        },
+        algorithm: CompressionAlgorithm::Xpress8K,
+        duration_ms: 10,
+    });
+}
 
 #[test]
 fn coalescer_single_event_settles_after_cooldown() {
@@ -130,6 +155,22 @@ fn noise_files_are_filtered() {
 }
 
 #[test]
+fn user_state_paths_are_filtered() {
+    assert!(is_user_state_subpath(std::path::Path::new(
+        r"Save\slot1.sav"
+    )));
+    assert!(is_user_state_subpath(std::path::Path::new(
+        r"cfg\user_keys_0_slot0.vcfg"
+    )));
+    assert!(is_user_state_subpath(std::path::Path::new(
+        r"cache_154331883.soc"
+    )));
+    assert!(!is_user_state_subpath(std::path::Path::new(
+        r"game\bin\win64\engine2.dll"
+    )));
+}
+
+#[test]
 fn resolve_game_folder_returns_first_child() {
     let watch_paths = vec![PathBuf::from(r"C:\Games")];
     let event_path = PathBuf::from(r"C:\Games\MyGame\data\level1.pak");
@@ -210,6 +251,120 @@ fn create_folder_under_known_watch_root_emits_modified_for_game_root() {
         vec![WatchEvent::GameModified {
             path: game_dir,
             game_name: Some("WatchedGame".to_owned()),
+        }]
+    );
+}
+
+#[test]
+fn save_file_under_known_watch_root_is_ignored() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("WatchedGame");
+    std::fs::create_dir_all(game_dir.join("Save")).unwrap();
+    record_compression(CompressionHistoryEntry {
+        game_path: game_dir.to_string_lossy().into_owned(),
+        game_name: "WatchedGame".to_owned(),
+        timestamp_ms: 1_700_000_123_456,
+        estimate: EstimateSnapshot {
+            scanned_files: 0,
+            sampled_bytes: 0,
+            estimated_saved_bytes: 0,
+        },
+        actual_stats: ActualStats {
+            original_bytes: 10_000,
+            compressed_bytes: 8_000,
+            actual_saved_bytes: 2_000,
+            files_processed: 10,
+        },
+        algorithm: CompressionAlgorithm::Xpress8K,
+        duration_ms: 10,
+    });
+
+    let event = notify::Event {
+        kind: notify::EventKind::Modify(notify::event::ModifyKind::Data(
+            notify::event::DataChange::Any,
+        )),
+        paths: vec![game_dir.join("Save").join("slot1.sav")],
+        attrs: notify::event::EventAttributes::new(),
+    };
+    let mut coalescer = EventCoalescer::new(Duration::ZERO);
+
+    process_notify_event(&event, std::slice::from_ref(&game_dir), &mut coalescer);
+
+    assert!(coalescer.drain_settled().is_empty());
+}
+
+#[test]
+fn recent_self_compression_echo_is_ignored() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("RecentlyCompressedGame");
+    std::fs::create_dir_all(game_dir.join("data")).unwrap();
+    let payload = game_dir.join("data").join("payload.bin");
+    std::fs::write(&payload, vec![1_u8; 4096]).unwrap();
+    record_test_compression(&game_dir, crate::utils::unix_now_ms());
+
+    let event = notify::Event {
+        kind: notify::EventKind::Modify(notify::event::ModifyKind::Metadata(
+            notify::event::MetadataKind::Any,
+        )),
+        paths: vec![payload],
+        attrs: notify::event::EventAttributes::new(),
+    };
+    let mut coalescer = EventCoalescer::new(Duration::ZERO);
+
+    process_notify_event(&event, std::slice::from_ref(&game_dir), &mut coalescer);
+
+    assert!(coalescer.drain_settled().is_empty());
+}
+
+#[test]
+fn recent_real_content_update_after_compression_is_queued() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("RecentlyUpdatedGame");
+    std::fs::create_dir_all(game_dir.join("data")).unwrap();
+    record_test_compression(&game_dir, crate::utils::unix_now_ms().saturating_sub(5_000));
+    let payload = game_dir.join("data").join("patch.bin");
+    std::fs::write(&payload, vec![2_u8; 4096]).unwrap();
+
+    let event = notify::Event {
+        kind: notify::EventKind::Modify(notify::event::ModifyKind::Data(
+            notify::event::DataChange::Any,
+        )),
+        paths: vec![payload],
+        attrs: notify::event::EventAttributes::new(),
+    };
+    let mut coalescer = EventCoalescer::new(Duration::ZERO);
+
+    process_notify_event(&event, std::slice::from_ref(&game_dir), &mut coalescer);
+
+    assert_eq!(
+        coalescer.drain_settled(),
+        vec![WatchEvent::GameModified {
+            path: game_dir,
+            game_name: Some("RecentlyUpdatedGame".to_owned()),
+        }]
+    );
+}
+
+#[test]
+fn ancestor_named_cache_does_not_filter_content_event() {
+    let watch_root = PathBuf::from(r"D:\cache\SteamLibrary");
+    let game_root = watch_root.join("TestGame");
+    let event = notify::Event {
+        kind: notify::EventKind::Modify(notify::event::ModifyKind::Data(
+            notify::event::DataChange::Any,
+        )),
+        paths: vec![game_root.join("game").join("bin").join("engine2.dll")],
+        attrs: notify::event::EventAttributes::new(),
+    };
+    let mut coalescer = EventCoalescer::new(Duration::ZERO);
+
+    process_notify_event(&event, std::slice::from_ref(&watch_root), &mut coalescer);
+
+    assert_eq!(
+        coalescer.drain_settled(),
+        vec![WatchEvent::GameModified {
+            path: game_root,
+            game_name: Some("TestGame".to_owned()),
         }]
     );
 }

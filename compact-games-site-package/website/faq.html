@@ -9,12 +9,14 @@
       content="Plain-language answers about Compact Games, plus a contact form for support questions."
     />
     <meta name="theme-color" content="#091422" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self' mailto:; img-src 'self' data: https://g1mliii.github.io; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com; manifest-src 'self'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="index,follow" />
     <meta name="author" content="Subaig S" />
     <link rel="canonical" href="https://g1mliii.github.io/compact-games/faq.html" />
-    <link rel="icon" href="./assets/app_icon.ico" />
-    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="./assets/app_icon.ico?v=20260421" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260421" />
+    <link rel="stylesheet" href="./styles.css?v=20260423" />
     <script src="./app.js" defer></script>
     <script type="application/ld+json">
       {
@@ -71,10 +73,10 @@
       <div class="page-noise" aria-hidden="true"></div>
 
       <header class="site-header">
-        <a class="brand-lockup" href="./">
+        <a class="brand-lockup" href="./" aria-label="Compact Games home">
           <img
             class="brand-icon"
-            src="./assets/app_icon.ico"
+            src="./assets/app_icon.ico?v=20260421"
             alt="Compact Games icon"
             width="42"
             height="42"
@@ -98,59 +100,83 @@
             <span class="card-kicker">FAQ</span>
             <h1>Simple answers before you download.</h1>
             <p>
-              This page keeps the answers short and clear. If you still need help,
-              use the contact form below.
+              Grouped by where you are in the flow. Still stuck? Use the
+              contact form below.
             </p>
           </div>
         </section>
 
         <section class="faq-section faq-page-section">
           <h2 class="sr-only">Frequently asked questions</h2>
-          <div class="faq-grid faq-page-grid">
-            <article class="faq-card">
-              <h3>What does Compact Games do?</h3>
-              <p>
-                It helps you save disk space by compressing supported game files on Windows.
-              </p>
-            </article>
-            <article class="faq-card">
-              <h3>Will this slow my games down?</h3>
-              <p>
-                Usually no, but some games are more sensitive than others. The app tries to warn you first.
-              </p>
-            </article>
-            <article class="faq-card">
-              <h3>Can I undo it later?</h3>
-              <p>
-                Yes. You can restore a game back to normal if you want.
-              </p>
-            </article>
-            <article class="faq-card">
-              <h3>Do I need a different installer to update?</h3>
-              <p>
-                No. The same installer is used for both first install and updates.
-              </p>
-            </article>
-            <article class="faq-card">
-              <h3>Is it Windows-only?</h3>
-              <p>
-                Yes. The current app is built for Windows 10 and Windows 11.
-              </p>
-            </article>
-            <article class="faq-card" id="download-help">
-              <h3>Can I download it from my phone or iPad?</h3>
-              <p>
-                Not directly. Compact Games installs with a Windows
-                <code>.exe</code>, so use a Windows 10 or Windows 11 PC for the
-                actual download and install.
-              </p>
-            </article>
-            <article class="faq-card">
-              <h3>Where can I report a problem?</h3>
-              <p>
-                You can use the contact form below or open a GitHub issue if you prefer.
-              </p>
-            </article>
+          <div class="faq-group">
+            <div class="faq-group-heading">
+              <span class="card-kicker">Before you install</span>
+              <h2>Installing it</h2>
+            </div>
+            <div class="faq-group-grid">
+              <article class="faq-card">
+                <h3>What does Compact Games do?</h3>
+                <p>
+                  It helps you save disk space by compressing supported game files on Windows.
+                </p>
+              </article>
+              <article class="faq-card">
+                <h3>Is it Windows-only?</h3>
+                <p>
+                  Yes. The current app is built for Windows 10 and Windows 11.
+                </p>
+              </article>
+              <article class="faq-card" id="download-help">
+                <h3>Can I download it from my phone or iPad?</h3>
+                <p>
+                  Not directly. Compact Games installs with a Windows
+                  <code>.exe</code>, so use a Windows 10 or Windows 11 PC for the
+                  actual download and install.
+                </p>
+              </article>
+              <article class="faq-card">
+                <h3>Do I need a different installer to update?</h3>
+                <p>
+                  No. The same installer is used for both first install and updates.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <div class="faq-group">
+            <div class="faq-group-heading">
+              <span class="card-kicker">After compression</span>
+              <h2>Living with it</h2>
+            </div>
+            <div class="faq-group-grid">
+              <article class="faq-card">
+                <h3>Will this slow my games down?</h3>
+                <p>
+                  Usually no, but some games are more sensitive than others. The app tries to warn you first.
+                </p>
+              </article>
+              <article class="faq-card">
+                <h3>Can I undo it later?</h3>
+                <p>
+                  Yes. You can restore a game back to normal if you want.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <div class="faq-group">
+            <div class="faq-group-heading">
+              <span class="card-kicker">Support</span>
+              <h2>If something goes wrong</h2>
+            </div>
+            <div class="faq-group-grid">
+              <article class="faq-card">
+                <h3>Where can I report a problem?</h3>
+                <p>
+                  You can use the contact form below or open a GitHub issue if you prefer.
+                </p>
+              </article>
+            </div>
           </div>
         </section>
 
@@ -161,10 +187,24 @@
               <h2>Send a question by email</h2>
               <p>
                 This site is static, so the form opens your email app instead of sending through a server.
-                If no mail app is set up, use <a href="mailto:info@anchored.site">info@anchored.site</a>.
-                For installs, open the site on a Windows PC before downloading the installer.
+                The quickest path is to copy the address and paste it into whatever you already use.
               </p>
             </div>
+
+            <div class="contact-primary-row">
+              <span class="email-label">Direct email</span>
+              <span class="email-text">info@anchored.site</span>
+              <button
+                class="button button-primary"
+                id="copy-email-button"
+                type="button"
+                data-email="info@anchored.site"
+              >
+                Copy address
+              </button>
+            </div>
+
+            <div class="contact-form-divider">or use the form</div>
 
             <form class="contact-form" id="contact-form">
               <label class="form-field">
@@ -187,20 +227,12 @@
                 <button class="button button-primary" type="submit">
                   Open email draft
                 </button>
-                <button
-                  class="button button-secondary"
-                  id="copy-email-button"
-                  type="button"
-                  data-email="info@anchored.site"
-                >
-                  Copy email address
-                </button>
                 <a class="button button-secondary" href="mailto:info@anchored.site">
                   Email directly
                 </a>
               </div>
               <p class="contact-note" id="contact-note" aria-live="polite">
-                The form will open your default email app with your message filled in.
+                Copy the email above, or fill in the form and we'll open a draft.
               </p>
             </form>
           </div>
@@ -229,7 +261,7 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <span>2026 Compact Games. All rights reserved.</span>
+          <span>&copy; 2026 Compact Games. All rights reserved.</span>
           <span>Built for Windows users who want space back without deleting installed games.</span>
         </div>
       </footer>

@@ -2,13 +2,16 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use walkdir::WalkDir;
+
 use crate::automation::scheduler::{AutoScheduler, JobStatus};
+use crate::automation::watcher::coalescer::{is_noise_path, is_user_state_subpath};
 use crate::compression::history::with_latest_compression_timestamps_by_path;
-use crate::discovery::cache::{
-    compute_change_token, has_entry as has_discovery_cache_entry, normalize_path_key,
-};
+use crate::discovery::cache::{has_entry as has_discovery_cache_entry, normalize_path_key};
 
 const MAX_RECONCILE_JOBS_PER_PASS: usize = 256;
+const RECONCILE_PROBE_MAX_DEPTH: usize = 6;
+const RECONCILE_PROBE_MAX_FILES: usize = 96;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct ReconcileEnqueueResult {
@@ -49,16 +52,78 @@ fn unique_watch_paths(watch_paths: &[String]) -> Vec<PathBuf> {
 }
 
 fn game_change_marker_ms(path: &Path) -> Option<u64> {
-    let include_probe = has_discovery_cache_entry(path);
-    let token = compute_change_token(path, include_probe);
-    [
-        token.root_mtime_ms,
-        token.child_max_mtime_ms,
-        token.probe_max_mtime_ms,
-    ]
-    .into_iter()
-    .flatten()
-    .max()
+    let mut max_mtime = filtered_child_max_mtime_ms(path);
+
+    if has_discovery_cache_entry(path) {
+        let mut files_seen = 0usize;
+        for entry in WalkDir::new(path)
+            .max_depth(RECONCILE_PROBE_MAX_DEPTH)
+            .follow_links(false)
+            .into_iter()
+            .filter_entry(|entry| {
+                let relative_path = entry.path().strip_prefix(path).unwrap_or(entry.path());
+                !is_noise_path(relative_path) && !is_user_state_subpath(relative_path)
+            })
+            .filter_map(|entry| entry.ok())
+        {
+            let relative_path = entry.path().strip_prefix(path).unwrap_or(entry.path());
+            if is_noise_path(relative_path) || is_user_state_subpath(relative_path) {
+                continue;
+            }
+
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
+
+            max_mtime = max_optional_u64(max_mtime, metadata_modified_ms(&metadata));
+
+            if metadata.is_file() {
+                files_seen = files_seen.saturating_add(1);
+                if files_seen >= RECONCILE_PROBE_MAX_FILES {
+                    break;
+                }
+            }
+        }
+    }
+
+    max_mtime
+}
+
+fn filtered_child_max_mtime_ms(path: &Path) -> Option<u64> {
+    let mut child_max_mtime_ms: Option<u64> = None;
+
+    if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let child_path = entry.path();
+            let relative_path = child_path
+                .strip_prefix(path)
+                .unwrap_or(child_path.as_path());
+            if is_noise_path(relative_path) || is_user_state_subpath(relative_path) {
+                continue;
+            }
+            let child_mtime = entry.metadata().ok().and_then(|m| metadata_modified_ms(&m));
+            child_max_mtime_ms = max_optional_u64(child_max_mtime_ms, child_mtime);
+        }
+    }
+
+    child_max_mtime_ms
+}
+
+fn metadata_modified_ms(metadata: &fs::Metadata) -> Option<u64> {
+    metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as u64)
+}
+
+fn max_optional_u64(left: Option<u64>, right: Option<u64>) -> Option<u64> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.max(right)),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
+    }
 }
 
 fn collect_game_folder_candidates(watch_root: &Path) -> Vec<(String, PathBuf)> {

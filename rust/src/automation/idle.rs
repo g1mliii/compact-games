@@ -51,8 +51,8 @@ pub struct IdleConfig {
 impl Default for IdleConfig {
     fn default() -> Self {
         Self {
-            cpu_threshold_percent: 10.0,
-            idle_duration: Duration::from_secs(120), // 2 minutes
+            cpu_threshold_percent: 40.0,
+            idle_duration: Duration::from_secs(300), // 5 minutes
         }
     }
 }
@@ -145,8 +145,8 @@ mod tests {
     #[test]
     fn default_config_has_expected_values() {
         let config = IdleConfig::default();
-        assert!((config.cpu_threshold_percent - 10.0).abs() < f32::EPSILON);
-        assert_eq!(config.idle_duration, Duration::from_secs(120));
+        assert!((config.cpu_threshold_percent - 40.0).abs() < f32::EPSILON);
+        assert_eq!(config.idle_duration, Duration::from_secs(300));
     }
 
     #[test]

@@ -4,8 +4,35 @@ import 'package:compact_games/services/startup_window_coordinator.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() {
+  test('launch arg helper only hides Windows minimized startups', () {
+    expect(
+      shouldStartHiddenInTrayOnLaunch(
+        isWeb: false,
+        targetPlatform: TargetPlatform.windows,
+        args: const ['--minimized'],
+      ),
+      isTrue,
+    );
+    expect(
+      shouldStartHiddenInTrayOnLaunch(
+        isWeb: false,
+        targetPlatform: TargetPlatform.windows,
+        args: const ['--other'],
+      ),
+      isFalse,
+    );
+    expect(
+      shouldStartHiddenInTrayOnLaunch(
+        isWeb: false,
+        targetPlatform: TargetPlatform.macOS,
+        args: const ['--minimized'],
+      ),
+      isFalse,
+    );
+  });
+
   test(
-    'startup window shows inactive on Windows and initializes tray after show',
+    'normal Windows startup shows inactive and initializes tray after show',
     () async {
       final window = _FakeStartupWindowAdapter();
       final tray = _FakeStartupTrayAdapter(
@@ -27,6 +54,7 @@ void main() {
         tray: tray,
         listener: listener,
         options: options,
+        startHiddenInTray: false,
         isWeb: false,
         targetPlatform: TargetPlatform.windows,
         onTrayInitError: trayErrors.add,
@@ -44,6 +72,31 @@ void main() {
     },
   );
 
+  test('minimized Windows startup initializes tray without showing window', () async {
+    final window = _FakeStartupWindowAdapter();
+    final tray = _FakeStartupTrayAdapter(
+      onInit: () =>
+          window.showInactiveCallsAtTrayInit = window.showInactiveCalls,
+    );
+
+    await initializeStartupWindow(
+      window: window,
+      tray: tray,
+      listener: _FakeWindowListener(),
+      options: const WindowOptions(),
+      startHiddenInTray: true,
+      isWeb: false,
+      targetPlatform: TargetPlatform.windows,
+    );
+
+    expect(window.ensureInitializedCalls, 1);
+    expect(window.setPreventCloseValues, <bool>[true]);
+    expect(window.waitUntilReadyToShowCalls, 1);
+    expect(window.showInactiveCalls, 0);
+    expect(tray.initCalls, 1);
+    expect(window.showInactiveCallsAtTrayInit, 0);
+  });
+
   test('startup window skips prevent-close outside Windows', () async {
     final window = _FakeStartupWindowAdapter();
     final tray = _FakeStartupTrayAdapter();
@@ -54,6 +107,7 @@ void main() {
       tray: tray,
       listener: listener,
       options: const WindowOptions(),
+      startHiddenInTray: false,
       isWeb: false,
       targetPlatform: TargetPlatform.macOS,
     );
@@ -73,6 +127,7 @@ void main() {
       tray: tray,
       listener: _FakeWindowListener(),
       options: const WindowOptions(),
+      startHiddenInTray: false,
       isWeb: false,
       targetPlatform: TargetPlatform.windows,
       onTrayInitError: errors.add,

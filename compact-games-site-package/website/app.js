@@ -1,7 +1,9 @@
 const FALLBACK_RELEASE_PAGE =
   "https://github.com/g1mliii/compact-games/releases/latest";
+const ALL_RELEASES_PAGE =
+  "https://github.com/g1mliii/compact-games/releases";
 const RELEASES_API_URL =
-  "https://api.github.com/repos/g1mliii/compact-games/releases?per_page=1";
+  "https://api.github.com/repos/g1mliii/compact-games/releases?per_page=3";
 const FALLBACK_MANIFEST_URL =
   "https://github.com/g1mliii/compact-games/releases/latest/download/latest.json";
 const FALLBACK_UNSUPPORTED_LIST_URL =
@@ -11,6 +13,11 @@ const FALLBACK_UNSUPPORTED_BUNDLE_URL =
 const FAQ_DOWNLOAD_HELP_URL = "./faq.html#download-help";
 const CONTACT_EMAIL = "info@anchored.site";
 const RELEASE_FETCH_TIMEOUT_MS = 2500;
+const ALLOWED_CONNECT_ORIGINS = new Set([
+  window.location.origin,
+  "https://api.github.com",
+  "https://github.com",
+]);
 const ALLOWED_RELEASE_ORIGINS = new Set(["https://github.com"]);
 const ALLOWED_RELEASE_PATH_PREFIXES = [
   "/g1mliii/compact-games/releases/",
@@ -27,6 +34,9 @@ const els = {
   manifestVersion: document.querySelector("#manifest-version"),
   manifestDate: document.querySelector("#manifest-date"),
   manifestChecksum: document.querySelector("#manifest-checksum"),
+  heroVersionSize: document.querySelector("#hero-version-size"),
+  releaseCard: document.querySelector("#release-card"),
+  changelogList: document.querySelector("#changelog-list"),
   primaryDownload: document.querySelector("#primary-download"),
   releaseNotesLink: document.querySelector("#release-notes-link"),
   unsupportedListLink: document.querySelector("#unsupported-list-link"),
@@ -54,6 +64,7 @@ const pageState = {
   unsupportedListUrl: FALLBACK_UNSUPPORTED_LIST_URL,
   unsupportedBundleUrl: FALLBACK_UNSUPPORTED_BUNDLE_URL,
   noReleaseYet: false,
+  hasInstallerDigest: false,
 };
 
 const platformContext = detectPlatformContext();
@@ -63,6 +74,7 @@ async function loadLatestRelease() {
     return;
   }
 
+  document.body.classList.add("release-is-loading");
   applyPlatformGuidance(true);
 
   try {
@@ -75,12 +87,15 @@ async function loadLatestRelease() {
     }
 
     applyRelease(latestRelease);
+    renderChangelog(releases.slice(0, 3));
 
-    if (pageState.manifestUrl) {
+    if (!pageState.hasInstallerDigest && canHydrateManifest(pageState.manifestUrl)) {
       scheduleManifestHydration(pageState.manifestUrl);
     }
   } catch (error) {
     applyFallback({ error });
+  } finally {
+    document.body.classList.remove("release-is-loading");
   }
 }
 
@@ -125,13 +140,21 @@ function applyRelease(release) {
     FALLBACK_UNSUPPORTED_BUNDLE_URL,
   );
   pageState.noReleaseYet = false;
+  pageState.hasInstallerDigest = Boolean(extractSha256Digest(installerAsset?.digest));
 
+  setReleaseCardFallback(false);
   els.releaseBadge.textContent = `${version} published`;
   els.manifestVersion.textContent = version;
   els.manifestDate.textContent = publishedAt;
-  els.manifestChecksum.textContent = manifestAsset
-    ? "Available in latest.json"
-    : "Checksum unavailable";
+  els.manifestChecksum.textContent =
+    extractSha256Digest(installerAsset?.digest) ||
+    (manifestAsset ? "SHA-256 published in latest.json" : "Checksum unavailable");
+  if (els.heroVersionSize) {
+    els.heroVersionSize.textContent = formatVersionAndSize(
+      version,
+      installerAsset?.size,
+    );
+  }
   els.releaseNotesLink.href = pageState.releasePageUrl;
   els.unsupportedListLink.href = pageState.unsupportedListUrl;
   els.unsupportedBundleLink.href = pageState.unsupportedBundleUrl;
@@ -145,7 +168,7 @@ function scheduleManifestHydration(manifestUrl) {
       const manifest = await fetchJson(manifestUrl);
       applyManifestDetails(manifest);
     } catch (_error) {
-      els.manifestChecksum.textContent = "Checksum unavailable";
+      return;
     }
   };
 
@@ -161,6 +184,19 @@ function scheduleManifestHydration(manifestUrl) {
   }, 120);
 }
 
+function canHydrateManifest(manifestUrl) {
+  if (!manifestUrl) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(manifestUrl);
+    return ALLOWED_CONNECT_ORIGINS.has(parsedUrl.origin);
+  } catch (_error) {
+    return false;
+  }
+}
+
 function applyManifestDetails(manifest) {
   const checksum = manifest?.checksum_sha256
     ? shortenChecksum(manifest.checksum_sha256)
@@ -168,13 +204,14 @@ function applyManifestDetails(manifest) {
   els.manifestChecksum.textContent = checksum;
 }
 
-function applyFallback({ noReleaseYet = false } = {}) {
+function applyFallback({ noReleaseYet = false, error = null } = {}) {
   pageState.installerUrl = FALLBACK_RELEASE_PAGE;
   pageState.releasePageUrl = FALLBACK_RELEASE_PAGE;
   pageState.manifestUrl = FALLBACK_MANIFEST_URL;
   pageState.unsupportedListUrl = FALLBACK_UNSUPPORTED_LIST_URL;
   pageState.unsupportedBundleUrl = FALLBACK_UNSUPPORTED_BUNDLE_URL;
   pageState.noReleaseYet = noReleaseYet;
+  pageState.hasInstallerDigest = false;
 
   els.releaseBadge.textContent = noReleaseYet
     ? "Official GitHub release page"
@@ -186,13 +223,47 @@ function applyFallback({ noReleaseYet = false } = {}) {
     ? "Public release not posted yet"
     : "Check GitHub Releases";
   els.manifestChecksum.textContent = noReleaseYet
-    ? "No public build yet"
-    : "Official GitHub release path";
+    ? "No public checksum yet"
+    : "Checksum unavailable";
   els.releaseNotesLink.href = pageState.releasePageUrl;
   els.unsupportedListLink.href = pageState.unsupportedListUrl;
   els.unsupportedBundleLink.href = pageState.unsupportedBundleUrl;
+  setReleaseCardFallback(Boolean(error));
 
   applyPlatformGuidance(true);
+}
+
+function setReleaseCardFallback(isFallback) {
+  if (!els.releaseCard) {
+    return;
+  }
+
+  const existingLink = els.releaseCard.closest(".release-card-link");
+  if (isFallback) {
+    els.releaseCard.classList.add("release-card-fallback");
+    if (existingLink) {
+      existingLink.href = ALL_RELEASES_PAGE;
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.className = "release-card-link";
+    link.href = ALL_RELEASES_PAGE;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.setAttribute(
+      "aria-label",
+      "Open Compact Games releases on GitHub",
+    );
+    els.releaseCard.before(link);
+    link.append(els.releaseCard);
+    return;
+  }
+
+  els.releaseCard.classList.remove("release-card-fallback");
+  if (existingLink) {
+    existingLink.replaceWith(els.releaseCard);
+  }
 }
 
 async function fetchJson(url) {
@@ -203,7 +274,7 @@ async function fetchJson(url) {
 
   try {
     const response = await fetch(url, {
-      cache: "no-store",
+      cache: "default",
       headers: {
         Accept: "application/vnd.github+json",
       },
@@ -291,12 +362,95 @@ function formatDate(raw) {
   }).format(date);
 }
 
+function extractSha256Digest(digest) {
+  const match = String(digest || "").match(/^sha256:([a-f0-9]{64})$/i);
+  return match ? shortenChecksum(match[1]) : "";
+}
+
+function formatVersionAndSize(version, sizeBytes) {
+  if (!sizeBytes || Number.isNaN(Number(sizeBytes))) {
+    return `${version} - Windows installer`;
+  }
+
+  return `${version} - ${formatFileSize(sizeBytes)}`;
+}
+
+function formatFileSize(sizeBytes) {
+  return `${(Number(sizeBytes) / 1_000_000).toFixed(1)} MB`;
+}
+
 function shortenChecksum(value) {
   if (value.length <= 20) {
     return value;
   }
 
   return `${value.slice(0, 12)}...${value.slice(-12)}`;
+}
+
+function renderChangelog(releases) {
+  if (!els.changelogList || !Array.isArray(releases) || releases.length === 0) {
+    return;
+  }
+
+  els.changelogList.replaceChildren(
+    ...releases.map((release) => createChangelogEntry(release)),
+  );
+}
+
+function createChangelogEntry(release) {
+  const item = document.createElement("li");
+  item.className = "changelog-entry";
+
+  const versionBlock = document.createElement("div");
+  versionBlock.className = "changelog-version";
+  versionBlock.append(
+    normalizeVersion(release.tag_name || release.name),
+    createChangelogDate(release.published_at),
+  );
+
+  const summary = summarizeReleaseBody(release.body);
+  const body = document.createElement("div");
+  body.className = "changelog-body";
+
+  const title = document.createElement("strong");
+  title.textContent = summary.title;
+  body.append(title, document.createTextNode(summary.detail));
+
+  item.append(versionBlock, body);
+  return item;
+}
+
+function createChangelogDate(publishedAt) {
+  const date = document.createElement("span");
+  date.className = "changelog-date";
+  date.textContent = formatDate(publishedAt);
+  return date;
+}
+
+function summarizeReleaseBody(body) {
+  const lines = String(body || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^[-*]\s*/, ""))
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return {
+      title: "Release notes published.",
+      detail: "Open the release history for the full notes.",
+    };
+  }
+
+  if (lines[0].endsWith(":") && lines.length > 1) {
+    return {
+      title: lines[0].replace(/:$/, "."),
+      detail: lines.slice(1).join(" "),
+    };
+  }
+
+  return {
+    title: lines[0],
+    detail: lines.slice(1).join(" ") || "Open the release history for the full notes.",
+  };
 }
 
 function detectPlatformContext() {
@@ -479,7 +633,11 @@ function initContactForm() {
           tempInput.remove();
         }
 
+        copyEmailButton.textContent = "Copied";
         contactNote.textContent = `Copied ${email} to your clipboard.`;
+        window.setTimeout(() => {
+          copyEmailButton.textContent = "Copy address";
+        }, 2200);
       } catch (_error) {
         contactNote.textContent =
           `Could not copy automatically. Use ${email} directly.`;
@@ -488,12 +646,75 @@ function initContactForm() {
   }
 }
 
+function initAppShotTabs() {
+  const tabs = Array.from(document.querySelectorAll("[data-appshot-tab]"));
+  const panels = Array.from(document.querySelectorAll("[data-appshot-panel]"));
+  const caption = document.querySelector("#appshots-caption");
+
+  if (tabs.length === 0 || panels.length === 0) {
+    return;
+  }
+
+  const captions = {
+    browse: "Scans your installed libraries and shows saved-space totals per title.",
+    warn: "Flags titles that are known to misbehave after compression, and explains the risk before you decide.",
+    restore: "Every compressed game can be restored back to its original state, individually or in bulk.",
+  };
+
+  const activate = (targetId) => {
+    tabs.forEach((tab) => {
+      const isActive = tab.dataset.appshotTab === targetId;
+      tab.classList.toggle("is-active", isActive);
+      tab.setAttribute("aria-selected", String(isActive));
+    });
+
+    panels.forEach((panel) => {
+      const isActive = panel.dataset.appshotPanel === targetId;
+      panel.classList.toggle("is-active", isActive);
+      panel.hidden = !isActive;
+    });
+
+    if (caption && captions[targetId]) {
+      caption.textContent = captions[targetId];
+    }
+  };
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => {
+      activate(tab.dataset.appshotTab);
+    });
+
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+        return;
+      }
+
+      event.preventDefault();
+      let nextIndex = index;
+      if (event.key === "ArrowLeft") {
+        nextIndex = (index - 1 + tabs.length) % tabs.length;
+      } else if (event.key === "ArrowRight") {
+        nextIndex = (index + 1) % tabs.length;
+      } else if (event.key === "Home") {
+        nextIndex = 0;
+      } else if (event.key === "End") {
+        nextIndex = tabs.length - 1;
+      }
+
+      tabs[nextIndex].focus();
+      activate(tabs[nextIndex].dataset.appshotTab);
+    });
+  });
+}
+
 loadLatestRelease();
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
     initContactForm();
+    initAppShotTabs();
   });
 } else {
   initContactForm();
+  initAppShotTabs();
 }

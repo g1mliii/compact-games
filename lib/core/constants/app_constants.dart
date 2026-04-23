@@ -1,7 +1,7 @@
 /// Application-wide constants.
 abstract final class AppConstants {
   static const String appName = 'Compact Games';
-  static const String appVersion = '0.1.3';
+  static const String appVersion = '0.1.4';
 
   // Window
   static const double minWindowWidth = 900;
@@ -23,7 +23,7 @@ abstract final class AppConstants {
   static const int progressUpdateIntervalMs = 100;
 
   // Automation defaults
-  static const double defaultCpuThreshold = 10.0;
-  static const int defaultIdleDurationMinutes = 2;
+  static const double defaultCpuThreshold = 40.0;
+  static const int defaultIdleDurationMinutes = 5;
   static const int defaultCooldownMinutes = 5;
 }
