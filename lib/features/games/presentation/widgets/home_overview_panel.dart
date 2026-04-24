@@ -101,16 +101,7 @@ class _HomeOverviewPanelInner extends ConsumerStatefulWidget {
 }
 
 class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
-  int? _cachedSignature;
-  Widget? _cachedChild;
   bool _manuallyCollapsed = false;
-
-  @override
-  void dispose() {
-    _cachedSignature = null;
-    _cachedChild = null;
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,28 +138,9 @@ class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
     }
 
     final l10n = context.l10n;
-    final localeTag = ref.watch(effectiveLocaleProvider).toLanguageTag();
+    ref.watch(effectiveLocaleProvider);
     final label = homePrimaryActionLabel(l10n, overview.primaryAction);
     final icon = homePrimaryActionIcon(overview.primaryAction);
-    final signature = Object.hashAll(<Object?>[
-      localeTag,
-      listMode,
-      useCompactSummary,
-      stackWideSummary,
-      manualCollapseAvailable,
-      manuallyCollapsed,
-      overview.totalGames,
-      overview.readyCount,
-      overview.compressedCount,
-      overview.protectedCount,
-      overview.reclaimableBytes,
-      overview.primaryAction,
-      libraryState.isLoading,
-      libraryState.error != null,
-    ]);
-    if (_cachedSignature == signature && _cachedChild != null) {
-      return _cachedChild!;
-    }
 
     void handlePressed() {
       runHomePrimaryAction(context, ref, overview);
@@ -267,8 +239,6 @@ class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
                     ),
             ),
           );
-    _cachedSignature = signature;
-    _cachedChild = child;
     return child;
   }
 }

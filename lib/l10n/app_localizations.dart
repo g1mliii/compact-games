@@ -628,6 +628,12 @@ abstract class AppLocalizations {
   /// **'Version'**
   String get settingsAboutVersionLabel;
 
+  /// CompactGUI attribution shown in the about settings section.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression estimate data is provided by CompactGUI / IridiumIO and fetched at runtime from Compact Games releases.'**
+  String get settingsAboutCompactGuiCredit;
+
   /// Localized message for the automatic update check toggle.
   ///
   /// In en, this message translates to:
@@ -1348,6 +1354,12 @@ abstract class AppLocalizations {
   /// **'{gigabytes} GB saveable'**
   String gameEstimatedSaveableGigabytes(String gigabytes);
 
+  /// Tooltip for estimates that come from community compression data.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on CompactGUI community data'**
+  String get gameEstimateCommunityTooltip;
+
   /// Localized message for game marked unsupported.
   ///
   /// In en, this message translates to:
@@ -1611,6 +1623,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Savings'**
   String get gameDetailsSavingsLabel;
+
+  /// Localized label for pre-compression estimate in game details.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimate'**
+  String get gameDetailsEstimatedSavingsLabel;
 
   /// Localized message for game details install path group title.
   ///

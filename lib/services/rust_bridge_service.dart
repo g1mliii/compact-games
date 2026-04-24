@@ -189,8 +189,17 @@ class RustBridgeService {
   Future<CompressionEstimate> estimateCompressionSavings({
     required String gamePath,
     required CompressionAlgorithm algorithm,
+    String? gameName,
+    int? steamAppId,
+    int? knownSizeBytes,
   }) async {
-    final key = _estimateRequestKey(gamePath, algorithm);
+    final key = _estimateRequestKey(
+      gamePath,
+      algorithm,
+      gameName: gameName,
+      steamAppId: steamAppId,
+      knownSizeBytes: knownSizeBytes,
+    );
     final existing = _estimateInFlight[key];
     if (existing != null) {
       return existing;
@@ -201,6 +210,13 @@ class RustBridgeService {
       final estimate = await rust_compression.estimateCompressionSavings(
         gamePath: gamePath,
         algorithm: frbAlgorithm,
+        context: rust_types.FrbEstimateContext(
+          gameName: gameName,
+          steamAppId: steamAppId,
+          knownSizeBytes: knownSizeBytes == null
+              ? null
+              : BigInt.from(knownSizeBytes),
+        ),
       );
       return _mapFrbEstimate(estimate);
     });
@@ -338,8 +354,17 @@ class RustBridgeService {
         .toList();
   }
 
-  String _estimateRequestKey(String gamePath, CompressionAlgorithm algorithm) {
-    return '${algorithm.name}|${gamePath.toLowerCase()}';
+  String _estimateRequestKey(
+    String gamePath,
+    CompressionAlgorithm algorithm, {
+    String? gameName,
+    int? steamAppId,
+    int? knownSizeBytes,
+  }) {
+    return '${algorithm.name}|${gamePath.toLowerCase()}'
+        '|${gameName ?? ''}'
+        '|${steamAppId ?? ''}'
+        '|${knownSizeBytes ?? ''}';
   }
 
   Future<T> _runWithEstimatePermit<T>(Future<T> Function() task) async {

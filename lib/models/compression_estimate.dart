@@ -1,3 +1,5 @@
+enum EstimateSource { heuristic, communityDb }
+
 /// Pre-compression estimate used for confirmation UX.
 class CompressionEstimate {
   final int scannedFiles;
@@ -6,6 +8,10 @@ class CompressionEstimate {
   final int estimatedSavedBytes;
   final double estimatedSavingsRatio;
   final String? executableCandidatePath;
+  final EstimateSource baseSource;
+  final bool adaptiveApplied;
+  final int? communitySamples;
+  final bool communityLookupPending;
 
   const CompressionEstimate({
     required this.scannedFiles,
@@ -14,7 +20,17 @@ class CompressionEstimate {
     required this.estimatedSavedBytes,
     required this.estimatedSavingsRatio,
     this.executableCandidatePath,
+    this.baseSource = EstimateSource.heuristic,
+    this.adaptiveApplied = false,
+    this.communitySamples,
+    this.communityLookupPending = false,
   });
 
   double get estimatedSavingsPercent => estimatedSavingsRatio * 100.0;
+
+  bool get showCommunityBadge =>
+      baseSource == EstimateSource.communityDb && (communitySamples ?? 0) >= 10;
+
+  bool get shouldRetryCommunityLookup =>
+      baseSource == EstimateSource.heuristic && communityLookupPending;
 }

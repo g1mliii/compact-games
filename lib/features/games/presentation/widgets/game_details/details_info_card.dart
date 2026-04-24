@@ -11,6 +11,8 @@ import '../../../../../core/utils/byte_formatting.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../models/compression_algorithm.dart';
+import '../../../../../models/compression_estimate.dart';
 import '../../../../../models/game_info.dart';
 import '../../../../../providers/compression/compression_provider.dart';
 import '../../../../../providers/games/game_list_provider.dart';
@@ -44,6 +46,37 @@ const ValueKey<String> _detailsInstallPathBlockKey = ValueKey<String>(
   'detailsInstallPathBlock',
 );
 
+typedef _DetailsEstimateRequest = ({
+  String path,
+  String name,
+  int sizeBytes,
+  int? steamAppId,
+  CompressionAlgorithm algorithm,
+});
+
+final _detailsCompressionEstimateProvider = FutureProvider.autoDispose
+    .family<CompressionEstimate?, _DetailsEstimateRequest>((
+      ref,
+      request,
+    ) async {
+      final bridge = ref.read(rustBridgeServiceProvider);
+      final estimate = await bridge.estimateCompressionSavings(
+        gamePath: request.path,
+        algorithm: request.algorithm,
+        gameName: request.name,
+        steamAppId: request.steamAppId,
+        knownSizeBytes: request.sizeBytes,
+      );
+      if (estimate.shouldRetryCommunityLookup) {
+        final retryTimer = Timer(
+          const Duration(seconds: 2),
+          ref.invalidateSelf,
+        );
+        ref.onDispose(retryTimer.cancel);
+      }
+      return estimate;
+    });
+
 class GameDetailsInfoCard extends ConsumerWidget {
   const GameDetailsInfoCard({
     required this.game,
@@ -74,6 +107,34 @@ class GameDetailsInfoCard extends ConsumerWidget {
       game: game,
       isExcluded: isExcluded,
     );
+    final algorithm =
+        ref.watch(
+          settingsProvider.select(
+            (async) => async.valueOrNull?.settings.algorithm,
+          ),
+        ) ??
+        CompressionAlgorithm.xpress8k;
+    final allowDirectStorageOverride = ref.watch(
+      settingsProvider.select(
+        (async) =>
+            async.valueOrNull?.settings.directStorageOverrideEnabled ?? false,
+      ),
+    );
+    final directStorageBlocked =
+        game.isDirectStorage && !allowDirectStorageOverride;
+    final detailsEstimate = game.isCompressed || directStorageBlocked
+        ? null
+        : ref
+              .watch(
+                _detailsCompressionEstimateProvider((
+                  path: game.path,
+                  name: game.name,
+                  sizeBytes: game.sizeBytes,
+                  steamAppId: game.steamAppId,
+                  algorithm: algorithm,
+                )),
+              )
+              .valueOrNull;
 
     return RepaintBoundary(
       child: Card(
@@ -143,6 +204,27 @@ class GameDetailsInfoCard extends ConsumerWidget {
                 ),
                 value: '$savingsPercent%',
               ),
+              if (detailsEstimate != null &&
+                  detailsEstimate.estimatedSavedBytes > 0)
+                _HeroMetricLine(
+                  label: _InfoLabel(
+                    l10n.gameDetailsEstimatedSavingsLabel,
+                    emphasized: true,
+                  ),
+                  value:
+                      '${formatBytesDetailed(context.l10n, detailsEstimate.estimatedSavedBytes)} '
+                      '(${detailsEstimate.estimatedSavingsPercent.toStringAsFixed(1)}%)',
+                  trailing: detailsEstimate.showCommunityBadge
+                      ? Tooltip(
+                          message: l10n.gameEstimateCommunityTooltip,
+                          child: const Icon(
+                            LucideIcons.database,
+                            size: 13,
+                            color: AppColors.richGold,
+                          ),
+                        )
+                      : null,
+                ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Divider(height: 1, color: AppColors.borderSubtle),

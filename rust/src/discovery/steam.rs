@@ -136,26 +136,40 @@ fn scan_library(
             }
 
             let folder_key = folder_name.to_ascii_lowercase();
-            let name = manifests.get(&folder_key).cloned().unwrap_or(folder_name);
+            let name = manifests
+                .get(&folder_key)
+                .map(|manifest| manifest.name.clone())
+                .unwrap_or(folder_name);
 
             Some((name, game_path))
         })
         .collect();
 
-    Ok(utils::build_games_from_candidates(
-        &common_path,
-        candidates,
-        Platform::Steam,
-        mode,
-    ))
+    let mut games =
+        utils::build_games_from_candidates(&common_path, candidates, Platform::Steam, mode);
+    for game in &mut games {
+        let Some(folder_key) = game
+            .path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.to_ascii_lowercase())
+        else {
+            continue;
+        };
+        if let Some(manifest) = manifests.get(&folder_key) {
+            game.steam_app_id = Some(manifest.app_id);
+        }
+    }
+    Ok(games)
 }
 
 struct AppManifest {
+    app_id: u32,
     name: String,
     install_dir: String,
 }
 
-fn parse_app_manifests(steamapps_path: &Path) -> HashMap<String, String> {
+fn parse_app_manifests(steamapps_path: &Path) -> HashMap<String, AppManifest> {
     let Ok(entries) = std::fs::read_dir(steamapps_path) else {
         return HashMap::new();
     };
@@ -168,7 +182,11 @@ fn parse_app_manifests(steamapps_path: &Path) -> HashMap<String, String> {
             continue;
         }
 
-        let Some(manifest) = std::fs::read_to_string(entry.path())
+        let Some(app_id) = parse_app_id_from_manifest_filename(&name) else {
+            continue;
+        };
+
+        let Some(mut manifest) = std::fs::read_to_string(entry.path())
             .inspect_err(|err| {
                 log::debug!("Cannot read manifest {}: {err}", entry.path().display())
             })
@@ -178,12 +196,35 @@ fn parse_app_manifests(steamapps_path: &Path) -> HashMap<String, String> {
             continue;
         };
 
+        manifest.app_id = app_id;
         manifests
             .entry(manifest.install_dir.to_ascii_lowercase())
-            .or_insert(manifest.name);
+            .or_insert(manifest);
     }
 
     manifests
+}
+
+/// Look up the Steam app ID for an installed game by walking from the game
+/// path up to the surrounding `steamapps/` directory and matching the folder
+/// name against any `appmanifest_*.acf` `installdir`. Returns `None` if the
+/// path isn't a conventional Steam install or no manifest matches.
+pub(crate) fn lookup_steam_app_id_for_path(game_path: &Path) -> Option<u32> {
+    let folder_name = game_path.file_name()?.to_str()?.to_ascii_lowercase();
+    let common = game_path.parent()?;
+    let steamapps = common.parent()?;
+    if steamapps.file_name().and_then(|n| n.to_str())?.to_ascii_lowercase() != "steamapps" {
+        return None;
+    }
+    let manifests = parse_app_manifests(steamapps);
+    manifests.get(&folder_name).map(|m| m.app_id)
+}
+
+fn parse_app_id_from_manifest_filename(name: &str) -> Option<u32> {
+    name.strip_prefix("appmanifest_")?
+        .strip_suffix(".acf")?
+        .parse()
+        .ok()
 }
 
 fn parse_acf_manifest(content: &str) -> Option<AppManifest> {
@@ -204,6 +245,7 @@ fn parse_acf_manifest(content: &str) -> Option<AppManifest> {
     }
 
     Some(AppManifest {
+        app_id: 0,
         name: name?,
         install_dir: install_dir?,
     })

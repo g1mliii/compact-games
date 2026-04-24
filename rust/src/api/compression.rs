@@ -13,10 +13,12 @@ use sysinfo::System;
 
 use super::types::{
     FrbCompressionAlgorithm, FrbCompressionError, FrbCompressionEstimate, FrbCompressionProgress,
-    FrbCompressionStats,
+    FrbCompressionStats, FrbEstimateContext,
 };
 use crate::compression::algorithm::CompressionAlgorithm;
-use crate::compression::engine::{CancellationToken, CompressionEngine, CompressionProgressHandle};
+use crate::compression::engine::{
+    CancellationToken, CompressionEngine, CompressionProgressHandle, EstimateGameContext,
+};
 use crate::compression::error::CompressionError;
 use crate::compression::history::{
     persist_if_dirty, record_compression, CompressionHistoryEntry, EstimateSnapshot,
@@ -156,16 +158,22 @@ pub fn compress_game(
         Err(e) => return Err(e.into()),
     };
 
-    // Capture estimate before compression for history tracking
-    let estimate_snapshot =
-        match engine.estimate_folder_savings_with_manifest(&path, &file_manifest) {
-            Ok(est) => Some(EstimateSnapshot {
-                scanned_files: est.scanned_files,
-                sampled_bytes: est.sampled_bytes,
-                estimated_saved_bytes: est.estimated_saved_bytes,
-            }),
-            Err(_) => None,
-        };
+    let estimate_snapshot = match engine.estimate_folder_savings_with_manifest_and_context(
+        &path,
+        &file_manifest,
+        EstimateGameContext {
+            game_name: Some(&game_name),
+            steam_app_id: None,
+            known_size_bytes: None,
+        },
+    ) {
+        Ok(est) => Some(EstimateSnapshot {
+            scanned_files: est.scanned_files,
+            sampled_bytes: est.sampled_bytes,
+            estimated_saved_bytes: est.estimated_saved_bytes,
+        }),
+        Err(_) => None,
+    };
 
     install_active_operation(&cancel_token)?;
     set_active_progress(None);
@@ -315,11 +323,19 @@ pub fn get_compression_ratio(folder_path: String) -> Result<f64, FrbCompressionE
 pub fn estimate_compression_savings(
     game_path: String,
     algorithm: FrbCompressionAlgorithm,
+    context: FrbEstimateContext,
 ) -> Result<FrbCompressionEstimate, FrbCompressionError> {
     let path = PathBuf::from(&game_path);
     let algo: CompressionAlgorithm = algorithm.into();
     let engine = CompressionEngine::new(algo);
-    let estimate = engine.estimate_folder_savings(&path)?;
+    let estimate = engine.estimate_folder_savings_with_context(
+        &path,
+        EstimateGameContext {
+            game_name: context.game_name.as_deref(),
+            steam_app_id: context.steam_app_id,
+            known_size_bytes: context.known_size_bytes,
+        },
+    )?;
     Ok(estimate.into())
 }
 

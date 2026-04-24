@@ -662,6 +662,74 @@ void runPhase6OversizeSplitTests() {
     },
   );
 
+  testWidgets('Home grid card retries pending community estimate warm-up', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final game = GameInfo(
+      name: 'Community Retry Grid',
+      path: r'C:\Games\community_retry_grid',
+      platform: Platform.steam,
+      sizeBytes: 100 * _oneGiB,
+      steamAppId: 440,
+    );
+    final bridge = _TestRustBridgeService(
+      games: <GameInfo>[game],
+      compressionEstimates: <CompressionEstimate>[
+        CompressionEstimate(
+          scannedFiles: 12,
+          sampledBytes: game.sizeBytes,
+          estimatedCompressedBytes: 90 * _oneGiB,
+          estimatedSavedBytes: 10 * _oneGiB,
+          estimatedSavingsRatio: 0.10,
+          communityLookupPending: true,
+        ),
+        CompressionEstimate(
+          scannedFiles: 0,
+          sampledBytes: game.sizeBytes,
+          estimatedCompressedBytes: 78 * _oneGiB,
+          estimatedSavedBytes: 22 * _oneGiB,
+          estimatedSavingsRatio: 0.22,
+          baseSource: EstimateSource.communityDb,
+          communitySamples: 20,
+        ),
+      ],
+    );
+    final container = ProviderContainer(
+      overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeGameGrid()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    var card = tester.widget<GameCard>(find.byType(GameCard).first);
+    expect(bridge.estimateCompressionSavingsCalls, 1);
+    expect(card.estimatedSavedBytes, 10 * _oneGiB);
+    expect(card.estimatedFromCommunity, isFalse);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    card = tester.widget<GameCard>(find.byType(GameCard).first);
+    expect(bridge.estimateCompressionSavingsCalls, 2);
+    expect(card.estimatedSavedBytes, 22 * _oneGiB);
+    expect(card.estimatedFromCommunity, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'Home list view remove action uses injected bridge and clears selection',
     (WidgetTester tester) async {

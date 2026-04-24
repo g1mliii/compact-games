@@ -1,0 +1,61 @@
+name: Export Compression Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_samples:
+        description: "Minimum samples required per algorithm"
+        required: false
+        default: "3"
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check out CompactGUI database
+        uses: actions/checkout@v4
+        with:
+          repository: IridiumIO/CompactGUI
+          ref: database
+          path: compactgui-database
+          sparse-checkout: |
+            database.json
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check Node supply-chain guardrails
+        run: node ./scripts/check-node-supply-chain.mjs
+
+      - name: Export compression database bundle
+        env:
+          COMPACT_GAMES_COMPRESSION_DB_INPUT: compactgui-database/database.json
+          COMPACT_GAMES_COMPRESSION_DB_MIN_SAMPLES: ${{ github.event.inputs.min_samples || vars.COMPACT_GAMES_COMPRESSION_DB_MIN_SAMPLES || '3' }}
+        run: |
+          SOURCE_SHA="$(git -C compactgui-database rev-parse HEAD)"
+          node ./scripts/normalize-compression-database.mjs --source="IridiumIO/CompactGUI@${SOURCE_SHA}"
+
+      - name: Upload export artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compression-database
+          path: dist/compression-db/
+
+      - name: Attach compression database bundle to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/compression-db/compression_db.v1.json
+            dist/compression-db/compression_db.v1.bundle.json

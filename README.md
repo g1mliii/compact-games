@@ -113,7 +113,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-- Inspired by [CompactGUI](https://github.com/ImminentFate/CompactGUI)
+- Inspired by [CompactGUI](https://github.com/IridiumIO/CompactGUI)
+- Optional runtime compression estimates use CompactGUI community data by IridiumIO. The database is GPL-3.0 licensed data fetched from Compact Games releases at runtime, not bundled in the app binary.
 - Cover art from [SteamGridDB](https://www.steamgriddb.com/)
 - Built with [Flutter](https://flutter.dev/) and [Rust](https://www.rust-lang.org/)
 

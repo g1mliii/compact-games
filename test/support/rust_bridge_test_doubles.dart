@@ -52,6 +52,9 @@ class _BaseRustBridgeService implements RustBridgeService {
   Future<CompressionEstimate> estimateCompressionSavings({
     required String gamePath,
     required CompressionAlgorithm algorithm,
+    String? gameName,
+    int? steamAppId,
+    int? knownSizeBytes,
   }) async {
     return _emptyEstimate;
   }

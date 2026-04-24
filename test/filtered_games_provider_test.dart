@@ -271,6 +271,9 @@ class _MinimalBridgeService implements RustBridgeService {
   Future<CompressionEstimate> estimateCompressionSavings({
     required String gamePath,
     required CompressionAlgorithm algorithm,
+    String? gameName,
+    int? steamAppId,
+    int? knownSizeBytes,
   }) async => const CompressionEstimate(
     scannedFiles: 0,
     sampledBytes: 0,

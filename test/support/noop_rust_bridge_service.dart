@@ -35,29 +35,29 @@ class NoOpRustBridgeService implements RustBridgeService {
     CompressionAlgorithm algorithm = CompressionAlgorithm.xpress8k,
     bool allowDirectStorageOverride = false,
     int? ioParallelismOverride,
-  }) =>
-      const Stream<CompressionProgress>.empty();
+  }) => const Stream<CompressionProgress>.empty();
 
   @override
   Stream<CompressionProgress> decompressGame(
     String gamePath, {
     required String gameName,
     int? ioParallelismOverride,
-  }) =>
-      const Stream<CompressionProgress>.empty();
+  }) => const Stream<CompressionProgress>.empty();
 
   @override
   Future<CompressionEstimate> estimateCompressionSavings({
     required String gamePath,
     required CompressionAlgorithm algorithm,
-  }) async =>
-      const CompressionEstimate(
-        scannedFiles: 0,
-        sampledBytes: 0,
-        estimatedCompressedBytes: 0,
-        estimatedSavedBytes: 0,
-        estimatedSavingsRatio: 0,
-      );
+    String? gameName,
+    int? steamAppId,
+    int? knownSizeBytes,
+  }) async => const CompressionEstimate(
+    scannedFiles: 0,
+    sampledBytes: 0,
+    estimatedCompressedBytes: 0,
+    estimatedSavedBytes: 0,
+    estimatedSavingsRatio: 0,
+  );
 
   @override
   Future<List<GameInfo>> getAllGames() async => const <GameInfo>[];
@@ -69,8 +69,7 @@ class NoOpRustBridgeService implements RustBridgeService {
     required String gamePath,
     required String gameName,
     required Platform platform,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   CompressionProgress? getCompressionProgress() => null;
@@ -97,8 +96,7 @@ class NoOpRustBridgeService implements RustBridgeService {
   @override
   Future<int> syncUnsupportedReportCollection({
     required String appVersion,
-  }) async =>
-      0;
+  }) async => 0;
   @override
   Future<int> fetchCommunityUnsupportedList() async => 0;
 
@@ -108,23 +106,21 @@ class NoOpRustBridgeService implements RustBridgeService {
   @override
   Future<rust_update.UpdateCheckResult> checkForUpdate({
     required String currentVersion,
-  }) async =>
-      const rust_update.UpdateCheckResult(
-        updateAvailable: false,
-        latestVersion: '0.1.0',
-        downloadUrl: '',
-        releaseNotes: '',
-        checksumSha256: '',
-        publishedAt: '',
-      );
+  }) async => const rust_update.UpdateCheckResult(
+    updateAvailable: false,
+    latestVersion: '0.1.0',
+    downloadUrl: '',
+    releaseNotes: '',
+    checksumSha256: '',
+    publishedAt: '',
+  );
 
   @override
   Future<String> downloadUpdate({
     required String url,
     required String destPath,
     required String expectedSha256,
-  }) async =>
-      destPath;
+  }) async => destPath;
 
   @override
   Future<List<GameInfo>> scanCustomFolder(String path) async =>

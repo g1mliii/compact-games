@@ -158,13 +158,23 @@ pub fn hydrate_game(
 
     let stats_path = discovery_stats_path(&game_path, platform);
 
-    let game = utils::build_game_info_with_mode_and_stats_path(
+    let mut game = utils::build_game_info_with_mode_and_stats_path(
         name,
         game_path,
         stats_path,
         platform,
         DiscoveryScanMode::Full,
     );
+
+    // The shared builder doesn't know about Steam manifests, so backfill the
+    // app id here so hydrated games keep the primary key used by the
+    // community compression DB lookup.
+    if let Some(info) = game.as_mut() {
+        if info.platform == Platform::Steam && info.steam_app_id.is_none() {
+            info.steam_app_id =
+                crate::discovery::steam::lookup_steam_app_id_for_path(&info.path);
+        }
+    }
 
     // Hydration upserts to the in-memory cache; flush to disk so
     // the work survives abnormal exits and doesn't have to be redone.

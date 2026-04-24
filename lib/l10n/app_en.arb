@@ -398,6 +398,10 @@
   "@settingsAboutVersionLabel": {
     "description": "Localized message for the app version label in settings."
   },
+  "settingsAboutCompactGuiCredit": "Compression estimate data is provided by CompactGUI / IridiumIO and fetched at runtime from Compact Games releases.",
+  "@settingsAboutCompactGuiCredit": {
+    "description": "CompactGUI attribution shown in the about settings section."
+  },
   "settingsAboutAutoCheckUpdatesLabel": "Check for updates automatically",
   "@settingsAboutAutoCheckUpdatesLabel": {
     "description": "Localized message for the automatic update check toggle."
@@ -978,6 +982,10 @@
       }
     }
   },
+  "gameEstimateCommunityTooltip": "Based on CompactGUI community data",
+  "@gameEstimateCommunityTooltip": {
+    "description": "Tooltip for estimates that come from community compression data."
+  },
   "gameMarkedUnsupported": "\"{gameName}\" marked as unsupported.",
   "@gameMarkedUnsupported": {
     "description": "Localized message for game marked unsupported.",
@@ -1183,6 +1191,10 @@
   "gameDetailsSavingsLabel": "Savings",
   "@gameDetailsSavingsLabel": {
     "description": "Localized message for game details savings label."
+  },
+  "gameDetailsEstimatedSavingsLabel": "Estimate",
+  "@gameDetailsEstimatedSavingsLabel": {
+    "description": "Localized label for pre-compression estimate in game details."
   },
   "gameDetailsInstallPathGroupTitle": "Install Path",
   "@gameDetailsInstallPathGroupTitle": {

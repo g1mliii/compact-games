@@ -398,6 +398,10 @@
   "@settingsAboutVersionLabel": {
     "description": "Localized message for the app version label in settings."
   },
+  "settingsAboutCompactGuiCredit": "压缩估算数据由 CompactGUI / IridiumIO 提供，并在运行时从 Compact Games 版本中获取。",
+  "@settingsAboutCompactGuiCredit": {
+    "description": "CompactGUI attribution shown in the about settings section."
+  },
   "settingsAboutAutoCheckUpdatesLabel": "自动检查更新",
   "@settingsAboutAutoCheckUpdatesLabel": {
     "description": "Localized message for the automatic update check toggle."
@@ -978,6 +982,10 @@
       }
     }
   },
+  "gameEstimateCommunityTooltip": "基于 CompactGUI 社区数据",
+  "@gameEstimateCommunityTooltip": {
+    "description": "Tooltip for estimates that come from community compression data."
+  },
   "gameMarkedUnsupported": "“{gameName}”已标记为不支持。",
   "@gameMarkedUnsupported": {
     "description": "Localized message for game marked unsupported.",
@@ -1183,6 +1191,10 @@
   "gameDetailsSavingsLabel": "节省",
   "@gameDetailsSavingsLabel": {
     "description": "Localized message for game details savings label."
+  },
+  "gameDetailsEstimatedSavingsLabel": "估算",
+  "@gameDetailsEstimatedSavingsLabel": {
+    "description": "Localized label for pre-compression estimate in game details."
   },
   "gameDetailsInstallPathGroupTitle": "安装路径",
   "@gameDetailsInstallPathGroupTitle": {

@@ -5,9 +5,43 @@ use rayon::prelude::*;
 
 use super::estimation;
 use super::{
-    CompressionEngine, CompressionError, CompressionEstimate, EstimateCandidate, EstimateTotals,
-    ManifestFile, MIN_COMPRESSIBLE_SIZE, USE_ADAPTIVE_ESTIMATION,
+    CompressionEngine, CompressionError, CompressionEstimate, CompressionEstimateSource,
+    EstimateCandidate, EstimateTotals, ManifestFile, MIN_COMPRESSIBLE_SIZE,
+    USE_ADAPTIVE_ESTIMATION,
 };
+use crate::compression::community_db::{self, CommunityLookup, GameLookupContext};
+
+#[derive(Debug, Clone, Copy)]
+pub struct EstimateGameContext<'a> {
+    pub game_name: Option<&'a str>,
+    pub steam_app_id: Option<u32>,
+    pub known_size_bytes: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct AdaptiveFactors {
+    correction_factor: f64,
+    confidence: f64,
+}
+
+impl AdaptiveFactors {
+    fn neutral() -> Self {
+        Self {
+            correction_factor: 1.0,
+            confidence: 0.0,
+        }
+    }
+
+    fn applied(self) -> bool {
+        adaptive_applied(self.correction_factor, self.confidence)
+    }
+}
+
+enum CommunityEstimateLookup {
+    Hit(CompressionEstimate),
+    Pending,
+    Miss,
+}
 
 impl CompressionEngine {
     pub fn estimate_folder_savings(
@@ -15,32 +49,26 @@ impl CompressionEngine {
         folder: &Path,
     ) -> Result<CompressionEstimate, CompressionError> {
         self.validate_path(folder)?;
-        if !USE_ADAPTIVE_ESTIMATION {
-            return self.estimate_folder_savings_legacy(folder);
+        let factors = self.compute_adaptive_factors(folder);
+        self.estimate_folder_savings_with_factors(folder, factors, false)
+    }
+
+    pub fn estimate_folder_savings_with_context(
+        &self,
+        folder: &Path,
+        context: EstimateGameContext<'_>,
+    ) -> Result<CompressionEstimate, CompressionError> {
+        self.validate_path(folder)?;
+        let factors = self.compute_adaptive_factors(folder);
+        let mut community_lookup_pending = false;
+        if USE_ADAPTIVE_ESTIMATION {
+            match self.community_estimate(context, context.known_size_bytes, folder, factors) {
+                CommunityEstimateLookup::Hit(estimate) => return Ok(estimate),
+                CommunityEstimateLookup::Pending => community_lookup_pending = true,
+                CommunityEstimateLookup::Miss => {}
+            }
         }
-
-        let history = crate::compression::history::get_historical_stats();
-        let estimator =
-            crate::compression::history::adaptive::AdaptiveEstimator::from_history(history);
-        let (correction_factor, confidence) =
-            estimator.get_correction_factor_for_game(self.algorithm, folder);
-        let algorithm_scale_num = estimation::algorithm_scale_num(self.algorithm);
-
-        let totals = self.estimate_totals_parallel(folder, |path, file_size| {
-            let (ratio_num, ratio_den) = estimation::compression_ratio_parts(path);
-            let default_saved = file_size
-                .saturating_mul(ratio_num)
-                .saturating_mul(algorithm_scale_num)
-                / ratio_den.saturating_mul(100);
-            Self::apply_adaptive_adjustment(default_saved, correction_factor, confidence)
-        })?;
-
-        Ok(CompressionEstimate {
-            scanned_files: totals.scanned_files,
-            sampled_bytes: totals.sampled_bytes,
-            estimated_saved_bytes: totals.estimated_saved_bytes,
-            executable_candidate_path: totals.executable_candidate.map(|c| c.path),
-        })
+        self.estimate_folder_savings_with_factors(folder, factors, community_lookup_pending)
     }
 
     pub fn estimate_folder_savings_with_manifest(
@@ -49,73 +77,140 @@ impl CompressionEngine {
         file_manifest: &[ManifestFile],
     ) -> Result<CompressionEstimate, CompressionError> {
         self.validate_path(folder)?;
-        if !USE_ADAPTIVE_ESTIMATION {
-            return self.estimate_folder_savings_legacy_with_manifest(file_manifest);
-        }
+        let factors = self.compute_adaptive_factors(folder);
+        self.estimate_folder_savings_with_manifest_and_factors(file_manifest, factors, false)
+    }
 
+    pub fn estimate_folder_savings_with_manifest_and_context(
+        &self,
+        folder: &Path,
+        file_manifest: &[ManifestFile],
+        context: EstimateGameContext<'_>,
+    ) -> Result<CompressionEstimate, CompressionError> {
+        self.validate_path(folder)?;
+        let factors = self.compute_adaptive_factors(folder);
+        let mut community_lookup_pending = false;
+        if USE_ADAPTIVE_ESTIMATION {
+            let manifest_size = context
+                .known_size_bytes
+                .or_else(|| manifest_total_size(file_manifest));
+            match self.community_estimate(context, manifest_size, folder, factors) {
+                CommunityEstimateLookup::Hit(estimate) => return Ok(estimate),
+                CommunityEstimateLookup::Pending => community_lookup_pending = true,
+                CommunityEstimateLookup::Miss => {}
+            }
+        }
+        self.estimate_folder_savings_with_manifest_and_factors(
+            file_manifest,
+            factors,
+            community_lookup_pending,
+        )
+    }
+
+    fn compute_adaptive_factors(&self, folder: &Path) -> AdaptiveFactors {
+        if !USE_ADAPTIVE_ESTIMATION {
+            return AdaptiveFactors::neutral();
+        }
         let history = crate::compression::history::get_historical_stats();
         let estimator =
             crate::compression::history::adaptive::AdaptiveEstimator::from_history(history);
         let (correction_factor, confidence) =
             estimator.get_correction_factor_for_game(self.algorithm, folder);
-        let algorithm_scale_num = estimation::algorithm_scale_num(self.algorithm);
-
-        let totals = self.estimate_totals_from_manifest(file_manifest, |path, file_size| {
-            let (ratio_num, ratio_den) = estimation::compression_ratio_parts(path);
-            let default_saved = file_size
-                .saturating_mul(ratio_num)
-                .saturating_mul(algorithm_scale_num)
-                / ratio_den.saturating_mul(100);
-            Self::apply_adaptive_adjustment(default_saved, correction_factor, confidence)
-        })?;
-
-        Ok(CompressionEstimate {
-            scanned_files: totals.scanned_files,
-            sampled_bytes: totals.sampled_bytes,
-            estimated_saved_bytes: totals.estimated_saved_bytes,
-            executable_candidate_path: totals.executable_candidate.map(|c| c.path),
-        })
+        AdaptiveFactors {
+            correction_factor,
+            confidence,
+        }
     }
 
-    fn estimate_folder_savings_legacy(
+    fn estimate_folder_savings_with_factors(
         &self,
         folder: &Path,
+        factors: AdaptiveFactors,
+        community_lookup_pending: bool,
     ) -> Result<CompressionEstimate, CompressionError> {
         let algorithm_scale_num = estimation::algorithm_scale_num(self.algorithm);
         let totals = self.estimate_totals_parallel(folder, |path, file_size| {
-            let (ratio_num, ratio_den) = estimation::compression_ratio_parts(path);
-            file_size
-                .saturating_mul(ratio_num)
-                .saturating_mul(algorithm_scale_num)
-                / ratio_den.saturating_mul(100)
+            saved_for_file_with_factors(
+                self.algorithm,
+                algorithm_scale_num,
+                path,
+                file_size,
+                factors,
+            )
         })?;
-
-        Ok(CompressionEstimate {
-            scanned_files: totals.scanned_files,
-            sampled_bytes: totals.sampled_bytes,
-            estimated_saved_bytes: totals.estimated_saved_bytes,
-            executable_candidate_path: totals.executable_candidate.map(|c| c.path),
-        })
+        Ok(heuristic_estimate(
+            totals,
+            factors,
+            community_lookup_pending,
+        ))
     }
 
-    fn estimate_folder_savings_legacy_with_manifest(
+    fn estimate_folder_savings_with_manifest_and_factors(
         &self,
         file_manifest: &[ManifestFile],
+        factors: AdaptiveFactors,
+        community_lookup_pending: bool,
     ) -> Result<CompressionEstimate, CompressionError> {
         let algorithm_scale_num = estimation::algorithm_scale_num(self.algorithm);
         let totals = self.estimate_totals_from_manifest(file_manifest, |path, file_size| {
-            let (ratio_num, ratio_den) = estimation::compression_ratio_parts(path);
-            file_size
-                .saturating_mul(ratio_num)
-                .saturating_mul(algorithm_scale_num)
-                / ratio_den.saturating_mul(100)
+            saved_for_file_with_factors(
+                self.algorithm,
+                algorithm_scale_num,
+                path,
+                file_size,
+                factors,
+            )
         })?;
+        Ok(heuristic_estimate(
+            totals,
+            factors,
+            community_lookup_pending,
+        ))
+    }
 
-        Ok(CompressionEstimate {
-            scanned_files: totals.scanned_files,
-            sampled_bytes: totals.sampled_bytes,
-            estimated_saved_bytes: totals.estimated_saved_bytes,
-            executable_candidate_path: totals.executable_candidate.map(|c| c.path),
+    fn community_estimate(
+        &self,
+        context: EstimateGameContext<'_>,
+        size_bytes: Option<u64>,
+        folder: &Path,
+        factors: AdaptiveFactors,
+    ) -> CommunityEstimateLookup {
+        let Some(size_bytes) = size_bytes else {
+            return CommunityEstimateLookup::Miss;
+        };
+        if size_bytes == 0 {
+            return CommunityEstimateLookup::Miss;
+        }
+
+        let community = match community_db::lookup(
+            GameLookupContext {
+                steam_app_id: context.steam_app_id,
+                game_name: context.game_name,
+                game_path: folder,
+            },
+            self.algorithm,
+        ) {
+            CommunityLookup::Hit(community) => community,
+            CommunityLookup::Pending => return CommunityEstimateLookup::Pending,
+            CommunityLookup::Miss => return CommunityEstimateLookup::Miss,
+        };
+
+        let base_saved = (size_bytes as f64 * community.saved_ratio) as u64;
+        let estimated_saved_bytes = Self::apply_adaptive_adjustment(
+            base_saved,
+            factors.correction_factor,
+            factors.confidence,
+        );
+
+        CommunityEstimateLookup::Hit(CompressionEstimate {
+            scanned_files: 0,
+            sampled_bytes: size_bytes,
+            estimated_saved_bytes,
+            executable_candidate_path: None,
+            base_source: CompressionEstimateSource::CommunityDb,
+            adaptive_applied: factors.applied(),
+            community_samples: Some(community.samples),
+            community_lookup_pending: false,
         })
     }
 
@@ -244,6 +339,62 @@ impl CompressionEngine {
 
         Ok(totals)
     }
+}
+
+fn saved_for_file_with_factors(
+    _algorithm: super::CompressionAlgorithm,
+    algorithm_scale_num: u64,
+    path: &Path,
+    file_size: u64,
+    factors: AdaptiveFactors,
+) -> u64 {
+    let (ratio_num, ratio_den) = estimation::compression_ratio_parts(path);
+    let default_saved = file_size
+        .saturating_mul(ratio_num)
+        .saturating_mul(algorithm_scale_num)
+        / ratio_den.saturating_mul(100);
+    if !USE_ADAPTIVE_ESTIMATION {
+        return default_saved;
+    }
+    CompressionEngine::apply_adaptive_adjustment(
+        default_saved,
+        factors.correction_factor,
+        factors.confidence,
+    )
+}
+
+fn heuristic_estimate(
+    totals: EstimateTotals,
+    factors: AdaptiveFactors,
+    community_lookup_pending: bool,
+) -> CompressionEstimate {
+    CompressionEstimate {
+        scanned_files: totals.scanned_files,
+        sampled_bytes: totals.sampled_bytes,
+        estimated_saved_bytes: totals.estimated_saved_bytes,
+        executable_candidate_path: totals.executable_candidate.map(|c| c.path),
+        base_source: CompressionEstimateSource::Heuristic,
+        adaptive_applied: factors.applied(),
+        community_samples: None,
+        community_lookup_pending,
+    }
+}
+
+fn manifest_total_size(file_manifest: &[ManifestFile]) -> Option<u64> {
+    let mut total = 0_u64;
+    let mut known = 0_usize;
+    for file in file_manifest {
+        if let Some(size) = file.logical_size_hint {
+            total = total.saturating_add(size);
+            known += 1;
+        }
+    }
+    (known > 0).then_some(total)
+}
+
+fn adaptive_applied(correction_factor: f64, confidence: f64) -> bool {
+    (correction_factor - 1.0).abs() > f64::EPSILON
+        && (correction_factor < 1.0 || confidence > f64::EPSILON)
 }
 
 fn executable_score(path: &Path, file_size: u64) -> Option<u16> {

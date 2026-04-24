@@ -13,7 +13,9 @@ pub use super::automation_types::*;
 use std::time::UNIX_EPOCH;
 
 use crate::compression::algorithm::CompressionAlgorithm;
-use crate::compression::engine::{CompressionEstimate, CompressionStats};
+use crate::compression::engine::{
+    CompressionEstimate, CompressionEstimateSource, CompressionStats,
+};
 use crate::compression::error::CompressionError;
 use crate::discovery::platform::{GameInfo, Platform};
 use crate::progress::tracker::CompressionProgress;
@@ -33,6 +35,7 @@ pub struct FrbGameInfo {
     pub is_directstorage: bool,
     pub is_unsupported: bool,
     pub excluded: bool,
+    pub steam_app_id: Option<u32>,
     pub last_played: Option<i64>,
 }
 
@@ -48,6 +51,7 @@ impl From<GameInfo> for FrbGameInfo {
             is_directstorage: g.is_directstorage,
             is_unsupported: g.is_unsupported,
             excluded: g.excluded,
+            steam_app_id: g.steam_app_id,
             last_played: g.last_played.and_then(|t| {
                 t.duration_since(UNIX_EPOCH)
                     .ok()
@@ -190,6 +194,33 @@ pub struct FrbCompressionEstimate {
     pub estimated_saved_bytes: u64,
     pub estimated_savings_ratio: f64,
     pub executable_candidate_path: Option<String>,
+    pub base_source: FrbCompressionEstimateSource,
+    pub adaptive_applied: bool,
+    pub community_samples: Option<u32>,
+    pub community_lookup_pending: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrbCompressionEstimateSource {
+    Heuristic,
+    CommunityDb,
+}
+
+/// Optional metadata that helps the estimator look up community-sourced ratios.
+#[derive(Debug, Clone, Default)]
+pub struct FrbEstimateContext {
+    pub game_name: Option<String>,
+    pub steam_app_id: Option<u32>,
+    pub known_size_bytes: Option<u64>,
+}
+
+impl From<CompressionEstimateSource> for FrbCompressionEstimateSource {
+    fn from(source: CompressionEstimateSource) -> Self {
+        match source {
+            CompressionEstimateSource::Heuristic => Self::Heuristic,
+            CompressionEstimateSource::CommunityDb => Self::CommunityDb,
+        }
+    }
 }
 
 impl From<CompressionEstimate> for FrbCompressionEstimate {
@@ -204,6 +235,10 @@ impl From<CompressionEstimate> for FrbCompressionEstimate {
                 .executable_candidate_path
                 .as_ref()
                 .map(|p| p.to_string_lossy().into_owned()),
+            base_source: e.base_source.into(),
+            adaptive_applied: e.adaptive_applied,
+            community_samples: e.community_samples,
+            community_lookup_pending: e.community_lookup_pending,
         }
     }
 }

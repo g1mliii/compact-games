@@ -594,6 +594,7 @@ fn indexed_game_refreshes_last_compressed_timestamp_from_history() {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: None,
         },
     );

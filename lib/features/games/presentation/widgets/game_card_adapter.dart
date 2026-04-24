@@ -24,6 +24,13 @@ import 'game_actions.dart';
 import 'game_card.dart';
 import 'game_card_adapter_intents.dart';
 
+typedef _EstimateCacheKey = ({
+  CompressionAlgorithm algorithm,
+  String gameName,
+  int sizeBytes,
+  int? steamAppId,
+});
+
 class GameCardAdapter extends ConsumerStatefulWidget {
   const GameCardAdapter({super.key, required this.gamePath});
 
@@ -61,7 +68,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
   bool _compressionConfirmOpen = false;
   DateTime _nextEstimateAttemptAt = DateTime.fromMillisecondsSinceEpoch(0);
   CompressionEstimate? _cachedEstimate;
-  CompressionAlgorithm? _cachedEstimateAlgorithm;
+  _EstimateCacheKey? _cachedEstimateKey;
+  Timer? _estimateRetryTimer;
+  bool _pendingEstimateRetryReady = false;
   String? _cachedCoverUri;
   int _cachedCoverRevision = 0;
   ImageProvider<Object>? _cachedCoverImageProvider;
@@ -134,6 +143,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
 
   @override
   void dispose() {
+    _estimateRetryTimer?.cancel();
     _focusNode.dispose();
     super.dispose();
   }
@@ -146,9 +156,12 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
       _hydrationRequestScheduled = false;
       _estimateFetchScheduled = false;
       _estimateFetchInFlight = false;
+      _estimateRetryTimer?.cancel();
+      _estimateRetryTimer = null;
+      _pendingEstimateRetryReady = false;
       _nextEstimateAttemptAt = DateTime.fromMillisecondsSinceEpoch(0);
       _cachedEstimate = null;
-      _cachedEstimateAlgorithm = null;
+      _cachedEstimateKey = null;
       _cachedCoverUri = null;
       _cachedCoverRevision = 0;
       _cachedCoverImageProvider = null;
@@ -198,10 +211,17 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
             async.valueOrNull?.settings.directStorageOverrideEnabled ?? false,
       ),
     );
+    final algorithm =
+        ref.watch(
+          settingsProvider.select(
+            (async) => async.valueOrNull?.settings.algorithm,
+          ),
+        ) ??
+        CompressionAlgorithm.xpress8k;
 
     _scheduleHydrationRequest();
     if (_isEstimatePrefetchAllowed(context)) {
-      _scheduleEstimateFetch(game, allowDirectStorageOverride);
+      _scheduleEstimateFetch(game, allowDirectStorageOverride, algorithm);
     }
     final coverImageProvider = _coverImageProviderFor(coverSnapshot);
     final coverArtType = coverArtTypeFromSource(coverSnapshot.source);
@@ -224,6 +244,12 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         estimatedSavedBytes: _estimatedSavedBytesFor(
           game,
           allowDirectStorageOverride,
+          algorithm,
+        ),
+        estimatedFromCommunity: _estimatedFromCommunityFor(
+          game,
+          allowDirectStorageOverride,
+          algorithm,
         ),
         lastCompressedText: _lastCompressedText(game),
         assumeBoundedHeight: true,
@@ -242,10 +268,26 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
   static bool _isDirectStorageBlocked(GameInfo game, bool allowOverride) =>
       game.isDirectStorage && !allowOverride;
 
-  int? _estimatedSavedBytesFor(GameInfo game, bool allowDirectStorageOverride) {
+  int? _estimatedSavedBytesFor(
+    GameInfo game,
+    bool allowDirectStorageOverride,
+    CompressionAlgorithm algorithm,
+  ) {
     if (game.isCompressed) return null;
     if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) return null;
+    if (!_hasDisplayableEstimate(game, algorithm)) return null;
     return _cachedEstimate?.estimatedSavedBytes;
+  }
+
+  bool _estimatedFromCommunityFor(
+    GameInfo game,
+    bool allowDirectStorageOverride,
+    CompressionAlgorithm algorithm,
+  ) {
+    if (game.isCompressed) return false;
+    if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) return false;
+    if (!_hasDisplayableEstimate(game, algorithm)) return false;
+    return _cachedEstimate?.showCommunityBadge ?? false;
   }
 
   String? _lastCompressedText(GameInfo game) {
@@ -282,25 +324,27 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     return _cachedCoverImageProvider;
   }
 
-  void _scheduleEstimateFetch(GameInfo game, bool allowDirectStorageOverride) {
+  void _scheduleEstimateFetch(
+    GameInfo game,
+    bool allowDirectStorageOverride,
+    CompressionAlgorithm algorithm,
+  ) {
     if (game.isCompressed) return;
     if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) return;
-    if (_cachedEstimate != null) return;
+    if (_hasFinalEstimate(game, algorithm)) return;
     if (_estimateFetchScheduled) return;
     if (_estimateFetchInFlight) return;
-    if (DateTime.now().isBefore(_nextEstimateAttemptAt)) return;
+    if (!_pendingEstimateRetryReady &&
+        DateTime.now().isBefore(_nextEstimateAttemptAt)) {
+      return;
+    }
 
-    final algorithm =
-        ref.read(settingsProvider).valueOrNull?.settings.algorithm ??
-        CompressionAlgorithm.xpress8k;
-    if (_cachedEstimateAlgorithm == algorithm) return;
+    _pendingEstimateRetryReady = false;
     _estimateFetchScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _estimateFetchScheduled = false;
       if (!mounted) return;
-      unawaited(
-        _getCompressionEstimate(gamePath: game.path, algorithm: algorithm),
-      );
+      unawaited(_getCompressionEstimate(game: game, algorithm: algorithm));
     });
   }
 
@@ -356,11 +400,13 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
       return;
     }
 
-    await ref.read(compressionProvider.notifier).startCompression(
-      gamePath: game.path,
-      gameName: game.name,
-      allowDirectStorageOverride: allowDirectStorageOverride,
-    );
+    await ref
+        .read(compressionProvider.notifier)
+        .startCompression(
+          gamePath: game.path,
+          gameName: game.name,
+          allowDirectStorageOverride: allowDirectStorageOverride,
+        );
   }
 
   Future<void> _startDecompressionAction(GameInfo game) async {
@@ -639,10 +685,11 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
   }
 
   Future<CompressionEstimate?> _getCompressionEstimate({
-    required String gamePath,
+    required GameInfo game,
     required CompressionAlgorithm algorithm,
   }) async {
-    if (_cachedEstimate != null && _cachedEstimateAlgorithm == algorithm) {
+    final cacheKey = _estimateCacheKey(game, algorithm);
+    if (_hasFinalEstimate(game, algorithm)) {
       return _cachedEstimate;
     }
     if (_estimateFetchInFlight) {
@@ -653,14 +700,31 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     try {
       final estimate = await ref
           .read(rustBridgeServiceProvider)
-          .estimateCompressionSavings(gamePath: gamePath, algorithm: algorithm);
+          .estimateCompressionSavings(
+            gamePath: game.path,
+            algorithm: algorithm,
+            gameName: game.name,
+            steamAppId: game.steamAppId,
+            knownSizeBytes: game.sizeBytes,
+          );
       if (!mounted) return estimate;
-      ref.read(coverArtServiceProvider).primeEstimateHints(gamePath, estimate);
-      ref.invalidate(coverArtProvider(gamePath));
+      if (estimate.shouldRetryCommunityLookup) {
+        _pendingEstimateRetryReady = false;
+        _nextEstimateAttemptAt = DateTime.now().add(const Duration(seconds: 2));
+      } else {
+        _estimateRetryTimer?.cancel();
+        _estimateRetryTimer = null;
+        _pendingEstimateRetryReady = false;
+      }
+      ref.read(coverArtServiceProvider).primeEstimateHints(game.path, estimate);
+      ref.invalidate(coverArtProvider(game.path));
       setState(() {
         _cachedEstimate = estimate;
-        _cachedEstimateAlgorithm = algorithm;
+        _cachedEstimateKey = cacheKey;
       });
+      if (estimate.shouldRetryCommunityLookup) {
+        _schedulePendingEstimateRetry();
+      }
       return estimate;
     } catch (_) {
       _nextEstimateAttemptAt = DateTime.now().add(const Duration(seconds: 2));
@@ -668,5 +732,41 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     } finally {
       _estimateFetchInFlight = false;
     }
+  }
+
+  bool _hasDisplayableEstimate(GameInfo game, CompressionAlgorithm algorithm) {
+    return _cachedEstimate != null &&
+        _cachedEstimateKey == _estimateCacheKey(game, algorithm);
+  }
+
+  bool _hasFinalEstimate(GameInfo game, CompressionAlgorithm algorithm) {
+    if (!_hasDisplayableEstimate(game, algorithm)) return false;
+    return !(_cachedEstimate?.shouldRetryCommunityLookup ?? false);
+  }
+
+  void _schedulePendingEstimateRetry() {
+    if (_estimateRetryTimer?.isActive ?? false) return;
+
+    final retryDelay = _nextEstimateAttemptAt.difference(DateTime.now());
+    _estimateRetryTimer = Timer(
+      retryDelay.isNegative ? Duration.zero : retryDelay,
+      () {
+        if (!mounted) return;
+        _pendingEstimateRetryReady = true;
+        setState(() {});
+      },
+    );
+  }
+
+  _EstimateCacheKey _estimateCacheKey(
+    GameInfo game,
+    CompressionAlgorithm algorithm,
+  ) {
+    return (
+      algorithm: algorithm,
+      gameName: game.name,
+      sizeBytes: game.sizeBytes,
+      steamAppId: game.steamAppId,
+    );
   }
 }

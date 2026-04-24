@@ -282,6 +282,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: None,
         };
 
@@ -313,6 +314,7 @@ mod tests {
                         is_directstorage: false,
                         is_unsupported: false,
                         excluded: false,
+                        steam_app_id: None,
                         last_played: None,
                     },
                     updated_at_ms: 1_000,

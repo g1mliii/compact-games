@@ -33,11 +33,13 @@ class _HeroMetricLine extends StatelessWidget {
     required this.label,
     required this.value,
     this.trailingText,
+    this.trailing,
   });
 
   final Widget label;
   final String value;
   final String? trailingText;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +71,7 @@ class _HeroMetricLine extends StatelessWidget {
                       letterSpacing: 0.2,
                     ),
                   ),
+                ?trailing,
               ],
             ),
           ),

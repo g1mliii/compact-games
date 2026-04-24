@@ -8,17 +8,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use flutter_rust_bridge::frb;
 use serde::Deserialize;
 
+use crate::net::{fetch_text, is_allowed_release_url, DEFAULT_HTTP_MAX_REDIRECTS};
+
 /// Minimum interval between update checks (6 hours).
 const UPDATE_CHECK_INTERVAL_MS: u64 = 6 * 60 * 60 * 1000;
 
 const LATEST_JSON_URL: &str =
     "https://github.com/g1mliii/compact-games/releases/latest/download/latest.json";
 
-const TIMEOUT_SECS: u64 = 15;
-const MAX_REDIRECTS: usize = 5;
 const MAX_BODY_BYTES: u64 = 512 * 1024; // 512 KB
-const ALLOWED_DOWNLOAD_URL_PREFIX: &str =
-    "https://github.com/g1mliii/compact-games/releases/";
+const USER_AGENT: &str = "CompactGames-Updater/1";
 
 static LAST_CHECK_MS: RwLock<u64> = RwLock::new(0);
 static LAST_RESULT: RwLock<Option<UpdateCheckResult>> = RwLock::new(None);
@@ -59,7 +58,7 @@ pub fn check_for_update(current_version: String) -> Result<UpdateCheckResult, St
         return Ok(result);
     }
 
-    let body = fetch_text(LATEST_JSON_URL, TIMEOUT_SECS)?;
+    let body = fetch_text(LATEST_JSON_URL, USER_AGENT, MAX_BODY_BYTES)?;
     let manifest: LatestManifest =
         serde_json::from_str(&body).map_err(|e| format!("Invalid latest.json: {e}"))?;
 
@@ -111,9 +110,7 @@ pub fn download_update(
     use std::fs;
 
     if !is_allowed_download_url(&url) {
-        return Err(format!(
-            "Download URL is not from an allowed origin: {url}"
-        ));
+        return Err(format!("Download URL is not from an allowed origin: {url}"));
     }
 
     let dest = Path::new(&dest_path);
@@ -136,7 +133,7 @@ pub fn download_update(
 
     let response = agent
         .get(&final_url)
-        .header("User-Agent", "CompactGames-Updater/1")
+        .header("User-Agent", USER_AGENT)
         .call()
         .map_err(|e| format!("Download failed: {e}"))?;
 
@@ -189,7 +186,7 @@ fn replace_existing_file(from: &Path, to: &Path) -> Result<(), String> {
 }
 
 fn is_allowed_download_url(url: &str) -> bool {
-    url.starts_with(ALLOWED_DOWNLOAD_URL_PREFIX)
+    is_allowed_release_url(url)
 }
 
 /// Simple semver comparison: returns true if `latest` is newer than `current`.
@@ -215,10 +212,10 @@ fn resolve_redirects(url: &str, timeout_secs: u64) -> Result<String, String> {
     );
 
     let mut next_url = url.to_string();
-    for _ in 0..=MAX_REDIRECTS {
+    for _ in 0..=DEFAULT_HTTP_MAX_REDIRECTS {
         let response = agent
             .head(&next_url)
-            .header("User-Agent", "CompactGames-Updater/1")
+            .header("User-Agent", USER_AGENT)
             .call()
             .map_err(|e| format!("HTTP request failed: {e}"))?;
 
@@ -234,52 +231,6 @@ fn resolve_redirects(url: &str, timeout_secs: u64) -> Result<String, String> {
         }
 
         return Ok(next_url);
-    }
-
-    Err("Too many redirects".to_string())
-}
-
-/// Fetch a URL as text with manual redirect handling (matching unsupported.rs pattern).
-fn fetch_text(url: &str, timeout_secs: u64) -> Result<String, String> {
-    let agent = ureq::Agent::new_with_config(
-        ureq::config::Config::builder()
-            .timeout_global(Some(std::time::Duration::from_secs(timeout_secs)))
-            .build(),
-    );
-
-    let mut next_url = url.to_string();
-    for _ in 0..=MAX_REDIRECTS {
-        let response = agent
-            .get(&next_url)
-            .header("User-Agent", "CompactGames-Updater/1")
-            .call()
-            .map_err(|e| format!("HTTP request failed: {e}"))?;
-
-        let status = response.status().as_u16();
-        if (300..400).contains(&status) {
-            let location = response
-                .headers()
-                .get("location")
-                .and_then(|v| v.to_str().ok())
-                .ok_or_else(|| format!("Redirect ({status}) missing Location header"))?;
-            next_url = location.to_string();
-            continue;
-        }
-        if status != 200 {
-            return Err(format!("Unexpected HTTP status: {status}"));
-        }
-
-        let mut reader = response.into_body().into_reader().take(MAX_BODY_BYTES + 1);
-        let mut body = String::new();
-        reader
-            .read_to_string(&mut body)
-            .map_err(|e| format!("Failed to read response body: {e}"))?;
-
-        if body.len() as u64 > MAX_BODY_BYTES {
-            return Err("Response too large".to_string());
-        }
-
-        return Ok(body);
     }
 
     Err("Too many redirects".to_string())
@@ -365,7 +316,9 @@ mod tests {
         assert!(!is_allowed_download_url(
             "http://github.com/g1mliii/compact-games/releases/download/v0.1.0/file.exe"
         ));
-        assert!(!is_allowed_download_url("https://github.com/other-repo/releases/download/file.exe"));
+        assert!(!is_allowed_download_url(
+            "https://github.com/other-repo/releases/download/file.exe"
+        ));
         assert!(!is_allowed_download_url(""));
     }
 }

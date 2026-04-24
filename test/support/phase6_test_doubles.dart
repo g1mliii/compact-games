@@ -24,12 +24,15 @@ class _TestRustBridgeService implements RustBridgeService {
   _TestRustBridgeService({
     required this.games,
     this.autoCompressionRunning = false,
+    this.compressionEstimates = const <CompressionEstimate>[],
   });
 
   final List<GameInfo> games;
   final bool autoCompressionRunning;
+  final List<CompressionEstimate> compressionEstimates;
   int compressCalls = 0;
   int decompressCalls = 0;
+  int estimateCompressionSavingsCalls = 0;
   bool? lastAllowDirectStorageOverride;
   int reportUnsupportedGameCalls = 0;
   String? lastReportedUnsupportedGamePath;
@@ -84,7 +87,15 @@ class _TestRustBridgeService implements RustBridgeService {
   Future<CompressionEstimate> estimateCompressionSavings({
     required String gamePath,
     required CompressionAlgorithm algorithm,
+    String? gameName,
+    int? steamAppId,
+    int? knownSizeBytes,
   }) async {
+    estimateCompressionSavingsCalls += 1;
+    final index = estimateCompressionSavingsCalls - 1;
+    if (index < compressionEstimates.length) {
+      return compressionEstimates[index];
+    }
     return const CompressionEstimate(
       scannedFiles: 0,
       sampledBytes: 0,

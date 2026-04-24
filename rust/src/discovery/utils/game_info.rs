@@ -397,6 +397,7 @@ fn game_info_from_parts(
         is_directstorage,
         is_unsupported: false,
         excluded: false,
+        steam_app_id: None,
         last_played: None,
     };
     refresh_dynamic_game_metadata(&mut game);

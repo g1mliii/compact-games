@@ -291,6 +291,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAboutVersionLabel => '版本';
 
   @override
+  String get settingsAboutCompactGuiCredit =>
+      '压缩估算数据由 CompactGUI / IridiumIO 提供，并在运行时从 Compact Games 版本中获取。';
+
+  @override
   String get settingsAboutAutoCheckUpdatesLabel => '自动检查更新';
 
   @override
@@ -691,6 +695,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get gameEstimateCommunityTooltip => '基于 CompactGUI 社区数据';
+
+  @override
   String gameMarkedUnsupported(String gameName) {
     return '“$gameName”已标记为不支持。';
   }
@@ -834,6 +841,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get gameDetailsSavingsLabel => '节省';
+
+  @override
+  String get gameDetailsEstimatedSavingsLabel => '估算';
 
   @override
   String get gameDetailsInstallPathGroupTitle => '安装路径';

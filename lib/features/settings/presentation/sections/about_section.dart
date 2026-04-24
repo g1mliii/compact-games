@@ -41,7 +41,10 @@ class AboutSection extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Text(l10n.settingsAboutVersionLabel, style: AppTypography.bodyMedium),
+              Text(
+                l10n.settingsAboutVersionLabel,
+                style: AppTypography.bodyMedium,
+              ),
               const SizedBox(width: 8),
               Text(
                 AppConstants.appVersion,
@@ -51,6 +54,13 @@ class AboutSection extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.settingsAboutCompactGuiCredit,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 12),
           ScaledSwitchRow(

@@ -106,6 +106,8 @@ pub struct GameInfo {
     pub is_unsupported: bool,
     #[serde(default)]
     pub excluded: bool,
+    #[serde(default)]
+    pub steam_app_id: Option<u32>,
     #[serde(
         default,
         serialize_with = "serialize_systemtime_millis",
@@ -161,6 +163,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: None,
         };
         assert_eq!(game.bytes_saved(), 0);
@@ -179,6 +182,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: None,
         };
         assert_eq!(game.bytes_saved(), 4_000);
@@ -197,6 +201,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: Some(620),
             last_played: None,
         };
         let json = serde_json::to_string(&game).unwrap();
@@ -218,6 +223,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: None,
         };
         assert_eq!(game.bytes_saved(), 0);
@@ -237,6 +243,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: None,
         };
         // saturating_sub should prevent underflow, returning 0
@@ -259,6 +266,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: Some(timestamp),
         };
 
@@ -286,6 +294,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: None,
         };
 

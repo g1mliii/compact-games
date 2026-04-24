@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1790114409;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1049072083;
 
 // Section: executor
 
@@ -367,12 +367,15 @@ fn wire__crate__api__compression__estimate_compression_savings_impl(
             let api_game_path = <String>::sse_decode(&mut deserializer);
             let api_algorithm =
                 <crate::api::types::FrbCompressionAlgorithm>::sse_decode(&mut deserializer);
+            let api_context =
+                <crate::api::types::FrbEstimateContext>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::types::FrbCompressionError>((move || {
                     let output_ok = crate::api::compression::estimate_compression_savings(
                         api_game_path,
                         api_algorithm,
+                        api_context,
                     )?;
                     Ok(output_ok)
                 })(
@@ -472,6 +475,39 @@ fn wire__crate__api__unsupported__fetch_community_unsupported_list_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::unsupported::fetch_community_unsupported_list()?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__types__frb_estimate_context_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "frb_estimate_context_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::types::FrbEstimateContext::default())?;
                     Ok(output_ok)
                 })())
             }
@@ -1641,6 +1677,11 @@ impl SseDecode for crate::api::types::FrbCompressionEstimate {
         let mut var_estimatedSavedBytes = <u64>::sse_decode(deserializer);
         let mut var_estimatedSavingsRatio = <f64>::sse_decode(deserializer);
         let mut var_executableCandidatePath = <Option<String>>::sse_decode(deserializer);
+        let mut var_baseSource =
+            <crate::api::types::FrbCompressionEstimateSource>::sse_decode(deserializer);
+        let mut var_adaptiveApplied = <bool>::sse_decode(deserializer);
+        let mut var_communitySamples = <Option<u32>>::sse_decode(deserializer);
+        let mut var_communityLookupPending = <bool>::sse_decode(deserializer);
         return crate::api::types::FrbCompressionEstimate {
             scanned_files: var_scannedFiles,
             sampled_bytes: var_sampledBytes,
@@ -1648,6 +1689,25 @@ impl SseDecode for crate::api::types::FrbCompressionEstimate {
             estimated_saved_bytes: var_estimatedSavedBytes,
             estimated_savings_ratio: var_estimatedSavingsRatio,
             executable_candidate_path: var_executableCandidatePath,
+            base_source: var_baseSource,
+            adaptive_applied: var_adaptiveApplied,
+            community_samples: var_communitySamples,
+            community_lookup_pending: var_communityLookupPending,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::FrbCompressionEstimateSource {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::types::FrbCompressionEstimateSource::Heuristic,
+            1 => crate::api::types::FrbCompressionEstimateSource::CommunityDb,
+            _ => unreachable!(
+                "Invalid variant for FrbCompressionEstimateSource: {}",
+                inner
+            ),
         };
     }
 }
@@ -1726,6 +1786,20 @@ impl SseDecode for crate::api::types::FrbDiscoveryError {
     }
 }
 
+impl SseDecode for crate::api::types::FrbEstimateContext {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_gameName = <Option<String>>::sse_decode(deserializer);
+        let mut var_steamAppId = <Option<u32>>::sse_decode(deserializer);
+        let mut var_knownSizeBytes = <Option<u64>>::sse_decode(deserializer);
+        return crate::api::types::FrbEstimateContext {
+            game_name: var_gameName,
+            steam_app_id: var_steamAppId,
+            known_size_bytes: var_knownSizeBytes,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::FrbGameInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1738,6 +1812,7 @@ impl SseDecode for crate::api::types::FrbGameInfo {
         let mut var_isDirectstorage = <bool>::sse_decode(deserializer);
         let mut var_isUnsupported = <bool>::sse_decode(deserializer);
         let mut var_excluded = <bool>::sse_decode(deserializer);
+        let mut var_steamAppId = <Option<u32>>::sse_decode(deserializer);
         let mut var_lastPlayed = <Option<i64>>::sse_decode(deserializer);
         return crate::api::types::FrbGameInfo {
             name: var_name,
@@ -1749,6 +1824,7 @@ impl SseDecode for crate::api::types::FrbGameInfo {
             is_directstorage: var_isDirectstorage,
             is_unsupported: var_isUnsupported,
             excluded: var_excluded,
+            steam_app_id: var_steamAppId,
             last_played: var_lastPlayed,
         };
     }
@@ -1950,6 +2026,17 @@ impl SseDecode for Option<i64> {
     }
 }
 
+impl SseDecode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u32>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2070,69 +2157,75 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        13 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
-        14 => {
+        13 => wire__crate__api__types__frb_estimate_context_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        14 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
+        15 => {
             wire__crate__api__discovery__get_all_games_quick_impl(port, ptr, rust_vec_len, data_len)
         }
-        17 => wire__crate__api__compression__get_compression_ratio_impl(
+        18 => wire__crate__api__compression__get_compression_ratio_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        20 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__discovery__remove_game_from_discovery_impl(
+        21 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__discovery__remove_game_from_discovery_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => {
+        29 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        29 => wire__crate__api__automation__shared_auto_state_default_impl(
+        30 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => wire__crate__api__automation__start_auto_compression_impl(
+        31 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        32 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
+        33 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__automation__update_automation_config_impl(
+        35 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        36 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__automation__watch_automation_queue_impl(
+        37 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__automation__watch_scheduler_state_impl(
+        38 => wire__crate__api__automation__watch_scheduler_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__automation__watch_watcher_events_impl(
+        39 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2158,34 +2251,34 @@ fn pde_ffi_dispatcher_sync_impl(
             data_len,
         ),
         11 => wire__crate__api__icon__extract_exe_icon_impl(ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__automation__get_automation_queue_impl(ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__compression__get_compression_progress_impl(
+        16 => wire__crate__api__automation__get_automation_queue_impl(ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__compression__get_compression_progress_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
-        19 => {
+        19 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
+        20 => {
             wire__crate__api__automation__get_watcher_diagnostics_impl(ptr, rust_vec_len, data_len)
         }
-        21 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__automation__is_auto_compression_running_impl(
+        22 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__automation__is_auto_compression_running_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__compression__persist_compression_history_impl(
+        24 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__compression__persist_compression_history_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => {
+        28 => {
             wire__crate__api__unsupported__report_unsupported_game_impl(ptr, rust_vec_len, data_len)
         }
-        31 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
+        32 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -2413,6 +2506,10 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbCompressionEstimate
             self.estimated_saved_bytes.into_into_dart().into_dart(),
             self.estimated_savings_ratio.into_into_dart().into_dart(),
             self.executable_candidate_path.into_into_dart().into_dart(),
+            self.base_source.into_into_dart().into_dart(),
+            self.adaptive_applied.into_into_dart().into_dart(),
+            self.community_samples.into_into_dart().into_dart(),
+            self.community_lookup_pending.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2425,6 +2522,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbCompressionEstimate
     for crate::api::types::FrbCompressionEstimate
 {
     fn into_into_dart(self) -> crate::api::types::FrbCompressionEstimate {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::types::FrbCompressionEstimateSource {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Heuristic => 0.into_dart(),
+            Self::CommunityDb => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::types::FrbCompressionEstimateSource
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbCompressionEstimateSource>
+    for crate::api::types::FrbCompressionEstimateSource
+{
+    fn into_into_dart(self) -> crate::api::types::FrbCompressionEstimateSource {
         self
     }
 }
@@ -2515,6 +2633,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbDiscoveryError>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::types::FrbEstimateContext {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.game_name.into_into_dart().into_dart(),
+            self.steam_app_id.into_into_dart().into_dart(),
+            self.known_size_bytes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::types::FrbEstimateContext
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbEstimateContext>
+    for crate::api::types::FrbEstimateContext
+{
+    fn into_into_dart(self) -> crate::api::types::FrbEstimateContext {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::types::FrbGameInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2527,6 +2667,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbGameInfo {
             self.is_directstorage.into_into_dart().into_dart(),
             self.is_unsupported.into_into_dart().into_dart(),
             self.excluded.into_into_dart().into_dart(),
+            self.steam_app_id.into_into_dart().into_dart(),
             self.last_played.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -2967,6 +3108,26 @@ impl SseEncode for crate::api::types::FrbCompressionEstimate {
         <u64>::sse_encode(self.estimated_saved_bytes, serializer);
         <f64>::sse_encode(self.estimated_savings_ratio, serializer);
         <Option<String>>::sse_encode(self.executable_candidate_path, serializer);
+        <crate::api::types::FrbCompressionEstimateSource>::sse_encode(self.base_source, serializer);
+        <bool>::sse_encode(self.adaptive_applied, serializer);
+        <Option<u32>>::sse_encode(self.community_samples, serializer);
+        <bool>::sse_encode(self.community_lookup_pending, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::FrbCompressionEstimateSource {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::types::FrbCompressionEstimateSource::Heuristic => 0,
+                crate::api::types::FrbCompressionEstimateSource::CommunityDb => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -3019,6 +3180,15 @@ impl SseEncode for crate::api::types::FrbDiscoveryError {
     }
 }
 
+impl SseEncode for crate::api::types::FrbEstimateContext {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.game_name, serializer);
+        <Option<u32>>::sse_encode(self.steam_app_id, serializer);
+        <Option<u64>>::sse_encode(self.known_size_bytes, serializer);
+    }
+}
+
 impl SseEncode for crate::api::types::FrbGameInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3031,6 +3201,7 @@ impl SseEncode for crate::api::types::FrbGameInfo {
         <bool>::sse_encode(self.is_directstorage, serializer);
         <bool>::sse_encode(self.is_unsupported, serializer);
         <bool>::sse_encode(self.excluded, serializer);
+        <Option<u32>>::sse_encode(self.steam_app_id, serializer);
         <Option<i64>>::sse_encode(self.last_played, serializer);
     }
 }
@@ -3205,6 +3376,16 @@ impl SseEncode for Option<i64> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <i64>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u32>::sse_encode(value, serializer);
         }
     }
 }

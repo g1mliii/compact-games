@@ -21,6 +21,7 @@ use crate::progress::tracker::CompressionProgress;
 
 pub use self::engine_safety::SafetyConfig;
 use self::engine_safety::{run_safety_checks, DirectStoragePolicy};
+pub use self::estimation_runtime::EstimateGameContext;
 use self::operation_session::{OperationGuard, OperationLock, OperationSession};
 use self::path_guard::safe_file_iter;
 
@@ -46,12 +47,22 @@ impl CompressionStats {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompressionEstimateSource {
+    Heuristic,
+    CommunityDb,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionEstimate {
     pub scanned_files: u64,
     pub sampled_bytes: u64,
     pub estimated_saved_bytes: u64,
     pub executable_candidate_path: Option<PathBuf>,
+    pub base_source: CompressionEstimateSource,
+    pub adaptive_applied: bool,
+    pub community_samples: Option<u32>,
+    pub community_lookup_pending: bool,
 }
 
 impl CompressionEstimate {

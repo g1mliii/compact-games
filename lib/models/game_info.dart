@@ -34,6 +34,7 @@ class GameInfo {
   final bool isDirectStorage;
   final bool isUnsupported;
   final bool excluded;
+  final int? steamAppId;
 
   /// Legacy timestamp field from older transports. Avoid using this for new UI.
   final DateTime? lastPlayed;
@@ -57,6 +58,7 @@ class GameInfo {
     this.isDirectStorage = false,
     this.isUnsupported = false,
     this.excluded = false,
+    this.steamAppId,
     this.lastPlayed,
     this.lastCompressedAt,
   });
@@ -89,6 +91,7 @@ class GameInfo {
     bool? isDirectStorage,
     bool? isUnsupported,
     bool? excluded,
+    int? Function()? steamAppId,
     DateTime? Function()? lastPlayed,
     DateTime? Function()? lastCompressedAt,
   }) {
@@ -104,6 +107,7 @@ class GameInfo {
       isDirectStorage: isDirectStorage ?? this.isDirectStorage,
       isUnsupported: isUnsupported ?? this.isUnsupported,
       excluded: excluded ?? this.excluded,
+      steamAppId: steamAppId != null ? steamAppId() : this.steamAppId,
       lastPlayed: lastPlayed != null ? lastPlayed() : this.lastPlayed,
       lastCompressedAt: lastCompressedAt != null
           ? lastCompressedAt()
@@ -125,6 +129,7 @@ class GameInfo {
           isDirectStorage == other.isDirectStorage &&
           isUnsupported == other.isUnsupported &&
           excluded == other.excluded &&
+          steamAppId == other.steamAppId &&
           lastPlayed == other.lastPlayed &&
           lastCompressedAt == other.lastCompressedAt;
 
@@ -139,6 +144,7 @@ class GameInfo {
     isDirectStorage,
     isUnsupported,
     excluded,
+    steamAppId,
     lastPlayed,
     lastCompressedAt,
   );

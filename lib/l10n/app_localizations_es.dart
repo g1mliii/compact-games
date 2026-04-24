@@ -309,6 +309,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsAboutVersionLabel => 'Versión';
 
   @override
+  String get settingsAboutCompactGuiCredit =>
+      'Los datos de estimación de compresión los proporciona CompactGUI / IridiumIO y se obtienen en tiempo de ejecución desde las versiones de Compact Games.';
+
+  @override
   String get settingsAboutAutoCheckUpdatesLabel =>
       'Buscar actualizaciones automáticamente';
 
@@ -738,6 +742,10 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get gameEstimateCommunityTooltip =>
+      'Basado en datos de la comunidad de CompactGUI';
+
+  @override
   String gameMarkedUnsupported(String gameName) {
     return '\"$gameName\" se marcó como no compatible.';
   }
@@ -884,6 +892,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get gameDetailsSavingsLabel => 'Ahorro';
+
+  @override
+  String get gameDetailsEstimatedSavingsLabel => 'Estimación';
 
   @override
   String get gameDetailsInstallPathGroupTitle => 'Ruta de instalación';

@@ -51,6 +51,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
+            steam_app_id: None,
             last_played: None,
         }
     }

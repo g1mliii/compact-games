@@ -25,6 +25,7 @@ class GameCard extends StatelessWidget {
     this.isDirectStorage = false,
     this.isUnsupported = false,
     this.estimatedSavedBytes,
+    this.estimatedFromCommunity = false,
     this.lastCompressedText,
     this.coverArtType,
     this.assumeBoundedHeight = true,
@@ -46,6 +47,7 @@ class GameCard extends StatelessWidget {
   final bool isDirectStorage;
   final bool isUnsupported;
   final int? estimatedSavedBytes;
+  final bool estimatedFromCommunity;
   final String? lastCompressedText;
   final CoverArtType? coverArtType;
   final bool assumeBoundedHeight;
@@ -218,9 +220,7 @@ class GameCard extends StatelessWidget {
             colors: [color, color.withValues(alpha: 0.6)],
           ),
         ),
-        child: Center(
-          child: Icon(icon, size: 48, color: AppColors.desertSand),
-        ),
+        child: Center(child: Icon(icon, size: 48, color: AppColors.desertSand)),
       );
     }
     return DecoratedBox(
@@ -341,6 +341,17 @@ class GameCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
+              if (estimatedFromCommunity) ...[
+                Tooltip(
+                  message: l10n.gameEstimateCommunityTooltip,
+                  child: const Icon(
+                    LucideIcons.database,
+                    size: 12,
+                    color: AppColors.richGold,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
               Flexible(
                 child: Text(
                   l10n.gameEstimatedSaveableGigabytes(

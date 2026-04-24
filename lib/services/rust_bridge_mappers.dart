@@ -16,6 +16,7 @@ GameInfo _mapFrbGameInfo(rust_types.FrbGameInfo frb) {
     isDirectStorage: frb.isDirectstorage,
     isUnsupported: frb.isUnsupported,
     excluded: frb.excluded,
+    steamAppId: frb.steamAppId?.toInt(),
     lastPlayed: lastPlayed,
     lastCompressedAt: lastPlayed,
   );
@@ -58,7 +59,22 @@ CompressionEstimate _mapFrbEstimate(rust_types.FrbCompressionEstimate frb) {
     estimatedSavedBytes: frb.estimatedSavedBytes.toInt(),
     estimatedSavingsRatio: frb.estimatedSavingsRatio,
     executableCandidatePath: frb.executableCandidatePath,
+    baseSource: _mapFrbEstimateSource(frb.baseSource),
+    adaptiveApplied: frb.adaptiveApplied,
+    communitySamples: frb.communitySamples?.toInt(),
+    communityLookupPending: frb.communityLookupPending,
   );
+}
+
+EstimateSource _mapFrbEstimateSource(
+  rust_types.FrbCompressionEstimateSource source,
+) {
+  return switch (source) {
+    rust_types.FrbCompressionEstimateSource.heuristic =>
+      EstimateSource.heuristic,
+    rust_types.FrbCompressionEstimateSource.communityDb =>
+      EstimateSource.communityDb,
+  };
 }
 
 // ignore: unused_element
