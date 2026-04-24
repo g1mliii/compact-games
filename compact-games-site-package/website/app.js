@@ -408,13 +408,16 @@ function createChangelogEntry(release) {
     createChangelogDate(release.published_at),
   );
 
-  const summary = summarizeReleaseBody(release.body);
   const body = document.createElement("div");
   body.className = "changelog-body";
-
-  const title = document.createElement("strong");
-  title.textContent = summary.title;
-  body.append(title, document.createTextNode(summary.detail));
+  const rendered = renderReleaseMarkdown(release.body);
+  if (rendered.childNodes.length === 0) {
+    const fallback = document.createElement("p");
+    fallback.textContent = "Release notes published. Open the release history for the full notes.";
+    body.append(fallback);
+  } else {
+    body.append(rendered);
+  }
 
   item.append(versionBlock, body);
   return item;
@@ -427,30 +430,143 @@ function createChangelogDate(publishedAt) {
   return date;
 }
 
-function summarizeReleaseBody(body) {
-  const lines = String(body || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim().replace(/^[-*]\s*/, ""))
-    .filter(Boolean);
-
-  if (lines.length === 0) {
-    return {
-      title: "Release notes published.",
-      detail: "Open the release history for the full notes.",
-    };
+// ---------------------------------------------------------------------------
+// Minimal markdown renderer for GitHub release bodies. Builds DOM nodes via
+// textContent/appendChild only — never innerHTML — so the page CSP stays
+// intact. Supports: ## / ### headings, paragraphs, - list items, ---
+// horizontal rules, **bold**, `code`, and [text](url) links (https only).
+// ---------------------------------------------------------------------------
+function renderReleaseMarkdown(body) {
+  const fragment = document.createDocumentFragment();
+  const source = String(body || "").replace(/\r\n/g, "\n");
+  if (!source.trim()) {
+    return fragment;
   }
 
-  if (lines[0].endsWith(":") && lines.length > 1) {
-    return {
-      title: lines[0].replace(/:$/, "."),
-      detail: lines.slice(1).join(" "),
-    };
+  const lines = source.split("\n");
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed === "") {
+      i += 1;
+      continue;
+    }
+
+    if (/^-{3,}$/.test(trimmed)) {
+      fragment.append(document.createElement("hr"));
+      i += 1;
+      continue;
+    }
+
+    const headingMatch = /^(#{1,6})\s+(.+)$/.exec(trimmed);
+    if (headingMatch) {
+      // Release bodies start at ## so their outermost heading lives inside
+      // the page's existing h2 section. Shift down one level: ## → h3, etc.
+      const level = Math.max(3, Math.min(headingMatch[1].length + 1, 6));
+      const heading = document.createElement(`h${level}`);
+      appendInlineMarkdown(heading, headingMatch[2].trim());
+      fragment.append(heading);
+      i += 1;
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(trimmed)) {
+      const list = document.createElement("ul");
+      while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) {
+        const itemText = lines[i].trim().replace(/^[-*]\s+/, "");
+        const li = document.createElement("li");
+        appendInlineMarkdown(li, itemText);
+        list.append(li);
+        i += 1;
+      }
+      fragment.append(list);
+      continue;
+    }
+
+    const paragraphLines = [];
+    while (
+      i < lines.length &&
+      lines[i].trim() !== "" &&
+      !/^#{1,6}\s+/.test(lines[i].trim()) &&
+      !/^[-*]\s+/.test(lines[i].trim()) &&
+      !/^-{3,}$/.test(lines[i].trim())
+    ) {
+      paragraphLines.push(lines[i].trim());
+      i += 1;
+    }
+    if (paragraphLines.length > 0) {
+      const paragraph = document.createElement("p");
+      appendInlineMarkdown(paragraph, paragraphLines.join(" "));
+      fragment.append(paragraph);
+    }
   }
 
-  return {
-    title: lines[0],
-    detail: lines.slice(1).join(" ") || "Open the release history for the full notes.",
-  };
+  return fragment;
+}
+
+// Inline-span renderer: **bold**, `code`, [text](url). Everything else is
+// appended as a text node. Links only render when the URL is https and to a
+// trusted origin — other URLs fall back to plain text.
+function appendInlineMarkdown(parent, text) {
+  const pattern = /(\*\*[^*\n]+\*\*)|(`[^`\n]+`)|(\[[^\]\n]+\]\([^)\n]+\))/g;
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > cursor) {
+      parent.append(document.createTextNode(text.slice(cursor, match.index)));
+    }
+    const token = match[0];
+    if (token.startsWith("**")) {
+      const strong = document.createElement("strong");
+      strong.textContent = token.slice(2, -2);
+      parent.append(strong);
+    } else if (token.startsWith("`")) {
+      const code = document.createElement("code");
+      code.textContent = token.slice(1, -1);
+      parent.append(code);
+    } else {
+      const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
+      if (linkMatch) {
+        const safeUrl = safeChangelogLinkUrl(linkMatch[2]);
+        if (safeUrl) {
+          const anchor = document.createElement("a");
+          anchor.href = safeUrl;
+          anchor.target = "_blank";
+          anchor.rel = "noopener noreferrer";
+          anchor.textContent = linkMatch[1];
+          parent.append(anchor);
+        } else {
+          parent.append(document.createTextNode(linkMatch[1]));
+        }
+      }
+    }
+    cursor = match.index + token.length;
+  }
+  if (cursor < text.length) {
+    parent.append(document.createTextNode(text.slice(cursor)));
+  }
+}
+
+const CHANGELOG_LINK_ALLOWED_ORIGINS = new Set([
+  "https://github.com",
+  "https://www.github.com",
+]);
+
+function safeChangelogLinkUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "https:") {
+      return null;
+    }
+    if (!CHANGELOG_LINK_ALLOWED_ORIGINS.has(parsed.origin)) {
+      return null;
+    }
+    return parsed.toString();
+  } catch (_error) {
+    return null;
+  }
 }
 
 function detectPlatformContext() {
