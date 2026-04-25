@@ -36,6 +36,7 @@ Thumbs.db
 
 # Documentation (as requested)
 *.md
+PORTING_PLAN.md
 !README.md
 !LICENSE.md
 !SPEC.md

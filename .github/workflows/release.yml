@@ -172,21 +172,34 @@ jobs:
 
       - name: Generate latest.json manifest
         shell: bash
+        env:
+          RELEASE_NOTES: ${{ github.event.inputs.release_notes || github.event.release.body || '' }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           VERSION="${{ needs.build.outputs.version }}"
           CHECKSUM=$(awk '{print $1}' dist/sha256sums.txt)
-          NOTES="${{ github.event.inputs.release_notes || github.event.release.body || '' }}"
           PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          export VERSION CHECKSUM PUBLISHED_AT REPOSITORY
 
-          cat > dist/latest.json << MANIFEST_EOF
-          {
-            "version": "${VERSION}",
-            "download_url": "https://github.com/${{ github.repository }}/releases/latest/download/CompactGames-Setup-${VERSION}.exe",
-            "checksum_sha256": "${CHECKSUM}",
-            "release_notes": $(echo "$NOTES" | python -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))"),
-            "published_at": "${PUBLISHED_AT}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          repository = os.environ["REPOSITORY"]
+          manifest = {
+              "version": version,
+              "download_url": f"https://github.com/{repository}/releases/latest/download/CompactGames-Setup-{version}.exe",
+              "checksum_sha256": os.environ["CHECKSUM"],
+              "release_notes": os.environ.get("RELEASE_NOTES", "").strip(),
+              "published_at": os.environ["PUBLISHED_AT"],
           }
-          MANIFEST_EOF
+          Path("dist/latest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
 
           echo "Generated latest.json:"
           cat dist/latest.json
@@ -235,13 +248,22 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          VERSION="${{ needs.build.outputs.version }}"
-          NOTES="${{ github.event.inputs.release_notes }}"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          notes = os.environ.get("RELEASE_NOTES", "").strip() or f"Release v{version}"
+          Path("dist/release-notes.md").write_text(notes, encoding="utf-8")
+          PY
+
           gh release create "v${VERSION}" \
             --repo "${{ github.repository }}" \
             --title "Compact Games v${VERSION}" \
-            --notes "${NOTES:-Release v${VERSION}}" \
+            --notes-file dist/release-notes.md \
             --draft \
             dist/CompactGames-Setup-${VERSION}.exe \
             dist/latest.json \
