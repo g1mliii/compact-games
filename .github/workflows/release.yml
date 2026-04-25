@@ -135,7 +135,7 @@ jobs:
           Write-Host "Bundled VC++ runtime from $($vcrtDir.FullName)"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-release-build
           path: build/windows/x64/runner/Release/
@@ -205,7 +205,7 @@ jobs:
           cat dist/latest.json
 
       - name: Upload installer artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: installer-artifacts
           path: |
