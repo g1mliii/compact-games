@@ -16,6 +16,7 @@ final compressionProvider =
 
 class CompressionNotifier extends Notifier<CompressionState> {
   StreamSubscription<CompressionProgress>? _progressSubscription;
+  Completer<CompressionJobStatus>? _activeJobCompletion;
   Timer? _historyTimer;
   bool _disposed = false;
   bool _cancelRequested = false;
@@ -29,6 +30,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
       _cancelRequested = false;
       _historyTimer?.cancel();
       _cancelSubscription();
+      _completeActiveJobCompletion(CompressionJobStatus.cancelled);
     });
     return const CompressionState();
   }
@@ -42,6 +44,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
   }) async {
     if (state.hasActiveJob || _progressSubscription != null) return;
 
+    _completeActiveJobCompletion(CompressionJobStatus.cancelled);
     final settings = ref.read(settingsProvider).valueOrNull?.settings;
     final algo =
         algorithm ?? settings?.algorithm ?? CompressionAlgorithm.xpress8k;
@@ -95,6 +98,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
     // Prevent a stuck native stream from retaining a live subscription.
     _cancelSubscription();
     _cancelRequested = false;
+    _completeActiveJobCompletion(CompressionJobStatus.cancelled);
     _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
   }
 
@@ -103,8 +107,33 @@ class CompressionNotifier extends Notifier<CompressionState> {
     required String gamePath,
     required String gameName,
   }) async {
-    if (state.hasActiveJob || _progressSubscription != null) return;
+    await _startDecompression(gamePath: gamePath, gameName: gameName);
+  }
 
+  /// Start decompression and complete with the final job status.
+  Future<CompressionJobStatus?> startDecompressionAndWait({
+    required String gamePath,
+    required String gameName,
+  }) async {
+    final completion = Completer<CompressionJobStatus>();
+    final started = await _startDecompression(
+      gamePath: gamePath,
+      gameName: gameName,
+      completion: completion,
+    );
+    if (!started) return null;
+    return completion.future;
+  }
+
+  Future<bool> _startDecompression({
+    required String gamePath,
+    required String gameName,
+    Completer<CompressionJobStatus>? completion,
+  }) async {
+    if (state.hasActiveJob || _progressSubscription != null) return false;
+
+    _completeActiveJobCompletion(CompressionJobStatus.cancelled);
+    _activeJobCompletion = completion;
     state = state.copyWith(
       activeJob: () => CompressionJobState(
         runId: _allocateRunId(),
@@ -130,10 +159,12 @@ class CompressionNotifier extends Notifier<CompressionState> {
         ioParallelismOverride: ioParallelismOverride,
       );
       _subscribeToProgressStream(stream);
+      return true;
     } catch (e) {
-      if (_disposed) return;
+      if (_disposed) return false;
       _cancelRequested = false;
       _failJob('Decompression failed: $e');
+      return false;
     }
   }
 
@@ -157,6 +188,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
       _cancelSubscription();
       final job = state.activeJob;
       if (job != null && job.isActive) {
+        _completeActiveJobCompletion(CompressionJobStatus.cancelled);
         _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
       }
       return;
@@ -166,6 +198,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
       _cancelSubscription();
       final job = state.activeJob;
       if (job != null && job.isActive) {
+        _completeActiveJobCompletion(CompressionJobStatus.cancelled);
         _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
       }
       return;
@@ -190,6 +223,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
     if (job == null) return;
 
     final completedJob = job.copyWith(status: CompressionJobStatus.completed);
+    _completeActiveJobCompletion(CompressionJobStatus.completed);
     _archiveJob(completedJob);
 
     unawaited(
@@ -217,7 +251,15 @@ class CompressionNotifier extends Notifier<CompressionState> {
       ),
     );
 
+    _completeActiveJobCompletion(CompressionJobStatus.failed);
     _moveToHistoryAfterDelay();
+  }
+
+  void _completeActiveJobCompletion(CompressionJobStatus status) {
+    final completion = _activeJobCompletion;
+    _activeJobCompletion = null;
+    if (completion == null || completion.isCompleted) return;
+    completion.complete(status);
   }
 
   CompressionProgress _normalizeProgress(CompressionProgress progress) {

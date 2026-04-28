@@ -117,6 +117,9 @@ pub fn add_application_folder(
         });
     }
 
+    // Explicit user adds must override a prior "remove from library" tombstone.
+    clear_discovery_metadata_for_candidate_paths(&folder);
+
     let display_name = name.unwrap_or_else(|| {
         folder
             .file_name()
@@ -132,7 +135,10 @@ pub fn add_application_folder(
     );
 
     match game {
-        Some(info) => Ok(FrbGameInfo::from(info)),
+        Some(info) => {
+            persist_discovery_metadata_if_dirty();
+            Ok(FrbGameInfo::from(info))
+        }
         None => Err(FrbDiscoveryError::DiscoveryFailed {
             message: "Failed to build metadata for the application folder.".to_owned(),
         }),
@@ -171,8 +177,7 @@ pub fn hydrate_game(
     // community compression DB lookup.
     if let Some(info) = game.as_mut() {
         if info.platform == Platform::Steam && info.steam_app_id.is_none() {
-            info.steam_app_id =
-                crate::discovery::steam::lookup_steam_app_id_for_path(&info.path);
+            info.steam_app_id = crate::discovery::steam::lookup_steam_app_id_for_path(&info.path);
         }
     }
 
@@ -374,6 +379,38 @@ mod tests {
         assert_eq!(PathBuf::from(&app.path), app_dir);
         assert_eq!(app.name, "Toolbox");
         assert!(app.size_bytes > 0);
+    }
+
+    #[test]
+    fn add_application_folder_overrides_previous_library_removal() {
+        let _guard = lock_discovery_test();
+        clear_discovery_cache();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let app_dir = temp.path().join("ReaddableTool");
+        fs::create_dir_all(&app_dir).unwrap();
+        File::create(app_dir.join("tool.exe"))
+            .unwrap()
+            .set_len(128 * 1024)
+            .unwrap();
+        File::create(app_dir.join("payload.dat"))
+            .unwrap()
+            .set_len(8 * 1024 * 1024)
+            .unwrap();
+
+        remove_game_from_discovery_inner(&app_dir, Platform::Application);
+        let hidden_token = cache::compute_change_token(&app_dir, false);
+        assert!(hidden_paths::should_hide(&app_dir, &hidden_token));
+
+        let app = add_application_folder(app_dir.to_string_lossy().into_owned(), None).unwrap();
+
+        assert_eq!(app.platform, FrbPlatform::Application);
+        assert_eq!(PathBuf::from(&app.path), app_dir);
+        let visible_token = cache::compute_change_token(&PathBuf::from(&app.path), false);
+        assert!(!hidden_paths::should_hide(
+            &PathBuf::from(&app.path),
+            &visible_token
+        ));
     }
 
     #[test]

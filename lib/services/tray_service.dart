@@ -160,6 +160,10 @@ class TrayService with TrayListener {
     _onShowWindow = onShowWindow;
   }
 
+  Future<void> showAndFocusWindow() {
+    return _showAndFocusWindow();
+  }
+
   @visibleForTesting
   Future<void> flushPendingUpdateForTest() async {
     _debounceTimer?.cancel();

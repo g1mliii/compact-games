@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'shell_launch_args.dart';
 import 'tray_service.dart';
 
 abstract interface class StartupWindowAdapter {
@@ -23,12 +24,12 @@ abstract interface class StartupTrayAdapter {
 bool shouldStartHiddenInTrayOnLaunch({
   required bool isWeb,
   required TargetPlatform targetPlatform,
-  required List<String> args,
+  required ShellLaunchArgs launchArgs,
 }) {
   if (isWeb || targetPlatform != TargetPlatform.windows) {
     return false;
   }
-  return args.contains('--minimized');
+  return launchArgs.startHiddenInTray;
 }
 
 Future<void> initializeStartupWindow({

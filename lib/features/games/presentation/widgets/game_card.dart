@@ -57,9 +57,19 @@ class GameCard extends StatelessWidget {
   static const BorderRadius _cardBorderRadius = BorderRadius.all(
     Radius.circular(12),
   );
-  static const double _sizeInfoRegionHeight = 34;
+  static const BorderRadius _infoBorderRadius = BorderRadius.vertical(
+    top: Radius.circular(12),
+  );
+  static const BorderRadius _coverBorderRadius = BorderRadius.vertical(
+    bottom: Radius.circular(12),
+  );
+  static const double _sizeInfoRegionHeight = 28;
   static final BoxDecoration _cardDecoration = buildAppSurfaceDecoration(
     borderRadius: _cardBorderRadius,
+  );
+  static final BoxDecoration _infoDecoration = BoxDecoration(
+    color: AppColors.nightDune.withValues(alpha: 0.58),
+    borderRadius: _infoBorderRadius,
   );
   static final BoxDecoration _focusedDecoration = BoxDecoration(
     borderRadius: _cardBorderRadius,
@@ -111,8 +121,8 @@ class GameCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildCoverArt(context: context, useAspectRatio: true),
         _buildGameInfo(),
+        _buildCoverArt(context: context, useAspectRatio: true),
       ],
     );
   }
@@ -122,10 +132,10 @@ class GameCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.max,
       children: [
+        _buildGameInfo(),
         Expanded(
           child: _buildCoverArt(context: context, useAspectRatio: false),
         ),
-        _buildGameInfo(),
       ],
     );
   }
@@ -144,7 +154,7 @@ class GameCard extends StatelessWidget {
 
     final clipped = ClipRRect(
       clipBehavior: Clip.hardEdge,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      borderRadius: _coverBorderRadius,
       child: wrappedContent,
     );
 
@@ -231,23 +241,29 @@ class GameCard extends StatelessWidget {
 
   Widget _buildGameInfo() {
     return Builder(
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              gameName,
-              style: AppTypography.headingSmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      builder: (context) => SizedBox(
+        width: double.infinity,
+        child: DecoratedBox(
+          decoration: _infoDecoration,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  gameName,
+                  style: AppTypography.headingSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                _buildStatusRow(context),
+                const SizedBox(height: 5),
+                _buildSizeInfo(context),
+              ],
             ),
-            const SizedBox(height: 7),
-            _buildStatusRow(context),
-            const SizedBox(height: 8),
-            _buildSizeInfo(context),
-          ],
+          ),
         ),
       ),
     );
@@ -301,10 +317,12 @@ class GameCard extends StatelessWidget {
       final totalSizeBytes = this.totalSizeBytes;
       final compressedSizeBytes = this.compressedSizeBytes!;
       final compressedGB = this.compressedSizeBytes! / (1024 * 1024 * 1024);
-      final rawRatio = totalSizeBytes > 0
-          ? compressedSizeBytes / totalSizeBytes
+      final savingsBytes = totalSizeBytes > compressedSizeBytes
+          ? totalSizeBytes - compressedSizeBytes
+          : 0;
+      final savingsRatio = totalSizeBytes > 0
+          ? (savingsBytes / totalSizeBytes).clamp(0.0, 1.0).toDouble()
           : 0.0;
-      final ratio = rawRatio.clamp(0.0, 1.0).toDouble();
 
       return SizedBox(
         height: _sizeInfoRegionHeight,
@@ -319,7 +337,7 @@ class GameCard extends StatelessWidget {
               sizeGB: sizeGB,
             ),
             const SizedBox(height: 2),
-            _CompressionBar(ratio: ratio),
+            _CompressionBar(ratio: savingsRatio),
           ],
         ),
       );
@@ -541,27 +559,33 @@ class _CompressionBar extends StatelessWidget {
   const _CompressionBar({required this.ratio});
 
   final double ratio;
-  static const BorderRadius _barRadius = BorderRadius.all(Radius.circular(2));
+  static const BorderRadius _barRadius = BorderRadius.all(Radius.circular(3));
   static const BoxDecoration _fillDecoration = BoxDecoration(
     gradient: AppColors.progressGradient,
   );
 
   @override
   Widget build(BuildContext context) {
+    final clamped = ratio.isFinite ? ratio.clamp(0.0, 1.0).toDouble() : 0.0;
     return SizedBox(
       height: 4,
       child: ClipRRect(
         borderRadius: _barRadius,
         clipBehavior: Clip.hardEdge,
         child: Stack(
+          fit: StackFit.expand,
           children: [
-            const SizedBox.expand(
-              child: ColoredBox(color: AppColors.surfaceElevated),
-            ),
-            FractionallySizedBox(
+            const ColoredBox(color: AppColors.surfaceElevated),
+            Align(
               alignment: Alignment.centerLeft,
-              widthFactor: ratio,
-              child: const DecoratedBox(decoration: _fillDecoration),
+              child: FractionallySizedBox(
+                widthFactor: clamped,
+                heightFactor: 1.0,
+                child: const DecoratedBox(
+                  decoration: _fillDecoration,
+                  child: SizedBox.expand(),
+                ),
+              ),
             ),
           ],
         ),

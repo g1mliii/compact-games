@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:compact_games/services/startup_window_coordinator.dart';
+import 'package:compact_games/services/shell_launch_args.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() {
@@ -9,7 +10,7 @@ void main() {
       shouldStartHiddenInTrayOnLaunch(
         isWeb: false,
         targetPlatform: TargetPlatform.windows,
-        args: const ['--minimized'],
+        launchArgs: ShellLaunchArgs.parse(const ['--minimized']),
       ),
       isTrue,
     );
@@ -17,7 +18,7 @@ void main() {
       shouldStartHiddenInTrayOnLaunch(
         isWeb: false,
         targetPlatform: TargetPlatform.windows,
-        args: const ['--other'],
+        launchArgs: ShellLaunchArgs.parse(const ['--other']),
       ),
       isFalse,
     );
@@ -25,9 +26,30 @@ void main() {
       shouldStartHiddenInTrayOnLaunch(
         isWeb: false,
         targetPlatform: TargetPlatform.macOS,
-        args: const ['--minimized'],
+        launchArgs: ShellLaunchArgs.parse(const ['--minimized']),
       ),
       isFalse,
+    );
+  });
+
+  test('shell action launch args imply hidden Windows startup', () {
+    final launchArgs = ShellLaunchArgs.parse(const [
+      '--shell-action',
+      'compress',
+      '--path',
+      r'C:\Games\Example',
+    ]);
+
+    expect(launchArgs.startHiddenInTray, isTrue);
+    expect(launchArgs.shellAction?.kind, ShellActionKind.compress);
+    expect(launchArgs.shellAction?.path, r'C:\Games\Example');
+    expect(
+      shouldStartHiddenInTrayOnLaunch(
+        isWeb: false,
+        targetPlatform: TargetPlatform.windows,
+        launchArgs: launchArgs,
+      ),
+      isTrue,
     );
   });
 
@@ -72,30 +94,33 @@ void main() {
     },
   );
 
-  test('minimized Windows startup initializes tray without showing window', () async {
-    final window = _FakeStartupWindowAdapter();
-    final tray = _FakeStartupTrayAdapter(
-      onInit: () =>
-          window.showInactiveCallsAtTrayInit = window.showInactiveCalls,
-    );
+  test(
+    'minimized Windows startup initializes tray without showing window',
+    () async {
+      final window = _FakeStartupWindowAdapter();
+      final tray = _FakeStartupTrayAdapter(
+        onInit: () =>
+            window.showInactiveCallsAtTrayInit = window.showInactiveCalls,
+      );
 
-    await initializeStartupWindow(
-      window: window,
-      tray: tray,
-      listener: _FakeWindowListener(),
-      options: const WindowOptions(),
-      startHiddenInTray: true,
-      isWeb: false,
-      targetPlatform: TargetPlatform.windows,
-    );
+      await initializeStartupWindow(
+        window: window,
+        tray: tray,
+        listener: _FakeWindowListener(),
+        options: const WindowOptions(),
+        startHiddenInTray: true,
+        isWeb: false,
+        targetPlatform: TargetPlatform.windows,
+      );
 
-    expect(window.ensureInitializedCalls, 1);
-    expect(window.setPreventCloseValues, <bool>[true]);
-    expect(window.waitUntilReadyToShowCalls, 1);
-    expect(window.showInactiveCalls, 0);
-    expect(tray.initCalls, 1);
-    expect(window.showInactiveCallsAtTrayInit, 0);
-  });
+      expect(window.ensureInitializedCalls, 1);
+      expect(window.setPreventCloseValues, <bool>[true]);
+      expect(window.waitUntilReadyToShowCalls, 1);
+      expect(window.showInactiveCalls, 0);
+      expect(tray.initCalls, 1);
+      expect(window.showInactiveCallsAtTrayInit, 0);
+    },
+  );
 
   test('startup window skips prevent-close outside Windows', () async {
     final window = _FakeStartupWindowAdapter();

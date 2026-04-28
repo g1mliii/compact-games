@@ -40,6 +40,13 @@ class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
     );
   }
 
+  Widget _buildStatusTitle(BuildContext context) {
+    return _InfoGroupTitle(
+      title: context.l10n.gameDetailsStatusGroupTitle,
+      bottomPadding: false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -56,7 +63,7 @@ class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _InfoGroupTitle(title: context.l10n.gameDetailsStatusGroupTitle),
+        _buildStatusTitle(context),
         ?noteSection,
         const SizedBox(height: 6),
         Align(
@@ -83,12 +90,7 @@ class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _InfoGroupTitle(
-                  title: context.l10n.gameDetailsStatusGroupTitle,
-                ),
-                ?noteSection,
-              ],
+              children: [_buildStatusTitle(context), ?noteSection],
             ),
           ),
           const SizedBox(width: 10),
@@ -118,15 +120,19 @@ class _StatusActionButtons extends ConsumerWidget {
   static const Color _kDestructiveBg = Color(0x14DA7453); // error @8%
   static const Color _kDestructiveBorder = Color(0x59DA7453); // error @35%
 
+  // Shared height across every action button so the Filled/Outlined labelled
+  // buttons sit at the same vertical size as the small icon-only buttons.
+  static const double _kActionButtonHeight = 32;
+
   // Static styles — built once at class load, never re-allocated on hover/resize.
   static final ButtonStyle _primaryStyle = FilledButton.styleFrom(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-    minimumSize: const Size(0, 32),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    minimumSize: const Size(0, _kActionButtonHeight),
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
   );
   static final ButtonStyle _secondaryStyle = OutlinedButton.styleFrom(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-    minimumSize: const Size(0, 32),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    minimumSize: const Size(0, _kActionButtonHeight),
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
   );
 
@@ -134,7 +140,7 @@ class _StatusActionButtons extends ConsumerWidget {
   // in the app (appButtonRadius / StatusBadge). Uses appInteractionOverlay for
   // hover/press feedback consistent with FilledButton and OutlinedButton.
   static final ButtonStyle _iconBtnStyle = IconButton.styleFrom(
-    fixedSize: const Size(30, 30),
+    fixedSize: const Size(_kActionButtonHeight, _kActionButtonHeight),
     padding: EdgeInsets.zero,
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     shape: const RoundedRectangleBorder(borderRadius: appButtonRadius),
@@ -144,7 +150,7 @@ class _StatusActionButtons extends ConsumerWidget {
 
   static final ButtonStyle _destructiveBtnStyle = IconButton.styleFrom(
     foregroundColor: AppColors.error,
-    fixedSize: const Size(30, 30),
+    fixedSize: const Size(_kActionButtonHeight, _kActionButtonHeight),
     padding: EdgeInsets.zero,
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     shape: const RoundedRectangleBorder(borderRadius: appButtonRadius),
@@ -217,7 +223,7 @@ class _StatusActionButtons extends ConsumerWidget {
         child: IconButton(
           tooltip: null,
           style: _destructiveBtnStyle,
-          onPressed: () => _removeFromLibrary(context, ref),
+          onPressed: () => unawaited(_removeFromLibrary(context, ref)),
           icon: const Icon(LucideIcons.trash2, size: 16),
         ),
       ),
@@ -254,11 +260,7 @@ class _StatusActionButtons extends ConsumerWidget {
       runSpacing: 4,
       alignment: WrapAlignment.end,
       crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        primaryAction,
-        ?secondaryAction,
-        ...actionIcons,
-      ],
+      children: [primaryAction, ?secondaryAction, ...actionIcons],
     );
   }
 
@@ -299,7 +301,10 @@ class _StatusActionButtons extends ConsumerWidget {
     ];
   }
 
-  void _removeFromLibrary(BuildContext context, WidgetRef ref) {
+  Future<void> _removeFromLibrary(BuildContext context, WidgetRef ref) async {
+    final readyToRemove = await _decompressBeforeLibraryRemoval(ref);
+    if (!context.mounted || !readyToRemove) return;
+
     ref.read(gameListProvider.notifier).removeGameByPath(game.path);
     ref.read(selectedGameProvider.notifier).state = null;
     ScaffoldMessenger.maybeOf(context)
@@ -311,6 +316,15 @@ class _StatusActionButtons extends ConsumerWidget {
         ),
       );
     unawaited(_persistLibraryRemoval(context, ref));
+  }
+
+  Future<bool> _decompressBeforeLibraryRemoval(WidgetRef ref) async {
+    if (!game.isCompressed) return true;
+
+    final status = await ref
+        .read(compressionProvider.notifier)
+        .startDecompressionAndWait(gamePath: game.path, gameName: game.name);
+    return status == CompressionJobStatus.completed;
   }
 
   Future<void> _persistLibraryRemoval(
@@ -341,21 +355,30 @@ class _StatusActionButtons extends ConsumerWidget {
     bool allowDirectStorageOverride,
   ) {
     final l10n = context.l10n;
-    return FilledButton.icon(
-      key: _detailsStatusPrimaryActionKey,
-      style: _primaryStyle,
-      onPressed: game.isDirectStorage && !allowDirectStorageOverride
-          ? null
-          : () => ref
-                .read(compressionProvider.notifier)
-                .startCompression(
-                  gamePath: game.path,
-                  gameName: game.name,
-                  allowDirectStorageOverride: allowDirectStorageOverride,
-                ),
-      icon: const Icon(LucideIcons.archive, size: 15),
-      label: Text(
-        game.isCompressed ? l10n.gameMenuRecompress : l10n.gameMenuCompressNow,
+    // SizedBox wrapper forces the height because FilledButton.icon's internal
+    // _ButtonWithIconChild ignores minimumSize when tapTargetSize is shrinkWrap,
+    // so the labelled button would otherwise sit shorter than the 32 px icon
+    // buttons it shares a row with.
+    return SizedBox(
+      height: _kActionButtonHeight,
+      child: FilledButton.icon(
+        key: _detailsStatusPrimaryActionKey,
+        style: _primaryStyle,
+        onPressed: game.isDirectStorage && !allowDirectStorageOverride
+            ? null
+            : () => ref
+                  .read(compressionProvider.notifier)
+                  .startCompression(
+                    gamePath: game.path,
+                    gameName: game.name,
+                    allowDirectStorageOverride: allowDirectStorageOverride,
+                  ),
+        icon: const Icon(LucideIcons.archive, size: 15),
+        label: Text(
+          game.isCompressed
+              ? l10n.gameMenuRecompress
+              : l10n.gameMenuCompressNow,
+        ),
       ),
     );
   }
@@ -365,14 +388,17 @@ class _StatusActionButtons extends ConsumerWidget {
       return null;
     }
 
-    return OutlinedButton.icon(
-      key: _detailsStatusDecompressActionKey,
-      style: _secondaryStyle,
-      onPressed: () => ref
-          .read(compressionProvider.notifier)
-          .startDecompression(gamePath: game.path, gameName: game.name),
-      icon: const Icon(LucideIcons.archiveRestore, size: 15),
-      label: Text(context.l10n.gameMenuDecompress),
+    return SizedBox(
+      height: _kActionButtonHeight,
+      child: OutlinedButton.icon(
+        key: _detailsStatusDecompressActionKey,
+        style: _secondaryStyle,
+        onPressed: () => ref
+            .read(compressionProvider.notifier)
+            .startDecompression(gamePath: game.path, gameName: game.name),
+        icon: const Icon(LucideIcons.archiveRestore, size: 15),
+        label: Text(context.l10n.gameMenuDecompress),
+      ),
     );
   }
 }

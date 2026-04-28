@@ -15,6 +15,7 @@ import '../../../../../models/compression_algorithm.dart';
 import '../../../../../models/compression_estimate.dart';
 import '../../../../../models/game_info.dart';
 import '../../../../../providers/compression/compression_provider.dart';
+import '../../../../../providers/compression/compression_state.dart';
 import '../../../../../providers/games/game_list_provider.dart';
 import '../../../../../providers/games/selected_game_provider.dart';
 import '../../../../../providers/settings/settings_provider.dart';
@@ -144,16 +145,12 @@ class GameDetailsInfoCard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _GameIdentityHeader(game: game),
+              const SizedBox(height: 12),
               statusSection,
               _StatLine(
                 label: _InfoLabel(l10n.gameDetailsPlatformLabel),
                 value: game.platform.localizedLabel(l10n),
-              ),
-              _StatLine(
-                label: _InfoLabel(l10n.gameDetailsCompressionLabel),
-                value: game.isCompressed
-                    ? l10n.gameDetailsCompressionCompressed
-                    : l10n.gameDetailsCompressionNotCompressed,
               ),
               _StatLine(
                 label: _InfoLabel(l10n.gameDetailsDirectStorageLabel),

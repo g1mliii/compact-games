@@ -1091,15 +1091,6 @@
   "@gameDetailsActivityDecompressingNow": {
     "description": "Localized message for game details activity decompressing now."
   },
-  "gameDetailsLastCompressedBadge": "Last compressed {value}",
-  "@gameDetailsLastCompressedBadge": {
-    "description": "Localized message for game details last compressed badge.",
-    "placeholders": {
-      "value": {
-        "type": "String"
-      }
-    }
-  },
   "gameDetailsStatusCompressed": "Compressed",
   "@gameDetailsStatusCompressed": {
     "description": "Localized message for game details status compressed."

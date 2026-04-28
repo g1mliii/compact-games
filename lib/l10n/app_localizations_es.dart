@@ -818,11 +818,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get gameDetailsActivityDecompressingNow => 'Descomprimiendo ahora';
 
   @override
-  String gameDetailsLastCompressedBadge(String value) {
-    return 'Última compresión $value';
-  }
-
-  @override
   String get gameDetailsStatusCompressed => 'Comprimido';
 
   @override

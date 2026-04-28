@@ -32,6 +32,12 @@ pub fn io_parallelism_override_to_usize(value: Option<u64>) -> Option<usize> {
     })
 }
 
+/// Encode a `&str` as a null-terminated UTF-16 buffer for Win32 PCWSTR APIs.
+#[cfg(windows)]
+pub fn wide_null_str(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
 /// Current time as milliseconds since Unix epoch.
 pub fn unix_now_ms() -> u64 {
     std::time::SystemTime::now()

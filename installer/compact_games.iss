@@ -19,7 +19,7 @@
 AppId={{E8F2B4A1-7D3C-4E5F-9A1B-2C3D4E5F6A7B}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppVerName={#AppName} {#AppVersion}
+AppVerName={#AppName}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppUrl}
 AppSupportURL={#AppUrl}/issues
@@ -69,6 +69,24 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 ; App registry subtree — removed on uninstall if empty
 Root: HKCU; Subkey: "Software\{#AppPublisher}\{#AppName}"; Flags: uninsdeletekeyifempty
 Root: HKCU; Subkey: "Software\{#AppPublisher}"; Flags: uninsdeletekeyifempty
+; Remove obsolete shortcut verbs. `.lnk` targets may be launcher executables
+; with arguments, so resolving only the executable path can target the wrong
+; folder.
+Root: HKCU; Subkey: "Software\Classes\lnkfile\shell\CompactGamesCompress"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\lnkfile\shell\CompactGamesDecompress"; Flags: deletekey
+; Explorer static shell verbs — per-user only.
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\CompactGamesCompress"; ValueType: string; ValueName: ""; ValueData: "Compress/Recompress with {#AppName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\CompactGamesCompress"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#AppExeName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\CompactGamesCompress\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" --minimized --shell-action compress --path ""%1"""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\CompactGamesDecompress"; ValueType: string; ValueName: ""; ValueData: "Decompress with {#AppName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\CompactGamesDecompress"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#AppExeName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\CompactGamesDecompress\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" --minimized --shell-action decompress --path ""%1"""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\exefile\shell\CompactGamesCompress"; ValueType: string; ValueName: ""; ValueData: "Compress/Recompress with {#AppName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\exefile\shell\CompactGamesCompress"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#AppExeName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\exefile\shell\CompactGamesCompress\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" --minimized --shell-action compress --path ""%1"""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\exefile\shell\CompactGamesDecompress"; ValueType: string; ValueName: ""; ValueData: "Decompress with {#AppName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\exefile\shell\CompactGamesDecompress"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#AppExeName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\exefile\shell\CompactGamesDecompress\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" --minimized --shell-action decompress --path ""%1"""; Flags: uninsdeletekey
 
 [Run]
 ; `skipifsilent` removed so the in-app updater (which runs /SILENT) still

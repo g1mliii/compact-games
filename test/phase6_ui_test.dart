@@ -519,8 +519,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final initialHeader = tester.widget<GameDetailsHeader>(
-        find.byType(GameDetailsHeader),
+      final initialCover = tester.widget<GameDetailsCover>(
+        find.byType(GameDetailsCover),
       );
       final initialInfoCard = tester.widget<Card>(
         find.byKey(const ValueKey<String>('detailsInfoCard')),
@@ -529,22 +529,22 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(912, 900));
       await tester.pumpAndSettle();
 
-      final withinBucketHeader = tester.widget<GameDetailsHeader>(
-        find.byType(GameDetailsHeader),
+      final withinBucketCover = tester.widget<GameDetailsCover>(
+        find.byType(GameDetailsCover),
       );
       final withinBucketInfoCard = tester.widget<Card>(
         find.byKey(const ValueKey<String>('detailsInfoCard')),
       );
-      expect(identical(withinBucketHeader, initialHeader), isTrue);
+      expect(identical(withinBucketCover, initialCover), isTrue);
       expect(identical(withinBucketInfoCard, initialInfoCard), isTrue);
 
       await tester.binding.setSurfaceSize(const Size(944, 900));
       await tester.pumpAndSettle();
 
-      final nextBucketHeader = tester.widget<GameDetailsHeader>(
-        find.byType(GameDetailsHeader),
+      final nextBucketCover = tester.widget<GameDetailsCover>(
+        find.byType(GameDetailsCover),
       );
-      expect(identical(nextBucketHeader, withinBucketHeader), isFalse);
+      expect(identical(nextBucketCover, withinBucketCover), isFalse);
       expect(tester.takeException(), isNull);
     },
   );
@@ -969,12 +969,12 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Game details shows last compressed when timestamp exists', (
+  testWidgets('Game details overlay shows status badge on the cover', (
     WidgetTester tester,
   ) async {
     final game = GameInfo(
-      name: 'Details Timestamp',
-      path: r'C:\Games\details_timestamp',
+      name: 'Details Status Badge',
+      path: r'C:\Games\details_status_badge',
       platform: Platform.steam,
       sizeBytes: 96 * _oneGiB,
       compressedSize: 70 * _oneGiB,
@@ -998,24 +998,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Compressed Mar 4, 16:05'), findsOneWidget);
-    expect(find.text('Last compressed'), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('detailsHeaderStatusBadge')),
-      findsOneWidget,
-    );
     expect(
       find.descendant(
-        of: find.byKey(const ValueKey<String>('detailsHeaderStatusBadge')),
-        matching: find.text('Compressed'),
+        of: find.byType(GameDetailsCover),
+        matching: find.byKey(
+          const ValueKey<String>('detailsHeaderStatusBadge'),
+        ),
       ),
       findsOneWidget,
     );
     expect(
       find.byKey(const ValueKey<String>('detailsHeaderLastCompressedBadge')),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.text('Last compressed Mar 4, 16:05'), findsOneWidget);
   });
 
   testWidgets(

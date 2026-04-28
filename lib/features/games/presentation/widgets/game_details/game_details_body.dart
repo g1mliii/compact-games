@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:compact_games/l10n/app_localizations.dart';
 
 import '../../../../../core/localization/app_localization.dart';
 import '../../../../../core/utils/cover_art_utils.dart';
@@ -15,6 +14,7 @@ import '../../../../../providers/games/single_game_provider.dart';
 import '../../../../../services/cover_art_service.dart';
 import 'details_info_card.dart';
 import 'details_media.dart';
+import 'details_status_overlay.dart';
 
 /// Shared body content for the game details view.
 /// Used by both the standalone [GameDetailsScreen] (wrapped in a Scaffold)
@@ -23,7 +23,11 @@ import 'details_media.dart';
 /// Caches the wide/compact layout mode so continuous window resize only
 /// rebuilds the content subtree when the breakpoint actually crosses.
 class GameDetailsBody extends ConsumerStatefulWidget {
-  const GameDetailsBody({required this.gamePath, super.key});
+  const GameDetailsBody({
+    required this.gamePath,
+    this.hideCoverStatusOverlay = false,
+    super.key,
+  });
 
   static const double maxContentWidth = 1120;
   static const double _contentWidthBucket = 32;
@@ -37,6 +41,11 @@ class GameDetailsBody extends ConsumerStatefulWidget {
   static const double _compactCoverWidth = 120;
 
   final String gamePath;
+
+  /// Suppresses the badge overlay drawn on top of the cover image. The
+  /// split-view list on the home screen already shows a status pill next to
+  /// each game, so the overlay just duplicates that signal there.
+  final bool hideCoverStatusOverlay;
 
   @override
   ConsumerState<GameDetailsBody> createState() => _GameDetailsBodyState();
@@ -78,13 +87,6 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
               final deferred = Scrollable.recommendDeferredLoadingForContext(
                 scrollContext,
               );
-              final headerDecodeWidth = _decodeWidth(
-                dpr: dpr,
-                logicalWidth: contentWidth,
-                min: 384,
-                max: 768,
-                bucket: 128,
-              );
               final coverDecodeWidth = _decodeWidth(
                 dpr: dpr,
                 logicalWidth: wide
@@ -98,7 +100,6 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
                 contentWidth,
                 wide,
                 compactRow,
-                headerDecodeWidth,
                 coverDecodeWidth,
                 deferred,
               ];
@@ -113,7 +114,6 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
                 contentWidth: contentWidth,
                 wide: wide,
                 compactRow: compactRow,
-                headerDecodeWidth: headerDecodeWidth,
                 coverDecodeWidth: coverDecodeWidth,
                 deferred: deferred,
               );
@@ -132,19 +132,14 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
     required double contentWidth,
     required bool wide,
     required bool compactRow,
-    required int headerDecodeWidth,
     required int coverDecodeWidth,
     required bool deferred,
   }) {
-    final header = _GameDetailsHeaderHost(
-      gamePath: widget.gamePath,
-      decodeWidth: headerDecodeWidth,
-      deferred: deferred,
-    );
     final cover = _GameDetailsCoverHost(
       gamePath: widget.gamePath,
       decodeWidth: coverDecodeWidth,
       deferred: deferred,
+      showStatusOverlay: !widget.hideCoverStatusOverlay,
     );
     final rightColumn = _DetailsRightColumnHost(gamePath: widget.gamePath);
 
@@ -154,8 +149,6 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            header,
-            const SizedBox(height: 16),
             if (wide)
               _buildWideLayout(cover: cover, rightColumn: rightColumn)
             else if (compactRow)
@@ -256,82 +249,18 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
   }
 }
 
-class _GameDetailsHeaderHost extends ConsumerWidget {
-  const _GameDetailsHeaderHost({
-    required this.gamePath,
-    required this.decodeWidth,
-    required this.deferred,
-  });
-
-  final String gamePath;
-  final int decodeWidth;
-  final bool deferred;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final locale = Localizations.localeOf(context);
-    final l10n = context.l10n;
-    final headerData = ref.watch(
-      singleGameProvider(gamePath).select((game) {
-        if (game == null) {
-          return null;
-        }
-        return (
-          name: game.name,
-          platform: game.platform,
-          statusKind: _detailsHeaderStatusKind(game),
-          statusLabel: _detailsHeaderStatusLabel(l10n, game),
-          lastCompressedText: formatLocalMonthDayTimeOrNull(
-            game.lastCompressed,
-            locale: locale,
-          ),
-        );
-      }),
-    );
-    final activityLabel = ref.watch(
-      activeCompressionJobProvider.select((job) {
-        if (job == null || job.gamePath != gamePath || !job.isActive) {
-          return null;
-        }
-        return job.type == CompressionJobType.compression
-            ? l10n.gameDetailsActivityCompressingNow
-            : l10n.gameDetailsActivityDecompressingNow;
-      }),
-    );
-    final coverSnapshot = ref.watch(
-      coverArtProvider(gamePath).select(_selectCoverArtSnapshot),
-    );
-    if (headerData == null) {
-      return const SizedBox.shrink();
-    }
-
-    return GameDetailsHeader(
-      gameName: headerData.name,
-      platform: headerData.platform,
-      statusKind: headerData.statusKind,
-      statusLabel: headerData.statusLabel,
-      lastCompressedLabel: headerData.lastCompressedText == null
-          ? null
-          : l10n.gameDetailsLastCompressedBadge(headerData.lastCompressedText!),
-      activityLabel: activityLabel,
-      coverProvider: _coverImageProviderFromSnapshot(coverSnapshot),
-      coverArtType: coverArtTypeFromSource(coverSnapshot.source),
-      decodeWidth: decodeWidth,
-      deferred: deferred,
-    );
-  }
-}
-
 class _GameDetailsCoverHost extends ConsumerWidget {
   const _GameDetailsCoverHost({
     required this.gamePath,
     required this.decodeWidth,
     required this.deferred,
+    required this.showStatusOverlay,
   });
 
   final String gamePath;
   final int decodeWidth;
   final bool deferred;
+  final bool showStatusOverlay;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -351,6 +280,46 @@ class _GameDetailsCoverHost extends ConsumerWidget {
       coverArtType: coverArtTypeFromSource(coverSnapshot.source),
       decodeWidth: decodeWidth,
       deferred: deferred,
+      overlay: showStatusOverlay
+          ? _GameDetailsStatusOverlayHost(gamePath: gamePath)
+          : null,
+    );
+  }
+}
+
+/// Watches narrowly so the cover host can stay rebuild-stable. Toggling
+/// fields like isUnsupported triggers a rebuild here, not in the cover host.
+class _GameDetailsStatusOverlayHost extends ConsumerWidget {
+  const _GameDetailsStatusOverlayHost({required this.gamePath});
+
+  final String gamePath;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final statusKind = ref.watch(
+      singleGameProvider(gamePath).select(
+        (game) => game == null ? null : detailsStatusKind(game),
+      ),
+    );
+    final activityLabel = ref.watch(
+      activeCompressionJobProvider.select((job) {
+        if (job == null || job.gamePath != gamePath || !job.isActive) {
+          return null;
+        }
+        return job.type == CompressionJobType.compression
+            ? l10n.gameDetailsActivityCompressingNow
+            : l10n.gameDetailsActivityDecompressingNow;
+      }),
+    );
+    if (statusKind == null) {
+      return const SizedBox.shrink();
+    }
+
+    return GameDetailsStatusOverlay(
+      statusKind: statusKind,
+      statusLabel: detailsStatusLabel(l10n, statusKind),
+      activityLabel: activityLabel,
     );
   }
 }
@@ -462,26 +431,4 @@ class _DetailsRightColumn extends StatelessWidget {
       ],
     );
   }
-}
-
-GameDetailsStatusKind _detailsHeaderStatusKind(GameInfo game) {
-  if (game.isUnsupported) {
-    return GameDetailsStatusKind.unsupported;
-  }
-  if (game.isDirectStorage) {
-    return GameDetailsStatusKind.directStorage;
-  }
-  if (game.isCompressed) {
-    return GameDetailsStatusKind.compressed;
-  }
-  return GameDetailsStatusKind.ready;
-}
-
-String _detailsHeaderStatusLabel(AppLocalizations l10n, GameInfo game) {
-  return switch (_detailsHeaderStatusKind(game)) {
-    GameDetailsStatusKind.unsupported => l10n.gameStatusUnsupported,
-    GameDetailsStatusKind.directStorage => l10n.gameStatusDirectStorage,
-    GameDetailsStatusKind.compressed => l10n.gameDetailsStatusCompressed,
-    GameDetailsStatusKind.ready => l10n.gameDetailsStatusReady,
-  };
 }

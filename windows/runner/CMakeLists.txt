@@ -46,11 +46,22 @@ add_custom_target(build_rust_core
   COMMAND
     ${CARGO_EXECUTABLE}
     build
+    --release
     --manifest-path
     "${CMAKE_SOURCE_DIR}/../rust/Cargo.toml"
-    $<$<NOT:$<CONFIG:Debug>>:--release>
   WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/../rust"
-  COMMENT "Building Rust core library"
+  COMMENT "Building Rust core library (always release; debug Rust adds no value at runtime and would break flutter run -d windows)"
+  VERBATIM
+)
+
+# Copy the freshly-built Rust DLL into the runner output dir so
+# `flutter run -d windows` (and -d windows --release) both find it without
+# manual intervention. The release CI pipeline still does its own copy step.
+add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/../rust/target/release/compact_games_core.dll"
+    "$<TARGET_FILE_DIR:${BINARY_NAME}>/compact_games_core.dll"
+  COMMENT "Staging compact_games_core.dll next to compact_games.exe"
   VERBATIM
 )
 

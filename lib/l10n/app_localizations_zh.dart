@@ -768,11 +768,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameDetailsActivityDecompressingNow => '正在解压';
 
   @override
-  String gameDetailsLastCompressedBadge(String value) {
-    return '上次压缩 $value';
-  }
-
-  @override
   String get gameDetailsStatusCompressed => '已压缩';
 
   @override

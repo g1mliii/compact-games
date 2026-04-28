@@ -4,6 +4,7 @@ pub mod compression;
 pub mod discovery;
 pub mod icon;
 pub mod minimal;
+pub mod shell;
 pub mod types;
 pub mod unsupported;
 pub mod update;

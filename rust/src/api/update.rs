@@ -58,7 +58,26 @@ pub fn check_for_update(current_version: String) -> Result<UpdateCheckResult, St
         return Ok(result);
     }
 
-    let body = fetch_text(LATEST_JSON_URL, USER_AGENT, MAX_BODY_BYTES)?;
+    let Some(body) = fetch_text(LATEST_JSON_URL, USER_AGENT, MAX_BODY_BYTES)? else {
+        // No latest.json available (release just cut and assets still uploading,
+        // or no public release exists yet). Treat as "you're up to date" so the
+        // user sees the same outcome as a normal no-update result, not an error.
+        let result = UpdateCheckResult {
+            update_available: false,
+            latest_version: current_version.clone(),
+            download_url: String::new(),
+            release_notes: String::new(),
+            checksum_sha256: String::new(),
+            published_at: String::new(),
+        };
+        if let Ok(mut guard) = LAST_RESULT.write() {
+            *guard = Some(result.clone());
+        }
+        if let Ok(mut guard) = LAST_CHECK_MS.write() {
+            *guard = now_ms;
+        }
+        return Ok(result);
+    };
     let manifest: LatestManifest =
         serde_json::from_str(&body).map_err(|e| format!("Invalid latest.json: {e}"))?;
 

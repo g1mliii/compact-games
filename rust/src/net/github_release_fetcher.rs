@@ -63,14 +63,16 @@ where
         config.bundle_url,
         config.user_agent,
         config.max_body_bytes.min(DEFAULT_MAX_BODY_BYTES),
-    )?;
+    )?
+    .ok_or_else(|| format!("Asset bundle not found at {}", config.bundle_url))?;
     let bundle: ReleaseAssetBundle =
         serde_json::from_str(&bundle_body).map_err(|e| format!("Invalid asset bundle: {e}"))?;
     if bundle.sha256.trim().is_empty() {
         return Err("Asset bundle did not include sha256".to_string());
     }
 
-    let asset_body = fetch_text(config.asset_url, config.user_agent, config.max_body_bytes)?;
+    let asset_body = fetch_text(config.asset_url, config.user_agent, config.max_body_bytes)?
+        .ok_or_else(|| format!("Release asset not found at {}", config.asset_url))?;
     verify_sha256(asset_body.as_bytes(), &bundle.sha256)?;
     let parsed: T = serde_json::from_str(&asset_body)
         .map_err(|e| format!("Invalid release asset JSON: {e}"))?;

@@ -213,7 +213,11 @@ pub(crate) fn lookup_steam_app_id_for_path(game_path: &Path) -> Option<u32> {
     let folder_name = game_path.file_name()?.to_str()?.to_ascii_lowercase();
     let common = game_path.parent()?;
     let steamapps = common.parent()?;
-    if steamapps.file_name().and_then(|n| n.to_str())?.to_ascii_lowercase() != "steamapps" {
+    if !steamapps
+        .file_name()
+        .and_then(|n| n.to_str())?
+        .eq_ignore_ascii_case("steamapps")
+    {
         return None;
     }
     let manifests = parse_app_manifests(steamapps);

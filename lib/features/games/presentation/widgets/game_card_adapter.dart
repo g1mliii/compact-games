@@ -14,6 +14,7 @@ import '../../../../models/compression_algorithm.dart';
 import '../../../../models/compression_estimate.dart';
 import '../../../../models/game_info.dart';
 import '../../../../providers/compression/compression_provider.dart';
+import '../../../../providers/compression/compression_state.dart';
 import '../../../../providers/cover_art/cover_art_provider.dart';
 import '../../../../providers/games/game_list_provider.dart';
 import '../../../../providers/games/single_game_provider.dart';
@@ -571,12 +572,15 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         await _openFolder(game.path);
         break;
       case GameContextAction.removeFromLibrary:
-        _removeFromLibrary(game);
+        await _removeFromLibrary(game);
         break;
     }
   }
 
-  void _removeFromLibrary(GameInfo game) {
+  Future<void> _removeFromLibrary(GameInfo game) async {
+    final readyToRemove = await _decompressBeforeLibraryRemoval(game);
+    if (!mounted || !readyToRemove) return;
+
     ref.read(gameListProvider.notifier).removeGameByPath(game.path);
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
@@ -587,6 +591,15 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         ),
       );
     unawaited(_persistLibraryRemoval(game));
+  }
+
+  Future<bool> _decompressBeforeLibraryRemoval(GameInfo game) async {
+    if (!game.isCompressed) return true;
+
+    final status = await ref
+        .read(compressionProvider.notifier)
+        .startDecompressionAndWait(gamePath: game.path, gameName: game.name);
+    return status == CompressionJobStatus.completed;
   }
 
   Future<void> _persistLibraryRemoval(GameInfo game) async {

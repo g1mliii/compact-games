@@ -47,11 +47,17 @@ pub fn fetch_community_unsupported_list() -> Result<u32, String> {
 
     const MAX_BODY_BYTES: u64 = 1024 * 1024;
 
-    let body = crate::net::fetch_text(
+    let Some(body) = crate::net::fetch_text(
         unsupported_games::DEFAULT_COMMUNITY_LIST_ENDPOINT,
         "CompactGames-Community-List/1",
         MAX_BODY_BYTES,
-    )?;
+    )?
+    else {
+        // 404: list asset not yet attached to the latest release. Mark fetched
+        // so we don't retry on every check, and return whatever's cached.
+        unsupported_games::mark_community_list_fetched()?;
+        return Ok(unsupported_games::community_list_len());
+    };
 
     let games: Vec<String> =
         serde_json::from_str(&body).map_err(|e| format!("Invalid JSON: {e}"))?;

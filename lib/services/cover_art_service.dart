@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -178,15 +179,19 @@ class CoverArtService {
     if (game.platform == Platform.steam) {
       final steamCover = await _resolveSteamLibraryCover(game.path);
       if (steamCover != null) {
-        final copied = await _copyIntoCache(cacheKey, steamCover);
-        final revision = _bumpCoverRevision(cacheKey);
-        final result = CoverArtResult(
-          uri: File(copied).uri.toString(),
-          source: CoverArtSource.steamLibraryCache,
-          revision: revision,
-        );
-        _writeMemoryCache(cacheKey, result);
-        return result;
+        try {
+          final copied = await _copyIntoCache(cacheKey, steamCover);
+          final revision = _bumpCoverRevision(cacheKey);
+          final result = CoverArtResult(
+            uri: File(copied).uri.toString(),
+            source: CoverArtSource.steamLibraryCache,
+            revision: revision,
+          );
+          _writeMemoryCache(cacheKey, result);
+          return result;
+        } on FileSystemException {
+          // Source was empty / unreadable — fall through to API and icon.
+        }
       }
     }
 
@@ -226,17 +231,34 @@ class CoverArtService {
     RustBridgeService? rustBridge,
   }) async {
     if (rustBridge == null) return null;
-    final exePath = _readEstimateHint(cacheKey);
-    if (exePath == null) return null;
+    // Prefer the exe path the estimator already discovered. Falls back to
+    // scanning the game folder so compressed app games (which skip the
+    // estimate fetch) still get an icon.
+    final hintedPath = _readEstimateHint(cacheKey);
+    final exePath = hintedPath ?? await _discoverPrimaryExe(game.path);
+    if (exePath == null) {
+      debugPrint(
+        '[cover] no exe found for ${game.name} at ${game.path} (hint=${hintedPath != null})',
+      );
+      return null;
+    }
     try {
       final pngBytes = rustBridge.extractExeIcon(exePath: exePath);
-      if (pngBytes == null || pngBytes.isEmpty) return null;
+      if (pngBytes == null || pngBytes.isEmpty) {
+        debugPrint(
+          '[cover] extractExeIcon returned empty for ${game.name} (exe=$exePath)',
+        );
+        return null;
+      }
       final cacheDir = await _ensureCacheDir();
       final file = File(p.join(cacheDir.path, '$cacheKey.img'));
       await file.writeAsBytes(pngBytes);
       await _writeCachedCoverSource(cacheDir, cacheKey, CoverArtSource.exeIcon);
       _scheduleCacheEviction(cacheDir);
       final revision = _bumpCoverRevision(cacheKey);
+      // Prime the in-memory hint so subsequent re-resolutions (e.g. after a
+      // refresh) skip the folder walk.
+      _writeEstimateHint(cacheKey, exePath);
       return CoverArtResult(
         uri: file.uri.toString(),
         source: CoverArtSource.exeIcon,
@@ -245,6 +267,93 @@ class CoverArtService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Walk a game folder up to a few levels deep and pick the most likely
+  /// "primary" executable for icon extraction. Skips known non-game names
+  /// (installers, crash reporters, redists) and picks the largest remaining
+  /// .exe.
+  static const int _exeDiscoveryMaxDepth = 4;
+  static const int _exeDiscoveryMaxFiles = 600;
+  static const Set<String> _exeDiscoveryNoiseDirs = {
+    '\$recycle.bin',
+    'redist',
+    'redists',
+    '_commonredist',
+    'support',
+    'crashpad',
+    'crashreporter',
+    'crashreports',
+    'directx',
+    'vcredist',
+    'dotnet',
+    '.git',
+    'logs',
+    'cache',
+    'shadercache',
+  };
+
+  Future<String?> _discoverPrimaryExe(String folderPath) async {
+    if (folderPath.isEmpty) return null;
+    // game.path occasionally points at the executable directly (manual
+    // imports). Use it as-is when it's already an .exe file on disk.
+    if (folderPath.toLowerCase().endsWith('.exe') &&
+        await File(folderPath).exists()) {
+      return folderPath;
+    }
+    final root = Directory(folderPath);
+    if (!(await root.exists())) return null;
+
+    String? best;
+    var bestSize = -1;
+    var filesScanned = 0;
+    final queue = <(Directory dir, int depth)>[(root, 0)];
+
+    while (queue.isNotEmpty) {
+      final (dir, depth) = queue.removeLast();
+      try {
+        await for (final entity in dir.list(followLinks: false)) {
+          if (filesScanned >= _exeDiscoveryMaxFiles) {
+            return best;
+          }
+          if (entity is Directory) {
+            if (depth + 1 > _exeDiscoveryMaxDepth) continue;
+            final nameLower = p.basename(entity.path).toLowerCase();
+            if (_exeDiscoveryNoiseDirs.contains(nameLower)) continue;
+            queue.add((entity, depth + 1));
+            continue;
+          }
+          if (entity is! File) continue;
+          filesScanned += 1;
+          final lower = p.basename(entity.path).toLowerCase();
+          if (!lower.endsWith('.exe')) continue;
+          if (_isNonGameExecutableName(lower)) continue;
+          try {
+            final size = (await entity.stat()).size;
+            if (size > bestSize) {
+              best = entity.path;
+              bestSize = size;
+            }
+          } catch (_) {}
+        }
+      } catch (_) {
+        // Permission denied or unreadable — skip this directory.
+        continue;
+      }
+    }
+    return best;
+  }
+
+  static bool _isNonGameExecutableName(String lowerName) {
+    return lowerName.contains('setup') ||
+        lowerName.contains('install') ||
+        lowerName.contains('unins') ||
+        lowerName.contains('vcredist') ||
+        lowerName.contains('dxsetup') ||
+        lowerName.contains('crashpad') ||
+        lowerName.contains('crashreport') ||
+        lowerName.contains('redist') ||
+        lowerName.contains('updater');
   }
 
   Future<CoverArtResult?> _readCachedCover(String cacheKey) async {
@@ -258,6 +367,17 @@ class CoverArtService {
       return null;
     }
     if (stat.type == FileSystemEntityType.notFound) {
+      return null;
+    }
+    // Drop empty cache files. A 0-byte .img can be left behind after a
+    // partial write or a failed copy and would otherwise resolve to a
+    // non-null URI that decodes to nothing — the user sees a blank cover
+    // with no platform-icon fallback because coverImageProvider != null.
+    if (stat.size <= 0) {
+      try {
+        await file.delete();
+        await _clearCachedCoverSource(cacheDir, cacheKey);
+      } catch (_) {}
       return null;
     }
     final now = DateTime.now();
@@ -308,6 +428,12 @@ class CoverArtService {
   Future<String> _copyIntoCache(String cacheKey, String sourcePath) async {
     final cacheDir = await _ensureCacheDir();
     final sourceFile = File(sourcePath);
+    // Refuse to copy in zero-byte sources so we never poison the cache with
+    // a non-null URI that decodes to nothing.
+    final sourceStat = await sourceFile.stat();
+    if (sourceStat.size <= 0) {
+      throw const FileSystemException('Refusing to cache empty cover source');
+    }
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await sourceFile.copy(target.path);
     await _clearCachedCoverSource(cacheDir, cacheKey);

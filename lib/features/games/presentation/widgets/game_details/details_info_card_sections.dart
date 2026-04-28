@@ -1,22 +1,38 @@
 part of 'details_info_card.dart';
 
-class _InfoGroupTitle extends StatelessWidget {
-  const _InfoGroupTitle({required this.title});
+class _GameIdentityHeader extends StatelessWidget {
+  const _GameIdentityHeader({required this.game});
 
-  final String title;
+  final GameInfo game;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        title,
-        style: AppTypography.label.copyWith(
-          color: AppColors.textSecondary,
-          letterSpacing: 0.8,
-        ),
+    return Text(
+      game.name,
+      style: AppTypography.headingSmall.copyWith(fontWeight: FontWeight.w700),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _InfoGroupTitle extends StatelessWidget {
+  const _InfoGroupTitle({required this.title, this.bottomPadding = true});
+
+  final String title;
+  final bool bottomPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      title,
+      style: AppTypography.label.copyWith(
+        color: AppColors.textSecondary,
+        letterSpacing: 0.8,
       ),
     );
+    if (!bottomPadding) return text;
+    return Padding(padding: const EdgeInsets.only(bottom: 4), child: text);
   }
 }
 

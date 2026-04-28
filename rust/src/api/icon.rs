@@ -17,6 +17,8 @@ pub(crate) mod platform {
     use windows::Win32::UI::Shell::ExtractIconExW;
     use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO};
 
+    use crate::utils::wide_null_str;
+
     /// Cap on how many icon resources we probe per EXE. `ExtractIconExW`
     /// returns icons roughly in descending size, and a single probe already
     /// runs GetDIBits to read the color bitmap; a tight cap keeps cover-art
@@ -39,7 +41,7 @@ pub(crate) mod platform {
             return None;
         }
 
-        let wide_path: Vec<u16> = exe_path.encode_utf16().chain(std::iter::once(0)).collect();
+        let wide_path = wide_null_str(exe_path);
         let icon_count = unsafe { ExtractIconExW(PCWSTR(wide_path.as_ptr()), -1, None, None, 0) };
         if icon_count == 0 {
             return None;

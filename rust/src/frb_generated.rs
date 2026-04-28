@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1049072083;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 987500232;
 
 // Section: executor
 
@@ -998,6 +998,39 @@ fn wire__crate__api__unsupported__report_unsupported_game_impl(
         },
     )
 }
+fn wire__crate__api__shell__resolve_shortcut_target_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "resolve_shortcut_target",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_shortcut_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::shell::FrbShellError>((move || {
+                    let output_ok = crate::api::shell::resolve_shortcut_target(api_shortcut_path)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__discovery__scan_custom_folder_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1866,6 +1899,32 @@ impl SseDecode for crate::api::automation_types::FrbSchedulerState {
     }
 }
 
+impl SseDecode for crate::api::shell::FrbShellError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::shell::FrbShellError::InvalidPath {
+                    message: var_message,
+                };
+            }
+            1 => {
+                let mut var_path = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::shell::FrbShellError::ResolutionFailed {
+                    path: var_path,
+                    message: var_message,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::api::automation_types::FrbWatcherDiagnostics {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2181,51 +2240,54 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         29 => {
+            wire__crate__api__shell__resolve_shortcut_target_impl(port, ptr, rust_vec_len, data_len)
+        }
+        30 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        30 => wire__crate__api__automation__shared_auto_state_default_impl(
+        31 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        31 => wire__crate__api__automation__start_auto_compression_impl(
+        32 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
+        34 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__automation__update_automation_config_impl(
+        36 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        37 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__automation__watch_automation_queue_impl(
+        38 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__automation__watch_scheduler_state_impl(
+        39 => wire__crate__api__automation__watch_scheduler_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__automation__watch_watcher_events_impl(
+        40 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2277,8 +2339,8 @@ fn pde_ffi_dispatcher_sync_impl(
         28 => {
             wire__crate__api__unsupported__report_unsupported_game_impl(ptr, rust_vec_len, data_len)
         }
-        32 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
+        33 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -2735,6 +2797,36 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::automation_types::FrbSchedule
     for crate::api::automation_types::FrbSchedulerState
 {
     fn into_into_dart(self) -> crate::api::automation_types::FrbSchedulerState {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::shell::FrbShellError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::shell::FrbShellError::InvalidPath { message } => {
+                [0.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::shell::FrbShellError::ResolutionFailed { path, message } => [
+                1.into_dart(),
+                path.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::shell::FrbShellError
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::shell::FrbShellError>
+    for crate::api::shell::FrbShellError
+{
+    fn into_into_dart(self) -> crate::api::shell::FrbShellError {
         self
     }
 }
@@ -3247,6 +3339,26 @@ impl SseEncode for crate::api::automation_types::FrbSchedulerState {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::shell::FrbShellError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::shell::FrbShellError::InvalidPath { message } => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::api::shell::FrbShellError::ResolutionFailed { path, message } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(path, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 

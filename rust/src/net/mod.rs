@@ -14,7 +14,16 @@ pub fn is_allowed_release_url(url: &str) -> bool {
 /// Fetch a URL as text with manual redirect handling.
 ///
 /// HTTPS-only redirect targets, body capped at `max_body_bytes`.
-pub fn fetch_text(url: &str, user_agent: &str, max_body_bytes: u64) -> Result<String, String> {
+///
+/// Returns `Ok(None)` for HTTP 404 — the asset / manifest does not exist
+/// yet (e.g. a release was just cut but its assets are still uploading,
+/// or no public release has been published). Callers should treat that
+/// as a benign "no data" outcome rather than a hard error.
+pub fn fetch_text(
+    url: &str,
+    user_agent: &str,
+    max_body_bytes: u64,
+) -> Result<Option<String>, String> {
     let agent = ureq::Agent::new_with_config(
         ureq::config::Config::builder()
             .timeout_global(Some(Duration::from_secs(DEFAULT_HTTP_TIMEOUT_SECS)))
@@ -44,6 +53,9 @@ pub fn fetch_text(url: &str, user_agent: &str, max_body_bytes: u64) -> Result<St
             next_url = location.to_string();
             continue;
         }
+        if status == 404 {
+            return Ok(None);
+        }
         if status != 200 {
             return Err(format!("Unexpected HTTP status: {status}"));
         }
@@ -56,7 +68,7 @@ pub fn fetch_text(url: &str, user_agent: &str, max_body_bytes: u64) -> Result<St
         if body.len() as u64 > max_body_bytes {
             return Err("Response too large".to_string());
         }
-        return Ok(body);
+        return Ok(Some(body));
     }
 
     Err("Too many redirects".to_string())

@@ -20,7 +20,31 @@ extension _CoverArtServiceSteam on CoverArtService {
       return null;
     }
 
-    final candidates = <String>[
+    // Modern Steam (post-2024 client revamp) stores cover art in a per-appid
+    // subdirectory with stable filenames like library_600x900.jpg.
+    final perAppDir = Directory(p.join(libraryCache.path, appId));
+    if (await perAppDir.exists()) {
+      const perAppCandidates = <String>[
+        'library_600x900.jpg',
+        'library_capsule.jpg',
+        'header.jpg',
+        'library_hero.jpg',
+        'logo.png',
+      ];
+      for (final name in perAppCandidates) {
+        final path = p.join(perAppDir.path, name);
+        if (await File(path).exists()) {
+          return path;
+        }
+      }
+      final fallback = await _resolveSteamLibraryCoverByScanInDir(perAppDir);
+      if (fallback != null) {
+        return fallback;
+      }
+    }
+
+    // Legacy flat layout (older Steam clients): <appid>_library_600x900.jpg.
+    final legacyCandidates = <String>[
       '${appId}_library_600x900_2x.jpg',
       '${appId}_library_600x900.jpg',
       '${appId}_library_capsule.jpg',
@@ -28,13 +52,50 @@ extension _CoverArtServiceSteam on CoverArtService {
       '${appId}_hero_capsule.jpg',
       '${appId}_logo.png',
     ];
-    for (final name in candidates) {
+    for (final name in legacyCandidates) {
       final path = p.join(libraryCache.path, name);
       if (await File(path).exists()) {
         return path;
       }
     }
     return _resolveSteamLibraryCoverByScan(libraryCache, appId);
+  }
+
+  /// Scan a per-appid subfolder (modern Steam layout) for the best art file.
+  /// Same scoring as the legacy scan, just without the `<appid>_` prefix
+  /// requirement since these files live inside their own appid-keyed dir.
+  Future<String?> _resolveSteamLibraryCoverByScanInDir(Directory dir) async {
+    const allowedExtensions = <String>{'.jpg', '.jpeg', '.png', '.webp'};
+    const preferredTokens = <String>[
+      '600x900',
+      'library',
+      'capsule',
+      'header',
+      'hero',
+      'logo',
+    ];
+
+    String? bestPath;
+    var bestScore = -1;
+    await for (final entity in dir.list(followLinks: false)) {
+      if (entity is! File) continue;
+      final name = p.basename(entity.path).toLowerCase();
+      final ext = p.extension(name);
+      if (!allowedExtensions.contains(ext)) continue;
+
+      var score = 0;
+      for (var i = 0; i < preferredTokens.length; i++) {
+        if (name.contains(preferredTokens[i])) {
+          score += 12 - i;
+        }
+      }
+      if (ext == '.jpg' || ext == '.png') score += 2;
+      if (score > bestScore) {
+        bestScore = score;
+        bestPath = entity.path;
+      }
+    }
+    return bestPath;
   }
 
   Future<String?> _resolveSteamAppIdFromGamePath(String gamePath) {

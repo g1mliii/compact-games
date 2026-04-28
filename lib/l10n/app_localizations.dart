@@ -1480,12 +1480,6 @@ abstract class AppLocalizations {
   /// **'Decompressing now'**
   String get gameDetailsActivityDecompressingNow;
 
-  /// Localized message for game details last compressed badge.
-  ///
-  /// In en, this message translates to:
-  /// **'Last compressed {value}'**
-  String gameDetailsLastCompressedBadge(String value);
-
   /// Localized message for game details status compressed.
   ///
   /// In en, this message translates to:

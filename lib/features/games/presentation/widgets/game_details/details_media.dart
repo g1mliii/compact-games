@@ -1,267 +1,10 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import '../../../../../core/constants/app_constants.dart';
-import '../../../../../core/localization/app_localization.dart';
-import '../../../../../core/localization/presentation_labels.dart';
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/utils/platform_icon.dart';
-import '../../../../../core/widgets/status_badge.dart';
 import '../../../../../models/game_info.dart';
 import '../../../../../services/cover_art_service.dart';
-
-const double _headerHeight = 156;
-const ValueKey<String> _detailsHeaderStatusBadgeKey = ValueKey<String>(
-  'detailsHeaderStatusBadge',
-);
-const ValueKey<String> _detailsHeaderLastCompressedBadgeKey = ValueKey<String>(
-  'detailsHeaderLastCompressedBadge',
-);
-const ValueKey<String> _detailsHeaderActivityBadgeKey = ValueKey<String>(
-  'detailsHeaderActivityBadge',
-);
-
-enum GameDetailsStatusKind { ready, compressed, directStorage, unsupported }
-
-class GameDetailsHeader extends StatelessWidget {
-  const GameDetailsHeader({
-    required this.gameName,
-    required this.platform,
-    required this.statusKind,
-    required this.statusLabel,
-    required this.coverProvider,
-    required this.decodeWidth,
-    required this.deferred,
-    this.coverArtType,
-    this.lastCompressedLabel,
-    this.activityLabel,
-    super.key,
-  });
-
-  static final _scrimTop = Colors.black.withValues(alpha: 0.08);
-  static final _scrimMid = Colors.black.withValues(alpha: 0.24);
-  static final _scrimBottom = AppColors.nightDune.withValues(alpha: 0.9);
-
-  final String gameName;
-  final Platform platform;
-  final GameDetailsStatusKind statusKind;
-  final String statusLabel;
-  final ImageProvider<Object>? coverProvider;
-  final int decodeWidth;
-  final bool deferred;
-  final CoverArtType? coverArtType;
-  final String? lastCompressedLabel;
-  final String? activityLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        height: _headerHeight,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            RepaintBoundary(
-              child: _HeaderBackgroundArt(
-                coverProvider:
-                    coverArtType == CoverArtType.icon ? null : coverProvider,
-                decodeWidth: decodeWidth,
-                deferred: deferred,
-                platform: platform,
-              ),
-            ),
-            RepaintBoundary(
-              child: _HeaderForeground(
-                gameName: gameName,
-                platform: platform,
-                statusKind: statusKind,
-                statusLabel: statusLabel,
-                lastCompressedLabel: lastCompressedLabel,
-                activityLabel: activityLabel,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-Color _statusBadgeColor(GameDetailsStatusKind statusKind) {
-  return switch (statusKind) {
-    GameDetailsStatusKind.unsupported => AppColors.warning,
-    GameDetailsStatusKind.compressed => AppColors.richGold,
-    GameDetailsStatusKind.directStorage => AppColors.directStorage,
-    GameDetailsStatusKind.ready => AppColors.info,
-  };
-}
-
-class _HeaderForeground extends StatelessWidget {
-  const _HeaderForeground({
-    required this.gameName,
-    required this.platform,
-    required this.statusKind,
-    required this.statusLabel,
-    this.lastCompressedLabel,
-    this.activityLabel,
-  });
-
-  final String gameName;
-  final Platform platform;
-  final GameDetailsStatusKind statusKind;
-  final String statusLabel;
-  final String? lastCompressedLabel;
-  final String? activityLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: const [0, 0.56, 1],
-          colors: [
-            GameDetailsHeader._scrimTop,
-            GameDetailsHeader._scrimMid,
-            GameDetailsHeader._scrimBottom,
-          ],
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _HeaderBadge(
-                  badgeKey: _detailsHeaderStatusBadgeKey,
-                  label: statusLabel,
-                  color: _statusBadgeColor(statusKind),
-                ),
-                if (lastCompressedLabel != null)
-                  _HeaderBadge(
-                    badgeKey: _detailsHeaderLastCompressedBadgeKey,
-                    label: lastCompressedLabel!,
-                    color: AppColors.info,
-                  ),
-                if (activityLabel != null)
-                  _HeaderBadge(
-                    badgeKey: _detailsHeaderActivityBadgeKey,
-                    label: activityLabel!,
-                    color: AppColors.richGold,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              gameName,
-              style: AppTypography.headingMedium.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  platformIcon(platform),
-                  size: 14,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  platform.localizedLabel(context.l10n),
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderBadge extends StatelessWidget {
-  const _HeaderBadge({
-    required this.badgeKey,
-    required this.label,
-    required this.color,
-  });
-
-  final Key badgeKey;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return StatusBadge(key: badgeKey, label: label, color: color);
-  }
-}
-
-class _HeaderBackgroundArt extends StatelessWidget {
-  const _HeaderBackgroundArt({
-    required this.coverProvider,
-    required this.decodeWidth,
-    required this.deferred,
-    required this.platform,
-  });
-
-  // Cached filter — Skia compiles the blur shader once per app lifetime
-  // instead of once per ImageFilter instance (which caused the "frame time
-  // older than last" vsync clamping errors on first open of each game).
-  static final _kBlur = ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8);
-
-  final ImageProvider<Object>? coverProvider;
-  final int decodeWidth;
-  final bool deferred;
-  final Platform platform;
-
-  @override
-  Widget build(BuildContext context) {
-    if (coverProvider == null) {
-      return DecoratedBox(
-        decoration: const BoxDecoration(gradient: AppColors.panelGradient),
-        child: Center(
-          child: Icon(
-            platformIcon(platform),
-            size: 38,
-            color: AppColors.desertSand.withValues(alpha: 0.7),
-          ),
-        ),
-      );
-    }
-
-    final quality = deferred ? FilterQuality.none : FilterQuality.low;
-    final image = _CachedResizeImage(
-      provider: coverProvider!,
-      decodeWidth: decodeWidth,
-      fit: BoxFit.cover,
-      alignment: Alignment.center,
-      filterQuality: quality,
-      errorBuilder: _HeaderFallback(platform: platform),
-    );
-    if (deferred) {
-      return image;
-    }
-    return ImageFiltered(
-      imageFilter: _kBlur,
-      child: image,
-    );
-  }
-}
 
 class GameDetailsCover extends StatelessWidget {
   const GameDetailsCover({
@@ -270,6 +13,7 @@ class GameDetailsCover extends StatelessWidget {
     required this.decodeWidth,
     required this.deferred,
     this.coverArtType,
+    this.overlay,
     super.key,
   });
 
@@ -278,6 +22,7 @@ class GameDetailsCover extends StatelessWidget {
   final int decodeWidth;
   final bool deferred;
   final CoverArtType? coverArtType;
+  final Widget? overlay;
 
   @override
   Widget build(BuildContext context) {
@@ -289,9 +34,12 @@ class GameDetailsCover extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: ColoredBox(
             color: AppColors.surfaceElevated,
-            child: coverProvider == null
-                ? _CoverFallback(platform: platform)
-                : coverArtType == CoverArtType.icon
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                coverProvider == null
+                    ? _CoverFallback(platform: platform)
+                    : coverArtType == CoverArtType.icon
                     ? _IconCoverLayout(
                         coverProvider: coverProvider!,
                         platform: platform,
@@ -307,6 +55,18 @@ class GameDetailsCover extends StatelessWidget {
                         isAntiAlias: true,
                         errorBuilder: _CoverFallback(platform: platform),
                       ),
+                if (overlay != null)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    left: 8,
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: overlay!,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -315,10 +75,7 @@ class GameDetailsCover extends StatelessWidget {
 }
 
 class _IconCoverLayout extends StatelessWidget {
-  const _IconCoverLayout({
-    required this.coverProvider,
-    required this.platform,
-  });
+  const _IconCoverLayout({required this.coverProvider, required this.platform});
 
   final ImageProvider<Object> coverProvider;
   final Platform platform;
@@ -342,26 +99,6 @@ class _IconCoverLayout extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _HeaderFallback extends StatelessWidget {
-  const _HeaderFallback({required this.platform});
-
-  final Platform platform;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(gradient: AppColors.panelGradient),
-      child: Center(
-        child: Icon(
-          platformIcon(platform),
-          size: 38,
-          color: AppColors.desertSand.withValues(alpha: 0.7),
-        ),
-      ),
     );
   }
 }

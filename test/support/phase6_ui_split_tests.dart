@@ -778,6 +778,51 @@ void runPhase6OversizeSplitTests() {
   );
 
   testWidgets(
+    'Home list view remove action decompresses compressed games before removal',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Compressed Tool Folder',
+        path: r'C:\Games\compressed_tool_folder',
+        platform: Platform.application,
+        sizeBytes: 16 * _oneGiB,
+        compressedSize: 9 * _oneGiB,
+        isCompressed: true,
+      );
+      final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameListView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Compressed Tool Folder'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Remove from Library'));
+      await tester.pumpAndSettle();
+
+      expect(bridge.decompressCalls, 1);
+      expect(bridge.removeGameFromDiscoveryCalls, 1);
+      expect(bridge.lastRemovedGamePath, game.path);
+      expect(container.read(selectedGameProvider), isNull);
+      expect(container.read(gameListProvider).valueOrNull?.games, isEmpty);
+    },
+  );
+
+  testWidgets(
     'Game details refresh same-URI cover art without rebuilding the info card',
     (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 900));
@@ -817,19 +862,14 @@ void runPhase6OversizeSplitTests() {
       final initialInfoCard = tester.widget<Card>(
         find.byKey(const ValueKey<String>('detailsInfoCard')),
       );
-      final initialHeader = tester.widget<GameDetailsHeader>(
-        find.byType(GameDetailsHeader),
-      );
       final initialCover = tester.widget<GameDetailsCover>(
         find.byType(GameDetailsCover),
       );
       final initialCoverResult = container
           .read(coverArtProvider(game.path))
           .valueOrNull;
-      final initialHeaderProvider = initialHeader.coverProvider;
       final initialCoverProvider = initialCover.coverProvider;
       expect(initialCoverResult?.revision, 1);
-      expect(initialHeaderProvider, isNotNull);
       expect(initialCoverProvider, isNotNull);
 
       coverService.rewriteCover(game.path);
@@ -844,15 +884,11 @@ void runPhase6OversizeSplitTests() {
       final updatedInfoCard = tester.widget<Card>(
         find.byKey(const ValueKey<String>('detailsInfoCard')),
       );
-      final updatedHeader = tester.widget<GameDetailsHeader>(
-        find.byType(GameDetailsHeader),
-      );
       final updatedCover = tester.widget<GameDetailsCover>(
         find.byType(GameDetailsCover),
       );
       expect(updatedCoverResult?.revision, 2);
       expect(identical(updatedInfoCard, initialInfoCard), isTrue);
-      expect(updatedHeader.coverProvider, isNot(equals(initialHeaderProvider)));
       expect(updatedCover.coverProvider, isNot(equals(initialCoverProvider)));
       expect(tester.takeException(), isNull);
     },
@@ -1120,6 +1156,57 @@ void runPhase6OversizeSplitTests() {
     expect(image.fit, BoxFit.contain);
     expect(image.isAntiAlias, isTrue);
     expect(image.filterQuality, FilterQuality.low);
+  });
+
+  testWidgets('GameCard renders metadata above a bottom cover panel', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 280,
+            height: 420,
+            child: GameCard(
+              gameName: 'Flipped Card',
+              platform: Platform.steam,
+              totalSizeBytes: 10 * _oneGiB,
+              assumeBoundedHeight: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final infoPanelFinder = find.byWidgetPredicate((widget) {
+      if (widget is! DecoratedBox) {
+        return false;
+      }
+      final decoration = widget.decoration;
+      return decoration is BoxDecoration &&
+          decoration.color == AppColors.nightDune.withValues(alpha: 0.58) &&
+          decoration.borderRadius ==
+              const BorderRadius.vertical(top: Radius.circular(12));
+    });
+    final coverFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is ClipRRect &&
+          widget.borderRadius ==
+              const BorderRadius.vertical(bottom: Radius.circular(12)),
+    );
+
+    expect(infoPanelFinder, findsOneWidget);
+    expect(coverFinder, findsOneWidget);
+    expect(
+      find.descendant(of: infoPanelFinder, matching: find.text('Flipped Card')),
+      findsOneWidget,
+    );
+
+    final titleRect = tester.getRect(find.text('Flipped Card'));
+    final coverRect = tester.getRect(coverFinder);
+    expect(titleRect.top, lessThan(coverRect.top));
+    expect(coverRect.height, greaterThan(305));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('GameCard renders last compressed metadata when provided', (
@@ -1437,7 +1524,7 @@ void runPhase6OversizeSplitTests() {
     expect(find.byTooltip('Mark as Unsupported'), findsOneWidget);
   });
 
-  testWidgets('Game details unsupported toggle only rebuilds header metadata', (
+  testWidgets('Game details unsupported toggle only rebuilds status metadata', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
@@ -1466,9 +1553,6 @@ void runPhase6OversizeSplitTests() {
     );
     await tester.pumpAndSettle();
 
-    final initialHeader = tester.widget<GameDetailsHeader>(
-      find.byType(GameDetailsHeader),
-    );
     final initialCover = tester.widget<GameDetailsCover>(
       find.byType(GameDetailsCover),
     );
@@ -1480,14 +1564,10 @@ void runPhase6OversizeSplitTests() {
     await tester.tap(unsupportedAction);
     await tester.pumpAndSettle();
 
-    final updatedHeader = tester.widget<GameDetailsHeader>(
-      find.byType(GameDetailsHeader),
-    );
     final updatedCover = tester.widget<GameDetailsCover>(
       find.byType(GameDetailsCover),
     );
 
-    expect(identical(updatedHeader, initialHeader), isFalse);
     expect(identical(updatedCover, initialCover), isTrue);
     expect(
       find.descendant(
@@ -1539,6 +1619,49 @@ void runPhase6OversizeSplitTests() {
 
       bridge.completeRemoval();
       await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'Game details remove action decompresses compressed games before removal',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = GameInfo(
+        name: 'Details Compressed Remove',
+        path: r'C:\Games\details_compressed_remove',
+        platform: Platform.application,
+        sizeBytes: 18 * _oneGiB,
+        compressedSize: 11 * _oneGiB,
+        isCompressed: true,
+      );
+      final bridge = _TestRustBridgeService(games: <GameInfo>[game]);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: GameDetailsScreen(gamePath: game.path),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Remove from Library'));
+      await tester.pumpAndSettle();
+
+      expect(bridge.decompressCalls, 1);
+      expect(bridge.removeGameFromDiscoveryCalls, 1);
+      expect(bridge.lastRemovedGamePath, game.path);
+      expect(container.read(selectedGameProvider), isNull);
+      expect(container.read(gameListProvider).valueOrNull?.games, isEmpty);
+      expect(find.text('Game not found.'), findsOneWidget);
     },
   );
 

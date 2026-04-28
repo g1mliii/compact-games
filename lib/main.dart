@@ -14,6 +14,9 @@ import 'core/performance/compact_games_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
 import 'services/rust_library_candidates.dart';
+import 'services/shell_action_dispatcher.dart';
+import 'services/shell_command_handoff_server.dart';
+import 'services/shell_launch_args.dart';
 import 'services/startup_window_coordinator.dart';
 import 'services/tray_service.dart';
 import 'services/window_close_coordinator.dart';
@@ -34,6 +37,16 @@ const _startupWindow = WindowManagerStartupAdapter();
 final _startupTray = TrayStartupAdapter(TrayService.instance);
 
 Future<void> main(List<String> args) async {
+  final shellLaunchArgs = ShellLaunchArgs.parse(args);
+  final shellActionRequest = shellLaunchArgs.shellAction;
+  if (!kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.windows &&
+      await ShellCommandHandoffServer.handoffLaunchToRunningApp(
+        request: shellActionRequest,
+      )) {
+    return;
+  }
+
   if (!kIsWeb && _enableShaderWarmUp) {
     PaintingBinding.shaderWarmUp = const CompactGamesShaderWarmUp();
   }
@@ -54,6 +67,18 @@ Future<void> main(List<String> args) async {
   // Initialize Flutter-Rust bridge and Rust core
   await _initRustBridge();
   RustBridgeService.instance.initApp();
+
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+    final ownsSingleInstance = await ShellCommandHandoffServer.instance.start(
+      onRequest: ShellActionDispatcher.instance.enqueue,
+      onShowWindow: () {
+        unawaited(TrayService.instance.showAndFocusWindow());
+      },
+    );
+    if (!ownsSingleInstance) {
+      return;
+    }
+  }
 
   final titleBarStyle =
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
@@ -77,7 +102,7 @@ Future<void> main(List<String> args) async {
   final startHiddenInTray = shouldStartHiddenInTrayOnLaunch(
     isWeb: kIsWeb,
     targetPlatform: defaultTargetPlatform,
-    args: args,
+    launchArgs: shellLaunchArgs,
   );
   if (startHiddenInTray) {
     appWindowVisibilityController.markHiddenToTray();
@@ -102,6 +127,10 @@ Future<void> main(List<String> args) async {
       debugPrint('[tray] Init failed (non-fatal): $error');
     },
   );
+
+  if (shellActionRequest != null) {
+    ShellActionDispatcher.instance.enqueue(shellActionRequest);
+  }
 
   runApp(const _RustBridgeReloadHost(child: CompactGamesApp()));
 }

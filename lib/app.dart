@@ -17,10 +17,13 @@ import 'models/watcher_event.dart';
 import 'models/automation_state.dart';
 import 'providers/games/game_list_provider.dart';
 import 'providers/localization/locale_provider.dart';
+import 'providers/shell/shell_action_provider.dart';
 import 'providers/system/route_state_provider.dart';
 import 'providers/settings/settings_provider.dart';
 import 'providers/system/tray_status_sync_provider.dart';
 import 'providers/update/update_provider.dart';
+import 'services/shell_action_dispatcher.dart';
+import 'services/shell_launch_args.dart';
 import 'services/unsupported_report_sync_service.dart';
 
 /// Cached theme — buildAppTheme() is pure with no dynamic inputs,
@@ -106,6 +109,8 @@ class _EffectProviderHost extends ConsumerStatefulWidget {
 class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
   StreamSubscription<WatcherEvent>? _watcherEventsSub;
   StreamSubscription<List<AutomationJob>>? _automationQueueSub;
+  StreamSubscription<ShellActionRequest>? _shellActionSub;
+  Future<void> _shellActionChain = Future<void>.value();
   Map<String, AutomationJobStatus> _automationStatusesByKey =
       <String, AutomationJobStatus>{};
 
@@ -136,6 +141,9 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
     } catch (_) {
       _automationQueueSub = null;
     }
+    _shellActionSub = ShellActionDispatcher.instance.requests.listen(
+      _handleShellActionRequest,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -179,7 +187,17 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
   void dispose() {
     unawaited(_watcherEventsSub?.cancel());
     unawaited(_automationQueueSub?.cancel());
+    unawaited(_shellActionSub?.cancel());
     super.dispose();
+  }
+
+  void _handleShellActionRequest(ShellActionRequest request) {
+    _shellActionChain = _shellActionChain
+        .catchError((_) {})
+        .then((_) => ref.read(shellActionExecutorProvider).execute(request))
+        .catchError((Object error) {
+          debugPrint('[shell] action failed: $error');
+        });
   }
 
   void _handleAutomationQueueUpdate(List<AutomationJob> jobs) {
