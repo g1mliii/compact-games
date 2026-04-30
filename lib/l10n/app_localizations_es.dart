@@ -262,8 +262,18 @@ class AppLocalizationsEs extends AppLocalizations {
       'Falta la clave API de SteamGridDB';
 
   @override
+  String get settingsSteamGridDbBuiltInStatus =>
+      'Servicio de portadas integrado activado';
+
+  @override
+  String get settingsSteamGridDbBuiltInModeLabel => 'Integrado';
+
+  @override
+  String get settingsSteamGridDbUserKeyModeLabel => 'Mi clave';
+
+  @override
   String get settingsSteamGridDbExplanation =>
-      'SteamGridDB mejora la calidad de las portadas para juegos agregados manualmente o difíciles de identificar.';
+      'Compact Games puede obtener portadas de SteamGridDB mediante el servicio integrado. También puedes usar tu propia clave de SteamGridDB.';
 
   @override
   String get settingsSteamGridDbStep1 =>
@@ -276,6 +286,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get settingsSteamGridDbStep3 =>
       'Pégala aquí para habilitar búsquedas de portadas más completas.';
+
+  @override
+  String get settingsSteamGridDbUserKeyHelp =>
+      'Tu clave permanece en almacenamiento seguro y solo se usa en el modo de clave propia, o como respaldo si el servicio integrado no está disponible temporalmente.';
 
   @override
   String get settingsSteamGridDbOpenButton => 'Abrir página API de SteamGridDB';
@@ -311,6 +325,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get settingsAboutCompactGuiCredit =>
       'Los datos de estimación de compresión los proporciona CompactGUI / IridiumIO y se obtienen en tiempo de ejecución desde las versiones de Compact Games.';
+
+  @override
+  String get settingsAboutSteamGridDbCredit =>
+      'Las portadas las proporciona SteamGridDB. El servicio integrado devuelve URL de imágenes de SteamGridDB; la app descarga y guarda las imágenes localmente.';
 
   @override
   String get settingsAboutAutoCheckUpdatesLabel =>
@@ -503,7 +521,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get homeCoverArtNudgeMessage =>
-      'Conecta SteamGridDB en Configuración para mejorar la coincidencia de portadas.';
+      'El servicio de portadas integrado está disponible. Vuelve a activarlo en Configuración o agrega tu propia clave de SteamGridDB.';
 
   @override
   String get homeGoToSettingsButton => 'Ir a Configuración';

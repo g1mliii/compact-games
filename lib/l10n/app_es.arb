@@ -342,7 +342,19 @@
   "@settingsSteamGridDbMissingStatus": {
     "description": "Localized message for settings steam grid db missing status."
   },
-  "settingsSteamGridDbExplanation": "SteamGridDB mejora la calidad de las portadas para juegos agregados manualmente o difíciles de identificar.",
+  "settingsSteamGridDbBuiltInStatus": "Servicio de portadas integrado activado",
+  "@settingsSteamGridDbBuiltInStatus": {
+    "description": "Localized status for the built-in SteamGridDB proxy mode."
+  },
+  "settingsSteamGridDbBuiltInModeLabel": "Integrado",
+  "@settingsSteamGridDbBuiltInModeLabel": {
+    "description": "Localized label for the bundled proxy cover-art provider mode."
+  },
+  "settingsSteamGridDbUserKeyModeLabel": "Mi clave",
+  "@settingsSteamGridDbUserKeyModeLabel": {
+    "description": "Localized label for the user-key cover-art provider mode."
+  },
+  "settingsSteamGridDbExplanation": "Compact Games puede obtener portadas de SteamGridDB mediante el servicio integrado. También puedes usar tu propia clave de SteamGridDB.",
   "@settingsSteamGridDbExplanation": {
     "description": "Localized message for settings steam grid db explanation."
   },
@@ -357,6 +369,10 @@
   "settingsSteamGridDbStep3": "Pégala aquí para habilitar búsquedas de portadas más completas.",
   "@settingsSteamGridDbStep3": {
     "description": "Localized message for settings steam grid db step3."
+  },
+  "settingsSteamGridDbUserKeyHelp": "Tu clave permanece en almacenamiento seguro y solo se usa en el modo de clave propia, o como respaldo si el servicio integrado no está disponible temporalmente.",
+  "@settingsSteamGridDbUserKeyHelp": {
+    "description": "Localized helper text for the optional SteamGridDB user key."
   },
   "settingsSteamGridDbOpenButton": "Abrir página API de SteamGridDB",
   "@settingsSteamGridDbOpenButton": {
@@ -401,6 +417,10 @@
   "settingsAboutCompactGuiCredit": "Los datos de estimación de compresión los proporciona CompactGUI / IridiumIO y se obtienen en tiempo de ejecución desde las versiones de Compact Games.",
   "@settingsAboutCompactGuiCredit": {
     "description": "CompactGUI attribution shown in the about settings section."
+  },
+  "settingsAboutSteamGridDbCredit": "Las portadas las proporciona SteamGridDB. El servicio integrado devuelve URL de imágenes de SteamGridDB; la app descarga y guarda las imágenes localmente.",
+  "@settingsAboutSteamGridDbCredit": {
+    "description": "SteamGridDB attribution shown in the about settings section."
   },
   "settingsAboutAutoCheckUpdatesLabel": "Buscar actualizaciones automáticamente",
   "@settingsAboutAutoCheckUpdatesLabel": {
@@ -640,7 +660,7 @@
   "@homeBrowseExe": {
     "description": "Localized message for home browse exe."
   },
-  "homeCoverArtNudgeMessage": "Conecta SteamGridDB en Configuración para mejorar la coincidencia de portadas.",
+  "homeCoverArtNudgeMessage": "El servicio de portadas integrado está disponible. Vuelve a activarlo en Configuración o agrega tu propia clave de SteamGridDB.",
   "@homeCoverArtNudgeMessage": {
     "description": "Localized message for home cover art nudge message."
   },

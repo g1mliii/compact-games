@@ -1,0 +1,25 @@
+name = "compact-games-sgdb-cover-proxy"
+main = "src/index.js"
+compatibility_date = "2026-04-28"
+workers_dev = true
+preview_urls = true
+
+[observability]
+enabled = true
+head_sampling_rate = 0.1
+
+[secrets]
+required = [
+  "SGDB_API_KEY",
+  "COMPACT_GAMES_PROXY_TOKEN",
+  "IP_HASH_SECRET",
+]
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "c5fa8f43dded42c9ac307dbcb9685259"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "compact-games-sgdb-cover-proxy"
+database_id = "b9e85744-0156-4848-9a14-ac3cba8ce9a8"

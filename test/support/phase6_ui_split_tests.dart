@@ -359,11 +359,16 @@ void runPhase6OversizeSplitTests() {
     await tester.binding.setSurfaceSize(const Size(300, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    final persistence = _InMemorySettingsPersistence();
+    await persistence.save(
+      const AppSettings(coverArtProviderMode: CoverArtProviderMode.userKey),
+    );
     final container = ProviderContainer(
       overrides: [
         rustBridgeServiceProvider.overrideWithValue(
           _TestRustBridgeService(games: _sampleGames),
         ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
       ],
     );
     addTearDown(container.dispose);
@@ -382,7 +387,7 @@ void runPhase6OversizeSplitTests() {
     expect(tester.takeException(), isNull);
 
     final messageRect = tester.getRect(
-      find.textContaining('Connect SteamGridDB in Settings'),
+      find.textContaining('Built-in cover art'),
     );
     final settingsRect = tester.getRect(find.text('Go to Settings'));
     expect(settingsRect.top, greaterThan(messageRect.bottom));
@@ -625,6 +630,9 @@ void runPhase6OversizeSplitTests() {
           rustBridgeServiceProvider.overrideWithValue(
             _TestRustBridgeService(games: <GameInfo>[game]),
           ),
+          settingsPersistenceProvider.overrideWithValue(
+            _InMemorySettingsPersistence(),
+          ),
           coverArtServiceProvider.overrideWithValue(coverService),
         ],
       );
@@ -641,6 +649,7 @@ void runPhase6OversizeSplitTests() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpAndSettle();
 
       final initialGrid = tester.widget<GridView>(find.byType(GridView));
       final initialCard = tester.widget<GameCard>(find.byType(GameCard).first);
@@ -651,6 +660,7 @@ void runPhase6OversizeSplitTests() {
       container.invalidate(coverArtProvider(game.path));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpAndSettle();
 
       final updatedGrid = tester.widget<GridView>(find.byType(GridView));
       final updatedCard = tester.widget<GameCard>(find.byType(GameCard).first);
@@ -841,6 +851,9 @@ void runPhase6OversizeSplitTests() {
         overrides: [
           rustBridgeServiceProvider.overrideWithValue(
             _TestRustBridgeService(games: <GameInfo>[game]),
+          ),
+          settingsPersistenceProvider.overrideWithValue(
+            _InMemorySettingsPersistence(),
           ),
           coverArtServiceProvider.overrideWithValue(coverService),
         ],

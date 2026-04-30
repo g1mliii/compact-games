@@ -342,7 +342,19 @@
   "@settingsSteamGridDbMissingStatus": {
     "description": "Localized message for settings steam grid db missing status."
   },
-  "settingsSteamGridDbExplanation": "SteamGridDB 可提升手动添加或难以匹配游戏的封面质量。",
+  "settingsSteamGridDbBuiltInStatus": "内置封面服务已启用",
+  "@settingsSteamGridDbBuiltInStatus": {
+    "description": "Localized status for the built-in SteamGridDB proxy mode."
+  },
+  "settingsSteamGridDbBuiltInModeLabel": "内置",
+  "@settingsSteamGridDbBuiltInModeLabel": {
+    "description": "Localized label for the bundled proxy cover-art provider mode."
+  },
+  "settingsSteamGridDbUserKeyModeLabel": "自己的密钥",
+  "@settingsSteamGridDbUserKeyModeLabel": {
+    "description": "Localized label for the user-key cover-art provider mode."
+  },
+  "settingsSteamGridDbExplanation": "Compact Games 可以通过内置封面服务获取 SteamGridDB 网格封面。你也可以改用自己的 SteamGridDB 密钥。",
   "@settingsSteamGridDbExplanation": {
     "description": "Localized message for settings steam grid db explanation."
   },
@@ -357,6 +369,10 @@
   "settingsSteamGridDbStep3": "将其粘贴到这里，以启用更丰富的封面查询。",
   "@settingsSteamGridDbStep3": {
     "description": "Localized message for settings steam grid db step3."
+  },
+  "settingsSteamGridDbUserKeyHelp": "你的密钥会保存在安全存储中，仅在选择自己的密钥模式时使用，或在内置服务暂时不可用时作为备用。",
+  "@settingsSteamGridDbUserKeyHelp": {
+    "description": "Localized helper text for the optional SteamGridDB user key."
   },
   "settingsSteamGridDbOpenButton": "打开 SteamGridDB API 页面",
   "@settingsSteamGridDbOpenButton": {
@@ -401,6 +417,10 @@
   "settingsAboutCompactGuiCredit": "压缩估算数据由 CompactGUI / IridiumIO 提供，并在运行时从 Compact Games 版本中获取。",
   "@settingsAboutCompactGuiCredit": {
     "description": "CompactGUI attribution shown in the about settings section."
+  },
+  "settingsAboutSteamGridDbCredit": "封面由 SteamGridDB 提供。内置封面服务会返回 SteamGridDB 图片 URL；应用会在本地下载并缓存图片。",
+  "@settingsAboutSteamGridDbCredit": {
+    "description": "SteamGridDB attribution shown in the about settings section."
   },
   "settingsAboutAutoCheckUpdatesLabel": "自动检查更新",
   "@settingsAboutAutoCheckUpdatesLabel": {
@@ -640,7 +660,7 @@
   "@homeBrowseExe": {
     "description": "Localized message for home browse exe."
   },
-  "homeCoverArtNudgeMessage": "在设置中连接 SteamGridDB，以改进封面匹配。",
+  "homeCoverArtNudgeMessage": "内置封面服务可用。可在设置中切回该服务，或添加你自己的 SteamGridDB 密钥。",
   "@homeCoverArtNudgeMessage": {
     "description": "Localized message for home cover art nudge message."
   },

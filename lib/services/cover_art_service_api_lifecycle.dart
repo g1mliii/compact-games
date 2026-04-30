@@ -9,3 +9,9 @@ void _resetCoverArtApiQueueState() {
     waiter.completeError(const _RetryableApiException());
   }
 }
+
+@visibleForTesting
+void debugSetCoverArtApiHttpClientForTesting(http.Client? client) {
+  _disposeCoverArtApiHttpClient();
+  _coverArtApiHttpClient = client;
+}

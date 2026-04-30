@@ -62,6 +62,13 @@ class AboutSection extends ConsumerWidget {
               color: AppColors.textSecondary,
             ),
           ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.settingsAboutSteamGridDbCredit,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
           const SizedBox(height: 12),
           ScaledSwitchRow(
             label: l10n.settingsAboutAutoCheckUpdatesLabel,

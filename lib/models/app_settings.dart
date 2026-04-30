@@ -5,10 +5,13 @@ import 'compression_algorithm.dart';
 /// Layout mode for the home screen game library.
 enum HomeViewMode { grid, list }
 
+/// SteamGridDB lookup source for missing cover art.
+enum CoverArtProviderMode { bundledProxy, userKey }
+
 /// Application settings with JSON persistence.
 @immutable
 class AppSettings {
-  static const int currentSchemaVersion = 5;
+  static const int currentSchemaVersion = 6;
 
   final int schemaVersion;
   final CompressionAlgorithm algorithm;
@@ -23,6 +26,7 @@ class AppSettings {
   final bool directStorageOverrideEnabled;
   final int? ioParallelismOverride;
   final String? steamGridDbApiKey;
+  final CoverArtProviderMode coverArtProviderMode;
   final bool inventoryAdvancedScanEnabled;
   final bool minimizeToTray;
   final HomeViewMode homeViewMode;
@@ -43,6 +47,7 @@ class AppSettings {
     this.directStorageOverrideEnabled = false,
     this.ioParallelismOverride,
     this.steamGridDbApiKey,
+    this.coverArtProviderMode = CoverArtProviderMode.bundledProxy,
     this.inventoryAdvancedScanEnabled = false,
     this.minimizeToTray = true,
     this.homeViewMode = HomeViewMode.grid,
@@ -53,7 +58,7 @@ class AppSettings {
   /// Clamp values to safe ranges.
   AppSettings validated() {
     return AppSettings(
-      schemaVersion: schemaVersion,
+      schemaVersion: currentSchemaVersion,
       algorithm: algorithm,
       autoCompress: autoCompress,
       cpuThreshold: cpuThreshold.clamp(5.0, 80.0),
@@ -66,6 +71,7 @@ class AppSettings {
       directStorageOverrideEnabled: directStorageOverrideEnabled,
       ioParallelismOverride: _validatedIoOverride(ioParallelismOverride),
       steamGridDbApiKey: _normalizedApiKey(steamGridDbApiKey),
+      coverArtProviderMode: coverArtProviderMode,
       inventoryAdvancedScanEnabled: inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray,
       homeViewMode: homeViewMode,
@@ -87,6 +93,7 @@ class AppSettings {
     bool? directStorageOverrideEnabled,
     int? Function()? ioParallelismOverride,
     String? Function()? steamGridDbApiKey,
+    CoverArtProviderMode? coverArtProviderMode,
     bool? inventoryAdvancedScanEnabled,
     bool? minimizeToTray,
     HomeViewMode? homeViewMode,
@@ -112,6 +119,7 @@ class AppSettings {
       steamGridDbApiKey: steamGridDbApiKey != null
           ? steamGridDbApiKey()
           : this.steamGridDbApiKey,
+      coverArtProviderMode: coverArtProviderMode ?? this.coverArtProviderMode,
       inventoryAdvancedScanEnabled:
           inventoryAdvancedScanEnabled ?? this.inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray ?? this.minimizeToTray,
@@ -134,7 +142,7 @@ class AppSettings {
     'themeVariant': themeVariant,
     'directStorageOverrideEnabled': directStorageOverrideEnabled,
     'ioParallelismOverride': ioParallelismOverride,
-    'steamGridDbApiKey': steamGridDbApiKey,
+    'coverArtProviderMode': coverArtProviderMode.name,
     'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
     'minimizeToTray': minimizeToTray,
     'homeViewMode': homeViewMode.name,
@@ -144,6 +152,9 @@ class AppSettings {
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final schemaVersion = json['schemaVersion'] as int? ?? 1;
+    final steamGridDbApiKey = _normalizedApiKey(
+      json['steamGridDbApiKey'] as String?,
+    );
     return AppSettings(
       schemaVersion: schemaVersion <= 0 ? 1 : schemaVersion,
       algorithm: CompressionAlgorithm.values.firstWhere(
@@ -165,8 +176,10 @@ class AppSettings {
       directStorageOverrideEnabled:
           json['directStorageOverrideEnabled'] as bool? ?? false,
       ioParallelismOverride: _toIntOrNull(json['ioParallelismOverride']),
-      steamGridDbApiKey: _normalizedApiKey(
-        json['steamGridDbApiKey'] as String?,
+      steamGridDbApiKey: steamGridDbApiKey,
+      coverArtProviderMode: _coverArtProviderModeFromJson(
+        json['coverArtProviderMode'],
+        legacyApiKey: steamGridDbApiKey,
       ),
       inventoryAdvancedScanEnabled:
           json['inventoryAdvancedScanEnabled'] as bool? ?? false,
@@ -186,6 +199,22 @@ class AppSettings {
       return null;
     }
     return trimmed;
+  }
+
+  static CoverArtProviderMode _coverArtProviderModeFromJson(
+    Object? value, {
+    required String? legacyApiKey,
+  }) {
+    if (value is String) {
+      for (final mode in CoverArtProviderMode.values) {
+        if (mode.name == value) {
+          return mode;
+        }
+      }
+    }
+    return legacyApiKey == null
+        ? CoverArtProviderMode.bundledProxy
+        : CoverArtProviderMode.userKey;
   }
 
   static int? _toIntOrNull(Object? value) {

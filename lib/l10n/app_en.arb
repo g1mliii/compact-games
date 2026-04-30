@@ -342,7 +342,19 @@
   "@settingsSteamGridDbMissingStatus": {
     "description": "Localized message for settings steam grid db missing status."
   },
-  "settingsSteamGridDbExplanation": "SteamGridDB improves cover art quality for manually added or hard-to-match games.",
+  "settingsSteamGridDbBuiltInStatus": "Built-in cover service enabled",
+  "@settingsSteamGridDbBuiltInStatus": {
+    "description": "Localized status for the built-in SteamGridDB proxy mode."
+  },
+  "settingsSteamGridDbBuiltInModeLabel": "Built-in",
+  "@settingsSteamGridDbBuiltInModeLabel": {
+    "description": "Localized label for the bundled proxy cover-art provider mode."
+  },
+  "settingsSteamGridDbUserKeyModeLabel": "Own key",
+  "@settingsSteamGridDbUserKeyModeLabel": {
+    "description": "Localized label for the user-key cover-art provider mode."
+  },
+  "settingsSteamGridDbExplanation": "Compact Games can fetch SteamGridDB grid art through the built-in cover service. You can use your own SteamGridDB key instead.",
   "@settingsSteamGridDbExplanation": {
     "description": "Localized message for settings steam grid db explanation."
   },
@@ -357,6 +369,10 @@
   "settingsSteamGridDbStep3": "Paste it here to enable richer cover art lookups.",
   "@settingsSteamGridDbStep3": {
     "description": "Localized message for settings steam grid db step3."
+  },
+  "settingsSteamGridDbUserKeyHelp": "Your key stays in secure storage and is used only when own-key mode is selected, or as a fallback if the built-in service is temporarily unavailable.",
+  "@settingsSteamGridDbUserKeyHelp": {
+    "description": "Localized helper text for the optional SteamGridDB user key."
   },
   "settingsSteamGridDbOpenButton": "Open SteamGridDB API Page",
   "@settingsSteamGridDbOpenButton": {
@@ -401,6 +417,10 @@
   "settingsAboutCompactGuiCredit": "Compression estimate data is provided by CompactGUI / IridiumIO and fetched at runtime from Compact Games releases.",
   "@settingsAboutCompactGuiCredit": {
     "description": "CompactGUI attribution shown in the about settings section."
+  },
+  "settingsAboutSteamGridDbCredit": "Cover art is provided by SteamGridDB. The built-in cover service returns SteamGridDB image URLs; images are downloaded and cached locally by the app.",
+  "@settingsAboutSteamGridDbCredit": {
+    "description": "SteamGridDB attribution shown in the about settings section."
   },
   "settingsAboutAutoCheckUpdatesLabel": "Check for updates automatically",
   "@settingsAboutAutoCheckUpdatesLabel": {
@@ -640,7 +660,7 @@
   "@homeBrowseExe": {
     "description": "Localized message for home browse exe."
   },
-  "homeCoverArtNudgeMessage": "Connect SteamGridDB in Settings to improve cover art matching.",
+  "homeCoverArtNudgeMessage": "Built-in cover art is available. Switch back in Settings or add your own SteamGridDB key.",
   "@homeCoverArtNudgeMessage": {
     "description": "Localized message for home cover art nudge message."
   },

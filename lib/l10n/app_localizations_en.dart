@@ -256,8 +256,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSteamGridDbMissingStatus => 'SteamGridDB API key missing';
 
   @override
+  String get settingsSteamGridDbBuiltInStatus =>
+      'Built-in cover service enabled';
+
+  @override
+  String get settingsSteamGridDbBuiltInModeLabel => 'Built-in';
+
+  @override
+  String get settingsSteamGridDbUserKeyModeLabel => 'Own key';
+
+  @override
   String get settingsSteamGridDbExplanation =>
-      'SteamGridDB improves cover art quality for manually added or hard-to-match games.';
+      'Compact Games can fetch SteamGridDB grid art through the built-in cover service. You can use your own SteamGridDB key instead.';
 
   @override
   String get settingsSteamGridDbStep1 =>
@@ -270,6 +280,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsSteamGridDbStep3 =>
       'Paste it here to enable richer cover art lookups.';
+
+  @override
+  String get settingsSteamGridDbUserKeyHelp =>
+      'Your key stays in secure storage and is used only when own-key mode is selected, or as a fallback if the built-in service is temporarily unavailable.';
 
   @override
   String get settingsSteamGridDbOpenButton => 'Open SteamGridDB API Page';
@@ -304,6 +318,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsAboutCompactGuiCredit =>
       'Compression estimate data is provided by CompactGUI / IridiumIO and fetched at runtime from Compact Games releases.';
+
+  @override
+  String get settingsAboutSteamGridDbCredit =>
+      'Cover art is provided by SteamGridDB. The built-in cover service returns SteamGridDB image URLs; images are downloaded and cached locally by the app.';
 
   @override
   String get settingsAboutAutoCheckUpdatesLabel =>
@@ -492,7 +510,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeCoverArtNudgeMessage =>
-      'Connect SteamGridDB in Settings to improve cover art matching.';
+      'Built-in cover art is available. Switch back in Settings or add your own SteamGridDB key.';
 
   @override
   String get homeGoToSettingsButton => 'Go to Settings';

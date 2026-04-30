@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:compact_games/core/navigation/app_routes.dart';
+import 'package:compact_games/core/config/cover_art_proxy_config.dart';
 import 'package:compact_games/core/theme/app_colors.dart';
 import 'package:compact_games/core/theme/app_theme.dart';
 import 'package:compact_games/features/games/presentation/game_details_screen.dart';
@@ -1088,12 +1089,13 @@ void main() {
   });
 
   testWidgets(
-    'Settings screen uses a single shared SteamGridDB field and inline key actions',
+    'Settings screen shows own-key SteamGridDB field and inline key actions',
     (WidgetTester tester) async {
       final persistence = _InMemorySettingsPersistence();
       await persistence.save(
         const AppSettings(
           steamGridDbApiKey: 'compact-games-demo-key',
+          coverArtProviderMode: CoverArtProviderMode.userKey,
           idleDurationMinutes: 14,
           cpuThreshold: 72,
         ),
@@ -1148,6 +1150,98 @@ void main() {
         find.byKey(const ValueKey<String>('settingsSteamGridDbSaveButton')),
       );
       expect(saveButtonSize.height, greaterThanOrEqualTo(40));
+    },
+  );
+
+  test(
+    'Cover art provider watches SteamGridDB key and provider mode',
+    () async {
+      final game = _sampleGames.first.copyWith(
+        path: r'C:\Games\cover_provider_settings_watch',
+        platform: Platform.custom,
+      );
+      final persistence = _InMemorySettingsPersistence();
+      await persistence.save(const AppSettings());
+      final coverService = _RecordingCoverArtService(placeholders: const {});
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: <GameInfo>[game]),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+          coverArtServiceProvider.overrideWithValue(coverService),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(gameListProvider.future);
+      await container.read(settingsProvider.future);
+      await container.read(coverArtProvider(game.path).future);
+      expect(
+        coverService.lastCoverArtProviderMode,
+        CoverArtProviderMode.bundledProxy,
+      );
+      expect(coverService.lastSteamGridDbApiKey, isNull);
+
+      container
+          .read(settingsProvider.notifier)
+          .setCoverArtProviderMode(CoverArtProviderMode.userKey);
+      await container.pump();
+      await container.read(coverArtProvider(game.path).future);
+      expect(
+        coverService.lastCoverArtProviderMode,
+        CoverArtProviderMode.userKey,
+      );
+
+      container
+          .read(settingsProvider.notifier)
+          .setSteamGridDbApiKey('compact-games-demo-key');
+      await container.pump();
+      await container.read(coverArtProvider(game.path).future);
+      expect(coverService.lastSteamGridDbApiKey, 'compact-games-demo-key');
+    },
+  );
+
+  test(
+    'Cover art provider waits for settings before resolving through proxy',
+    () async {
+      final game = _sampleGames.first.copyWith(
+        path: r'C:\Games\cover_provider_waits_for_settings',
+        platform: Platform.steam,
+        steamAppId: () => 730,
+      );
+      final persistence = _DeferredSettingsPersistence();
+      final coverService = _RecordingCoverArtService(placeholders: const {});
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: <GameInfo>[game]),
+          ),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+          coverArtServiceProvider.overrideWithValue(coverService),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(gameListProvider.future);
+      final coverFuture = container.read(coverArtProvider(game.path).future);
+      await container.pump();
+      expect(coverService.lastCoverArtProviderMode, isNull);
+      expect(coverService.lastSteamGridDbApiKey, isNull);
+
+      persistence.complete(
+        const AppSettings(
+          coverArtProviderMode: CoverArtProviderMode.userKey,
+          steamGridDbApiKey: 'delayed-user-key',
+        ),
+      );
+      await coverFuture;
+
+      expect(
+        coverService.lastCoverArtProviderMode,
+        CoverArtProviderMode.userKey,
+      );
+      expect(coverService.lastSteamGridDbApiKey, 'delayed-user-key');
     },
   );
 

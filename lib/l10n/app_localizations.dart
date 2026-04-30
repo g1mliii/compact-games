@@ -544,10 +544,28 @@ abstract class AppLocalizations {
   /// **'SteamGridDB API key missing'**
   String get settingsSteamGridDbMissingStatus;
 
+  /// Localized status for the built-in SteamGridDB proxy mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in cover service enabled'**
+  String get settingsSteamGridDbBuiltInStatus;
+
+  /// Localized label for the bundled proxy cover-art provider mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in'**
+  String get settingsSteamGridDbBuiltInModeLabel;
+
+  /// Localized label for the user-key cover-art provider mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Own key'**
+  String get settingsSteamGridDbUserKeyModeLabel;
+
   /// Localized message for settings steam grid db explanation.
   ///
   /// In en, this message translates to:
-  /// **'SteamGridDB improves cover art quality for manually added or hard-to-match games.'**
+  /// **'Compact Games can fetch SteamGridDB grid art through the built-in cover service. You can use your own SteamGridDB key instead.'**
   String get settingsSteamGridDbExplanation;
 
   /// Localized message for settings steam grid db step1.
@@ -567,6 +585,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paste it here to enable richer cover art lookups.'**
   String get settingsSteamGridDbStep3;
+
+  /// Localized helper text for the optional SteamGridDB user key.
+  ///
+  /// In en, this message translates to:
+  /// **'Your key stays in secure storage and is used only when own-key mode is selected, or as a fallback if the built-in service is temporarily unavailable.'**
+  String get settingsSteamGridDbUserKeyHelp;
 
   /// Localized message for settings steam grid db open button.
   ///
@@ -633,6 +657,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Compression estimate data is provided by CompactGUI / IridiumIO and fetched at runtime from Compact Games releases.'**
   String get settingsAboutCompactGuiCredit;
+
+  /// SteamGridDB attribution shown in the about settings section.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover art is provided by SteamGridDB. The built-in cover service returns SteamGridDB image URLs; images are downloaded and cached locally by the app.'**
+  String get settingsAboutSteamGridDbCredit;
 
   /// Localized message for the automatic update check toggle.
   ///
@@ -955,7 +985,7 @@ abstract class AppLocalizations {
   /// Localized message for home cover art nudge message.
   ///
   /// In en, this message translates to:
-  /// **'Connect SteamGridDB in Settings to improve cover art matching.'**
+  /// **'Built-in cover art is available. Switch back in Settings or add your own SteamGridDB key.'**
   String get homeCoverArtNudgeMessage;
 
   /// Localized message for home go to settings button.

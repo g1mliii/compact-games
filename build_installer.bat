@@ -22,7 +22,20 @@ if errorlevel 1 (
 popd
 
 echo [2/5] Building Flutter Windows release...
-call flutter build windows --release
+set "HAS_PROXY_DEFINES="
+if defined COMPACT_GAMES_SGDB_PROXY_URL (
+    if defined COMPACT_GAMES_SGDB_TOKEN (
+        set "HAS_PROXY_DEFINES=1"
+    )
+)
+if defined HAS_PROXY_DEFINES (
+    echo   Including SteamGridDB proxy dart-defines from environment.
+    call flutter build windows --release "--dart-define=COMPACT_GAMES_SGDB_PROXY_URL=%COMPACT_GAMES_SGDB_PROXY_URL%" "--dart-define=COMPACT_GAMES_SGDB_TOKEN=%COMPACT_GAMES_SGDB_TOKEN%"
+) else (
+    if defined COMPACT_GAMES_SGDB_PROXY_URL echo WARNING: COMPACT_GAMES_SGDB_TOKEN is missing; building without SteamGridDB proxy defines.
+    if defined COMPACT_GAMES_SGDB_TOKEN echo WARNING: COMPACT_GAMES_SGDB_PROXY_URL is missing; building without SteamGridDB proxy defines.
+    call flutter build windows --release
+)
 if errorlevel 1 (
     echo ERROR: Flutter build failed.
     exit /b 1

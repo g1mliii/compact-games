@@ -49,7 +49,7 @@
           <a href="./" class="legal-back">&larr; Back to home</a>
           <div class="legal-content">
             <h1>Privacy Policy</h1>
-            <p class="legal-updated">Last updated: April 8, 2026</p>
+            <p class="legal-updated">Last updated: April 28, 2026</p>
 
             <h2>Overview</h2>
             <p>
@@ -66,9 +66,10 @@
               <li>Does not transmit your game library, file paths, or compression results to any server.</li>
               <li>
                 Makes outbound network requests only for: checking for updates
-                via <code>latest.json</code> on GitHub Releases, and optionally
-                fetching cover art from SteamGridDB if you provide an API key in
-                settings.
+                via <code>latest.json</code> on GitHub Releases, fetching the
+                community unsupported-games list, and looking up cover art
+                through the built-in SteamGridDB cover proxy or your own
+                SteamGridDB API key if configured.
               </li>
               <li>
                 May refresh the community unsupported-games list from the latest
@@ -76,6 +77,14 @@
                 data sent.
               </li>
             </ul>
+            <p>
+              When the built-in cover proxy is used, it receives the Steam AppID
+              or lookup name needed to find cover art. Cloudflare request
+              metadata is used for abuse protection and rate limiting. The proxy
+              stores cache entries for lookup results and hashed IP rate-limit
+              buckets; it does not store raw IP addresses or local file paths,
+              and it does not proxy image bytes.
+            </p>
 
             <h2>Data This Website Collects</h2>
             <p>
@@ -100,8 +109,15 @@
               </li>
               <li>
                 <strong>SteamGridDB</strong> &mdash; Optional cover art provider.
-                Only used if you manually configure an API key. Subject to
-                SteamGridDB's own privacy policy.
+                Used through the built-in cover proxy or directly if you
+                manually configure an API key. Subject to SteamGridDB's own
+                privacy policy.
+              </li>
+              <li>
+                <strong>Cloudflare</strong> &mdash; Hosts the built-in cover
+                proxy and applies request handling, caching, and rate limiting
+                for that service. Subject to
+                <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Cloudflare's Privacy Policy</a>.
               </li>
             </ul>
 

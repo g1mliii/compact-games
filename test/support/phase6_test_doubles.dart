@@ -20,6 +20,25 @@ class _InMemorySettingsPersistence implements SettingsPersistence {
   }
 }
 
+class _DeferredSettingsPersistence implements SettingsPersistence {
+  final Completer<AppSettings> _loadCompleter = Completer<AppSettings>();
+  AppSettings? savedSettings;
+
+  @override
+  Future<AppSettings> load() => _loadCompleter.future;
+
+  @override
+  Future<void> save(AppSettings settings) async {
+    savedSettings = settings;
+  }
+
+  void complete(AppSettings settings) {
+    if (!_loadCompleter.isCompleted) {
+      _loadCompleter.complete(settings);
+    }
+  }
+}
+
 class _TestRustBridgeService implements RustBridgeService {
   _TestRustBridgeService({
     required this.games,
@@ -373,6 +392,8 @@ class _RecordingCoverArtService extends CoverArtService {
   int clearLookupCachesCalls = 0;
   List<String> lastPlaceholderCandidatesInput = const <String>[];
   List<String> invalidatedPaths = const <String>[];
+  String? lastSteamGridDbApiKey;
+  CoverArtProviderMode? lastCoverArtProviderMode;
 
   @override
   void clearLookupCaches() {
@@ -397,8 +418,13 @@ class _RecordingCoverArtService extends CoverArtService {
   Future<CoverArtResult> resolveCover(
     GameInfo game, {
     String? steamGridDbApiKey,
+    CoverArtProviderMode coverArtProviderMode =
+        CoverArtProviderMode.bundledProxy,
+    CoverArtProxyConfig coverArtProxyConfig = const CoverArtProxyConfig(),
     RustBridgeService? rustBridge,
   }) async {
+    lastSteamGridDbApiKey = steamGridDbApiKey;
+    lastCoverArtProviderMode = coverArtProviderMode;
     return const CoverArtResult.none();
   }
 }
@@ -413,6 +439,9 @@ class _VersionedSameUriCoverArtService extends CoverArtService {
   Future<CoverArtResult> resolveCover(
     GameInfo game, {
     String? steamGridDbApiKey,
+    CoverArtProviderMode coverArtProviderMode =
+        CoverArtProviderMode.bundledProxy,
+    CoverArtProxyConfig coverArtProxyConfig = const CoverArtProxyConfig(),
     RustBridgeService? rustBridge,
   }) async {
     return CoverArtResult(

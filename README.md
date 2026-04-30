@@ -115,7 +115,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - Inspired by [CompactGUI](https://github.com/IridiumIO/CompactGUI)
 - Optional runtime compression estimates use CompactGUI community data by IridiumIO. The database is GPL-3.0 licensed data fetched from Compact Games releases at runtime, not bundled in the app binary.
-- Cover art from [SteamGridDB](https://www.steamgriddb.com/)
+- Cover art from [SteamGridDB](https://www.steamgriddb.com/) via the built-in cover service or your own optional SteamGridDB API key.
 - Built with [Flutter](https://flutter.dev/) and [Rust](https://www.rust-lang.org/)
 
 ## Support

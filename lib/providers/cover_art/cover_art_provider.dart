@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/cover_art_proxy_config.dart';
 import '../../services/cover_art_service.dart';
 import '../games/game_list_provider.dart';
 import '../games/single_game_provider.dart';
@@ -38,19 +39,25 @@ final coverArtProvider = FutureProvider.autoDispose
         singleGameProvider(gamePath).select(
           (g) => g == null
               ? null
-              : (name: g.name, path: g.path, platform: g.platform),
+              : (
+                  name: g.name,
+                  path: g.path,
+                  platform: g.platform,
+                  steamAppId: g.steamAppId,
+                ),
         ),
       );
       if (coverKey == null) {
         return const CoverArtResult.none();
       }
-      final apiKey = ref.watch(
-        settingsProvider.select(
-          (value) => value.valueOrNull?.settings.steamGridDbApiKey,
-        ),
+      // Wait for settings without selectAsync; that Riverpod path can read
+      // after ProviderContainer disposal in widget tests.
+      final settingsState = await ref.watch(settingsProvider.future);
+      final coverSettings = (
+        apiKey: settingsState.settings.steamGridDbApiKey,
+        mode: settingsState.settings.coverArtProviderMode,
       );
 
-      // Read the full game info for the service call (non-watching read).
       final game = ref.read(singleGameProvider(gamePath));
       if (game == null) {
         return const CoverArtResult.none();
@@ -59,7 +66,9 @@ final coverArtProvider = FutureProvider.autoDispose
       final bridge = ref.read(rustBridgeServiceProvider);
       return service.resolveCover(
         game,
-        steamGridDbApiKey: apiKey,
+        steamGridDbApiKey: coverSettings.apiKey,
+        coverArtProviderMode: coverSettings.mode,
+        coverArtProxyConfig: const CoverArtProxyConfig(),
         rustBridge: bridge,
       );
     });

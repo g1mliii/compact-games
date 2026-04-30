@@ -110,7 +110,14 @@ jobs:
         run: cd rust && cargo build --release
 
       - name: Build Windows release
-        run: flutter build windows --release
+        shell: pwsh
+        env:
+          COMPACT_GAMES_SGDB_PROXY_URL: ${{ vars.COMPACT_GAMES_SGDB_PROXY_URL }}
+          COMPACT_GAMES_SGDB_TOKEN: ${{ secrets.COMPACT_GAMES_SGDB_TOKEN }}
+        run: |
+          flutter build windows --release `
+            "--dart-define=COMPACT_GAMES_SGDB_PROXY_URL=$env:COMPACT_GAMES_SGDB_PROXY_URL" `
+            "--dart-define=COMPACT_GAMES_SGDB_TOKEN=$env:COMPACT_GAMES_SGDB_TOKEN"
 
       - name: Copy Rust DLL to release bundle
         shell: bash

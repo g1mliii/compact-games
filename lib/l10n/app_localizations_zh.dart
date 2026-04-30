@@ -248,8 +248,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSteamGridDbMissingStatus => '缺少 SteamGridDB API 密钥';
 
   @override
+  String get settingsSteamGridDbBuiltInStatus => '内置封面服务已启用';
+
+  @override
+  String get settingsSteamGridDbBuiltInModeLabel => '内置';
+
+  @override
+  String get settingsSteamGridDbUserKeyModeLabel => '自己的密钥';
+
+  @override
   String get settingsSteamGridDbExplanation =>
-      'SteamGridDB 可提升手动添加或难以匹配游戏的封面质量。';
+      'Compact Games 可以通过内置封面服务获取 SteamGridDB 网格封面。你也可以改用自己的 SteamGridDB 密钥。';
 
   @override
   String get settingsSteamGridDbStep1 => '打开你的 SteamGridDB 账户偏好设置页面。';
@@ -259,6 +268,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsSteamGridDbStep3 => '将其粘贴到这里，以启用更丰富的封面查询。';
+
+  @override
+  String get settingsSteamGridDbUserKeyHelp =>
+      '你的密钥会保存在安全存储中，仅在选择自己的密钥模式时使用，或在内置服务暂时不可用时作为备用。';
 
   @override
   String get settingsSteamGridDbOpenButton => '打开 SteamGridDB API 页面';
@@ -293,6 +306,10 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsAboutCompactGuiCredit =>
       '压缩估算数据由 CompactGUI / IridiumIO 提供，并在运行时从 Compact Games 版本中获取。';
+
+  @override
+  String get settingsAboutSteamGridDbCredit =>
+      '封面由 SteamGridDB 提供。内置封面服务会返回 SteamGridDB 图片 URL；应用会在本地下载并缓存图片。';
 
   @override
   String get settingsAboutAutoCheckUpdatesLabel => '自动检查更新';
@@ -467,7 +484,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeBrowseExe => '浏览 .exe';
 
   @override
-  String get homeCoverArtNudgeMessage => '在设置中连接 SteamGridDB，以改进封面匹配。';
+  String get homeCoverArtNudgeMessage =>
+      '内置封面服务可用。可在设置中切回该服务，或添加你自己的 SteamGridDB 密钥。';
 
   @override
   String get homeGoToSettingsButton => '前往设置';

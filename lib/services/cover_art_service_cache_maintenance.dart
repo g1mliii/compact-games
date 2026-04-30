@@ -11,6 +11,14 @@ void _resetCacheEvictionScheduler() {
   _lastCacheEvictionRun = DateTime.fromMillisecondsSinceEpoch(0);
 }
 
+@visibleForTesting
+Future<void> debugWaitForCoverArtCacheEvictionForTesting() async {
+  final inFlight = _cacheEvictionInFlight;
+  if (inFlight != null) {
+    await inFlight;
+  }
+}
+
 extension _CoverArtServiceCacheMaintenance on CoverArtService {
   void _scheduleCacheEviction(Directory cacheDir, {bool force = false}) {
     if (_cacheEvictionInFlight != null) {

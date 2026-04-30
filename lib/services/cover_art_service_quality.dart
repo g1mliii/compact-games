@@ -26,8 +26,14 @@ extension _CoverArtServiceQuality on CoverArtService {
   Future<bool> _needsApiUpgradeForCached(
     CoverArtResult cached, {
     required String? apiKey,
+    required CoverArtProviderMode providerMode,
+    required CoverArtProxyConfig proxyConfig,
   }) async {
-    if (!_isApiEnabled(apiKey)) {
+    if (!_isApiEnabled(
+      apiKey,
+      providerMode: providerMode,
+      proxyConfig: proxyConfig,
+    )) {
       return false;
     }
     final localPath = _filePathFromUri(cached.uri);
@@ -37,9 +43,17 @@ extension _CoverArtServiceQuality on CoverArtService {
     return !(await _isPreferredCardCover(localPath));
   }
 
-  bool _isApiEnabled(String? apiKey) {
+  bool _isApiEnabled(
+    String? apiKey, {
+    required CoverArtProviderMode providerMode,
+    required CoverArtProxyConfig proxyConfig,
+  }) {
     final normalized = apiKey?.trim();
-    return normalized != null && normalized.isNotEmpty;
+    if (providerMode == CoverArtProviderMode.userKey) {
+      return normalized != null && normalized.isNotEmpty;
+    }
+    return proxyConfig.isConfigured ||
+        (normalized != null && normalized.isNotEmpty);
   }
 
   String? _filePathFromUri(String? uriText) {

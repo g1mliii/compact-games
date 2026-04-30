@@ -58,16 +58,41 @@ extension _CoverArtServiceApi on CoverArtService {
     GameInfo game, {
     required String cacheKey,
     required String? apiKey,
+    required CoverArtProviderMode providerMode,
+    required CoverArtProxyConfig proxyConfig,
   }) async {
     final normalizedKey = apiKey?.trim();
-    if (normalizedKey == null || normalizedKey.isEmpty) {
+    if (providerMode == CoverArtProviderMode.userKey &&
+        (normalizedKey == null || normalizedKey.isEmpty)) {
       return null;
     }
 
     try {
+      if (providerMode == CoverArtProviderMode.bundledProxy) {
+        final proxyResult = await _resolveSteamGridDbCoverViaProxy(
+          game,
+          cacheKey: cacheKey,
+          proxyConfig: proxyConfig,
+        );
+        if (proxyResult.status == _CoverProxyLookupStatus.found) {
+          return proxyResult.path;
+        }
+        if (proxyResult.status == _CoverProxyLookupStatus.notFound) {
+          return null;
+        }
+        if (normalizedKey == null || normalizedKey.isEmpty) {
+          return null;
+        }
+      }
+
+      if (normalizedKey == null || normalizedKey.isEmpty) {
+        return null;
+      }
       String? imageUrl;
       if (game.platform == Platform.steam) {
-        final steamAppId = await _resolveSteamAppIdFromGamePath(game.path);
+        final steamAppId =
+            game.steamAppId?.toString() ??
+            await _resolveSteamAppIdFromGamePath(game.path);
         if (steamAppId != null) {
           imageUrl = await _findSteamGridDbGridUrlBySteamAppId(
             steamAppId: steamAppId,
@@ -376,6 +401,7 @@ extension _CoverArtServiceApi on CoverArtService {
   }
 
   Future<T> _withApiPermit<T>(Future<T> Function() request) async {
+    var hasReservedPermit = false;
     if (_activeApiRequests >= _maxApiConcurrentRequests) {
       if (_apiPermitQueue.length >= _maxPendingApiRequests) {
         throw const _RetryableApiException();
@@ -384,13 +410,20 @@ extension _CoverArtServiceApi on CoverArtService {
       _apiPermitQueue.addLast(waiter);
       try {
         await waiter.future.timeout(_apiPermitWaitTimeout);
+        hasReservedPermit = true;
       } on TimeoutException {
-        _apiPermitQueue.remove(waiter);
+        final removedQueuedWaiter = _apiPermitQueue.remove(waiter);
+        if (!removedQueuedWaiter && waiter.isCompleted) {
+          _activeApiRequests -= 1;
+          _releaseNextApiPermit();
+        }
         throw const _RetryableApiException();
       }
     }
 
-    _activeApiRequests += 1;
+    if (!hasReservedPermit) {
+      _activeApiRequests += 1;
+    }
     try {
       return await request();
     } finally {
@@ -405,6 +438,7 @@ extension _CoverArtServiceApi on CoverArtService {
       if (next.isCompleted) {
         continue;
       }
+      _activeApiRequests += 1;
       next.complete();
       return;
     }
