@@ -1,129 +1,229 @@
-# Compact Games
+Compact Games
 
-A beautiful, intelligent game compressor that automatically saves disk space without compromising performance.
+Free up storage by compressing games safely on Windows.
 
-## What is Compact Games?
+Compact Games helps you reclaim disk space from large game libraries using Windows NTFS compression. It finds your installed games, shows how much space you may be able to save, and lets you compress or decompress games with simple controls.
 
-Compact Games is a game manager that silently compresses your games in the background when your system is idle. It features a cinematic desert UI with real-time compression statistics and responsive game management controls.
+What Compact Games Does
 
-## Key Features
+Modern games can take up a huge amount of storage. Compact Games makes it easier to reduce that footprint without manually running command-line tools or hunting through install folders.
 
-- **Automatic Compression**: Compresses games when your system is idle
-- **Smart Safety**: Detects and protects DirectStorage-enabled games
-- **Beautiful UI**: Cinematic desert theme with panoramic layout, subtle grain texture, and restrained motion
-- **Multi-Platform**: Supports Steam, Epic Games, GOG, Xbox Game Pass, and custom paths
-- **Real-time Progress**: Live compression stats with estimated time remaining
-- **Zero Configuration**: Works out of the box with automatic game detection
+With Compact Games, you can:
 
-## Why Compact Games?
+Automatically find games from supported launchers
 
-Modern games can consume hundreds of gigabytes of storage. Windows NTFS compression can reduce game sizes by 20-60% without noticeable performance impact on most titles. Compact Games makes this process automatic, safe, and beautiful.
+Compress selected games to save disk space
 
-## Technology Stack
+Decompress games later with one click
 
-- **Frontend**: Flutter (beautiful, cross-platform UI)
-- **Backend**: Rust (performance, safety, Windows API access)
-- **Bridge**: flutter_rust_bridge (type-safe Dart ↔ Rust communication)
+See progress while compression is running
 
-## Quick Start
+Track how much space you have saved
 
-### Prerequisites
+Avoid compressing games that may not be safe to compress
 
-- Windows 10/11 (NTFS filesystem required)
-- Rust toolchain (https://rustup.rs/)
-- Flutter SDK (https://flutter.dev/docs/get-started/install)
+Download
 
-### Installation
--Install from site or download release and run .exe
+Download the latest Windows release from:
+
 https://g1mliii.github.io/compact-games/
 
-```cmd
+After downloading, run the installer or .exe file and follow the on-screen steps.
+
+Requirements
+
+Compact Games is built for Windows PCs.
+
+You need:
+
+Windows 10 or Windows 11
+
+An NTFS-formatted drive
+
+Enough free space for normal Windows operation
+
+Game folders that your Windows account can access
+
+Compact Games is not intended for macOS or Linux.
+
+Supported Game Sources
+
+Compact Games can detect games from common launchers and folders, including:
+
+Steam
+
+Epic Games
+
+GOG
+
+Xbox Game Pass
+
+Custom game folders
+
+You can also add your own paths if a game is installed somewhere else.
+
+How to Use Compact Games
+
+1. Open the app
+
+Launch Compact Games after installation.
+
+2. Let it scan your games
+
+The app will look for supported game libraries and list the games it finds.
+
+3. Review your games
+
+Each game will show information such as its location, size, compression state, and estimated savings when available.
+
+4. Choose what to compress
+
+Select the game or folder you want to compress.
+
+5. Start compression
+
+Compact Games will compress the selected game using Windows NTFS compression and show live progress.
+
+6. Decompress whenever needed
+
+You can restore a compressed game back to its original uncompressed state from inside the app.
+
+Is It Safe?
+
+Compact Games uses Windows NTFS compression, which does not rewrite or modify the contents of your game files. Windows transparently decompresses files when games read them.
+
+The app also includes safety checks such as:
+
+Skipping games that appear to use DirectStorage
+
+Avoiding games that are currently running
+
+Compressing only when it is safe to do so
+
+Allowing one-click decompression
+
+That said, every PC setup is different. If you are unsure, start with one game and test it before compressing a large library.
+
+Will Compression Affect Performance?
+
+For many games, the performance impact is small or unnoticeable because modern CPUs can decompress files quickly. Some games may even load similarly depending on your drive and system.
+
+However, compression may not be ideal for every game. Games that rely heavily on DirectStorage, very high-speed asset streaming, or unusual file layouts may not be good candidates.
+
+Compact Games tries to detect and avoid risky cases, but you can always decompress a game if needed.
+
+How Much Space Can I Save?
+
+Savings depend on the game.
+
+Games with many text files, scripts, uncompressed assets, or loose files often compress well. Games that already use compressed archives may save less space.
+
+Typical savings can vary widely, so the app shows estimates and actual saved space where possible.
+
+Compression Modes
+
+Compact Games supports multiple Windows compression algorithms:
+
+XPRESS4K — Fast compression, good default choice
+
+XPRESS8K — Balanced speed and savings
+
+XPRESS16K — Better compression, slower than XPRESS4K
+
+LZX — Maximum compression, usually not recommended for games
+
+Most users should use the default setting unless they know they want a different mode.
+
+Frequently Asked Questions
+
+Does Compact Games modify my games?
+
+No. NTFS compression changes how files are stored on disk, but it does not change the game files themselves.
+
+Can I still update my games?
+
+Yes. Game launchers should still be able to update compressed games normally.
+
+Can I use this with mods?
+
+Usually yes. Compression is transparent to Windows, the game, and most mods.
+
+Is this safe with anti-cheat?
+
+NTFS compression does not alter game file contents, so it is generally safe. If you run into issues with a specific game, decompress it.
+
+Can I undo compression?
+
+Yes. You can decompress any compressed game from inside the app.
+
+Should I compress every game?
+
+No. Some games are better left uncompressed, especially games that use DirectStorage or stream large assets aggressively. Compact Games helps you identify safer choices.
+
+Troubleshooting
+
+A game was not detected
+
+Try adding its install folder manually through custom paths.
+
+Compression failed
+
+Check that:
+
+The game is not running
+
+You have permission to access the folder
+
+The drive uses NTFS
+
+Your antivirus or security software is not blocking the app
+
+A game behaves strangely after compression
+
+Decompress the game from inside Compact Games, then restart the game launcher and verify the game files if needed.
+
+For Developers
+
+Compact Games is built with:
+
+Flutter for the interface
+
+Rust for performance-sensitive Windows functionality
+
+flutter_rust_bridge for Dart ↔ Rust communication
+
+To build from source:
+
 git clone https://github.com/g1mliii/compact-games.git
-cd compact_games
-```
+cd compact-games
 
-## How It Works
+Install the required Rust and Flutter toolchains before building.
 
-1. **Discovery**: Automatically finds games from Steam, Epic, GOG, and Xbox Game Pass
-2. **Monitoring**: Watches for new game installations
-3. **Idle Detection**: Waits until your system is idle (low CPU usage, no games running)
-4. **Safety Check**: Verifies the game doesn't use DirectStorage
-5. **Compression**: Applies Windows NTFS compression using optimal algorithms
-6. **Tracking**: Shows you exactly how much space you've saved
+Before contributing, please:
 
-## Safety First
+Run cargo clippy
 
-Compact Games includes multiple safety mechanisms:
+Run flutter analyze
 
-- **DirectStorage Detection**: Automatically detects and skips games that use DirectStorage
-- **Running Game Detection**: Never compresses games while they're running
-- **Idle-Only Operation**: Only compresses when your system is idle
-- **One-Click Decompression**: Easy rollback if needed
-- **Checksum Verification**: Ensures game integrity (planned feature)
+Add tests for new functionality where appropriate
 
-## Compression Algorithms
+Credits
 
-- **XPRESS4K**: Fast, moderate compression (default)
-- **XPRESS8K**: Balanced speed and compression
-- **XPRESS16K**: Better compression, still fast
-- **LZX**: Maximum compression (not recommended for games)
+Compact Games is inspired by tools like CompactGUI.
 
-## Contributing
+Optional runtime compression estimates may use community data from CompactGUI by IridiumIO. That data is GPL-3.0 licensed and fetched at runtime rather than bundled directly in the app binary.
 
-Contributions are welcome!
+Cover art may be provided by SteamGridDB through the built-in cover service or through your own optional SteamGridDB API key.
 
-### Development Workflow
+License
 
-1. Check `tasks/todo.md` for current tasks
-2. Follow the guidelines in `AGENTS.md`
-3. Write tests for new features
-4. Run `cargo clippy` and `flutter analyze` before committing
-5. Run ownership risk audit for sensitive paths: `pwsh ./scripts/run-security-ownership-audit.ps1`
-6. Submit a pull request
+MIT License. See LICENSE for details.
 
-## Performance Benchmarks
+Support
 
-Target performance metrics:
+Report bugs through GitHub Issues
 
-- Compression speed: >100MB/s on SSD
-- UI responsiveness: 60fps animations
-- Memory usage: <200MB idle, <500MB during compression
-- Startup time: <2 seconds
+Request features through GitHub Discussions
 
-## FAQ
+Check the project wiki for additional documentation
 
-**Q: Will compression slow down my games?**
-A: For most games, no. NTFS compression is transparent and modern CPUs decompress faster than SSDs can read. However, DirectStorage-enabled games should NOT be compressed, which is why Compact Games detects and skips them.
-
-**Q: How much space can I save?**
-A: Typically 20-60% depending on the game. Games with many text files, scripts, and uncompressed assets compress better.
-
-**Q: Can I decompress a game?**
-A: Yes! One-click decompression is available for any compressed game.
-
-**Q: Does this work with game mods?**
-A: Yes, compression is transparent to the game and mods.
-
-**Q: What about multiplayer/anti-cheat?**
-A: Compression doesn't modify game files, so it's safe with anti-cheat systems.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- Inspired by [CompactGUI](https://github.com/IridiumIO/CompactGUI)
-- Optional runtime compression estimates use CompactGUI community data by IridiumIO. The database is GPL-3.0 licensed data fetched from Compact Games releases at runtime, not bundled in the app binary.
-- Cover art from [SteamGridDB](https://www.steamgriddb.com/) via the built-in cover service or your own optional SteamGridDB API key.
-- Built with [Flutter](https://flutter.dev/) and [Rust](https://www.rust-lang.org/)
-
-## Support
-
-- Report bugs: [GitHub Issues](https://github.com/g1mliii/compact-games/issues)
-- Feature requests: [GitHub Discussions](https://github.com/g1mliii/compact-games/discussions)
-- Documentation: [Wiki](https://github.com/g1mliii/compact-games/wiki)
-
----
-
-Made with love for gamers who need more disk space
