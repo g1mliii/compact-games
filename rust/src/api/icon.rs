@@ -6,16 +6,18 @@
 
 #[cfg(windows)]
 pub(crate) mod platform {
-    use std::mem;
+    use std::{mem, ptr};
     use std::path::Path;
 
     use windows::core::PCWSTR;
     use windows::Win32::Graphics::Gdi::{
-        CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, SelectObject, BITMAPINFO,
-        BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetObjectW, SelectObject,
+        BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
     };
     use windows::Win32::UI::Shell::ExtractIconExW;
-    use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        DestroyIcon, DrawIconEx, GetIconInfo, HICON, ICONINFO, DI_NORMAL,
+    };
 
     use crate::utils::wide_null_str;
 
@@ -116,29 +118,19 @@ pub(crate) mod platform {
                 return None;
             }
 
-            let hdc = CreateCompatibleDC(None);
-            if hdc.is_invalid() {
-                let _ = DeleteObject(color_bmp);
-                return None;
-            }
-            let old_object = SelectObject(hdc, color_bmp);
-
-            let mut bmi: BITMAPINFO = mem::zeroed();
-            bmi.bmiHeader.biSize = mem::size_of::<BITMAPINFOHEADER>() as u32;
-            let got = GetDIBits(hdc, color_bmp, 0, 0, None, &mut bmi, DIB_RGB_COLORS);
-
-            if !old_object.is_invalid() {
-                let _ = SelectObject(hdc, old_object);
-            }
-            let _ = DeleteDC(hdc);
+            let mut bitmap: BITMAP = mem::zeroed();
+            let got = GetObjectW(
+                color_bmp,
+                mem::size_of::<BITMAP>() as i32,
+                Some((&mut bitmap as *mut BITMAP).cast()),
+            );
             let _ = DeleteObject(color_bmp);
-
             if got == 0 {
                 return None;
             }
 
-            let width = bmi.bmiHeader.biWidth;
-            let height = bmi.bmiHeader.biHeight.abs();
+            let width = bitmap.bmWidth;
+            let height = bitmap.bmHeight.abs();
             if width <= 0 || height <= 0 || width > 512 || height > 512 {
                 return None;
             }
@@ -170,38 +162,68 @@ pub(crate) mod platform {
                 let _ = DeleteObject(color_bmp);
                 return None;
             }
-            let old_object = SelectObject(hdc, color_bmp);
 
-            // Use pre-computed dimensions; configure for 32-bit BGRA, top-down.
+            // Draw into our own DIB section instead of reading the icon's
+            // source bitmap directly. Some valid EXE icons expose a bitmap
+            // that GetDIBits refuses to copy, while DrawIconEx can still
+            // render the HICON normally.
             let mut bmi: BITMAPINFO = mem::zeroed();
             bmi.bmiHeader.biSize = mem::size_of::<BITMAPINFOHEADER>() as u32;
             bmi.bmiHeader.biWidth = width;
             bmi.bmiHeader.biHeight = -height; // top-down
+            bmi.bmiHeader.biPlanes = 1;
             bmi.bmiHeader.biBitCount = 32;
             bmi.bmiHeader.biCompression = BI_RGB.0;
             bmi.bmiHeader.biSizeImage = 0;
 
             let row_bytes = (width as usize) * 4;
             let buf_size = row_bytes * (height as usize);
-            let mut pixels: Vec<u8> = vec![0u8; buf_size];
-
-            let copied = GetDIBits(
+            let mut bits = ptr::null_mut();
+            let dib = match CreateDIBSection(
                 hdc,
-                color_bmp,
-                0,
-                height as u32,
-                Some(pixels.as_mut_ptr().cast()),
-                &mut bmi,
+                &bmi,
                 DIB_RGB_COLORS,
+                &mut bits,
+                None,
+                0,
+            ) {
+                Ok(bitmap) => bitmap,
+                Err(_) => {
+                    let _ = DeleteDC(hdc);
+                    let _ = DeleteObject(color_bmp);
+                    return None;
+                }
+            };
+            if dib.is_invalid() || bits.is_null() {
+                let _ = DeleteDC(hdc);
+                let _ = DeleteObject(color_bmp);
+                return None;
+            }
+
+            let old_object = SelectObject(hdc, dib);
+            let drew = DrawIconEx(
+                hdc,
+                0,
+                0,
+                icon,
+                width,
+                height,
+                0,
+                None,
+                DI_NORMAL,
             );
+
+            let pixels = std::slice::from_raw_parts(bits.cast::<u8>(), buf_size);
+            let mut pixels = pixels.to_vec();
 
             if !old_object.is_invalid() {
                 let _ = SelectObject(hdc, old_object);
             }
+            let _ = DeleteObject(dib);
             let _ = DeleteDC(hdc);
             let _ = DeleteObject(color_bmp);
 
-            if copied == 0 {
+            if drew.is_err() {
                 return None;
             }
 

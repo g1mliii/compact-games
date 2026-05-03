@@ -95,6 +95,27 @@ void main() {
     skip: skipReason,
     timeout: const Timeout(Duration(seconds: 30)),
   );
+
+  test(
+    'real bridge extracts an icon from a Windows executable',
+    () {
+      final exePath = _windowsIconProbeCandidates().firstWhere(
+        (candidate) => io.File(candidate).existsSync(),
+        orElse: () => '',
+      );
+      if (exePath.isEmpty) {
+        return;
+      }
+
+      final iconBytes = RustBridgeService.instance.extractExeIcon(
+        exePath: exePath,
+      );
+
+      expect(iconBytes, isNotNull);
+      expect(iconBytes, isNotEmpty);
+    },
+    skip: skipReason,
+  );
 }
 
 String? _nativeBridgeSkipReason() {
@@ -138,6 +159,14 @@ List<String> _rustLibraryCandidates() {
   return <String>[
     '$cwd\\rust\\target\\debug\\compact_games_core.dll',
     '$cwd\\rust\\target\\release\\compact_games_core.dll',
+  ];
+}
+
+List<String> _windowsIconProbeCandidates() {
+  final windowsDir = io.Platform.environment['WINDIR'] ?? r'C:\Windows';
+  return <String>[
+    '$windowsDir\\System32\\notepad.exe',
+    '$windowsDir\\explorer.exe',
   ];
 }
 
