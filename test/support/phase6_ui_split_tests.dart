@@ -1073,80 +1073,7 @@ void runPhase6OversizeSplitTests() {
   testWidgets('GameCard cover image uses contain fit to avoid cropping', (
     WidgetTester tester,
   ) async {
-    // Use a MemoryImage so the test does not depend on network/file I/O.
-    final testProvider = MemoryImage(
-      Uint8List.fromList(
-        // 1x1 transparent PNG
-        [
-          137,
-          80,
-          78,
-          71,
-          13,
-          10,
-          26,
-          10,
-          0,
-          0,
-          0,
-          13,
-          73,
-          72,
-          68,
-          82,
-          0,
-          0,
-          0,
-          1,
-          0,
-          0,
-          0,
-          1,
-          8,
-          6,
-          0,
-          0,
-          0,
-          31,
-          21,
-          196,
-          137,
-          0,
-          0,
-          0,
-          10,
-          73,
-          68,
-          65,
-          84,
-          120,
-          156,
-          98,
-          0,
-          0,
-          0,
-          2,
-          0,
-          1,
-          226,
-          33,
-          188,
-          51,
-          0,
-          0,
-          0,
-          0,
-          73,
-          69,
-          78,
-          68,
-          174,
-          66,
-          96,
-          130,
-        ],
-      ),
-    );
+    final testProvider = _transparentPngProvider();
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -1169,6 +1096,58 @@ void runPhase6OversizeSplitTests() {
     expect(image.fit, BoxFit.contain);
     expect(image.isAntiAlias, isTrue);
     expect(image.filterQuality, FilterQuality.low);
+  });
+
+  testWidgets('GameCard icon cover does not paint placeholder icon underneath', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 280,
+            height: 420,
+            child: GameCard(
+              gameName: 'Icon Cover',
+              platform: Platform.application,
+              totalSizeBytes: 10 * _oneGiB,
+              coverImageProvider: _transparentPngProvider(),
+              coverArtType: CoverArtType.icon,
+              assumeBoundedHeight: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.byIcon(LucideIcons.archive), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('GameDetailsCover icon cover does not paint placeholder icon', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            child: GameDetailsCover(
+              platform: Platform.application,
+              coverProvider: _transparentPngProvider(),
+              decodeWidth: 128,
+              deferred: false,
+              coverArtType: CoverArtType.icon,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.byIcon(LucideIcons.archive), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('GameCard renders metadata above a bottom cover panel', (
@@ -1746,5 +1725,81 @@ void runPhase6OversizeSplitTests() {
       expect(folders.length, 1);
       expect(folders.first.toLowerCase().endsWith('.exe'), isFalse);
     },
+  );
+}
+
+MemoryImage _transparentPngProvider() {
+  return MemoryImage(
+    Uint8List.fromList(
+      // 1x1 transparent PNG.
+      [
+        137,
+        80,
+        78,
+        71,
+        13,
+        10,
+        26,
+        10,
+        0,
+        0,
+        0,
+        13,
+        73,
+        72,
+        68,
+        82,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        8,
+        6,
+        0,
+        0,
+        0,
+        31,
+        21,
+        196,
+        137,
+        0,
+        0,
+        0,
+        10,
+        73,
+        68,
+        65,
+        84,
+        120,
+        156,
+        98,
+        0,
+        0,
+        0,
+        2,
+        0,
+        1,
+        226,
+        33,
+        188,
+        51,
+        0,
+        0,
+        0,
+        0,
+        73,
+        69,
+        78,
+        68,
+        174,
+        66,
+        96,
+        130,
+      ],
+    ),
   );
 }

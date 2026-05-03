@@ -168,18 +168,18 @@ class GameCard extends StatelessWidget {
   Widget _buildCoverContent(BuildContext context) {
     if (coverImageProvider != null) {
       if (coverArtType == CoverArtType.icon) {
-        return _buildIconCover(context, coverImageProvider!);
+        return _buildIconCover(coverImageProvider!);
       }
       return _buildImageWithProvider(context, coverImageProvider!);
     }
     return _buildPlaceholderCover();
   }
 
-  Widget _buildIconCover(BuildContext context, ImageProvider provider) {
+  Widget _buildIconCover(ImageProvider provider) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        _buildPlaceholderCover(),
+        const ColoredBox(color: AppColors.surfaceElevated),
         Center(
           child: SizedBox(
             width: 64,
