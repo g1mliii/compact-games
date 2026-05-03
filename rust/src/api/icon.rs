@@ -194,11 +194,15 @@ pub(crate) mod platform {
             }
 
             let old_object = SelectObject(hdc, dib);
+            if old_object.is_invalid() {
+                let _ = DeleteObject(dib);
+                let _ = DeleteDC(hdc);
+                let _ = DeleteObject(color_bmp);
+                return None;
+            }
             let drew = DrawIconEx(hdc, 0, 0, icon, width, height, 0, None, DI_NORMAL);
 
-            if !old_object.is_invalid() {
-                let _ = SelectObject(hdc, old_object);
-            }
+            let _ = SelectObject(hdc, old_object);
 
             if drew.is_err() {
                 let _ = DeleteObject(dib);
