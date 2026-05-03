@@ -78,6 +78,7 @@ class ShellLaunchArgs {
 }
 
 String? _optionValue(List<String> args, String option) {
+  final prefix = '$option=';
   for (var i = 0; i < args.length; i++) {
     final arg = args[i];
     if (arg == option) {
@@ -87,7 +88,6 @@ String? _optionValue(List<String> args, String option) {
       }
       return args[nextIndex];
     }
-    final prefix = '$option=';
     if (arg.startsWith(prefix)) {
       return arg.substring(prefix.length);
     }

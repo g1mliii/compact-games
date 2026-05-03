@@ -250,20 +250,15 @@ class CoverArtService {
     // Prefer the exe path the estimator already discovered. Falls back to
     // scanning the game folder so compressed app games (which skip the
     // estimate fetch) still get an icon.
-    final hintedPath = _readEstimateHint(cacheKey);
-    final exePath = hintedPath ?? await _discoverPrimaryExe(game.path);
-    if (exePath == null) {
-      debugPrint(
-        '[cover] no exe found for ${game.name} at ${game.path} (hint=${hintedPath != null})',
-      );
-      return null;
-    }
     try {
+      final hintedPath = _readEstimateHint(cacheKey);
+      final exePath =
+          hintedPath ?? await rustBridge.discoverPrimaryExe(game.path);
+      if (exePath == null) {
+        return null;
+      }
       final pngBytes = rustBridge.extractExeIcon(exePath: exePath);
       if (pngBytes == null || pngBytes.isEmpty) {
-        debugPrint(
-          '[cover] extractExeIcon returned empty for ${game.name} (exe=$exePath)',
-        );
         return null;
       }
       final cacheDir = await _ensureCacheDir();
@@ -283,93 +278,6 @@ class CoverArtService {
     } catch (_) {
       return null;
     }
-  }
-
-  /// Walk a game folder up to a few levels deep and pick the most likely
-  /// "primary" executable for icon extraction. Skips known non-game names
-  /// (installers, crash reporters, redists) and picks the largest remaining
-  /// .exe.
-  static const int _exeDiscoveryMaxDepth = 4;
-  static const int _exeDiscoveryMaxFiles = 600;
-  static const Set<String> _exeDiscoveryNoiseDirs = {
-    '\$recycle.bin',
-    'redist',
-    'redists',
-    '_commonredist',
-    'support',
-    'crashpad',
-    'crashreporter',
-    'crashreports',
-    'directx',
-    'vcredist',
-    'dotnet',
-    '.git',
-    'logs',
-    'cache',
-    'shadercache',
-  };
-
-  Future<String?> _discoverPrimaryExe(String folderPath) async {
-    if (folderPath.isEmpty) return null;
-    // game.path occasionally points at the executable directly (manual
-    // imports). Use it as-is when it's already an .exe file on disk.
-    if (folderPath.toLowerCase().endsWith('.exe') &&
-        await File(folderPath).exists()) {
-      return folderPath;
-    }
-    final root = Directory(folderPath);
-    if (!(await root.exists())) return null;
-
-    String? best;
-    var bestSize = -1;
-    var filesScanned = 0;
-    final queue = <(Directory dir, int depth)>[(root, 0)];
-
-    while (queue.isNotEmpty) {
-      final (dir, depth) = queue.removeLast();
-      try {
-        await for (final entity in dir.list(followLinks: false)) {
-          if (filesScanned >= _exeDiscoveryMaxFiles) {
-            return best;
-          }
-          if (entity is Directory) {
-            if (depth + 1 > _exeDiscoveryMaxDepth) continue;
-            final nameLower = p.basename(entity.path).toLowerCase();
-            if (_exeDiscoveryNoiseDirs.contains(nameLower)) continue;
-            queue.add((entity, depth + 1));
-            continue;
-          }
-          if (entity is! File) continue;
-          filesScanned += 1;
-          final lower = p.basename(entity.path).toLowerCase();
-          if (!lower.endsWith('.exe')) continue;
-          if (_isNonGameExecutableName(lower)) continue;
-          try {
-            final size = (await entity.stat()).size;
-            if (size > bestSize) {
-              best = entity.path;
-              bestSize = size;
-            }
-          } catch (_) {}
-        }
-      } catch (_) {
-        // Permission denied or unreadable — skip this directory.
-        continue;
-      }
-    }
-    return best;
-  }
-
-  static bool _isNonGameExecutableName(String lowerName) {
-    return lowerName.contains('setup') ||
-        lowerName.contains('install') ||
-        lowerName.contains('unins') ||
-        lowerName.contains('vcredist') ||
-        lowerName.contains('dxsetup') ||
-        lowerName.contains('crashpad') ||
-        lowerName.contains('crashreport') ||
-        lowerName.contains('redist') ||
-        lowerName.contains('updater');
   }
 
   Future<CoverArtResult?> _readCachedCover(String cacheKey) async {

@@ -330,6 +330,8 @@ class _MinimalBridgeService implements RustBridgeService {
   @override
   Uint8List? extractExeIcon({required String exePath}) => null;
   @override
+  Future<String?> discoverPrimaryExe(String folder) async => null;
+  @override
   Stream<WatcherEvent> watchWatcherEvents() => const Stream.empty();
   @override
   Stream<List<AutomationJob>> watchAutomationQueue() => Stream.value(const []);

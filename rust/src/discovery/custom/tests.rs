@@ -60,6 +60,11 @@ fn is_non_game_exe_filters_installers() {
     assert!(!is_non_game_exe("game.exe"));
     assert!(!is_non_game_exe("gamelauncher.exe"));
     assert!(!is_non_game_exe("portal2.exe"));
+    assert!(!is_non_game_exe("superupdater.exe"));
+    assert!(!is_non_game_exe("updaterquest.exe"));
+    assert!(is_non_game_exe("updater.exe"));
+    assert!(is_non_game_exe("game_updater.exe"));
+    assert!(is_non_game_exe("game-updater.exe"));
 }
 
 #[test]

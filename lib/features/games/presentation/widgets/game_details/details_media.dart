@@ -42,7 +42,6 @@ class GameDetailsCover extends StatelessWidget {
                     : coverArtType == CoverArtType.icon
                     ? _IconCoverLayout(
                         coverProvider: coverProvider!,
-                        platform: platform,
                       )
                     : _CachedResizeImage(
                         provider: coverProvider!,
@@ -56,15 +55,7 @@ class GameDetailsCover extends StatelessWidget {
                         errorBuilder: _CoverFallback(platform: platform),
                       ),
                 if (overlay != null)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    left: 8,
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: overlay!,
-                    ),
-                  ),
+                  Positioned(top: 8, right: 8, child: overlay!),
               ],
             ),
           ),
@@ -75,17 +66,16 @@ class GameDetailsCover extends StatelessWidget {
 }
 
 class _IconCoverLayout extends StatelessWidget {
-  const _IconCoverLayout({required this.coverProvider, required this.platform});
+  const _IconCoverLayout({required this.coverProvider});
 
   final ImageProvider<Object> coverProvider;
-  final Platform platform;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        _CoverFallback(platform: platform),
+        const ColoredBox(color: AppColors.surfaceElevated),
         Center(
           child: SizedBox(
             width: 64,

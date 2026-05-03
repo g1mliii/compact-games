@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 987500232;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 241481693;
 
 // Section: executor
 
@@ -299,6 +299,40 @@ fn wire__crate__api__compression__decompress_game_impl(
                     Ok(output_ok)
                 })(
                 ))
+            }
+        },
+    )
+}
+fn wire__crate__api__icon__discover_primary_exe_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "discover_primary_exe",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_folder = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::icon::discover_primary_exe(api_folder))?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -2202,92 +2236,93 @@ fn pde_ffi_dispatcher_primary_impl(
         3 => wire__crate__api__update__check_for_update_impl(port, ptr, rust_vec_len, data_len),
         6 => wire__crate__api__compression__compress_game_impl(port, ptr, rust_vec_len, data_len),
         7 => wire__crate__api__compression__decompress_game_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__update__download_update_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__compression__estimate_compression_savings_impl(
+        8 => wire__crate__api__icon__discover_primary_exe_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__update__download_update_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__compression__estimate_compression_savings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        10 => wire__crate__api__icon__platform__extract_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__unsupported__fetch_community_unsupported_list_impl(
+        11 => wire__crate__api__icon__platform__extract_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__unsupported__fetch_community_unsupported_list_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        13 => wire__crate__api__types__frb_estimate_context_default_impl(
+        14 => wire__crate__api__types__frb_estimate_context_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        14 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
-        15 => {
+        15 => wire__crate__api__discovery__get_all_games_impl(port, ptr, rust_vec_len, data_len),
+        16 => {
             wire__crate__api__discovery__get_all_games_quick_impl(port, ptr, rust_vec_len, data_len)
         }
-        18 => wire__crate__api__compression__get_compression_ratio_impl(
+        19 => wire__crate__api__compression__get_compression_ratio_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__discovery__remove_game_from_discovery_impl(
+        22 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__discovery__remove_game_from_discovery_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => {
+        30 => {
             wire__crate__api__shell__resolve_shortcut_target_impl(port, ptr, rust_vec_len, data_len)
         }
-        30 => {
+        31 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        31 => wire__crate__api__automation__shared_auto_state_default_impl(
+        32 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        32 => wire__crate__api__automation__start_auto_compression_impl(
+        33 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
+        35 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__automation__update_automation_config_impl(
+        37 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        38 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__automation__watch_automation_queue_impl(
+        39 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__automation__watch_scheduler_state_impl(
+        40 => wire__crate__api__automation__watch_scheduler_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__automation__watch_watcher_events_impl(
+        41 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2312,35 +2347,35 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        11 => wire__crate__api__icon__extract_exe_icon_impl(ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__automation__get_automation_queue_impl(ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__compression__get_compression_progress_impl(
+        12 => wire__crate__api__icon__extract_exe_icon_impl(ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__automation__get_automation_queue_impl(ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__compression__get_compression_progress_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
-        20 => {
+        20 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
+        21 => {
             wire__crate__api__automation__get_watcher_diagnostics_impl(ptr, rust_vec_len, data_len)
         }
-        22 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__automation__is_auto_compression_running_impl(
+        23 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__automation__is_auto_compression_running_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__compression__persist_compression_history_impl(
+        25 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__compression__persist_compression_history_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => {
+        29 => {
             wire__crate__api__unsupported__report_unsupported_game_impl(ptr, rust_vec_len, data_len)
         }
-        33 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
+        34 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
             ptr,
             rust_vec_len,
             data_len,
