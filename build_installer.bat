@@ -11,7 +11,14 @@ if "%VERSION%"=="" (
     exit /b 1
 )
 
-echo [1/5] Building Rust release...
+echo [1/6] Generating Flutter Rust Bridge bindings...
+call powershell -NoProfile -ExecutionPolicy Bypass -File scripts\generate-frb.ps1
+if errorlevel 1 (
+    echo ERROR: Flutter Rust Bridge code generation failed.
+    exit /b 1
+)
+
+echo [2/6] Building Rust release...
 pushd rust
 cargo build --release
 if errorlevel 1 (
@@ -21,7 +28,7 @@ if errorlevel 1 (
 )
 popd
 
-echo [2/5] Building Flutter Windows release...
+echo [3/6] Building Flutter Windows release...
 set "HAS_PROXY_DEFINES="
 if defined COMPACT_GAMES_SGDB_PROXY_URL (
     if defined COMPACT_GAMES_SGDB_TOKEN (
@@ -41,14 +48,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [3/5] Copying Rust DLL to Release folder...
+echo [4/6] Copying Rust DLL to Release folder...
 if not exist "%RUST_DLL%" (
     echo ERROR: Rust DLL not found at %RUST_DLL%
     exit /b 1
 )
 copy /Y "%RUST_DLL%" "%RELEASE_DIR%\" >nul
 
-echo [4/5] Bundling VC++ runtime DLLs...
+echo [5/6] Bundling VC++ runtime DLLs...
 set "VCRT_FOUND="
 for /f "delims=" %%D in ('dir /b /s /ad "C:\Program Files (x86)\Microsoft Visual Studio\*Microsoft.VC*.CRT" 2^>nul ^| findstr /i "x64"') do (
     if exist "%%D\vcruntime140.dll" (
@@ -65,7 +72,7 @@ if not defined VCRT_FOUND (
     echo WARNING: VC++ runtime DLLs not found. Installer may fail on clean machines.
 )
 
-echo [5/5] Building installer...
+echo [6/6] Building installer...
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=%VERSION% installer\compact_games.iss
 if errorlevel 1 (
     echo ERROR: Inno Setup failed.

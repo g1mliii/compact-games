@@ -133,6 +133,9 @@ class _BaseRustBridgeService implements RustBridgeService {
   Uint8List? extractExeIcon({required String exePath}) => null;
 
   @override
+  Future<String?> discoverPrimaryExe(String folder) async => null;
+
+  @override
   Future<rust_update.UpdateCheckResult> checkForUpdate({
     required String currentVersion,
   }) async {
