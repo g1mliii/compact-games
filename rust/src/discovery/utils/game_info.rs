@@ -573,8 +573,10 @@ pub(crate) fn is_non_game_exe(name: &str) -> bool {
         || name.contains("vcredist")
         || name.contains("dxsetup")
         || name.contains("dotnet")
+        || name.contains("crashpad")
+        || name.contains("crashreport")
+        || name.contains("updater")
         || name == "ue4prereqsetup_x64.exe"
-        || name == "crashreportclient.exe"
 }
 
 #[cfg(test)]

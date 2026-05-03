@@ -259,6 +259,12 @@ class RustBridgeService {
     return rust_icon.extractExeIcon(exePath: exePath);
   }
 
+  /// Walk a game folder (depth ≤ 4, cap 600 files) and return the path to
+  /// the most likely primary game executable. Returns null when none found.
+  Future<String?> discoverPrimaryExe(String folder) {
+    return rust_icon.discoverPrimaryExe(folder: folder);
+  }
+
   Future<int> fetchCommunityUnsupportedList() {
     return rust_unsupported.fetchCommunityUnsupportedList();
   }

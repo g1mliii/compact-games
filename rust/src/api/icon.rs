@@ -321,3 +321,127 @@ pub fn extract_exe_icon(exe_path: String) -> Option<Vec<u8>> {
         None
     }
 }
+
+/// Walk a game folder and return the path to the most likely primary game
+/// executable. Skips known non-game names (installers, crash reporters,
+/// redistributables) and picks the largest remaining .exe.
+///
+/// Walks at most 4 levels deep and scans at most 600 entries so the call
+/// stays bounded on large libraries. Runs on the FRB thread pool (off the
+/// Flutter UI isolate) so cover-art resolution doesn't stall the frame loop.
+pub fn discover_primary_exe(folder: String) -> Option<String> {
+    discover_primary_exe_impl(&folder)
+}
+
+const EXE_DISCOVERY_MAX_DEPTH: usize = 4;
+const EXE_DISCOVERY_MAX_FILES: usize = 600;
+const EXE_DISCOVERY_NOISE_DIRS: &[&str] = &[
+    "$recycle.bin",
+    "temp",
+    "tmp",
+    ".git",
+    "cache",
+    "shadercache",
+    "dotnet",
+    "logs",
+    "redist",
+    "redists",
+    "_commonredist",
+    "support",
+    "crashpad",
+    "crashreporter",
+    "crashreports",
+    "directx",
+    "vcredist",
+];
+
+fn discover_primary_exe_impl(folder: &str) -> Option<String> {
+    use std::fs;
+    use std::path::Path;
+
+    if folder.is_empty() {
+        return None;
+    }
+
+    // game.path occasionally points at the executable directly (manual imports).
+    let path = Path::new(folder);
+    if path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("exe"))
+        .unwrap_or(false)
+        && path.is_file()
+    {
+        return Some(folder.to_owned());
+    }
+
+    if !path.is_dir() {
+        return None;
+    }
+
+    let mut best: Option<(String, u64)> = None;
+    let mut files_scanned: usize = 0;
+    let mut queue: Vec<(std::path::PathBuf, usize)> = vec![(path.to_owned(), 0)];
+
+    while let Some((dir, depth)) = queue.pop() {
+        let entries = match fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            if files_scanned >= EXE_DISCOVERY_MAX_FILES {
+                return best.map(|(p, _)| p);
+            }
+            let file_type = match entry.file_type() {
+                Ok(ft) => ft,
+                Err(_) => continue,
+            };
+            if file_type.is_dir() {
+                if depth + 1 > EXE_DISCOVERY_MAX_DEPTH {
+                    continue;
+                }
+                let raw_name = entry.file_name();
+                let name_lower = raw_name.to_string_lossy().to_ascii_lowercase();
+                if EXE_DISCOVERY_NOISE_DIRS
+                    .iter()
+                    .any(|n| *n == name_lower.as_str())
+                {
+                    continue;
+                }
+                queue.push((entry.path(), depth + 1));
+                continue;
+            }
+            if !file_type.is_file() {
+                continue;
+            }
+            files_scanned += 1;
+            let raw_name = entry.file_name();
+            let name_lower = raw_name.to_string_lossy().to_ascii_lowercase();
+            if !name_lower.ends_with(".exe") {
+                continue;
+            }
+            if crate::discovery::utils::is_non_game_exe(&name_lower) {
+                continue;
+            }
+            let size = match entry.metadata() {
+                Ok(m) => m.len(),
+                Err(_) => continue,
+            };
+            match &best {
+                None => {
+                    best = Some((entry.path().to_string_lossy().into_owned(), size));
+                }
+                Some((_, best_size)) if size > *best_size => {
+                    best = Some((entry.path().to_string_lossy().into_owned(), size));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    best.map(|(p, _)| p)
+}

@@ -13,6 +13,15 @@ const String _shellHandoffMagic = 'compact-games-shell-action-v1';
 const String _shellHandoffTokenDir = 'compact_games';
 const String _shellHandoffTokenFile = 'shell-handoff.token';
 
+abstract final class _HandoffProtocol {
+  static const String magicKey = 'magic';
+  static const String tokenKey = 'token';
+  static const String requestKey = 'request';
+  static const String commandKey = 'command';
+  static const String ok = 'ok';
+  static const String error = 'error';
+}
+
 class ShellCommandHandoffServer {
   ShellCommandHandoffServer._();
 
@@ -72,8 +81,8 @@ class ShellCommandHandoffServer {
     ShellActionRequest? request,
   }) async {
     return _handoffToRunningApp(<String, Object?>{
-      'command': request == null ? 'show' : 'shellAction',
-      if (request != null) 'request': request.toJson(),
+      _HandoffProtocol.commandKey: request == null ? 'show' : 'shellAction',
+      if (request != null) _HandoffProtocol.requestKey: request.toJson(),
     });
   }
 
@@ -106,13 +115,13 @@ class ShellCommandHandoffServer {
           .timeout(const Duration(milliseconds: 500));
       socket.writeln(
         jsonEncode(<String, Object?>{
-          'magic': _shellHandoffMagic,
-          'token': token,
+          _HandoffProtocol.magicKey: _shellHandoffMagic,
+          _HandoffProtocol.tokenKey: token,
           ...payload,
         }),
       );
       await socket.flush();
-      return (await response) == 'ok';
+      return (await response) == _HandoffProtocol.ok;
     } catch (_) {
       return false;
     } finally {
@@ -133,36 +142,38 @@ class ShellCommandHandoffServer {
           .first
           .timeout(const Duration(seconds: 1));
       final decoded = jsonDecode(line);
-      if (decoded is! Map || decoded['magic'] != _shellHandoffMagic) {
-        socket.writeln('error');
+      if (decoded is! Map ||
+          decoded[_HandoffProtocol.magicKey] != _shellHandoffMagic) {
+        socket.writeln(_HandoffProtocol.error);
         return;
       }
-      final providedToken = decoded['token'];
+      final providedToken = decoded[_HandoffProtocol.tokenKey];
       if (providedToken is! String ||
           !_constantTimeEquals(providedToken, _token)) {
         // Wrong/missing token — likely a stranger probing the port. Drop
         // without acknowledging so we don't help an attacker enumerate.
-        socket.writeln('error');
+        socket.writeln(_HandoffProtocol.error);
         return;
       }
-      final command = decoded['command'];
+      final command = decoded[_HandoffProtocol.commandKey];
       if (command == 'show') {
         onShowWindow();
       } else {
-        final request = ShellActionRequest.fromJson(decoded['request']);
+        final request =
+            ShellActionRequest.fromJson(decoded[_HandoffProtocol.requestKey]);
         if (request == null) {
-          socket.writeln('error');
+          socket.writeln(_HandoffProtocol.error);
           return;
         }
-        // 'ok' confirms the request was accepted into the in-process queue,
+        // ok confirms the request was accepted into the in-process queue,
         // not that the underlying compress/decompress job succeeded — those
         // run asynchronously after this socket is closed.
         onRequest(request);
       }
-      socket.writeln('ok');
+      socket.writeln(_HandoffProtocol.ok);
     } catch (error) {
       debugPrint('[shell] handoff request failed: $error');
-      socket.writeln('error');
+      socket.writeln(_HandoffProtocol.error);
     } finally {
       await socket.flush().catchError((_) {});
       await socket.close().catchError((_) {});

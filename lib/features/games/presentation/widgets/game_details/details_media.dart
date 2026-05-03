@@ -56,15 +56,7 @@ class GameDetailsCover extends StatelessWidget {
                         errorBuilder: _CoverFallback(platform: platform),
                       ),
                 if (overlay != null)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    left: 8,
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: overlay!,
-                    ),
-                  ),
+                  Positioned(top: 8, right: 8, child: overlay!),
               ],
             ),
           ),
