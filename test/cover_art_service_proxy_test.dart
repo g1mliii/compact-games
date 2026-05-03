@@ -11,6 +11,8 @@ import 'package:compact_games/models/app_settings.dart';
 import 'package:compact_games/models/game_info.dart';
 import 'package:compact_games/services/cover_art_service.dart';
 
+import 'support/noop_rust_bridge_service.dart';
+
 void main() {
   late Directory tempDir;
   late PathProviderPlatform originalPathProvider;
@@ -152,6 +154,22 @@ void main() {
 
     expect(result.source, CoverArtSource.none);
     expect(requests.single.host, 'proxy.example.test');
+  });
+
+  test('exe discovery failures resolve to placeholder cover', () async {
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Bridge Shutdown Game',
+        path: r'C:\Games\bridge_shutdown_game',
+        platform: Platform.application,
+        sizeBytes: 1,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.userKey,
+      rustBridge: const _ThrowingDiscoverRustBridgeService(),
+    );
+
+    expect(result.source, CoverArtSource.none);
+    expect(result.uri, isNull);
   });
 
   test('proxy 503 falls back to the user SteamGridDB key', () async {
@@ -482,6 +500,15 @@ void main() {
     });
     expect(client.maxActiveRequests, lessThanOrEqualTo(3));
   });
+}
+
+class _ThrowingDiscoverRustBridgeService extends NoOpRustBridgeService {
+  const _ThrowingDiscoverRustBridgeService();
+
+  @override
+  Future<String?> discoverPrimaryExe(String folder) async {
+    throw StateError('bridge unavailable');
+  }
 }
 
 http.Response _jsonResponse(Map<String, Object?> body, [int status = 200]) {

@@ -250,12 +250,13 @@ class CoverArtService {
     // Prefer the exe path the estimator already discovered. Falls back to
     // scanning the game folder so compressed app games (which skip the
     // estimate fetch) still get an icon.
-    final hintedPath = _readEstimateHint(cacheKey);
-    final exePath = hintedPath ?? await rustBridge.discoverPrimaryExe(game.path);
-    if (exePath == null) {
-      return null;
-    }
     try {
+      final hintedPath = _readEstimateHint(cacheKey);
+      final exePath =
+          hintedPath ?? await rustBridge.discoverPrimaryExe(game.path);
+      if (exePath == null) {
+        return null;
+      }
       final pngBytes = rustBridge.extractExeIcon(exePath: exePath);
       if (pngBytes == null || pngBytes.isEmpty) {
         return null;
