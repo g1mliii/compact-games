@@ -6,8 +6,8 @@
 
 #[cfg(windows)]
 pub(crate) mod platform {
-    use std::{mem, ptr};
     use std::path::Path;
+    use std::{mem, ptr};
 
     use windows::core::PCWSTR;
     use windows::Win32::Graphics::Gdi::{
@@ -16,7 +16,7 @@ pub(crate) mod platform {
     };
     use windows::Win32::UI::Shell::ExtractIconExW;
     use windows::Win32::UI::WindowsAndMessaging::{
-        DestroyIcon, DrawIconEx, GetIconInfo, HICON, ICONINFO, DI_NORMAL,
+        DestroyIcon, DrawIconEx, GetIconInfo, DI_NORMAL, HICON, ICONINFO,
     };
 
     use crate::utils::wide_null_str;
@@ -179,14 +179,7 @@ pub(crate) mod platform {
             let row_bytes = (width as usize) * 4;
             let buf_size = row_bytes * (height as usize);
             let mut bits = ptr::null_mut();
-            let dib = match CreateDIBSection(
-                hdc,
-                &bmi,
-                DIB_RGB_COLORS,
-                &mut bits,
-                None,
-                0,
-            ) {
+            let dib = match CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0) {
                 Ok(bitmap) => bitmap,
                 Err(_) => {
                     let _ = DeleteDC(hdc);
@@ -201,31 +194,25 @@ pub(crate) mod platform {
             }
 
             let old_object = SelectObject(hdc, dib);
-            let drew = DrawIconEx(
-                hdc,
-                0,
-                0,
-                icon,
-                width,
-                height,
-                0,
-                None,
-                DI_NORMAL,
-            );
-
-            let pixels = std::slice::from_raw_parts(bits.cast::<u8>(), buf_size);
-            let mut pixels = pixels.to_vec();
+            let drew = DrawIconEx(hdc, 0, 0, icon, width, height, 0, None, DI_NORMAL);
 
             if !old_object.is_invalid() {
                 let _ = SelectObject(hdc, old_object);
             }
+
+            if drew.is_err() {
+                let _ = DeleteObject(dib);
+                let _ = DeleteDC(hdc);
+                let _ = DeleteObject(color_bmp);
+                return None;
+            }
+
+            let pixels = std::slice::from_raw_parts(bits.cast::<u8>(), buf_size);
+            let mut pixels = pixels.to_vec();
+
             let _ = DeleteObject(dib);
             let _ = DeleteDC(hdc);
             let _ = DeleteObject(color_bmp);
-
-            if drew.is_err() {
-                return None;
-            }
 
             // Convert BGRA to RGBA in place.
             for chunk in pixels.chunks_exact_mut(4) {
@@ -428,10 +415,7 @@ fn discover_primary_exe_impl(folder: &str) -> Option<String> {
                 }
                 let raw_name = entry.file_name();
                 let name_lower = raw_name.to_string_lossy().to_ascii_lowercase();
-                if EXE_DISCOVERY_NOISE_DIRS
-                    .iter()
-                    .any(|n| *n == name_lower.as_str())
-                {
+                if EXE_DISCOVERY_NOISE_DIRS.contains(&name_lower.as_str()) {
                     continue;
                 }
                 queue.push((entry.path(), depth + 1));

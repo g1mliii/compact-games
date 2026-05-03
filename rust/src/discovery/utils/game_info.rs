@@ -575,7 +575,10 @@ pub(crate) fn is_non_game_exe(name: &str) -> bool {
         || name.contains("dotnet")
         || name.contains("crashpad")
         || name.contains("crashreport")
-        || name.contains("updater")
+        || name == "updater.exe"
+        || name.ends_with("_updater.exe")
+        || name.ends_with("-updater.exe")
+        || name.ends_with(" updater.exe")
         || name == "ue4prereqsetup_x64.exe"
 }
 
