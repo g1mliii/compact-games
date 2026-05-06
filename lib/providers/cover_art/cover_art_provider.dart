@@ -15,6 +15,10 @@ final coverArtServiceProvider = Provider<CoverArtService>((ref) {
   return _coverArtServiceSingleton;
 });
 
+final coverArtProxyConfigProvider = Provider<CoverArtProxyConfig>(
+  (ref) => const CoverArtProxyConfig(),
+);
+
 final coverArtProvider = FutureProvider.autoDispose
     .family<CoverArtResult, String>((ref, gamePath) async {
       // Keep provider alive for 30 seconds after it is no longer watched to
@@ -68,7 +72,7 @@ final coverArtProvider = FutureProvider.autoDispose
         game,
         steamGridDbApiKey: coverSettings.apiKey,
         coverArtProviderMode: coverSettings.mode,
-        coverArtProxyConfig: const CoverArtProxyConfig(),
+        coverArtProxyConfig: ref.read(coverArtProxyConfigProvider),
         rustBridge: bridge,
       );
     });

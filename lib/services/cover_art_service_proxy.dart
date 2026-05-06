@@ -118,9 +118,14 @@ extension _CoverArtServiceProxy on CoverArtService {
     final prefix = base.path.endsWith('/')
         ? base.path.substring(0, base.path.length - 1)
         : base.path;
+    final merged = <String, List<String>>{
+      ...base.queryParametersAll,
+      for (final entry in queryParameters.entries)
+        entry.key: [entry.value],
+    };
     return base.replace(
       path: '$prefix$endpoint',
-      queryParameters: queryParameters,
+      queryParameters: merged.isEmpty ? null : merged,
     );
   }
 
