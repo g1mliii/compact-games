@@ -471,6 +471,52 @@ void main() {
     expect(client.imageChunksEmitted, lessThan(10));
   });
 
+  test('base URL query params are preserved when building proxy URI', () async {
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'proxy.example.test') {
+          expect(request.url.queryParameters['env'], 'staging');
+          expect(request.url.queryParameters['steam_app_id'], '440');
+          expect(request.url.queryParameters['dimension'], 'tall');
+          return _jsonResponse({
+            'url': 'https://cdn2.steamgriddb.com/grid/base-params.jpg',
+            'source': 'steamgriddb',
+          });
+        }
+        return http.Response.bytes(
+          <int>[1, 2, 3, 4],
+          200,
+          headers: const <String, String>{'content-type': 'image/jpeg'},
+        );
+      }),
+    );
+
+    await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Base Params Game',
+        path: r'C:\Steam\steamapps\common\Team Fortress 2',
+        platform: Platform.steam,
+        sizeBytes: 1,
+        steamAppId: 440,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test?env=staging',
+        token: 'proxy-token',
+      ),
+    );
+
+    expect(requests.isNotEmpty, isTrue);
+    final proxyRequest = requests.firstWhere(
+      (uri) => uri.host == 'proxy.example.test',
+    );
+    expect(proxyRequest.queryParameters['env'], 'staging');
+    expect(proxyRequest.queryParameters['steam_app_id'], '440');
+    expect(proxyRequest.queryParameters['dimension'], 'tall');
+  });
+
   test('cover-art API permits cap bursty proxy lookups', () async {
     final client = _TrackingCoverClient();
     debugSetCoverArtApiHttpClientForTesting(client);
