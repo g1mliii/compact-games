@@ -8,6 +8,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../../core/localization/app_localization.dart';
 import '../../../../../core/localization/presentation_labels.dart';
 import '../../../../../core/utils/byte_formatting.dart';
+import '../../../../../core/widgets/platform_chip.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/theme/app_typography.dart';
@@ -150,7 +151,25 @@ class GameDetailsInfoCard extends ConsumerWidget {
               statusSection,
               _StatLine(
                 label: _InfoLabel(l10n.gameDetailsPlatformLabel),
-                value: game.platform.localizedLabel(l10n),
+                crossAxisAlignment: CrossAxisAlignment.center,
+                valueChild: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    PlatformChip(
+                      platform: game.platform,
+                      semanticLabel: game.platform.localizedLabel(l10n),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        game.platform.localizedLabel(l10n),
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               _StatLine(
                 label: _InfoLabel(l10n.gameDetailsDirectStorageLabel),

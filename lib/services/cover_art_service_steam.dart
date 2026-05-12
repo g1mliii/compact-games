@@ -77,7 +77,7 @@ extension _CoverArtServiceSteam on CoverArtService {
 
     String? bestPath;
     var bestScore = -1;
-    await for (final entity in dir.list(followLinks: false)) {
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
       if (entity is! File) continue;
       final name = p.basename(entity.path).toLowerCase();
       final ext = p.extension(name);

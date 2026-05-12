@@ -1,7 +1,7 @@
 name: compact_games
 description: "High-performance game compressor with intelligent automation"
 publish_to: 'none'
-version: 0.1.9+10
+version: 0.1.10+11
 
 environment:
   sdk: ^3.10.8
@@ -42,6 +42,9 @@ dependencies:
   freezed_annotation: ^3.1.0
   intl: ^0.20.2
 
+  # SVG rendering (platform chips)
+  flutter_svg: ^2.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -55,3 +58,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/app_icon.ico
+    - assets/platforms/

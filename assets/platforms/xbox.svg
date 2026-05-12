@@ -1,0 +1,15 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <defs>
+    <mask id="xbox-x-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+      
+      <circle cx="12" cy="12" r="9.25" fill="white"></circle>
+      
+      
+      <path d="M5.2 4.5 Q14 11 19.5 19.6" stroke="black" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+      
+      <path d="M18.8 4.5 Q10 11 4.5 19.6" stroke="black" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+    </mask>
+  </defs>
+  <circle cx="12" cy="12" r="9.25" fill="currentColor" mask="url(#xbox-x-cut)"></circle>
+</svg>

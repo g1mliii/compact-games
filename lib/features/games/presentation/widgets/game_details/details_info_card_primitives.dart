@@ -1,28 +1,33 @@
 part of 'details_info_card.dart';
 
 class _StatLine extends StatelessWidget {
-  const _StatLine({required this.label, required this.value});
+  const _StatLine({
+    required this.label,
+    this.value,
+    this.valueChild,
+    this.crossAxisAlignment = CrossAxisAlignment.start,
+  }) : assert(value != null || valueChild != null);
 
   final Widget label;
-  final String value;
+  final String? value;
+  final Widget? valueChild;
+  final CrossAxisAlignment crossAxisAlignment;
 
   @override
   Widget build(BuildContext context) {
+    final Widget valueWidget =
+        valueChild ??
+        Text(
+          value!,
+          style: AppTypography.bodyMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          label,
-          Expanded(
-            child: Text(
-              value,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
+        crossAxisAlignment: crossAxisAlignment,
+        children: [label, Expanded(child: valueWidget)],
       ),
     );
   }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../../core/localization/presentation_labels.dart';
 import '../../../../core/utils/app_placeholder.dart';
 import '../../../../core/utils/platform_icon.dart';
+import '../../../../core/widgets/platform_chip.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -144,13 +146,31 @@ class GameCard extends StatelessWidget {
     required BuildContext context,
     required bool useAspectRatio,
   }) {
-    final content = _buildCoverContent(context);
+    final hasArtwork = coverImageProvider != null;
+    final coverContent = _buildCoverContent(context);
+    final layered = hasArtwork
+        ? Stack(
+            fit: StackFit.passthrough,
+            children: [
+              coverContent,
+              Positioned(
+                bottom: 8,
+                left: 8,
+                child: PlatformChip(
+                  platform: platform,
+                  size: PlatformChipSize.lg,
+                  tooltip: platform.localizedLabel(context.l10n),
+                ),
+              ),
+            ],
+          )
+        : coverContent;
     final wrappedContent = useAspectRatio
         ? AspectRatio(
             aspectRatio: AppConstants.coverAspectRatio,
-            child: content,
+            child: layered,
           )
-        : content;
+        : layered;
 
     final clipped = ClipRRect(
       clipBehavior: Clip.hardEdge,

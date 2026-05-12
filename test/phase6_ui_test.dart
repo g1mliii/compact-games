@@ -8,6 +8,7 @@ import 'package:compact_games/core/navigation/app_routes.dart';
 import 'package:compact_games/core/config/cover_art_proxy_config.dart';
 import 'package:compact_games/core/theme/app_colors.dart';
 import 'package:compact_games/core/theme/app_theme.dart';
+import 'package:compact_games/core/widgets/platform_chip.dart';
 import 'package:compact_games/features/games/presentation/game_details_screen.dart';
 import 'package:compact_games/features/games/presentation/home_screen.dart';
 import 'package:compact_games/features/games/presentation/inventory_screen.dart';
@@ -904,16 +905,21 @@ void main() {
       of: infoCard,
       matching: find.text('Platform'),
     );
+    final platformChip = find.descendant(
+      of: infoCard,
+      matching: find.byType(PlatformChip),
+    );
     final platformValue = find.descendant(
       of: infoCard,
       matching: find.text('Steam'),
     );
 
     expect(platformLabel, findsOneWidget);
+    expect(platformChip, findsOneWidget);
     expect(platformValue, findsOneWidget);
 
     final gap =
-        tester.getRect(platformValue).left -
+        tester.getRect(platformChip).left -
         tester.getRect(platformLabel).right;
     expect(gap, lessThanOrEqualTo(18));
     expect(tester.takeException(), isNull);

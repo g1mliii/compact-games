@@ -23,24 +23,16 @@ const Set<int> _jpegSofMarkers = <int>{
 };
 
 extension _CoverArtServiceQuality on CoverArtService {
-  Future<bool> _needsApiUpgradeForCached(
-    CoverArtResult cached, {
-    required String? apiKey,
-    required CoverArtProviderMode providerMode,
-    required CoverArtProxyConfig proxyConfig,
-  }) async {
-    if (!_isApiEnabled(
-      apiKey,
-      providerMode: providerMode,
-      proxyConfig: proxyConfig,
-    )) {
-      return false;
-    }
+  Future<bool> _isPreferredCachedCover(CoverArtResult cached) async {
     final localPath = _filePathFromUri(cached.uri);
     if (localPath == null) {
       return false;
     }
-    return !(await _isPreferredCardCover(localPath));
+    try {
+      return await _isPreferredCardCover(localPath);
+    } catch (_) {
+      return false;
+    }
   }
 
   bool _isApiEnabled(

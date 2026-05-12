@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:compact_games/core/config/cover_art_proxy_config.dart';
@@ -78,6 +79,155 @@ void main() {
     expect(result.uri, startsWith('file:'));
     expect(requests.length, 2);
   });
+
+  test(
+    'configured proxy replaces stale disk cache before local fallback',
+    () async {
+      final game = GameInfo(
+        name: 'Bad Cache Game',
+        path: r'C:\Games\bad_cache_game',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      );
+      final cacheFile = await _writeCachedCover(
+        tempDir,
+        game.path,
+        _fakePngHeader(width: 32, height: 32),
+      );
+      const apiBytes = <int>[99, 100, 101, 102];
+      final requests = <Uri>[];
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          requests.add(request.url);
+          if (request.url.host == 'proxy.example.test') {
+            expect(request.url.path, '/sgdb/by-name');
+            return _jsonResponse({
+              'url': 'https://cdn2.steamgriddb.com/grid/api-cover.jpg',
+              'source': 'steamgriddb',
+            });
+          }
+          if (request.url.host == 'cdn2.steamgriddb.com') {
+            return http.Response.bytes(
+              apiBytes,
+              200,
+              headers: const <String, String>{'content-type': 'image/jpeg'},
+            );
+          }
+          throw StateError('Unexpected request to ${request.url}');
+        }),
+      );
+
+      final result = await const CoverArtService().resolveCover(
+        game,
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: const CoverArtProxyConfig(
+          url: 'https://proxy.example.test',
+          token: 'proxy-token',
+        ),
+      );
+
+      expect(result.source, CoverArtSource.steamGridDbApi);
+      expect(requests.map((uri) => uri.host), <String>[
+        'proxy.example.test',
+        'cdn2.steamgriddb.com',
+      ]);
+      expect(await cacheFile.readAsBytes(), apiBytes);
+    },
+  );
+
+  test(
+    'Steam library fallback scans nested appid assets before tiny root thumbnail',
+    () async {
+      final fixture = await _writeSteamLibraryFixture(tempDir);
+
+      final result = await const CoverArtService().resolveCover(
+        GameInfo(
+          name: 'Battlefield 6',
+          path: fixture.gamePath,
+          platform: Platform.steam,
+          sizeBytes: 1,
+        ),
+        coverArtProviderMode: CoverArtProviderMode.userKey,
+      );
+
+      final cacheFile = _cachedCoverFile(tempDir, fixture.gamePath);
+      expect(result.source, CoverArtSource.steamLibraryCache);
+      expect(await cacheFile.readAsBytes(), fixture.preferredBytes);
+    },
+  );
+
+  test(
+    'fresh Steam library cover uses local cache before configured proxy',
+    () async {
+      final fixture = await _writeSteamLibraryFixture(tempDir);
+      final requests = <Uri>[];
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          requests.add(request.url);
+          throw StateError('Unexpected proxy request to ${request.url}');
+        }),
+      );
+
+      final result = await const CoverArtService().resolveCover(
+        GameInfo(
+          name: 'Battlefield 6',
+          path: fixture.gamePath,
+          platform: Platform.steam,
+          sizeBytes: 1,
+        ),
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: const CoverArtProxyConfig(
+          url: 'https://proxy.example.test',
+          token: 'proxy-token',
+        ),
+      );
+
+      final cacheFile = _cachedCoverFile(tempDir, fixture.gamePath);
+      expect(requests, isEmpty);
+      expect(result.source, CoverArtSource.steamLibraryCache);
+      expect(await cacheFile.readAsBytes(), fixture.preferredBytes);
+    },
+  );
+
+  test(
+    'bad cached cover falls back to preferred nested Steam asset when proxy is unavailable',
+    () async {
+      final fixture = await _writeSteamLibraryFixture(tempDir);
+      final cacheFile = await _writeCachedCover(
+        tempDir,
+        fixture.gamePath,
+        _fakePngHeader(width: 32, height: 32),
+      );
+      final requests = <Uri>[];
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          requests.add(request.url);
+          if (request.url.host == 'proxy.example.test') {
+            return _jsonResponse({'error': 'unavailable'}, 503);
+          }
+          throw StateError('Unexpected request to ${request.url}');
+        }),
+      );
+
+      final result = await const CoverArtService().resolveCover(
+        GameInfo(
+          name: 'Battlefield 6',
+          path: fixture.gamePath,
+          platform: Platform.steam,
+          sizeBytes: 1,
+        ),
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: const CoverArtProxyConfig(
+          url: 'https://proxy.example.test',
+          token: 'proxy-token',
+        ),
+      );
+
+      expect(requests.single.host, 'proxy.example.test');
+      expect(result.source, CoverArtSource.steamLibraryCache);
+      expect(await cacheFile.readAsBytes(), fixture.preferredBytes);
+    },
+  );
 
   test('application entries use bundled proxy by name', () async {
     final requests = <Uri>[];
@@ -509,6 +659,97 @@ class _ThrowingDiscoverRustBridgeService extends NoOpRustBridgeService {
   Future<String?> discoverPrimaryExe(String folder) async {
     throw StateError('bridge unavailable');
   }
+}
+
+class _SteamLibraryFixture {
+  const _SteamLibraryFixture({
+    required this.gamePath,
+    required this.preferredBytes,
+  });
+
+  final String gamePath;
+  final List<int> preferredBytes;
+}
+
+Future<_SteamLibraryFixture> _writeSteamLibraryFixture(
+  Directory tempDir,
+) async {
+  final steamApps = Directory(p.join(tempDir.path, 'Steam', 'steamapps'));
+  final commonDir = Directory(p.join(steamApps.path, 'common'));
+  final gameDir = Directory(p.join(commonDir.path, 'Battlefield 6'));
+  await gameDir.create(recursive: true);
+  await File(p.join(steamApps.path, 'appmanifest_2807960.acf')).writeAsString(
+    '"AppState"\n'
+    '{\n'
+    '  "appid" "2807960"\n'
+    '  "name" "Battlefield 6"\n'
+    '  "installdir" "Battlefield 6"\n'
+    '}\n',
+  );
+
+  final libraryCache = Directory(
+    p.join(tempDir.path, 'Steam', 'appcache', 'librarycache', '2807960'),
+  );
+  await libraryCache.create(recursive: true);
+  await File(
+    p.join(libraryCache.path, '8b06f13e9fd82e1a436ffdca4e1de118ee4a9ed2.jpg'),
+  ).writeAsBytes(_fakePngHeader(width: 32, height: 32));
+
+  final preferredBytes = _fakePngHeader(width: 300, height: 450);
+  final capsuleDir = Directory(
+    p.join(libraryCache.path, '64fffd4bdc67e07b180cc695edcbcb8d1e96f1a6'),
+  );
+  await capsuleDir.create(recursive: true);
+  await File(
+    p.join(capsuleDir.path, 'library_capsule.jpg'),
+  ).writeAsBytes(preferredBytes);
+
+  return _SteamLibraryFixture(
+    gamePath: gameDir.path,
+    preferredBytes: preferredBytes,
+  );
+}
+
+Future<File> _writeCachedCover(
+  Directory tempDir,
+  String gamePath,
+  List<int> bytes,
+) async {
+  final file = _cachedCoverFile(tempDir, gamePath);
+  await file.parent.create(recursive: true);
+  await file.writeAsBytes(bytes);
+  return file;
+}
+
+File _cachedCoverFile(Directory tempDir, String gamePath) {
+  return File(
+    p.join(
+      tempDir.path,
+      'Compact Games',
+      'covers',
+      '${_cacheKeyForPath(gamePath)}.img',
+    ),
+  );
+}
+
+String _cacheKeyForPath(String path) {
+  return base64UrlEncode(utf8.encode(path.toLowerCase())).replaceAll('=', '');
+}
+
+List<int> _fakePngHeader({required int width, required int height}) {
+  final bytes = List<int>.filled(32, 0);
+  bytes.setRange(0, 8, const <int>[137, 80, 78, 71, 13, 10, 26, 10]);
+  bytes.setRange(12, 16, const <int>[73, 72, 68, 82]);
+  _writeUint32BE(bytes, 16, width);
+  _writeUint32BE(bytes, 20, height);
+  return bytes;
+}
+
+void _writeUint32BE(List<int> bytes, int offset, int value) {
+  bytes[offset] = (value >> 24) & 0xff;
+  bytes[offset + 1] = (value >> 16) & 0xff;
+  bytes[offset + 2] = (value >> 8) & 0xff;
+  bytes[offset + 3] = value & 0xff;
 }
 
 http.Response _jsonResponse(Map<String, Object?> body, [int status = 200]) {

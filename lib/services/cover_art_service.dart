@@ -165,80 +165,107 @@ class CoverArtService {
     required CoverArtProxyConfig coverArtProxyConfig,
     RustBridgeService? rustBridge,
   }) async {
-    // 1. Disk cache
-    final cached = await _readCachedCover(cacheKey);
-    if (cached != null) {
-      final cachedNeedsUpgrade = await _needsApiUpgradeForCached(
-        cached,
-        apiKey: steamGridDbApiKey,
-        providerMode: coverArtProviderMode,
-        proxyConfig: coverArtProxyConfig,
-      );
-      if (cachedNeedsUpgrade) {
-        final upgraded = await _resolveApiCover(
-          game,
-          cacheKey: cacheKey,
-          apiKey: steamGridDbApiKey,
-          providerMode: coverArtProviderMode,
-          proxyConfig: coverArtProxyConfig,
-        );
-        if (upgraded != null) {
-          _writeMemoryCache(runtimeCacheKey, upgraded);
-          return upgraded;
-        }
-      }
-      _writeMemoryCache(runtimeCacheKey, cached);
-      return cached;
-    }
-
-    // 2. Steam library cache (Steam games only)
-    if (game.platform == Platform.steam) {
-      final steamCover = await _resolveSteamLibraryCover(game.path);
-      if (steamCover != null) {
-        try {
-          final copied = await _copyIntoCache(cacheKey, steamCover);
-          final revision = _bumpCoverRevision(cacheKey);
-          final result = CoverArtResult(
-            uri: File(copied).uri.toString(),
-            source: CoverArtSource.steamLibraryCache,
-            revision: revision,
-          );
-          _writeMemoryCache(runtimeCacheKey, result);
-          return result;
-        } on FileSystemException {
-          // Source was empty / unreadable — fall through to API and icon.
-        }
-      }
-    }
-
-    // 3. SteamGridDB API
-    final result = await _resolveApiCover(
-      game,
-      cacheKey: cacheKey,
-      apiKey: steamGridDbApiKey,
-      providerMode: coverArtProviderMode,
-      proxyConfig: coverArtProxyConfig,
-    );
-    if (result != null) {
+    CoverArtResult store(CoverArtResult result) {
       _writeMemoryCache(runtimeCacheKey, result);
       return result;
     }
 
-    // 4. EXE icon fallback
+    final cached = await _readCachedCover(cacheKey);
+    if (cached != null && await _isPreferredCachedCover(cached)) {
+      return store(cached);
+    }
+
+    if (cached == null) {
+      final steamCache = await _resolveSteamLibraryCoverResult(
+        game,
+        cacheKey: cacheKey,
+      );
+      if (steamCache != null) {
+        return store(steamCache);
+      }
+    }
+
+    final apiEnabled = _isApiEnabled(
+      steamGridDbApiKey,
+      providerMode: coverArtProviderMode,
+      proxyConfig: coverArtProxyConfig,
+    );
+    if (apiEnabled) {
+      final apiResult = await _resolveApiCover(
+        game,
+        cacheKey: cacheKey,
+        apiKey: steamGridDbApiKey,
+        providerMode: coverArtProviderMode,
+        proxyConfig: coverArtProxyConfig,
+      );
+      if (apiResult != null) {
+        return store(apiResult);
+      }
+    }
+
+    if (cached != null) {
+      // Avoid swapping one mediocre cached image for another unless Steam has a
+      // clearly card-suitable asset.
+      final steamCache = await _resolveSteamLibraryCoverResult(
+        game,
+        cacheKey: cacheKey,
+        requirePreferred: true,
+      );
+      if (steamCache != null) {
+        return store(steamCache);
+      }
+    }
+
+    if (cached != null) {
+      return store(cached);
+    }
+
     final iconResult = await _resolveExeIconCover(
       game,
       cacheKey: cacheKey,
       rustBridge: rustBridge,
     );
     if (iconResult != null) {
-      _writeMemoryCache(runtimeCacheKey, iconResult);
-      return iconResult;
+      return store(iconResult);
     }
 
-    // 5. Placeholder
-    const none = CoverArtResult.none();
-    _writeMemoryCache(runtimeCacheKey, none);
-    return none;
+    return store(const CoverArtResult.none());
+  }
+
+  Future<CoverArtResult?> _resolveSteamLibraryCoverResult(
+    GameInfo game, {
+    required String cacheKey,
+    bool requirePreferred = false,
+  }) async {
+    if (game.platform != Platform.steam) {
+      return null;
+    }
+    final steamCover = await _resolveSteamLibraryCover(game.path);
+    if (steamCover == null) {
+      return null;
+    }
+    if (requirePreferred) {
+      try {
+        if (!await _isPreferredCardCover(steamCover)) {
+          return null;
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+
+    try {
+      final copied = await _copyIntoCache(cacheKey, steamCover);
+      final revision = _bumpCoverRevision(cacheKey);
+      return CoverArtResult(
+        uri: File(copied).uri.toString(),
+        source: CoverArtSource.steamLibraryCache,
+        revision: revision,
+      );
+    } on FileSystemException {
+      // Source was empty / unreadable — fall through to lower-priority paths.
+      return null;
+    }
   }
 
   Future<CoverArtResult?> _resolveExeIconCover(
