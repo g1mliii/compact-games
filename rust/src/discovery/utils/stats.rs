@@ -5,6 +5,16 @@ use walkdir::WalkDir;
 const QUICK_SCAN_MAX_DEPTH: usize = 3;
 const QUICK_SCAN_MAX_FILES: usize = 256;
 
+// Windows file attributes that signal a file *might* be smaller on disk than
+// its logical size. Any other file (the overwhelming majority on a fresh game
+// install) has physical == logical, so we can skip the GetCompressedFileSizeW
+// syscall entirely.
+//   COMPRESSED   (0x0800): NTFS LZNT1 compression
+//   SPARSE_FILE  (0x0200): sparse file (holes don't consume disk)
+//   REPARSE_POINT(0x0400): includes WOF-backed files (our own compression)
+#[cfg(windows)]
+const POSSIBLY_SHRUNK_ATTRS: u32 = 0x0800 | 0x0200 | 0x0400;
+
 /// Directory size statistics collected in a single walk.
 pub struct DirStats {
     pub logical_size: u64,
@@ -17,6 +27,8 @@ pub struct DirStats {
 /// dir_size + is_dir_compressed + dir_compressed_size separately.
 #[cfg(windows)]
 pub fn dir_stats(path: &Path) -> DirStats {
+    use std::os::windows::fs::MetadataExt;
+
     let mut logical_size: u64 = 0;
     let mut physical_size: u64 = 0;
     let mut found_compressed = false;
@@ -38,7 +50,14 @@ pub fn dir_stats(path: &Path) -> DirStats {
         let logical = metadata.len();
         logical_size += logical;
 
-        let physical = crate::compression::wof::get_physical_size(entry.path()).unwrap_or(logical);
+        // Skip GetCompressedFileSizeW unless the file's attributes hint that
+        // it could be smaller on disk. Saves one syscall per file across the
+        // huge majority of game contents.
+        let physical = if metadata.file_attributes() & POSSIBLY_SHRUNK_ATTRS == 0 {
+            logical
+        } else {
+            crate::compression::wof::get_physical_size(entry.path()).unwrap_or(logical)
+        };
 
         physical_size += physical;
 
@@ -113,5 +132,22 @@ mod tests {
         std::fs::write(dir.path().join("test.bin"), b"abcdef").unwrap();
         let stats = dir_stats_quick(dir.path());
         assert!(stats.logical_size > 0);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dir_stats_plain_files_report_physical_equal_to_logical() {
+        let dir = tempfile::TempDir::new().unwrap();
+        // Mix of sizes so we cover both >=4096 and <4096 branches without
+        // touching any compression-related attributes.
+        std::fs::write(dir.path().join("small.bin"), vec![0_u8; 1024]).unwrap();
+        std::fs::write(dir.path().join("medium.bin"), vec![0_u8; 8 * 1024]).unwrap();
+        std::fs::write(dir.path().join("large.bin"), vec![0_u8; 64 * 1024]).unwrap();
+
+        let stats = dir_stats(dir.path());
+        let expected = 1024 + 8 * 1024 + 64 * 1024;
+        assert_eq!(stats.logical_size, expected as u64);
+        assert_eq!(stats.physical_size, expected as u64);
+        assert!(!stats.is_compressed);
     }
 }

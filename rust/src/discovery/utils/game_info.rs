@@ -405,6 +405,9 @@ fn game_info_from_parts(
 }
 
 pub(crate) fn refresh_dynamic_game_metadata(game: &mut GameInfo) {
+    if crate::safety::known_games::is_known_directstorage_game(&game.path) {
+        game.is_directstorage = true;
+    }
     game.is_unsupported = crate::safety::unsupported_games::is_unsupported_game(&game.path);
     // Reuse `last_played` transport slot as "last compressed" timestamp.
     // The old last-played source is not currently populated.

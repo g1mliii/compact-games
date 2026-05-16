@@ -1,7 +1,7 @@
 //! Hybrid DirectStorage game database: embedded + learned.
 //!
 //! Provides fast lookup by game folder name (case-insensitive).
-//! Combines compile-time embedded list (52 games from SteamDB)
+//! Combines compile-time embedded list from SteamDB/community research
 //! with runtime learned list (games discovered via filesystem scan).
 //!
 //! When filesystem scan detects DirectStorage, the game is added to
@@ -25,7 +25,7 @@ static EMBEDDED_GAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
             Vec::new()
         })
         .into_iter()
-        .map(|s| s.to_ascii_lowercase())
+        .filter_map(|s| normalize_game_name_key(&s))
         .collect()
 });
 
@@ -64,7 +64,20 @@ enum LearnedInsertOutcome {
 }
 
 fn normalize_learned_folder_name(folder_name: &str) -> Option<String> {
-    let normalized = folder_name.trim().to_ascii_lowercase();
+    normalize_game_name_key(folder_name)
+}
+
+fn normalize_game_name_key(game_name: &str) -> Option<String> {
+    let mut normalized = String::with_capacity(game_name.len());
+    for character in game_name.trim().chars() {
+        match character {
+            '\u{00ae}' | '\u{2122}' => {}
+            '\u{2018}' | '\u{2019}' | '\u{02bc}' => normalized.push('\''),
+            '\u{2013}' | '\u{2014}' | '\u{2212}' => normalized.push('-'),
+            _ => normalized.extend(character.to_lowercase()),
+        }
+    }
+    let normalized = normalized.split_whitespace().collect::<Vec<_>>().join(" ");
     if normalized.is_empty() {
         return None;
     }
@@ -224,14 +237,17 @@ pub fn is_known_directstorage_game(game_path: &Path) -> bool {
         Some(name) => name,
         None => return false,
     };
-    let folder_name_lower = folder_name.to_ascii_lowercase();
+    let folder_name_key = match normalize_game_name_key(folder_name) {
+        Some(name) => name,
+        None => return false,
+    };
 
-    if EMBEDDED_GAMES.contains(&folder_name_lower) {
+    if EMBEDDED_GAMES.contains(&folder_name_key) {
         return true;
     }
 
     if let Ok(learned) = LEARNED_GAMES.read() {
-        learned.contains(&folder_name_lower)
+        learned.contains(&folder_name_key)
     } else {
         log::warn!("Failed to acquire read lock on learned games cache");
         false
@@ -331,6 +347,20 @@ mod tests {
     }
 
     #[test]
+    fn embedded_games_json_normalized_entries_are_unique() {
+        let games: Vec<String> = serde_json::from_str(KNOWN_GAMES_JSON).unwrap();
+        let mut seen = HashSet::new();
+
+        for game in games {
+            let normalized = normalize_game_name_key(&game).unwrap();
+            assert!(
+                seen.insert(normalized),
+                "duplicate normalized embedded DirectStorage game entry: {game}"
+            );
+        }
+    }
+
+    #[test]
     fn known_game_detected_case_insensitive() {
         // Forspoken is in embedded list
         assert!(is_known_directstorage_game(Path::new(
@@ -342,6 +372,21 @@ mod tests {
         assert!(is_known_directstorage_game(Path::new(
             r"C:\Games\FORSPOKEN"
         )));
+        assert!(is_known_directstorage_game(Path::new(
+            r"D:\Games\Forza Horizon 6"
+        )));
+        assert!(is_known_directstorage_game(&PathBuf::from(format!(
+            r"C:\Games\HELLDIVERS{} 2",
+            '\u{2122}'
+        ))));
+        assert!(is_known_directstorage_game(&PathBuf::from(format!(
+            r"C:\Games\Assassin{}s Creed Shadows",
+            '\u{2019}'
+        ))));
+        assert!(is_known_directstorage_game(&PathBuf::from(format!(
+            r"C:\Games\Horizon Forbidden West{} Complete Edition",
+            '\u{2122}'
+        ))));
     }
 
     #[test]

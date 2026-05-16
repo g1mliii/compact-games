@@ -611,3 +611,95 @@ fn indexed_game_refreshes_last_compressed_timestamp_from_history() {
     let expected = UNIX_EPOCH + Duration::from_millis(timestamp_ms);
     assert_eq!(game.last_played, Some(expected));
 }
+
+#[test]
+fn known_directstorage_game_refreshes_false_cache_hit() {
+    let _guard = lock_discovery_test();
+    cache::clear_all();
+    crate::discovery::index::clear_all();
+
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("Forza Horizon 6");
+    fs::create_dir_all(&game_dir).unwrap();
+    File::create(game_dir.join("forzahorizon6.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
+    File::create(game_dir.join("media.bin"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
+
+    let token = cache::compute_change_token(&game_dir, true);
+    cache::upsert(
+        &game_dir,
+        token,
+        cache::CachedGameStats::from_parts(700 * 1024 * 1024, 700 * 1024 * 1024, false, false),
+    );
+
+    let game = build_game_info_with_mode_and_stats_path(
+        "Forza Horizon 6".to_owned(),
+        game_dir.clone(),
+        game_dir,
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    )
+    .expect("cached known DirectStorage game should hydrate");
+
+    assert!(
+        game.is_directstorage,
+        "known-game database should override stale false DirectStorage cache metadata",
+    );
+}
+
+#[test]
+fn known_directstorage_game_refreshes_false_index_hit() {
+    let _guard = lock_discovery_test();
+    cache::clear_all();
+    crate::discovery::index::clear_all();
+
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("Forza Horizon 6");
+    fs::create_dir_all(&game_dir).unwrap();
+    File::create(game_dir.join("forzahorizon6.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
+    File::create(game_dir.join("media.bin"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
+
+    let token = cache::compute_change_token(&game_dir, false);
+    crate::discovery::index::upsert(
+        &game_dir,
+        token,
+        &GameInfo {
+            name: "Stale Forza".to_owned(),
+            path: game_dir.clone(),
+            platform: Platform::Steam,
+            size_bytes: 700 * 1024 * 1024,
+            compressed_size: None,
+            is_compressed: false,
+            is_directstorage: false,
+            is_unsupported: false,
+            excluded: false,
+            steam_app_id: Some(2_483_190),
+            last_played: None,
+        },
+    );
+
+    let game = build_game_info_with_mode_and_stats_path(
+        "Forza Horizon 6".to_owned(),
+        game_dir.clone(),
+        game_dir,
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    )
+    .expect("indexed known DirectStorage game should hydrate");
+
+    assert!(
+        game.is_directstorage,
+        "known-game database should override stale false DirectStorage index metadata",
+    );
+}
