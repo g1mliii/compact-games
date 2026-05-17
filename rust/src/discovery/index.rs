@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LazyLock, RwLock};
 
 const INDEX_FILE_NAME: &str = "discovery_index.json";
-const INDEX_SCHEMA_VERSION: u32 = 1;
+const INDEX_SCHEMA_VERSION: u32 = 2;
 const MAX_INDEX_ENTRIES: usize = 16_384;
 const MAX_INDEX_AGE_MS: u64 = 5 * 60 * 1000; // 5 minutes — safe because incremental scans are cheap
 
@@ -290,6 +290,11 @@ mod tests {
         let hit = lookup(dir.path(), &token).expect("index hit expected");
         assert_eq!(hit.name, game.name);
         assert_eq!(hit.path, game.path);
+    }
+
+    #[test]
+    fn index_file_default_uses_current_schema() {
+        assert_eq!(IndexFile::default().schema_version, INDEX_SCHEMA_VERSION);
     }
 
     #[test]

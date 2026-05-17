@@ -8,6 +8,7 @@ use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
 
 const CACHE_FILE_NAME: &str = "discovery_stats_cache.json";
+const CACHE_SCHEMA_VERSION: u32 = 2;
 const MAX_CACHE_ENTRIES: usize = 8_192;
 const FLUSH_PENDING_THRESHOLD: usize = 256;
 const TOKEN_PROBE_MAX_DEPTH: usize = 6;
@@ -61,10 +62,21 @@ struct CacheEntry {
     stats: CachedGameStats,
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct CacheFile {
     #[serde(default)]
+    schema_version: u32,
+    #[serde(default)]
     entries: HashMap<String, CacheEntry>,
+}
+
+impl Default for CacheFile {
+    fn default() -> Self {
+        Self {
+            schema_version: CACHE_SCHEMA_VERSION,
+            entries: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -356,10 +368,21 @@ fn load_cache_file() -> CacheFile {
         return CacheFile::default();
     };
 
-    serde_json::from_str::<CacheFile>(&contents).unwrap_or_else(|e| {
-        log::warn!("Failed to parse discovery stats cache: {e}");
-        CacheFile::default()
-    })
+    match serde_json::from_str::<CacheFile>(&contents) {
+        Ok(cache) if cache.schema_version == CACHE_SCHEMA_VERSION => cache,
+        Ok(cache) => {
+            log::warn!(
+                "Discovery stats cache schema mismatch (found {}, expected {}); rebuilding cache",
+                cache.schema_version,
+                CACHE_SCHEMA_VERSION
+            );
+            CacheFile::default()
+        }
+        Err(e) => {
+            log::warn!("Failed to parse discovery stats cache: {e}");
+            CacheFile::default()
+        }
+    }
 }
 
 fn save_cache_file(cache: &CacheFile) -> Result<(), Box<dyn std::error::Error>> {

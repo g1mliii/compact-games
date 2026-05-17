@@ -64,6 +64,17 @@ fn upsert_is_visible_before_persist_via_pending_map() {
 }
 
 #[test]
+fn cache_file_default_uses_current_schema() {
+    assert_eq!(CacheFile::default().schema_version, CACHE_SCHEMA_VERSION);
+}
+
+#[test]
+fn legacy_cache_file_without_schema_is_not_current() {
+    let parsed: CacheFile = serde_json::from_str(r#"{"entries":{}}"#).unwrap();
+    assert_ne!(parsed.schema_version, CACHE_SCHEMA_VERSION);
+}
+
+#[test]
 fn lookup_with_ttl_rejects_expired_entries() {
     let dir = tempfile::TempDir::new().unwrap();
     let token = compute_change_token(dir.path(), false);

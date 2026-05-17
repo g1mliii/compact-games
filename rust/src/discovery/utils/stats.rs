@@ -5,16 +5,6 @@ use walkdir::WalkDir;
 const QUICK_SCAN_MAX_DEPTH: usize = 3;
 const QUICK_SCAN_MAX_FILES: usize = 256;
 
-// Windows file attributes that signal a file *might* be smaller on disk than
-// its logical size. Any other file (the overwhelming majority on a fresh game
-// install) has physical == logical, so we can skip the GetCompressedFileSizeW
-// syscall entirely.
-//   COMPRESSED   (0x0800): NTFS LZNT1 compression
-//   SPARSE_FILE  (0x0200): sparse file (holes don't consume disk)
-//   REPARSE_POINT(0x0400): includes WOF-backed files (our own compression)
-#[cfg(windows)]
-const POSSIBLY_SHRUNK_ATTRS: u32 = 0x0800 | 0x0200 | 0x0400;
-
 /// Directory size statistics collected in a single walk.
 pub struct DirStats {
     pub logical_size: u64,
@@ -27,8 +17,6 @@ pub struct DirStats {
 /// dir_size + is_dir_compressed + dir_compressed_size separately.
 #[cfg(windows)]
 pub fn dir_stats(path: &Path) -> DirStats {
-    use std::os::windows::fs::MetadataExt;
-
     let mut logical_size: u64 = 0;
     let mut physical_size: u64 = 0;
     let mut found_compressed = false;
@@ -50,14 +38,9 @@ pub fn dir_stats(path: &Path) -> DirStats {
         let logical = metadata.len();
         logical_size += logical;
 
-        // Skip GetCompressedFileSizeW unless the file's attributes hint that
-        // it could be smaller on disk. Saves one syscall per file across the
-        // huge majority of game contents.
-        let physical = if metadata.file_attributes() & POSSIBLY_SHRUNK_ATTRS == 0 {
-            logical
-        } else {
-            crate::compression::wof::get_physical_size(entry.path()).unwrap_or(logical)
-        };
+        // WOF-compressed files do not reliably expose shrinkage through file
+        // attributes, so full discovery must query the physical size.
+        let physical = crate::compression::wof::get_physical_size(entry.path()).unwrap_or(logical);
 
         physical_size += physical;
 
@@ -149,5 +132,28 @@ mod tests {
         assert_eq!(stats.logical_size, expected as u64);
         assert_eq!(stats.physical_size, expected as u64);
         assert!(!stats.is_compressed);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dir_stats_detects_wof_compressed_files_after_app_compression() {
+        use crate::compression::algorithm::CompressionAlgorithm;
+        use crate::compression::wof::{self, CompressFileResult};
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("zeros.bin");
+        std::fs::write(&path, vec![0_u8; 1024 * 1024]).unwrap();
+
+        let result = wof::wof_compress_file(&path, CompressionAlgorithm::Xpress4K).unwrap();
+        assert_eq!(result, CompressFileResult::Compressed);
+        assert!(wof::get_physical_size(&path).unwrap() < std::fs::metadata(&path).unwrap().len());
+
+        let stats = dir_stats(dir.path());
+        assert_eq!(stats.logical_size, 1024 * 1024);
+        assert!(
+            stats.physical_size < stats.logical_size,
+            "full discovery must preserve WOF physical size after app compression"
+        );
+        assert!(stats.is_compressed);
     }
 }
