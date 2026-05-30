@@ -40,6 +40,9 @@ export class FakeD1Database {
     this.nextSubmissionHistoryId = 1;
     this.ipSubmissionHistory = [];
     this.nextIpSubmissionHistoryId = 1;
+    this.firstQueryCount = 0;
+    this.allQueryCount = 0;
+    this.writeQueryCount = 0;
   }
 
   prepare(sql) {
@@ -81,6 +84,7 @@ export class FakeD1Database {
   }
 
   executeFirst(sql, bindings) {
+    this.firstQueryCount += 1;
     if (
       sql.startsWith(
         "select count(*) as cnt from client_submission_history where install_id = ? and submitted_at_ms >= ?",
@@ -180,6 +184,7 @@ export class FakeD1Database {
   }
 
   executeAll(sql, bindings) {
+    this.allQueryCount += 1;
     if (
       sql.startsWith(
         "select current.folder_name, count(*) as reporter_count, sum(case when history.server_submission_count >= 2 then 1 else 0 end) as repeat_reporter_count",
@@ -260,6 +265,7 @@ export class FakeD1Database {
   }
 
   executeWrite(sql, bindings) {
+    this.writeQueryCount += 1;
     if (sql === "delete from client_reports where install_id = ?") {
       const [installId] = bindings;
       for (const key of [...this.clientReports.keys()]) {

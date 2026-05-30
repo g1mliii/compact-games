@@ -456,6 +456,88 @@ test("community endpoints expose thresholded candidates, list, and release bundl
   ]);
 });
 
+test("community read endpoints use short cache and invalidate after submissions", async (t) => {
+  const env = createEnv();
+  t.mock.method(Date, "now", () => BASE_TIME_MS);
+
+  seedCurrentSnapshot(env, {
+    install_id: "reporter-cache-a",
+    folder_name: "cached-game",
+    server_submission_count: 2,
+    submitted_at_ms: BASE_TIME_MS - 1_000,
+  });
+  seedCurrentSnapshot(env, {
+    install_id: "reporter-cache-b",
+    folder_name: "cached-game",
+    server_submission_count: 2,
+    submitted_at_ms: BASE_TIME_MS - 2_000,
+  });
+
+  const first = await fetchJson(
+    env,
+    "/release-bundle?min_reporters=2&min_repeat_reporters=1&max_age_days=180",
+  );
+  const firstAllQueryCount = env.DB.allQueryCount;
+  const firstFirstQueryCount = env.DB.firstQueryCount;
+
+  assert.equal(first.response.status, 200);
+  assert.equal(
+    first.response.headers.get("cache-control"),
+    "public, max-age=60, stale-while-revalidate=300",
+  );
+  assert.deepEqual(first.json.games, ["cached-game"]);
+
+  seedCurrentSnapshot(env, {
+    install_id: "reporter-cache-c",
+    folder_name: "later-game",
+    server_submission_count: 2,
+    submitted_at_ms: BASE_TIME_MS - 3_000,
+  });
+  seedCurrentSnapshot(env, {
+    install_id: "reporter-cache-d",
+    folder_name: "later-game",
+    server_submission_count: 2,
+    submitted_at_ms: BASE_TIME_MS - 4_000,
+  });
+
+  const cached = await fetchJson(
+    env,
+    "/release-bundle?threshold=2&min_repeat_reporters=1&max_age_days=180",
+  );
+  assert.deepEqual(cached.json.games, ["cached-game"]);
+  assert.equal(env.DB.allQueryCount, firstAllQueryCount);
+  assert.equal(env.DB.firstQueryCount, firstFirstQueryCount);
+
+  const acceptedSubmission = await fetchJson(
+    env,
+    "/unsupported-reports",
+    createJsonRequest(
+      createPayload({
+        install_id: "fresh-cache-reporter",
+        reports: [
+          {
+            folder_name: "fresh-game",
+            first_reported_at_ms: BASE_TIME_MS - 20_000,
+            active_since_ms: BASE_TIME_MS - 10_000,
+            last_reported_at_ms: BASE_TIME_MS - 5_000,
+            last_withdrawn_at_ms: null,
+            report_count: 1,
+          },
+        ],
+      }),
+    ),
+  );
+  assert.equal(acceptedSubmission.response.status, 200);
+
+  const postWriteAllQueryCount = env.DB.allQueryCount;
+  const refreshed = await fetchJson(
+    env,
+    "/release-bundle?min_reporters=2&min_repeat_reporters=1&max_age_days=180",
+  );
+  assert(refreshed.json.games.includes("later-game"));
+  assert.equal(env.DB.allQueryCount, postWriteAllQueryCount + 1);
+});
+
 test("schema keeps the submission history table and indexes required by rate limiting", async () => {
   const schema = await readFile(
     new URL("../schema.sql", import.meta.url),
@@ -481,4 +563,9 @@ test("schema keeps the submission history table and indexes required by rate lim
     schema,
     /CREATE INDEX IF NOT EXISTS idx_ip_submission_history_submitted_at/i,
   );
+  assert.doesNotMatch(schema, /idx_client_submissions_submitted_at/i);
+  assert.doesNotMatch(schema, /idx_client_reports_folder_version_submission/i);
+  assert.doesNotMatch(schema, /idx_client_reports_folder_last_reported/i);
+  assert.doesNotMatch(schema, /idx_client_report_history_folder_last_seen/i);
+  assert.doesNotMatch(schema, /idx_client_report_history_install_last_seen/i);
 });

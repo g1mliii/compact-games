@@ -70,6 +70,10 @@ submission history, plus a per-IP submission cap.
     - `candidates`: review metadata
     - `summary`: recent install/reporter counts
     - `storage`: where the data is stored
+- Public community read endpoints are cached briefly in the Worker isolate and
+  served with a short `Cache-Control` header. Successful submissions invalidate
+  the same-isolate cache so release exports do not repeatedly pay for identical
+  D1 aggregate reads.
 - `GET /health`
   - Basic health response.
 
@@ -89,7 +93,13 @@ npx wrangler d1 create compact-games-unsupported-reports
 npx wrangler d1 execute compact-games-unsupported-reports --remote --file=./schema.sql
 ```
 
-4. Deploy:
+4. For existing databases, apply the idempotent index-maintenance script once:
+
+```bash
+npx wrangler d1 execute <database-name-or-id> --remote --file=./maintenance/drop-unused-indexes.sql
+```
+
+5. Deploy:
 
 ```bash
 npx wrangler deploy

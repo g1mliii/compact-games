@@ -59,9 +59,6 @@ CREATE TABLE IF NOT EXISTS client_submission_history (
     CHECK(report_count >= 0)
 );
 
-CREATE INDEX IF NOT EXISTS idx_client_submissions_submitted_at
-    ON client_submissions(submitted_at_ms DESC);
-
 CREATE INDEX IF NOT EXISTS idx_client_submissions_submitted_report_count
     ON client_submissions(submitted_at_ms DESC, report_count);
 
@@ -73,18 +70,6 @@ CREATE INDEX IF NOT EXISTS idx_client_reports_submission_folder
 
 CREATE INDEX IF NOT EXISTS idx_client_reports_submission_install
     ON client_reports(submitted_at_ms DESC, install_id);
-
-CREATE INDEX IF NOT EXISTS idx_client_reports_folder_version_submission
-    ON client_reports(folder_name, app_version, submitted_at_ms DESC);
-
-CREATE INDEX IF NOT EXISTS idx_client_reports_folder_last_reported
-    ON client_reports(folder_name, last_reported_at_ms DESC);
-
-CREATE INDEX IF NOT EXISTS idx_client_report_history_folder_last_seen
-    ON client_report_history(folder_name, last_server_seen_at_ms DESC);
-
-CREATE INDEX IF NOT EXISTS idx_client_report_history_install_last_seen
-    ON client_report_history(install_id, last_server_seen_at_ms DESC);
 
 CREATE INDEX IF NOT EXISTS idx_client_submission_history_install_submitted_at
     ON client_submission_history(install_id, submitted_at_ms DESC);

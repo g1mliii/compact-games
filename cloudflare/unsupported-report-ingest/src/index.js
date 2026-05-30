@@ -13,8 +13,14 @@ const IP_RATE_LIMIT_MAX_SUBMISSIONS = 15;
 const IP_NEW_REPORTER_WINDOW_MS = 24 * 60 * 60 * 1000;
 const IP_NEW_REPORTER_MAX_REPORTERS = 10;
 const REPORTER_TOKEN_HEADER = "x-compactgames-reporter-token";
+const COMMUNITY_READ_CACHE_TTL_MS = 60 * 1000;
+const COMMUNITY_READ_CACHE_MAX_ENTRIES = 32;
 const READ_ONLY_HEADERS = {
   "content-type": "application/json; charset=utf-8",
+};
+const COMMUNITY_READ_HEADERS = {
+  ...READ_ONLY_HEADERS,
+  "cache-control": "public, max-age=60, stale-while-revalidate=300",
 };
 const CORS_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -22,6 +28,8 @@ const CORS_HEADERS = {
   "access-control-allow-methods": "GET,OPTIONS,POST",
   "access-control-allow-headers": `content-type,${REPORTER_TOKEN_HEADER}`,
 };
+// Public aggregate reads only; never store request-scoped or submission data here.
+const COMMUNITY_READ_CACHE_BY_DB = new WeakMap();
 
 export default {
   async fetch(request, env) {
@@ -40,15 +48,15 @@ export default {
     }
 
     if (request.method === "GET" && url.pathname === "/community-candidates") {
-      return handleCandidates(request, env);
+      return handleCachedCommunityRead(request, env, url, buildCandidatesPayload);
     }
 
     if (request.method === "GET" && url.pathname === "/community-list") {
-      return handleCommunityList(request, env);
+      return handleCachedCommunityRead(request, env, url, buildCommunityListPayload);
     }
 
     if (request.method === "GET" && url.pathname === "/release-bundle") {
-      return handleReleaseBundle(request, env);
+      return handleCachedCommunityRead(request, env, url, buildReleaseBundle);
     }
 
     return jsonResponse({ error: "Not found" }, 404, READ_ONLY_HEADERS);
@@ -297,6 +305,7 @@ async function handleSubmission(request, env) {
   }
 
   await env.DB.batch(statements);
+  clearCommunityReadCache(env);
 
   return submissionJson({
     ok: true,
@@ -304,6 +313,63 @@ async function handleSubmission(request, env) {
     reporterId: installId,
     submittedAtMs,
   });
+}
+
+async function handleCachedCommunityRead(request, env, url, buildPayload) {
+  const criteria = buildCriteria(url.searchParams);
+  const cacheKey = buildCommunityReadCacheKey(url.pathname, criteria);
+  const cached = readCommunityReadCache(env, cacheKey);
+  if (cached) {
+    return jsonResponse(cached.payload, 200, COMMUNITY_READ_HEADERS);
+  }
+
+  const payload = await buildPayload(env, criteria);
+  writeCommunityReadCache(env, cacheKey, payload);
+  return jsonResponse(payload, 200, COMMUNITY_READ_HEADERS);
+}
+
+function buildCommunityReadCacheKey(pathname, criteria) {
+  return [
+    pathname,
+    `min_reporters=${criteria.minReporters}`,
+    `min_repeat_reporters=${criteria.minRepeatReporters}`,
+    `max_age_days=${criteria.maxSubmissionAgeDays}`,
+  ].join("|");
+}
+
+function readCommunityReadCache(env, cacheKey) {
+  const cache = COMMUNITY_READ_CACHE_BY_DB.get(env.DB);
+  const cached = cache?.get(cacheKey);
+  if (!cached) {
+    return null;
+  }
+  if (cached.expiresAtMs <= Date.now()) {
+    cache.delete(cacheKey);
+    return null;
+  }
+  return cached;
+}
+
+function writeCommunityReadCache(env, cacheKey, payload) {
+  let cache = COMMUNITY_READ_CACHE_BY_DB.get(env.DB);
+  if (!cache) {
+    cache = new Map();
+    COMMUNITY_READ_CACHE_BY_DB.set(env.DB, cache);
+  }
+  if (cache.size >= COMMUNITY_READ_CACHE_MAX_ENTRIES) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey) {
+      cache.delete(oldestKey);
+    }
+  }
+  cache.set(cacheKey, {
+    payload,
+    expiresAtMs: Date.now() + COMMUNITY_READ_CACHE_TTL_MS,
+  });
+}
+
+function clearCommunityReadCache(env) {
+  COMMUNITY_READ_CACHE_BY_DB.delete(env.DB);
 }
 
 function resolveClientIp(request) {
@@ -356,13 +422,12 @@ async function hmacSha256Hex(secret, message) {
   return out;
 }
 
-async function handleCandidates(request, env) {
-  const criteria = buildCriteria(new URL(request.url).searchParams);
+async function buildCandidatesPayload(env, criteria) {
   const [candidates, storageSummary] = await Promise.all([
     queryCommunityCandidates(env, criteria),
     queryStorageSummary(env, criteria),
   ]);
-  return json({
+  return {
     generatedAtMs: Date.now(),
     criteria: describeCriteria(criteria),
     storage: {
@@ -381,18 +446,12 @@ async function handleCandidates(request, env) {
       uniqueReporterCount: storageSummary.uniqueReporters,
     },
     candidates,
-  });
+  };
 }
 
-async function handleCommunityList(request, env) {
-  const criteria = buildCriteria(new URL(request.url).searchParams);
+async function buildCommunityListPayload(env, criteria) {
   const candidates = await queryCommunityCandidates(env, criteria);
-  return json(candidates.map((candidate) => candidate.folderName));
-}
-
-async function handleReleaseBundle(request, env) {
-  const criteria = buildCriteria(new URL(request.url).searchParams);
-  return json(await buildReleaseBundle(env, criteria));
+  return candidates.map((candidate) => candidate.folderName);
 }
 
 async function queryCommunityCandidates(env, criteria) {
@@ -737,10 +796,6 @@ function readInteger(value) {
   const parsed =
     typeof value === "number" ? value : Number.parseInt(String(value ?? "0"), 10);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function json(payload, status = 200) {
-  return jsonResponse(payload, status, READ_ONLY_HEADERS);
 }
 
 function submissionJson(payload, status = 200) {
