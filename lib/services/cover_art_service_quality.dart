@@ -4,7 +4,7 @@ const int _preferredCoverMinWidth = 300;
 const int _preferredCoverMinHeight = 300;
 const double _preferredCoverAspectMin = 0.5;
 const double _preferredCoverAspectMax = 2.2;
-const int _imageHeaderMaxReadBytes = 512 * 1024;
+const int _imageHeaderMaxReadBytes = 64 * 1024;
 
 const Set<int> _jpegSofMarkers = <int>{
   0xC0,
