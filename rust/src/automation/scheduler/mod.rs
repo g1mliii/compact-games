@@ -109,7 +109,13 @@ impl AutoScheduler {
             return;
         }
 
-        // Deduplicate: skip if already queued for this path
+        let compression_active = matches!(
+            self.state,
+            SchedulerState::Compressing | SchedulerState::Paused
+        );
+
+        // More filesystem activity means the install is still changing. Keep
+        // the existing job but restart its settle window before it can run.
         if self.queue.iter().any(|j| {
             j.game_path == path
                 && matches!(
@@ -117,7 +123,23 @@ impl AutoScheduler {
                     JobStatus::Pending | JobStatus::WaitingForSettle | JobStatus::WaitingForIdle
                 )
         }) {
-            log::debug!("Already queued for: {}", path.display());
+            if !compression_active {
+                self.state = SchedulerState::WaitingForSettle;
+            }
+            self.settle_started = Some(Instant::now());
+            for job in &mut self.queue {
+                if job.game_path == path
+                    && matches!(
+                        job.status,
+                        JobStatus::Pending
+                            | JobStatus::WaitingForSettle
+                            | JobStatus::WaitingForIdle
+                    )
+                {
+                    job.status = JobStatus::WaitingForSettle;
+                }
+            }
+            log::debug!("Reset settle timer for: {}", path.display());
             return;
         }
 
@@ -131,7 +153,11 @@ impl AutoScheduler {
             game_path: path,
             game_name,
             kind,
-            status: JobStatus::Pending,
+            status: if compression_active {
+                JobStatus::WaitingForSettle
+            } else {
+                JobStatus::Pending
+            },
             idempotency_key: idempotency_key.clone(),
             queued_at: SystemTime::now(),
             started_at: None,
@@ -159,10 +185,9 @@ impl AutoScheduler {
         self.journal.insert(entry);
         self.needs_persist = true;
 
-        // Advance state if we were waiting
-        if self.state == SchedulerState::WaitingForEvents {
+        self.settle_started = Some(Instant::now());
+        if !compression_active {
             self.state = SchedulerState::WaitingForSettle;
-            self.settle_started = Some(Instant::now());
         }
     }
 
@@ -266,7 +291,15 @@ impl AutoScheduler {
         self.prune_finished();
 
         if self.has_pending_jobs() {
-            self.state = SchedulerState::WaitingForIdle;
+            self.state = if self
+                .queue
+                .iter()
+                .any(|job| job.status == JobStatus::WaitingForSettle)
+            {
+                SchedulerState::WaitingForSettle
+            } else {
+                SchedulerState::WaitingForIdle
+            };
         } else {
             self.state = SchedulerState::WaitingForEvents;
         }
@@ -314,7 +347,15 @@ impl AutoScheduler {
         self.prune_finished();
 
         if self.has_pending_jobs() {
-            self.state = SchedulerState::WaitingForIdle;
+            self.state = if self
+                .queue
+                .iter()
+                .any(|job| job.status == JobStatus::WaitingForSettle)
+            {
+                SchedulerState::WaitingForSettle
+            } else {
+                SchedulerState::WaitingForIdle
+            };
         } else {
             self.state = SchedulerState::WaitingForEvents;
         }

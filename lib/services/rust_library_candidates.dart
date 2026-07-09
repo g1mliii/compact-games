@@ -1,21 +1,7 @@
-List<String> buildRustLibraryCandidates({
-  required bool isReleaseMode,
-  required bool isProfileMode,
-  required bool preferDebugRustDll,
-}) {
-  const bundledDll = 'compact_games_core.dll';
-  const releaseDll = 'rust/target/release/compact_games_core.dll';
-  const debugDll = 'rust/target/debug/compact_games_core.dll';
+import 'package:path/path.dart' as p;
 
-  if (isReleaseMode) {
-    return const [bundledDll, releaseDll];
-  }
-
-  if (isProfileMode) {
-    return const [bundledDll, releaseDll, debugDll];
-  }
-
-  return preferDebugRustDll
-      ? const [debugDll, bundledDll, releaseDll]
-      : const [bundledDll, releaseDll, debugDll];
+List<String> buildRustLibraryCandidates({required String executablePath}) {
+  return <String>[
+    p.normalize(p.join(p.dirname(executablePath), 'compact_games_core.dll')),
+  ];
 }

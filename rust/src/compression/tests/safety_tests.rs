@@ -95,6 +95,24 @@ fn running_game_detected_via_engine() {
     );
 }
 
+#[test]
+fn running_game_blocks_decompression_via_engine() {
+    let checker = Arc::new(ProcessChecker::new());
+    let exe = std::env::current_exe().unwrap();
+    let exe_dir = exe.parent().unwrap();
+
+    let engine =
+        CompressionEngine::new(CompressionAlgorithm::default()).with_safety(SafetyConfig {
+            process_checker: checker,
+        });
+
+    let result = engine.decompress_folder(exe_dir);
+    assert!(
+        matches!(result, Err(CompressionError::GameRunning)),
+        "decompression should reject a folder containing a running process, got {result:?}"
+    );
+}
+
 #[cfg(windows)]
 #[test]
 fn safety_config_allows_safe_folder() {

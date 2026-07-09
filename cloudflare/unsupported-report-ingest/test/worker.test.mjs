@@ -102,14 +102,18 @@ test("router handles health, options, and not-found responses", async () => {
   assert.equal(health.response.headers.get("access-control-allow-origin"), "*");
 
   const options = await worker.fetch(
-    new Request("https://example.test/unsupported-reports", { method: "OPTIONS" }),
+    new Request("https://example.test/community-list", { method: "OPTIONS" }),
     env,
   );
   assert.equal(options.status, 204);
-  assert.equal(
-    options.headers.get("access-control-allow-headers"),
-    "content-type,x-compactgames-reporter-token",
+  assert.equal(options.headers.get("access-control-allow-methods"), "GET,OPTIONS");
+
+  const submissionOptions = await worker.fetch(
+    new Request("https://example.test/unsupported-reports", { method: "OPTIONS" }),
+    env,
   );
+  assert.equal(submissionOptions.status, 404);
+  assert.equal(submissionOptions.headers.get("access-control-allow-origin"), null);
 
   const notFound = await fetchJson(env, "/missing");
   assert.equal(notFound.response.status, 404);
@@ -125,7 +129,7 @@ test("submission validation rejects non-json and malformed payloads", async () =
     body: "nope",
   });
   assert.equal(nonJson.response.status, 415);
-  assert.equal(nonJson.response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(nonJson.response.headers.get("access-control-allow-origin"), null);
   assert.deepEqual(nonJson.json, { error: "Expected application/json body" });
 
   const invalid = await fetchJson(
@@ -193,7 +197,7 @@ test("submission accepts a valid payload and canonicalizes current reports", asy
   );
 
   assert.equal(result.response.status, 200);
-  assert.equal(result.response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(result.response.headers.get("access-control-allow-origin"), null);
   assert.equal(result.json.reporterId, "legacy-install-1");
   assert.equal(result.json.acceptedReports, 1);
   assert.equal(env.DB.clientSubmissions.get("legacy-install-1").report_count, 1);

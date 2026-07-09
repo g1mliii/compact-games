@@ -42,6 +42,19 @@ pub(super) fn run_safety_checks(
     Ok(())
 }
 
+pub(super) fn run_process_safety_check(
+    folder: &Path,
+    safety: Option<&SafetyConfig>,
+) -> Result<(), CompressionError> {
+    if let Some(safety) = safety {
+        if safety.process_checker.is_game_running(folder) {
+            return Err(CompressionError::GameRunning);
+        }
+    }
+
+    Ok(())
+}
+
 impl CompressionEngine {
     /// Attach optional safety dependencies used by pre-compression checks.
     pub fn with_safety(mut self, config: SafetyConfig) -> Self {

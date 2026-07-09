@@ -57,8 +57,10 @@ pub(super) fn auto_loop(
     let mut last_state = scheduler.state();
     let mut active_compression: Option<ActiveCompressionJob> = None;
     let mut current_algorithm = CompressionAlgorithm::Xpress8K;
-    let mut current_allow_directstorage_override = false;
     let mut current_io_parallelism_override: Option<usize> = None;
+    let mut current_watch_paths: Vec<PathBuf> = Vec::new();
+    let mut current_excluded_paths: HashSet<String> = HashSet::new();
+    let mut has_received_config = false;
     let mut last_startup_reconcile_watch_paths: Vec<String> = Vec::new();
     let mut startup_reconcile_pending_watch_paths: Option<Vec<String>> = None;
     let mut startup_reconcile_pending_normalized_watch_paths: Vec<String> = Vec::new();
@@ -100,9 +102,15 @@ pub(super) fn auto_loop(
             }
             log::info!("Received automation config update");
             current_algorithm = frb_algorithm_to_internal(&new_config.algorithm);
-            current_allow_directstorage_override = new_config.allow_directstorage_override;
             current_io_parallelism_override =
                 io_parallelism_override_to_usize(new_config.io_parallelism_override);
+            current_watch_paths = new_config.watch_paths.iter().map(PathBuf::from).collect();
+            current_excluded_paths = new_config
+                .excluded_paths
+                .iter()
+                .map(|path| crate::utils::normalize_path_key(PathBuf::from(path).as_path()))
+                .collect();
+            has_received_config = true;
             let normalized_watch_paths =
                 worker_reconcile::normalize_watch_paths(&new_config.watch_paths);
             apply_config(
@@ -201,21 +209,24 @@ pub(super) fn auto_loop(
             }
         }
 
-        if let Some(action) = scheduler.tick(is_idle, false) {
-            match action {
-                SchedulerAction::Compress(job) => {
-                    active_compression = Some(spawn_compression_job(
-                        &job,
-                        &process_checker,
-                        current_algorithm,
-                        current_allow_directstorage_override,
-                        cpu_usage_percent,
-                        current_io_parallelism_override,
-                    ));
-                }
-                SchedulerAction::Persist => {
-                    if let Err(e) = scheduler.persist() {
-                        log::error!("Failed to persist automation journal: {e}");
+        if has_received_config {
+            if let Some(action) = scheduler.tick(is_idle, false) {
+                match action {
+                    SchedulerAction::Compress(job) => {
+                        active_compression = Some(spawn_compression_job(
+                            &job,
+                            &process_checker,
+                            current_algorithm,
+                            cpu_usage_percent,
+                            current_io_parallelism_override,
+                            current_watch_paths.clone(),
+                            current_excluded_paths.clone(),
+                        ));
+                    }
+                    SchedulerAction::Persist => {
+                        if let Err(e) = scheduler.persist() {
+                            log::error!("Failed to persist automation journal: {e}");
+                        }
                     }
                 }
             }

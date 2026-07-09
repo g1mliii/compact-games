@@ -49,6 +49,48 @@ fn event_transitions_to_waiting_for_settle() {
 }
 
 #[test]
+fn duplicate_event_restarts_the_settle_window() {
+    let _g = TEST_MUTEX.lock().unwrap();
+    let (mut scheduler, _dir) = test_scheduler();
+    scheduler.on_event(make_event(r"C:\Games\TestGame"));
+    let first_settle_start = scheduler.settle_started.expect("initial settle time");
+
+    std::thread::sleep(std::time::Duration::from_millis(2));
+    scheduler.on_event(make_modify_event(r"C:\Games\TestGame"));
+
+    assert_eq!(scheduler.state(), SchedulerState::WaitingForSettle);
+    assert!(
+        scheduler.settle_started.expect("reset settle time") > first_settle_start,
+        "later writes must delay automatic compression"
+    );
+}
+
+#[test]
+fn event_during_compression_queues_behind_the_active_job() {
+    let _g = TEST_MUTEX.lock().unwrap();
+    let (mut scheduler, _dir) = test_scheduler();
+    scheduler.on_event(make_event(r"C:\Games\Active"));
+    let _ = scheduler.tick(false, false); // persist
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    let _ = scheduler.tick(false, false); // settle -> idle
+    let _ = scheduler.tick(true, false); // idle -> safety
+    let action = scheduler.tick(true, false); // safety -> compressing
+    assert!(matches!(action, Some(SchedulerAction::Compress(_))));
+
+    scheduler.on_event(make_event(r"C:\Games\Queued"));
+
+    assert_eq!(scheduler.state(), SchedulerState::Compressing);
+    assert_eq!(
+        scheduler.active_job().map(|job| job.game_path.as_path()),
+        Some(std::path::Path::new(r"C:\Games\Active")),
+    );
+    assert!(scheduler.queue_snapshot().iter().any(|job| {
+        job.game_path == std::path::Path::new(r"C:\Games\Queued")
+            && job.status == JobStatus::WaitingForSettle
+    }));
+}
+
+#[test]
 fn settle_complete_transitions_to_waiting_for_idle() {
     let _g = TEST_MUTEX.lock().unwrap();
     let (mut scheduler, _dir) = test_scheduler();

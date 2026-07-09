@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+
 use crate::automation::scheduler::AutomationJob;
 use crate::compression::algorithm::CompressionAlgorithm;
 use crate::compression::engine::{CancellationToken, CompressionEngine};
@@ -31,9 +34,10 @@ pub(super) fn spawn_compression_job(
     job: &AutomationJob,
     process_checker: &ProcessChecker,
     algorithm: CompressionAlgorithm,
-    allow_directstorage_override: bool,
     cpu_usage_percent: f32,
     io_parallelism_override: Option<usize>,
+    watch_roots: Vec<PathBuf>,
+    excluded_paths: HashSet<String>,
 ) -> ActiveCompressionJob {
     let game_path = job.game_path.clone();
     let game_name = job.game_name.clone();
@@ -41,9 +45,23 @@ pub(super) fn spawn_compression_job(
     let (result_tx, result_rx) = crossbeam_channel::bounded::<CompressionResult>(1);
     let cancel_token = CancellationToken::new();
 
-    // Performance: when override is enabled, bypass DirectStorage detection
-    // entirely to avoid a deep directory scan per auto job.
-    if !allow_directstorage_override && is_directstorage_game(&game_path) {
+    if !is_authorized_game_path(&game_path, &watch_roots, &excluded_paths) {
+        log::warn!(
+            "Skipping automation job outside configured library roots: {}",
+            game_path.display()
+        );
+        let _ = result_tx.send(CompressionResult::Skipped {
+            idempotency_key,
+            reason: "Path is outside configured library roots".to_string(),
+        });
+        return ActiveCompressionJob {
+            result_rx,
+            cancel_token,
+            worker_handle: None,
+        };
+    }
+
+    if is_directstorage_game(&game_path) {
         log::info!("Skipping DirectStorage game: {}", game_path.display());
         let _ = result_tx.send(CompressionResult::Skipped {
             idempotency_key,
@@ -96,7 +114,6 @@ pub(super) fn spawn_compression_job(
             );
             let engine = CompressionEngine::new(algorithm)
                 .with_thread_policy(policy)
-                .with_directstorage_override(allow_directstorage_override)
                 .with_cancel_token(token.clone());
 
             log::info!(
@@ -165,6 +182,42 @@ pub(super) fn spawn_compression_job(
     }
 }
 
+fn is_authorized_game_path(
+    game_path: &Path,
+    watch_roots: &[PathBuf],
+    excluded_paths: &HashSet<String>,
+) -> bool {
+    let Ok(metadata) = std::fs::symlink_metadata(game_path) else {
+        return false;
+    };
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return false;
+    }
+
+    let normalized_path = crate::utils::normalize_path_key(game_path);
+    if excluded_paths.contains(&normalized_path) {
+        return false;
+    }
+
+    let Ok(canonical_game_path) = std::fs::canonicalize(game_path) else {
+        return false;
+    };
+    watch_roots.iter().any(|root| {
+        let Ok(root_metadata) = std::fs::symlink_metadata(root) else {
+            return false;
+        };
+        if !root_metadata.is_dir() || root_metadata.file_type().is_symlink() {
+            return false;
+        }
+        std::fs::canonicalize(root)
+            .ok()
+            .is_some_and(|canonical_root| {
+                canonical_game_path == canonical_root
+                    || canonical_game_path.parent() == Some(canonical_root.as_path())
+            })
+    })
+}
+
 pub(super) fn join_compression_worker(job: &mut ActiveCompressionJob, context: &str) {
     let Some(handle) = job.worker_handle.take() else {
         return;
@@ -196,7 +249,7 @@ mod tests {
     }
 
     #[test]
-    fn directstorage_job_skips_when_override_disabled() {
+    fn directstorage_job_skips_automatically() {
         let dir = TempDir::new().expect("temp dir should be created");
         std::fs::write(dir.path().join("dstorage.dll"), b"fake")
             .expect("dstorage marker should be created");
@@ -207,9 +260,10 @@ mod tests {
             &job,
             &process_checker,
             CompressionAlgorithm::Xpress8K,
-            false,
             0.0,
             None,
+            vec![dir.path().parent().expect("temp parent").to_path_buf()],
+            HashSet::new(),
         );
 
         let result = active
@@ -227,7 +281,7 @@ mod tests {
     }
 
     #[test]
-    fn directstorage_job_does_not_skip_when_override_enabled() {
+    fn directstorage_job_skips_even_when_manual_override_is_enabled() {
         let dir = TempDir::new().expect("temp dir should be created");
         std::fs::write(dir.path().join("dstorage.dll"), b"fake")
             .expect("dstorage marker should be created");
@@ -240,9 +294,10 @@ mod tests {
             &job,
             &process_checker,
             CompressionAlgorithm::Xpress8K,
-            true,
             0.0,
             None,
+            vec![dir.path().parent().expect("temp parent").to_path_buf()],
+            HashSet::new(),
         );
 
         let result = active
@@ -251,11 +306,41 @@ mod tests {
             .expect("worker should emit a result");
 
         assert!(
-            !matches!(
+            matches!(
                 result,
                 CompressionResult::Skipped { reason, .. } if reason == "DirectStorage detected"
             ),
-            "override should bypass the DirectStorage auto-skip gate"
+            "manual overrides must not bypass the unattended DirectStorage safety gate"
         );
+    }
+
+    #[test]
+    fn authorization_rejects_paths_outside_the_configured_library_root() {
+        let root = TempDir::new().expect("library root");
+        let game = root.path().join("Game");
+        let outside = TempDir::new().expect("outside path");
+        std::fs::create_dir_all(&game).expect("game directory");
+
+        assert!(is_authorized_game_path(
+            &game,
+            &[root.path().to_path_buf()],
+            &HashSet::new(),
+        ));
+        assert!(!is_authorized_game_path(
+            outside.path(),
+            &[root.path().to_path_buf()],
+            &HashSet::new(),
+        ));
+    }
+
+    #[test]
+    fn authorization_allows_a_discovered_game_root() {
+        let game = TempDir::new().expect("discovered game root");
+
+        assert!(is_authorized_game_path(
+            game.path(),
+            &[game.path().to_path_buf()],
+            &HashSet::new(),
+        ));
     }
 }

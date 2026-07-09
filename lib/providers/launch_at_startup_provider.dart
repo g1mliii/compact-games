@@ -12,6 +12,9 @@ final launchAtStartupProvider =
     );
 
 class LaunchAtStartupNotifier extends AsyncNotifier<bool> {
+  Future<void> _writeQueue = Future<void>.value();
+  int _requestGeneration = 0;
+
   @override
   Future<bool> build() {
     return ref.read(launchAtStartupServiceProvider).isEnabled();
@@ -22,10 +25,23 @@ class LaunchAtStartupNotifier extends AsyncNotifier<bool> {
     // if the registry write fails. Avoids a visible flicker (loading → false →
     // true) while reg.exe runs.
     final previous = state.valueOrNull ?? !enabled;
+    final requestGeneration = ++_requestGeneration;
     state = AsyncValue.data(enabled);
+
+    final write = _writeQueue.then(
+      (_) => ref.read(launchAtStartupServiceProvider).setEnabled(enabled),
+    );
+    _writeQueue = write.catchError((Object _) {});
+
     try {
-      await ref.read(launchAtStartupServiceProvider).setEnabled(enabled);
+      await write;
+      if (requestGeneration == _requestGeneration) {
+        state = AsyncValue.data(enabled);
+      }
     } catch (e, st) {
+      if (requestGeneration != _requestGeneration) {
+        return;
+      }
       state = AsyncValue<bool>.error(
         e,
         st,

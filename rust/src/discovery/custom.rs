@@ -212,9 +212,7 @@ fn resolve_game_candidate(path: &Path) -> Option<ResolvedCandidate> {
     // even when the size sample is below MIN_GAME_SIZE.
     if let Some(inner) = unwrap_single_subfolder(path) {
         if is_game_folder_relaxed(&inner) {
-            let inner_name = inner
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned());
+            let inner_name = inner.file_name().map(|n| n.to_string_lossy().into_owned());
             log::debug!(
                 "Custom: detected wrapper folder, inner=\"{}\"",
                 inner.display()

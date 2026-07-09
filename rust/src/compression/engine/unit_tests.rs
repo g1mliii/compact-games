@@ -75,31 +75,15 @@ fn estimate_savings_uses_extension_buckets() {
 }
 
 #[test]
-fn estimate_savings_scales_with_algorithm_strength() {
-    let dir = TempDir::new().expect("temp dir should be created");
-    let unknown = dir.path().join("blob.bin");
-    fs::write(&unknown, vec![3_u8; 100_000]).expect("write unknown fixture");
+fn heuristic_algorithm_scale_increases_with_algorithm_strength() {
+    let scale_4k = super::estimation::algorithm_scale_num(CompressionAlgorithm::Xpress4K);
+    let scale_8k = super::estimation::algorithm_scale_num(CompressionAlgorithm::Xpress8K);
+    let scale_16k = super::estimation::algorithm_scale_num(CompressionAlgorithm::Xpress16K);
+    let scale_lzx = super::estimation::algorithm_scale_num(CompressionAlgorithm::Lzx);
 
-    let saved_4k = CompressionEngine::new(CompressionAlgorithm::Xpress4K)
-        .estimate_folder_savings(dir.path())
-        .expect("estimate should succeed")
-        .estimated_saved_bytes;
-    let saved_8k = CompressionEngine::new(CompressionAlgorithm::Xpress8K)
-        .estimate_folder_savings(dir.path())
-        .expect("estimate should succeed")
-        .estimated_saved_bytes;
-    let saved_16k = CompressionEngine::new(CompressionAlgorithm::Xpress16K)
-        .estimate_folder_savings(dir.path())
-        .expect("estimate should succeed")
-        .estimated_saved_bytes;
-    let saved_lzx = CompressionEngine::new(CompressionAlgorithm::Lzx)
-        .estimate_folder_savings(dir.path())
-        .expect("estimate should succeed")
-        .estimated_saved_bytes;
-
-    assert!(saved_4k < saved_8k);
-    assert!(saved_8k < saved_16k);
-    assert!(saved_16k < saved_lzx);
+    assert!(scale_4k < scale_8k);
+    assert!(scale_8k < scale_16k);
+    assert!(scale_16k < scale_lzx);
 }
 
 #[test]

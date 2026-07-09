@@ -28,6 +28,7 @@ use crate::compression::thread_policy::compute_thread_policy;
 use crate::frb_generated::StreamSink;
 use crate::progress::tracker::CompressionProgress;
 use crate::safety::directstorage::is_directstorage_game;
+use crate::safety::process::ProcessChecker;
 
 // ── Active manual-operation tracking ──────────────────────────────────
 
@@ -151,6 +152,9 @@ pub fn compress_game(
     );
     let engine = CompressionEngine::new(algo)
         .with_thread_policy(policy)
+        .with_safety(crate::compression::engine::SafetyConfig {
+            process_checker: Arc::new(ProcessChecker::new()),
+        })
         .with_directstorage_override(allow_directstorage_override);
     let cancel_token = engine.cancel_token();
     let file_manifest = match engine.build_file_manifest(&path) {
@@ -272,7 +276,11 @@ pub fn decompress_game(
         current_cpu_usage_percent(),
         io_override_to_usize(io_parallelism_override),
     );
-    let engine = CompressionEngine::new(CompressionAlgorithm::default()).with_thread_policy(policy);
+    let engine = CompressionEngine::new(CompressionAlgorithm::default())
+        .with_thread_policy(policy)
+        .with_safety(crate::compression::engine::SafetyConfig {
+            process_checker: Arc::new(ProcessChecker::new()),
+        });
     let cancel_token = engine.cancel_token();
 
     install_active_operation(&cancel_token)?;

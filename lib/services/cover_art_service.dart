@@ -124,8 +124,16 @@ class CoverArtService {
       coverArtProviderMode: coverArtProviderMode,
       coverArtProxyConfig: coverArtProxyConfig,
     );
+    final apiEnabled = _isApiEnabled(
+      steamGridDbApiKey,
+      providerMode: coverArtProviderMode,
+      proxyConfig: coverArtProxyConfig,
+    );
     final memory = _readMemoryCache(runtimeCacheKey);
-    if (memory != null) {
+    // A configured provider owns the preferred cover. Keep its successful
+    // result in memory, but retry after any cache/icon/placeholder fallback.
+    if (memory != null &&
+        (!apiEnabled || memory.source == CoverArtSource.steamGridDbApi)) {
       return Future<CoverArtResult>.value(memory);
     }
 
@@ -170,7 +178,65 @@ class CoverArtService {
       return result;
     }
 
+    var primaryExeResolved = false;
+    String? primaryExePath;
+    Future<String?> resolvePrimaryExe() async {
+      if (primaryExeResolved) {
+        return primaryExePath;
+      }
+      primaryExeResolved = true;
+      try {
+        final hintedPath = _readEstimateHint(cacheKey);
+        primaryExePath =
+            hintedPath ??
+            (rustBridge == null
+                ? null
+                : await rustBridge.discoverPrimaryExe(game.path));
+        if (primaryExePath != null) {
+          _writeEstimateHint(cacheKey, primaryExePath!);
+        }
+      } catch (_) {
+        primaryExePath = null;
+      }
+      return primaryExePath;
+    }
+
+    final apiEnabled = _isApiEnabled(
+      steamGridDbApiKey,
+      providerMode: coverArtProviderMode,
+      proxyConfig: coverArtProxyConfig,
+    );
     final cached = await _readCachedCover(cacheKey);
+    if (apiEnabled) {
+      final apiResult = await _resolveApiCover(
+        game,
+        cacheKey: cacheKey,
+        apiKey: steamGridDbApiKey,
+        providerMode: coverArtProviderMode,
+        proxyConfig: coverArtProxyConfig,
+      );
+      if (apiResult != null) {
+        return store(apiResult);
+      }
+
+      final executableLookupName = _executableLookupName(
+        await resolvePrimaryExe(),
+        currentName: game.name,
+      );
+      if (executableLookupName != null) {
+        final executableApiResult = await _resolveApiCover(
+          game.copyWith(name: executableLookupName),
+          cacheKey: cacheKey,
+          apiKey: steamGridDbApiKey,
+          providerMode: coverArtProviderMode,
+          proxyConfig: coverArtProxyConfig,
+        );
+        if (executableApiResult != null) {
+          return store(executableApiResult);
+        }
+      }
+    }
+
     if (cached != null && await _isPreferredCachedCover(cached)) {
       return store(cached);
     }
@@ -182,24 +248,6 @@ class CoverArtService {
       );
       if (steamCache != null) {
         return store(steamCache);
-      }
-    }
-
-    final apiEnabled = _isApiEnabled(
-      steamGridDbApiKey,
-      providerMode: coverArtProviderMode,
-      proxyConfig: coverArtProxyConfig,
-    );
-    if (apiEnabled) {
-      final apiResult = await _resolveApiCover(
-        game,
-        cacheKey: cacheKey,
-        apiKey: steamGridDbApiKey,
-        providerMode: coverArtProviderMode,
-        proxyConfig: coverArtProxyConfig,
-      );
-      if (apiResult != null) {
-        return store(apiResult);
       }
     }
 
@@ -221,8 +269,8 @@ class CoverArtService {
     }
 
     final iconResult = await _resolveExeIconCover(
-      game,
       cacheKey: cacheKey,
+      executablePath: await resolvePrimaryExe(),
       rustBridge: rustBridge,
     );
     if (iconResult != null) {
@@ -268,23 +316,14 @@ class CoverArtService {
     }
   }
 
-  Future<CoverArtResult?> _resolveExeIconCover(
-    GameInfo game, {
+  Future<CoverArtResult?> _resolveExeIconCover({
     required String cacheKey,
-    RustBridgeService? rustBridge,
+    required String? executablePath,
+    required RustBridgeService? rustBridge,
   }) async {
-    if (rustBridge == null) return null;
-    // Prefer the exe path the estimator already discovered. Falls back to
-    // scanning the game folder so compressed app games (which skip the
-    // estimate fetch) still get an icon.
+    if (executablePath == null || rustBridge == null) return null;
     try {
-      final hintedPath = _readEstimateHint(cacheKey);
-      final exePath =
-          hintedPath ?? await rustBridge.discoverPrimaryExe(game.path);
-      if (exePath == null) {
-        return null;
-      }
-      final pngBytes = rustBridge.extractExeIcon(exePath: exePath);
+      final pngBytes = rustBridge.extractExeIcon(exePath: executablePath);
       if (pngBytes == null || pngBytes.isEmpty) {
         return null;
       }
@@ -296,7 +335,7 @@ class CoverArtService {
       final revision = _bumpCoverRevision(cacheKey);
       // Prime the in-memory hint so subsequent re-resolutions (e.g. after a
       // refresh) skip the folder walk.
-      _writeEstimateHint(cacheKey, exePath);
+      _writeEstimateHint(cacheKey, executablePath);
       return CoverArtResult(
         uri: file.uri.toString(),
         source: CoverArtSource.exeIcon,
@@ -305,6 +344,31 @@ class CoverArtService {
     } catch (_) {
       return null;
     }
+  }
+
+  String? _executableLookupName(
+    String? executablePath, {
+    required String currentName,
+  }) {
+    if (executablePath == null || executablePath.isEmpty) {
+      return null;
+    }
+    final stem = p.basenameWithoutExtension(executablePath).trim();
+    if (stem.isEmpty) {
+      return null;
+    }
+    final spaced = stem
+        .replaceAllMapped(
+          RegExp(r'([a-z0-9])([A-Z])'),
+          (match) => '${match.group(1)} ${match.group(2)}',
+        )
+        .replaceAll(RegExp(r'[_-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (spaced.isEmpty || spaced.toLowerCase() == currentName.toLowerCase()) {
+      return null;
+    }
+    return spaced;
   }
 
   Future<CoverArtResult?> _readCachedCover(String cacheKey) async {

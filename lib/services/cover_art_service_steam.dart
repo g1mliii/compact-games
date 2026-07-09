@@ -65,6 +65,7 @@ extension _CoverArtServiceSteam on CoverArtService {
   /// Same scoring as the legacy scan, just without the `<appid>_` prefix
   /// requirement since these files live inside their own appid-keyed dir.
   Future<String?> _resolveSteamLibraryCoverByScanInDir(Directory dir) async {
+    const maxEntries = 512;
     const allowedExtensions = <String>{'.jpg', '.jpeg', '.png', '.webp'};
     const preferredTokens = <String>[
       '600x900',
@@ -77,23 +78,35 @@ extension _CoverArtServiceSteam on CoverArtService {
 
     String? bestPath;
     var bestScore = -1;
-    await for (final entity in dir.list(recursive: true, followLinks: false)) {
-      if (entity is! File) continue;
-      final name = p.basename(entity.path).toLowerCase();
-      final ext = p.extension(name);
-      if (!allowedExtensions.contains(ext)) continue;
+    var entriesScanned = 0;
+    try {
+      await for (final entity in dir.list(
+        recursive: true,
+        followLinks: false,
+      )) {
+        entriesScanned += 1;
+        if (entriesScanned > maxEntries) {
+          break;
+        }
+        if (entity is! File) continue;
+        final name = p.basename(entity.path).toLowerCase();
+        final ext = p.extension(name);
+        if (!allowedExtensions.contains(ext)) continue;
 
-      var score = 0;
-      for (var i = 0; i < preferredTokens.length; i++) {
-        if (name.contains(preferredTokens[i])) {
-          score += 12 - i;
+        var score = 0;
+        for (var i = 0; i < preferredTokens.length; i++) {
+          if (name.contains(preferredTokens[i])) {
+            score += 12 - i;
+          }
+        }
+        if (ext == '.jpg' || ext == '.png') score += 2;
+        if (score > bestScore) {
+          bestScore = score;
+          bestPath = entity.path;
         }
       }
-      if (ext == '.jpg' || ext == '.png') score += 2;
-      if (score > bestScore) {
-        bestScore = score;
-        bestPath = entity.path;
-      }
+    } on FileSystemException {
+      // Steam cache is optional; continue to API and executable-icon fallbacks.
     }
     return bestPath;
   }

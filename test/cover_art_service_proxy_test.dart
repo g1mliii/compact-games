@@ -156,36 +156,229 @@ void main() {
     },
   );
 
+  test('configured proxy replaces a preferred Steam library cover', () async {
+    final fixture = await _writeSteamLibraryFixture(tempDir);
+    final requests = <Uri>[];
+    const apiBytes = <int>[65, 66, 67, 68];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'proxy.example.test') {
+          return _jsonResponse({
+            'url': 'https://cdn2.steamgriddb.com/grid/api-cover.jpg',
+            'source': 'steamgriddb',
+          });
+        }
+        if (request.url.host == 'cdn2.steamgriddb.com') {
+          return http.Response.bytes(
+            apiBytes,
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Battlefield 6',
+        path: fixture.gamePath,
+        platform: Platform.steam,
+        sizeBytes: 1,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
+
+    final cacheFile = _cachedCoverFile(tempDir, fixture.gamePath);
+    expect(result.source, CoverArtSource.steamGridDbApi);
+    expect(requests.map((uri) => uri.host), <String>[
+      'proxy.example.test',
+      'cdn2.steamgriddb.com',
+    ]);
+    expect(await cacheFile.readAsBytes(), apiBytes);
+  });
+
+  test('configured proxy replaces a preferred disk cache', () async {
+    final game = GameInfo(
+      name: 'Gangs of MoonFall',
+      path: r'D:\Games\Gangs of MoonFall',
+      platform: Platform.custom,
+      sizeBytes: 1,
+    );
+    final cacheFile = await _writeCachedCover(
+      tempDir,
+      game.path,
+      _fakePngHeader(width: 600, height: 900),
+    );
+    const apiBytes = <int>[71, 72, 73, 74];
+    final requestedNames = <String>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        if (request.url.host == 'proxy.example.test') {
+          requestedNames.add(request.url.queryParameters['name']!);
+          return _jsonResponse({
+            'url': 'https://cdn2.steamgriddb.com/grid/api-cover.jpg',
+            'source': 'steamgriddb',
+          });
+        }
+        if (request.url.host == 'cdn2.steamgriddb.com') {
+          return http.Response.bytes(
+            apiBytes,
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      game,
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
+
+    expect(result.source, CoverArtSource.steamGridDbApi);
+    expect(requestedNames, <String>['Gangs of MoonFall']);
+    expect(await cacheFile.readAsBytes(), apiBytes);
+  });
+
+  test('configured proxy retries after a preferred memory fallback', () async {
+    final game = GameInfo(
+      name: 'Returning to Mia',
+      path: r'D:\Games\Returning to Mia',
+      platform: Platform.custom,
+      sizeBytes: 1,
+    );
+    await _writeCachedCover(
+      tempDir,
+      game.path,
+      _fakePngHeader(width: 600, height: 900),
+    );
+    const proxyConfig = CoverArtProxyConfig(
+      url: 'https://proxy.example.test',
+      token: 'proxy-token',
+    );
+    final service = const CoverArtService();
+
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        expect(request.url.host, 'proxy.example.test');
+        return _jsonResponse({'error': 'unavailable'}, 503);
+      }),
+    );
+    final fallback = await service.resolveCover(
+      game,
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: proxyConfig,
+    );
+    expect(fallback.source, CoverArtSource.cache);
+
+    const apiBytes = <int>[81, 82, 83, 84];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        if (request.url.host == 'proxy.example.test') {
+          expect(request.url.path, '/sgdb/by-name');
+          expect(request.url.queryParameters['name'], 'Returning to Mia');
+          return _jsonResponse({
+            'url': 'https://cdn2.steamgriddb.com/grid/returning-to-mia.jpg',
+            'source': 'steamgriddb',
+          });
+        }
+        if (request.url.host == 'cdn2.steamgriddb.com') {
+          return http.Response.bytes(
+            apiBytes,
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final refreshed = await service.resolveCover(
+      game,
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: proxyConfig,
+    );
+
+    expect(refreshed.source, CoverArtSource.steamGridDbApi);
+  });
+
   test(
-    'fresh Steam library cover uses local cache before configured proxy',
+    'custom install retries by primary executable title after name miss',
     () async {
-      final fixture = await _writeSteamLibraryFixture(tempDir);
-      final requests = <Uri>[];
+      final games = <GameInfo>[
+        GameInfo(
+          name: 'Gangs of MoonFall',
+          path: r'D:\Games\Gangs of MoonFall',
+          platform: Platform.custom,
+          sizeBytes: 1,
+        ),
+        GameInfo(
+          name: 'Succesor',
+          path: r'D:\Games\Succesor',
+          platform: Platform.custom,
+          sizeBytes: 1,
+        ),
+      ];
+      const executablePaths = <String, String>{
+        r'D:\Games\Gangs of MoonFall':
+            r'D:\Games\Gangs of MoonFall\VampireSyndicate.exe',
+        r'D:\Games\Succesor': r'D:\Games\Succesor\SuccubusSuccessor.exe',
+      };
+      final requestedNames = <String>[];
       debugSetCoverArtApiHttpClientForTesting(
         MockClient((request) async {
-          requests.add(request.url);
-          throw StateError('Unexpected proxy request to ${request.url}');
+          if (request.url.host == 'proxy.example.test') {
+            final name = request.url.queryParameters['name']!;
+            requestedNames.add(name);
+            if (name == 'Gangs of MoonFall' || name == 'Succesor') {
+              return _jsonResponse({'error': 'Not found'}, 404);
+            }
+            return _jsonResponse({
+              'url': 'https://cdn2.steamgriddb.com/grid/${name.hashCode}.jpg',
+              'source': 'steamgriddb',
+            });
+          }
+          if (request.url.host == 'cdn2.steamgriddb.com') {
+            return http.Response.bytes(
+              <int>[91, 92, 93, 94],
+              200,
+              headers: const <String, String>{'content-type': 'image/jpeg'},
+            );
+          }
+          throw StateError('Unexpected request to ${request.url}');
         }),
       );
 
-      final result = await const CoverArtService().resolveCover(
-        GameInfo(
-          name: 'Battlefield 6',
-          path: fixture.gamePath,
-          platform: Platform.steam,
-          sizeBytes: 1,
-        ),
-        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
-        coverArtProxyConfig: const CoverArtProxyConfig(
-          url: 'https://proxy.example.test',
-          token: 'proxy-token',
-        ),
-      );
+      for (final game in games) {
+        final result = await const CoverArtService().resolveCover(
+          game,
+          coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+          coverArtProxyConfig: const CoverArtProxyConfig(
+            url: 'https://proxy.example.test',
+            token: 'proxy-token',
+          ),
+          rustBridge: _PrimaryExeRustBridgeService(executablePaths),
+        );
+        expect(result.source, CoverArtSource.steamGridDbApi);
+      }
 
-      final cacheFile = _cachedCoverFile(tempDir, fixture.gamePath);
-      expect(requests, isEmpty);
-      expect(result.source, CoverArtSource.steamLibraryCache);
-      expect(await cacheFile.readAsBytes(), fixture.preferredBytes);
+      expect(requestedNames, <String>[
+        'Gangs of MoonFall',
+        'Vampire Syndicate',
+        'Succesor',
+        'Succubus Successor',
+      ]);
     },
   );
 
@@ -705,6 +898,16 @@ class _ThrowingDiscoverRustBridgeService extends NoOpRustBridgeService {
   Future<String?> discoverPrimaryExe(String folder) async {
     throw StateError('bridge unavailable');
   }
+}
+
+class _PrimaryExeRustBridgeService extends NoOpRustBridgeService {
+  const _PrimaryExeRustBridgeService(this.executablePaths);
+
+  final Map<String, String> executablePaths;
+
+  @override
+  Future<String?> discoverPrimaryExe(String folder) async =>
+      executablePaths[folder];
 }
 
 class _SteamLibraryFixture {

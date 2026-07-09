@@ -284,6 +284,18 @@ pub fn build_game_info_with_mode_and_stats_path(
     }
 
     let stats = dir_stats(&stats_path);
+    if stats.scan_limit_reached {
+        evict_candidate(&stats_path);
+        log_candidate_decision(
+            "skip",
+            platform,
+            &name,
+            &stats_path,
+            mode,
+            "full discovery file limit reached",
+        );
+        return None;
+    }
     if stats.logical_size == 0 {
         evict_candidate(&stats_path);
         log_candidate_decision(

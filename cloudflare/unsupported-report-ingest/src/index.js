@@ -11,22 +11,21 @@ const RATE_LIMIT_MAX_SUBMISSIONS = 5;
 const IP_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const IP_RATE_LIMIT_MAX_SUBMISSIONS = 15;
 const IP_NEW_REPORTER_WINDOW_MS = 24 * 60 * 60 * 1000;
-const IP_NEW_REPORTER_MAX_REPORTERS = 10;
+const IP_NEW_REPORTER_MAX_REPORTERS = 1;
 const REPORTER_TOKEN_HEADER = "x-compactgames-reporter-token";
 const COMMUNITY_READ_CACHE_TTL_MS = 60 * 1000;
 const COMMUNITY_READ_CACHE_MAX_ENTRIES = 32;
 const READ_ONLY_HEADERS = {
   "content-type": "application/json; charset=utf-8",
 };
+const PUBLIC_READ_CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET,OPTIONS",
+};
 const COMMUNITY_READ_HEADERS = {
   ...READ_ONLY_HEADERS,
+  ...PUBLIC_READ_CORS_HEADERS,
   "cache-control": "public, max-age=60, stale-while-revalidate=300",
-};
-const CORS_HEADERS = {
-  "content-type": "application/json; charset=utf-8",
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,OPTIONS,POST",
-  "access-control-allow-headers": `content-type,${REPORTER_TOKEN_HEADER}`,
 };
 // Public aggregate reads only; never store request-scoped or submission data here.
 const COMMUNITY_READ_CACHE_BY_DB = new WeakMap();
@@ -35,12 +34,16 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    if (request.method === "OPTIONS" && isPublicReadPath(url.pathname)) {
+      return new Response(null, { status: 204, headers: PUBLIC_READ_CORS_HEADERS });
     }
 
     if (request.method === "GET" && url.pathname === "/health") {
-      return jsonResponse({ ok: true, service: "unsupported-report-ingest" }, 200, CORS_HEADERS);
+      return jsonResponse(
+        { ok: true, service: "unsupported-report-ingest" },
+        200,
+        { ...READ_ONLY_HEADERS, ...PUBLIC_READ_CORS_HEADERS },
+      );
     }
 
     if (request.method === "POST" && url.pathname === "/unsupported-reports") {
@@ -62,6 +65,13 @@ export default {
     return jsonResponse({ error: "Not found" }, 404, READ_ONLY_HEADERS);
   },
 };
+
+function isPublicReadPath(pathname) {
+  return pathname === "/health" ||
+    pathname === "/community-candidates" ||
+    pathname === "/community-list" ||
+    pathname === "/release-bundle";
+}
 
 async function handleSubmission(request, env) {
   const contentType = request.headers.get("content-type") ?? "";
@@ -799,7 +809,7 @@ function readInteger(value) {
 }
 
 function submissionJson(payload, status = 200) {
-  return jsonResponse(payload, status, CORS_HEADERS);
+  return jsonResponse(payload, status, READ_ONLY_HEADERS);
 }
 
 function jsonResponse(payload, status, headers) {

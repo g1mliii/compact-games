@@ -506,6 +506,45 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'Add game falls back to hydration when the folder scan is inconclusive',
+    (WidgetTester tester) async {
+      final hydratedGame = GameInfo(
+        name: 'Fallback Entry',
+        path: r'C:\Manual\Fallback',
+        platform: Platform.custom,
+        sizeBytes: 8 * _oneGiB,
+      );
+      final bridge = _RecordingRustBridgeService(
+        games: _sampleGames,
+        hydratedGame: hydratedGame,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Add game'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('addGamePathField')),
+        r'C:\Manual\Fallback\game.exe',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('confirmAddGameButton')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(bridge.scanCustomFolderCalls, 1);
+      expect(find.text('Fallback Entry'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Add game supports browse-folder selection in dialog', (
     WidgetTester tester,
   ) async {

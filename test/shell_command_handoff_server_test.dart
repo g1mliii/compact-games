@@ -81,7 +81,7 @@ void main() {
     },
   );
 
-  test('failed server start preserves existing handoff token', () async {
+  test('a reserved legacy port does not prevent handoff startup', () async {
     final tokenFile = _handoffTokenFile();
     if (tokenFile == null) {
       return;
@@ -109,8 +109,9 @@ void main() {
         onShowWindow: () {},
       );
 
-      expect(started, isFalse);
-      expect(await tokenFile.readAsString(), 'existing-token');
+      expect(started, isTrue);
+      expect(await tokenFile.readAsString(), contains('"port"'));
+      await ShellCommandHandoffServer.instance.dispose();
     } on SocketException {
       return;
     } finally {

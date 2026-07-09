@@ -73,6 +73,13 @@ coverage/
 cloudflare/**/.wrangler/
 cloudflare/**/node_modules/
 
+# Node dependencies (promo/teaser, etc.)
+node_modules/
+
+# Local agent tooling (symlinks to global ~/.agents skills; not project source)
+/skills/
+.claude/
+
 # Windows specific
 *.obj
 *.lib

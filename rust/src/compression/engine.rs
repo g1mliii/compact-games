@@ -20,7 +20,7 @@ use crate::progress::reporter::{EngineCounters, ProgressReporter};
 use crate::progress::tracker::CompressionProgress;
 
 pub use self::engine_safety::SafetyConfig;
-use self::engine_safety::{run_safety_checks, DirectStoragePolicy};
+use self::engine_safety::{run_process_safety_check, run_safety_checks, DirectStoragePolicy};
 pub use self::estimation_runtime::EstimateGameContext;
 use self::operation_session::{OperationGuard, OperationLock, OperationSession};
 use self::path_guard::safe_file_iter;
@@ -320,6 +320,7 @@ impl CompressionEngine {
         run_safety_checks(folder, self.directstorage_policy, self.safety.as_ref())?;
         let engine = self.clone();
         let operation = self.begin_operation();
+        let folder = folder.to_path_buf();
         let files_total = file_manifest.len() as u64;
 
         let (progress_ready_tx, progress_ready_rx) = bounded(1);
@@ -338,7 +339,7 @@ impl CompressionEngine {
                 return;
             }
 
-            let result = engine.compress_impl_from_manifest(file_manifest);
+            let result = engine.compress_impl_from_manifest(&folder, file_manifest);
 
             reporter.mark_done();
             reporter.stop();
@@ -375,6 +376,7 @@ impl CompressionEngine {
         file_manifest: Vec<ManifestFile>,
     ) -> Result<CompressionProgressHandle, CompressionError> {
         self.validate_path(folder)?;
+        run_process_safety_check(folder, self.safety.as_ref())?;
         let engine = self.clone();
         let operation = self.begin_operation();
         let folder = folder.to_path_buf();
@@ -422,6 +424,7 @@ impl CompressionEngine {
 
     pub fn decompress_folder(&self, folder: &Path) -> Result<(), CompressionError> {
         self.validate_path(folder)?;
+        run_process_safety_check(folder, self.safety.as_ref())?;
         let _operation = self.begin_operation();
         self.decompress_impl(folder)
     }
@@ -469,6 +472,7 @@ impl CompressionEngine {
     #[cfg(not(windows))]
     fn compress_impl_from_manifest(
         &self,
+        _folder: &Path,
         _files: Vec<ManifestFile>,
     ) -> Result<CompressionStats, CompressionError> {
         Err(CompressionError::WofApiError {

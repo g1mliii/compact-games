@@ -33,9 +33,17 @@ pub fn is_directstorage_game(game_path: &Path) -> bool {
 
     for entry in WalkDir::new(game_path)
         .max_depth(3)
+        .follow_links(false)
         .into_iter()
         .filter_map(|e| e.ok())
     {
+        if entry.path_is_symlink() {
+            log::debug!(
+                "Skipping symlink during DirectStorage detection: {}",
+                entry.path().display()
+            );
+            continue;
+        }
         if let Some(name) = entry.file_name().to_str() {
             if DIRECTSTORAGE_DLLS
                 .iter()

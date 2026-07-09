@@ -11,8 +11,8 @@ pub(crate) mod platform {
 
     use windows::core::PCWSTR;
     use windows::Win32::Graphics::Gdi::{
-        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetObjectW, SelectObject,
-        BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GdiFlush, GetObjectW,
+        SelectObject, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
     };
     use windows::Win32::UI::Shell::ExtractIconExW;
     use windows::Win32::UI::WindowsAndMessaging::{
@@ -193,6 +193,8 @@ pub(crate) mod platform {
                 return None;
             }
 
+            ptr::write_bytes(bits, 0, buf_size);
+
             let old_object = SelectObject(hdc, dib);
             if old_object.is_invalid() {
                 let _ = DeleteObject(dib);
@@ -205,6 +207,12 @@ pub(crate) mod platform {
             let _ = SelectObject(hdc, old_object);
 
             if drew.is_err() {
+                let _ = DeleteObject(dib);
+                let _ = DeleteDC(hdc);
+                let _ = DeleteObject(color_bmp);
+                return None;
+            }
+            if !GdiFlush().as_bool() {
                 let _ = DeleteObject(dib);
                 let _ = DeleteDC(hdc);
                 let _ = DeleteObject(color_bmp);

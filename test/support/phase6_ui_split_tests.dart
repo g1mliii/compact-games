@@ -1098,32 +1098,33 @@ void runPhase6OversizeSplitTests() {
     expect(image.filterQuality, FilterQuality.low);
   });
 
-  testWidgets('GameCard icon cover does not paint placeholder icon underneath', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 280,
-            height: 420,
-            child: GameCard(
-              gameName: 'Icon Cover',
-              platform: Platform.application,
-              totalSizeBytes: 10 * _oneGiB,
-              coverImageProvider: _transparentPngProvider(),
-              coverArtType: CoverArtType.icon,
-              assumeBoundedHeight: true,
+  testWidgets(
+    'GameCard icon cover does not paint placeholder icon underneath',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 280,
+              height: 420,
+              child: GameCard(
+                gameName: 'Icon Cover',
+                platform: Platform.application,
+                totalSizeBytes: 10 * _oneGiB,
+                coverImageProvider: _transparentPngProvider(),
+                coverArtType: CoverArtType.icon,
+                assumeBoundedHeight: true,
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.byType(Image), findsOneWidget);
-    expect(find.byIcon(LucideIcons.archive), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.byIcon(LucideIcons.archive), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('GameDetailsCover icon cover does not paint placeholder icon', (
     WidgetTester tester,
@@ -1227,40 +1228,44 @@ void runPhase6OversizeSplitTests() {
     expect(find.text('Mar 4, 16:05'), findsOneWidget);
   });
 
-  testWidgets('GameCard keeps last compressed inline at narrow widths', (
-    WidgetTester tester,
-  ) async {
-    final totalBytes = (11.1 * 1024 * 1024 * 1024).toInt();
-    final compressedBytes = (10.1 * 1024 * 1024 * 1024).toInt();
+  testWidgets(
+    'GameCard keeps last compressed metadata above storage at narrow widths',
+    (WidgetTester tester) async {
+      final totalBytes = (11.1 * 1024 * 1024 * 1024).toInt();
+      final compressedBytes = (10.1 * 1024 * 1024 * 1024).toInt();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 280,
-            height: 420,
-            child: GameCard(
-              gameName: 'Cairn',
-              platform: Platform.steam,
-              totalSizeBytes: totalBytes,
-              compressedSizeBytes: compressedBytes,
-              isCompressed: true,
-              lastCompressedText: 'Mar 6, 21:19',
-              assumeBoundedHeight: true,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 280,
+              height: 420,
+              child: GameCard(
+                gameName: 'Cairn',
+                platform: Platform.steam,
+                totalSizeBytes: totalBytes,
+                compressedSizeBytes: compressedBytes,
+                isCompressed: true,
+                lastCompressedText: 'Mar 6, 21:19',
+                assumeBoundedHeight: true,
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    final sizeRect = tester.getRect(find.text('10.1 GB'));
-    final timestampRect = tester.getRect(find.text('Mar 6, 21:19'));
-    final cardRect = tester.getRect(find.byType(GameCard));
+      final sizeRect = tester.getRect(
+        find.textContaining('10.1 GB', findRichText: true),
+      );
+      final timestampRect = tester.getRect(find.text('Mar 6, 21:19'));
+      final cardRect = tester.getRect(find.byType(GameCard));
 
-    expect(timestampRect.top, lessThan(sizeRect.bottom));
-    expect(timestampRect.bottom, greaterThan(sizeRect.top));
-    expect(timestampRect.right, lessThanOrEqualTo(cardRect.right - 8));
-  });
+      expect(find.text('Saved 9%'), findsOneWidget);
+      expect(timestampRect.bottom, lessThan(sizeRect.top));
+      expect(timestampRect.right, lessThanOrEqualTo(cardRect.right - 8));
+      expect(find.byType(FractionallySizedBox), findsNothing);
+    },
+  );
 
   testWidgets('GameCard keeps badge row aligned across card states', (
     WidgetTester tester,
@@ -1302,7 +1307,7 @@ void runPhase6OversizeSplitTests() {
       ),
     );
 
-    final compressedBadge = tester.getRect(find.textContaining('Saved'));
+    final compressedBadge = tester.getRect(find.text('Saved 5.0 GB'));
     final directStorageBadge = tester.getRect(find.text('DirectStorage'));
 
     expect(compressedBadge.top, directStorageBadge.top);

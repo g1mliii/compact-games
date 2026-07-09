@@ -65,7 +65,6 @@ class GameCard extends StatelessWidget {
   static const BorderRadius _coverBorderRadius = BorderRadius.vertical(
     bottom: Radius.circular(12),
   );
-  static const double _sizeInfoRegionHeight = 28;
   static final BoxDecoration _cardDecoration = buildAppSurfaceDecoration(
     borderRadius: _cardBorderRadius,
   );
@@ -271,11 +270,32 @@ class GameCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  gameName,
-                  style: AppTypography.headingSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        gameName,
+                        style: AppTypography.headingSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_hasLastCompressedText) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          lastCompressedText!.trim(),
+                          style: AppTypography.bodySmall.copyWith(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 4),
                 _buildStatusRow(context),
@@ -344,137 +364,116 @@ class GameCard extends StatelessWidget {
           ? (savingsBytes / totalSizeBytes).clamp(0.0, 1.0).toDouble()
           : 0.0;
 
-      return SizedBox(
-        height: _sizeInfoRegionHeight,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildCompressedMetaRow(
-              context: context,
-              compressedGB: compressedGB,
-              sizeGB: sizeGB,
-            ),
-            const SizedBox(height: 2),
-            _CompressionBar(ratio: savingsRatio),
-          ],
-        ),
+      return _buildCompressedMetaRow(
+        context: context,
+        compressedGB: compressedGB,
+        sizeGB: sizeGB,
+        savingsRatio: savingsRatio,
       );
     }
 
     final estimatedSaved = estimatedSavedBytes;
     if (estimatedSaved != null && estimatedSaved > 0) {
       final savedGB = estimatedSaved / (1024 * 1024 * 1024);
-      return SizedBox(
-        height: _sizeInfoRegionHeight,
-        child: Align(
-          alignment: Alignment.bottomLeft,
-          child: Row(
-            children: [
-              Text(
-                l10n.commonGigabytes(sizeGB.toStringAsFixed(1)),
-                style: AppTypography.monoSmall.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 6),
-              if (estimatedFromCommunity) ...[
-                Tooltip(
-                  message: l10n.gameEstimateCommunityTooltip,
-                  child: const Icon(
-                    LucideIcons.database,
-                    size: 12,
-                    color: AppColors.richGold,
-                  ),
-                ),
-                const SizedBox(width: 4),
-              ],
-              Flexible(
-                child: Text(
-                  l10n.gameEstimatedSaveableGigabytes(
-                    savedGB.toStringAsFixed(1),
-                  ),
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.success,
-                    fontSize: 11,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ),
-            ],
+      return Row(
+        children: [
+          Text(
+            l10n.commonGigabytes(sizeGB.toStringAsFixed(1)),
+            style: AppTypography.monoSmall.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: _sizeInfoRegionHeight,
-      child: Align(
-        alignment: Alignment.bottomLeft,
-        child: Text(
-          l10n.commonGigabytes(sizeGB.toStringAsFixed(1)),
-          style: AppTypography.monoSmall.copyWith(fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompressedMetaRow({
-    required BuildContext context,
-    required double compressedGB,
-    required double sizeGB,
-  }) {
-    final l10n = context.l10n;
-    final timestamp = lastCompressedText?.trim();
-    return Row(
-      children: [
-        Flexible(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  l10n.commonGigabytes(compressedGB.toStringAsFixed(1)),
-                  style: AppTypography.monoSmall.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+          const SizedBox(width: 6),
+          if (estimatedFromCommunity) ...[
+            Tooltip(
+              message: l10n.gameEstimateCommunityTooltip,
+              child: const Icon(
+                LucideIcons.database,
+                size: 12,
+                color: AppColors.richGold,
               ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  '/ ${l10n.commonGigabytes(sizeGB.toStringAsFixed(1))}',
-                  style: AppTypography.bodySmall.copyWith(
-                    fontSize: 12,
-                    fontFamilyFallback: AppTypography.monoFontFallback,
-                    decoration: TextDecoration.lineThrough,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (timestamp != null && timestamp.isNotEmpty) ...[
-          const SizedBox(width: 10),
+            ),
+            const SizedBox(width: 4),
+          ],
           Flexible(
             child: Text(
-              timestamp,
+              l10n.gameEstimatedSaveableGigabytes(savedGB.toStringAsFixed(1)),
               style: AppTypography.bodySmall.copyWith(
+                color: AppColors.success,
                 fontSize: 11,
-                color: AppColors.textSecondary,
               ),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
             ),
           ),
         ],
+      );
+    }
+
+    return Text(
+      l10n.commonGigabytes(sizeGB.toStringAsFixed(1)),
+      style: AppTypography.monoSmall.copyWith(fontWeight: FontWeight.w700),
+    );
+  }
+
+  bool get _hasLastCompressedText {
+    final timestamp = lastCompressedText;
+    return timestamp != null && timestamp.trim().isNotEmpty;
+  }
+
+  Widget _buildCompressedMetaRow({
+    required BuildContext context,
+    required double compressedGB,
+    required double sizeGB,
+    required double savingsRatio,
+  }) {
+    final l10n = context.l10n;
+    final savedPercent = (savingsRatio * 100).round();
+    return Row(
+      children: [
+        Flexible(
+          flex: 3,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: l10n.commonGigabytes(compressedGB.toStringAsFixed(1)),
+                  style: AppTypography.monoSmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const TextSpan(text: ' / '),
+                TextSpan(
+                  text: l10n.commonGigabytes(sizeGB.toStringAsFixed(1)),
+                  style: AppTypography.bodySmall.copyWith(
+                    fontSize: 12,
+                    fontFamilyFallback: AppTypography.monoFontFallback,
+                    decoration: TextDecoration.lineThrough,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          flex: 2,
+          child: Text(
+            l10n.activityAmountSaved(
+              l10n.settingsPercentShort('$savedPercent'),
+            ),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.success,
+              fontSize: 11,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+          ),
+        ),
       ],
     );
   }
@@ -571,45 +570,6 @@ class _CachedResizeImageState extends State<_CachedResizeImage> {
         }
         return widget.placeholderBuilder();
       },
-    );
-  }
-}
-
-class _CompressionBar extends StatelessWidget {
-  const _CompressionBar({required this.ratio});
-
-  final double ratio;
-  static const BorderRadius _barRadius = BorderRadius.all(Radius.circular(3));
-  static const BoxDecoration _fillDecoration = BoxDecoration(
-    gradient: AppColors.progressGradient,
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final clamped = ratio.isFinite ? ratio.clamp(0.0, 1.0).toDouble() : 0.0;
-    return SizedBox(
-      height: 4,
-      child: ClipRRect(
-        borderRadius: _barRadius,
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            const ColoredBox(color: AppColors.surfaceElevated),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: clamped,
-                heightFactor: 1.0,
-                child: const DecoratedBox(
-                  decoration: _fillDecoration,
-                  child: SizedBox.expand(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

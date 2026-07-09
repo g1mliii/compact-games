@@ -52,6 +52,13 @@ abstract final class AppColors {
   static const Color directStorage = burntSienna;
   static const Color compressing = richGold;
 
+  // Used by the active compression job indicator, not library-card storage data.
+  static const LinearGradient progressGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [desertGold, burntSienna],
+  );
+
   // Cinematic gradients
   static const LinearGradient horizonGradient = LinearGradient(
     begin: Alignment.topCenter,
@@ -70,11 +77,5 @@ abstract final class AppColors {
     end: Alignment.bottomRight,
     stops: [0, 0.52, 1],
     colors: [deepHorizonBlue, surfaceHero, nightDune],
-  );
-
-  static const LinearGradient progressGradient = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-    colors: [desertGold, burntSienna],
   );
 }

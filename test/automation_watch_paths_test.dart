@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:compact_games/models/game_info.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:compact_games/providers/automation/automation_settings_sync.dart';
 
 void main() {

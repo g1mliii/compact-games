@@ -260,6 +260,7 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   _RecordingRustBridgeService({
     required super.games,
     this.scanCustomFolderGames = const <GameInfo>[],
+    this.hydratedGame,
   });
 
   int compressCalls = 0;
@@ -281,6 +282,7 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   int syncUnsupportedReportCollectionCalls = 0;
   String? lastSyncUnsupportedReportAppVersion;
   final List<GameInfo> scanCustomFolderGames;
+  final GameInfo? hydratedGame;
 
   @override
   void clearDiscoveryCacheEntry(String path) {
@@ -333,6 +335,13 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
     lastScanCustomFolderPath = path;
     return scanCustomFolderGames;
   }
+
+  @override
+  Future<GameInfo?> hydrateGame({
+    required String gamePath,
+    required String gameName,
+    required Platform platform,
+  }) async => hydratedGame;
 
   @override
   void reportUnsupportedGame(String gamePath) {

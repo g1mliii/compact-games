@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -76,7 +77,7 @@ Future<void> main(List<String> args) async {
       },
     );
     if (!ownsSingleInstance) {
-      return;
+      debugPrint('[shell] continuing without shell handoff support');
     }
   }
 
@@ -137,11 +138,6 @@ Future<void> main(List<String> args) async {
 
 const bool _enableShaderWarmUp = bool.fromEnvironment(
   'COMPACT_GAMES_SHADER_WARM_UP',
-  defaultValue: true,
-);
-
-const bool _preferDebugRustDll = bool.fromEnvironment(
-  'COMPACT_GAMES_PREFER_DEBUG_RUST_DLL',
   defaultValue: true,
 );
 
@@ -214,9 +210,7 @@ void _safeDisposeRustLib() {
 
 List<String> _rustLibraryCandidates() {
   return buildRustLibraryCandidates(
-    isReleaseMode: kReleaseMode,
-    isProfileMode: kProfileMode,
-    preferDebugRustDll: _preferDebugRustDll,
+    executablePath: Platform.resolvedExecutable,
   );
 }
 

@@ -1,8 +1,5 @@
 //! Windows-specific compress/decompress/ratio implementations using WOF API.
 
-use std::fs::OpenOptions;
-use std::os::windows::fs::OpenOptionsExt;
-use std::os::windows::io::AsRawHandle;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -10,7 +7,6 @@ use std::sync::Arc;
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use std::sync::Mutex;
-use windows::Win32::Foundation::HANDLE;
 
 /// Single cached thread pool.
 ///
@@ -45,10 +41,6 @@ fn get_or_create_thread_pool(
     *cache = Some((parallelism, Arc::clone(&pool)));
     Ok(pool)
 }
-use windows::Win32::Storage::FileSystem::{
-    GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_SHARE_DELETE, FILE_SHARE_READ,
-    FILE_SHARE_WRITE,
-};
 
 use super::super::error::CompressionError;
 use super::super::wof::{self, CompressFileResult};
@@ -68,17 +60,20 @@ impl CompressionEngine {
                 }
             })
             .collect();
-        self.compress_impl_from_manifest(files)
+        self.compress_impl_from_manifest(folder, files)
     }
 
     pub(super) fn compress_impl_from_manifest(
         &self,
+        folder: &Path,
         files: Vec<ManifestFile>,
     ) -> Result<CompressionStats, CompressionError> {
         let start = std::time::Instant::now();
         let disk_full = Arc::new(AtomicBool::new(false));
         let skipped = Arc::new(AtomicU64::new(0));
         let algorithm = self.algorithm;
+        let canonical_root =
+            std::fs::canonicalize(folder).map_err(|source| CompressionError::Io { source })?;
 
         // Reset counters before starting to avoid stale accumulation from
         // a previous run when the engine instance is reused.
@@ -95,9 +90,38 @@ impl CompressionEngine {
                 return Err(CompressionError::DiskFull);
             }
 
-            let file_size = manifest_file
-                .logical_size_hint
-                .unwrap_or_else(|| std::fs::metadata(path).map(|m| m.len()).unwrap_or_default());
+            let file = match wof::open_verified_file(path, &canonical_root) {
+                Ok(file) => file,
+                Err(error) if Self::is_recoverable_file_error(&error) => {
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
+                Err(error) => {
+                    log::warn!(
+                        "Skipping unsafe compression path {}: {error}",
+                        path.display()
+                    );
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
+            };
+
+            if wof::link_count(&file).is_some_and(|count| count > 1) {
+                log::warn!(
+                    "Skipping multi-linked file during compression: {}",
+                    path.display()
+                );
+                skipped.fetch_add(1, Ordering::Relaxed);
+                self.files_processed.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
+
+            let file_size = file
+                .metadata()
+                .map(|metadata| metadata.len())
+                .unwrap_or_default();
             if file_size == 0 {
                 skipped.fetch_add(1, Ordering::Relaxed);
                 self.files_processed.fetch_add(1, Ordering::Relaxed);
@@ -113,7 +137,7 @@ impl CompressionEngine {
             // WOF does not overlay a second backing on an already-backed file,
             // so recompression with a different algorithm must clear the old
             // backing before applying the new one.
-            match wof::wof_get_compression(path) {
+            match wof::wof_get_compression_open_file(&file, path) {
                 Ok(Some(current_algo)) if current_algo == algorithm => {
                     let physical = wof::get_physical_size(path).unwrap_or(file_size);
                     self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
@@ -122,7 +146,7 @@ impl CompressionEngine {
                     return Ok(());
                 }
                 Ok(Some(_)) => {
-                    if let Err(e) = wof::wof_decompress_file(path) {
+                    if let Err(e) = wof::wof_decompress_open_file(&file, path) {
                         log::warn!(
                             "Skipping {} during re-apply: could not clear WOF backing: {e}",
                             path.display()
@@ -149,20 +173,7 @@ impl CompressionEngine {
                 }
             }
 
-            if has_multiple_links(path) {
-                log::warn!(
-                    "Skipping multi-linked file during compression: {}",
-                    path.display()
-                );
-                self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
-                self.bytes_compressed
-                    .fetch_add(file_size, Ordering::Relaxed);
-                skipped.fetch_add(1, Ordering::Relaxed);
-                self.files_processed.fetch_add(1, Ordering::Relaxed);
-                return Ok(());
-            }
-
-            match wof::wof_compress_file(path, algorithm) {
+            match wof::wof_compress_open_file(&file, path, algorithm) {
                 Ok(CompressFileResult::Compressed) => {
                     self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
                     let phys = wof::get_physical_size(path).unwrap_or(file_size);
@@ -253,6 +264,8 @@ impl CompressionEngine {
         self.reset_counters();
         let decompression_candidates = Arc::new(AtomicU64::new(0));
         let likely_uncompressed = Arc::new(AtomicU64::new(0));
+        let canonical_root =
+            std::fs::canonicalize(folder).map_err(|source| CompressionError::Io { source })?;
         self.files_total
             .store(files.len() as u64, Ordering::Relaxed);
 
@@ -262,15 +275,28 @@ impl CompressionEngine {
             }
 
             let path = manifest_file.path.as_path();
-            let file_size = match manifest_file.logical_size_hint {
-                Some(size) => size,
-                None => match std::fs::metadata(path) {
-                    Ok(metadata) => metadata.len(),
-                    Err(_) => {
-                        self.files_processed.fetch_add(1, Ordering::Relaxed);
-                        return Ok(());
-                    }
-                },
+            let file = match wof::open_verified_file(path, &canonical_root) {
+                Ok(file) => file,
+                Err(error) if Self::is_recoverable_file_error(&error) => {
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
+                Err(error) => {
+                    log::warn!(
+                        "Skipping unsafe decompression path {}: {error}",
+                        path.display()
+                    );
+                    likely_uncompressed.fetch_add(1, Ordering::Relaxed);
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
+            };
+            let file_size = match file.metadata() {
+                Ok(metadata) => metadata.len(),
+                Err(_) => {
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
             };
             if file_size == 0 {
                 likely_uncompressed.fetch_add(1, Ordering::Relaxed);
@@ -296,7 +322,7 @@ impl CompressionEngine {
                 return Ok(());
             }
 
-            if has_multiple_links(path) {
+            if wof::link_count(&file).is_some_and(|count| count > 1) {
                 self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
                 self.bytes_compressed
                     .fetch_add(file_size, Ordering::Relaxed);
@@ -310,7 +336,7 @@ impl CompressionEngine {
             }
             decompression_candidates.fetch_add(1, Ordering::Relaxed);
 
-            match wof::wof_decompress_file(path) {
+            match wof::wof_decompress_open_file(&file, path) {
                 Ok(()) => {
                     self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
                     self.bytes_compressed
@@ -378,25 +404,4 @@ impl CompressionEngine {
 
         Ok(physical_total.load(Ordering::Relaxed) as f64 / logical as f64)
     }
-}
-
-fn has_multiple_links(path: &Path) -> bool {
-    link_count(path).is_some_and(|count| count > 1)
-}
-
-fn link_count(path: &Path) -> Option<u64> {
-    let file = OpenOptions::new()
-        .read(true)
-        .share_mode((FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE).0)
-        .open(path)
-        .ok()?;
-    let mut info = BY_HANDLE_FILE_INFORMATION::default();
-    let ok = unsafe {
-        // Windows API required to get stable hard-link count for the file.
-        GetFileInformationByHandle(HANDLE(file.as_raw_handle()), &mut info).is_ok()
-    };
-    if !ok {
-        return None;
-    }
-    Some(info.nNumberOfLinks as u64)
 }

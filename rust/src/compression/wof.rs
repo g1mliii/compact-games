@@ -4,14 +4,18 @@
 //! Every public function returns `Result<T, CompressionError>`.
 
 use std::fs::{File, OpenOptions};
-use std::os::windows::ffi::OsStrExt;
+use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::AsRawHandle;
 use std::path::Path;
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::HANDLE;
-use windows::Win32::Storage::FileSystem::GetCompressedFileSizeW;
+use windows::Win32::Storage::FileSystem::{
+    GetCompressedFileSizeW, GetFileInformationByHandle, GetFinalPathNameByHandleW,
+    BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT, FILE_NAME_NORMALIZED,
+    FILE_SHARE_DELETE, FILE_SHARE_READ,
+};
 use windows::Win32::System::Ioctl::{
     FSCTL_DELETE_EXTERNAL_BACKING, FSCTL_GET_EXTERNAL_BACKING, FSCTL_SET_EXTERNAL_BACKING,
 };
@@ -70,7 +74,15 @@ pub fn wof_compress_file(
     algorithm: CompressionAlgorithm,
 ) -> Result<CompressFileResult, CompressionError> {
     let file = open_for_wof(path)?;
-    let handle = file_handle(&file);
+    wof_compress_open_file(&file, path, algorithm)
+}
+
+pub(crate) fn wof_compress_open_file(
+    file: &File,
+    path: &Path,
+    algorithm: CompressionAlgorithm,
+) -> Result<CompressFileResult, CompressionError> {
+    let handle = file_handle(file);
 
     let buf = WofBackingBuffer {
         wof: WofExternalInfo {
@@ -114,7 +126,11 @@ pub fn wof_compress_file(
 
 pub fn wof_decompress_file(path: &Path) -> Result<(), CompressionError> {
     let file = open_for_wof(path)?;
-    let handle = file_handle(&file);
+    wof_decompress_open_file(&file, path)
+}
+
+pub(crate) fn wof_decompress_open_file(file: &File, path: &Path) -> Result<(), CompressionError> {
+    let handle = file_handle(file);
     let mut returned: u32 = 0;
 
     let result = unsafe {
@@ -144,8 +160,15 @@ pub fn wof_decompress_file(path: &Path) -> Result<(), CompressionError> {
 }
 
 pub fn wof_get_compression(path: &Path) -> Result<Option<CompressionAlgorithm>, CompressionError> {
-    let file = File::open(path).map_err(|e| map_io(e, path))?;
-    let handle = file_handle(&file);
+    let file = File::open(path).map_err(|error| map_io(error, path))?;
+    wof_get_compression_open_file(&file, path)
+}
+
+pub(crate) fn wof_get_compression_open_file(
+    file: &File,
+    path: &Path,
+) -> Result<Option<CompressionAlgorithm>, CompressionError> {
+    let handle = file_handle(file);
 
     let mut buf = WofBackingBuffer {
         wof: WofExternalInfo {
@@ -213,9 +236,73 @@ pub fn get_physical_size(path: &Path) -> Result<u64, CompressionError> {
 fn open_for_wof(path: &Path) -> Result<File, CompressionError> {
     OpenOptions::new()
         .access_mode(0x0001 | 0x0002)
-        .share_mode(0x0001 | 0x0004)
+        .share_mode((FILE_SHARE_READ | FILE_SHARE_DELETE).0)
         .open(path)
         .map_err(|e| map_io(e, path))
+}
+
+pub(crate) fn open_verified_file(
+    path: &Path,
+    canonical_root: &Path,
+) -> Result<File, CompressionError> {
+    let metadata = std::fs::symlink_metadata(path).map_err(|error| map_io(error, path))?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(CompressionError::WofApiError {
+            message: format!("reparse point rejected: {}", path.display()),
+        });
+    }
+    let file = open_for_wof(path)?;
+    let mut info = BY_HANDLE_FILE_INFORMATION::default();
+    unsafe {
+        GetFileInformationByHandle(file_handle(&file), &mut info)
+            .map_err(|error| map_win32(win32_code(&error), path))?;
+    }
+    if info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0 {
+        return Err(CompressionError::WofApiError {
+            message: format!("reparse point rejected: {}", path.display()),
+        });
+    }
+    if !handle_path_is_within_root(&file, canonical_root) {
+        return Err(CompressionError::WofApiError {
+            message: format!("file handle escaped compression root: {}", path.display()),
+        });
+    }
+    Ok(file)
+}
+
+pub(crate) fn link_count(file: &File) -> Option<u64> {
+    let mut info = BY_HANDLE_FILE_INFORMATION::default();
+    unsafe {
+        GetFileInformationByHandle(file_handle(file), &mut info)
+            .ok()
+            .map(|()| info.nNumberOfLinks as u64)
+    }
+}
+
+fn handle_path_is_within_root(file: &File, canonical_root: &Path) -> bool {
+    let mut buffer = vec![0_u16; 32_768];
+    let length =
+        unsafe { GetFinalPathNameByHandleW(file_handle(file), &mut buffer, FILE_NAME_NORMALIZED) }
+            as usize;
+    if length == 0 || length >= buffer.len() {
+        return false;
+    }
+    let final_path = normalize_final_handle_path(std::ffi::OsString::from_wide(&buffer[..length]));
+    let final_key = crate::utils::normalize_path_key(&final_path);
+    let normalized_root = normalize_final_handle_path(canonical_root.as_os_str().to_os_string());
+    let root_key = crate::utils::normalize_path_key(&normalized_root);
+    final_key == root_key || final_key.starts_with(&format!("{root_key}\\"))
+}
+
+fn normalize_final_handle_path(path: std::ffi::OsString) -> std::path::PathBuf {
+    let value = path.to_string_lossy();
+    if let Some(unc) = value.strip_prefix(r"\\?\UNC\") {
+        return std::path::PathBuf::from(format!(r"\\{unc}"));
+    }
+    if let Some(plain) = value.strip_prefix(r"\\?\") {
+        return std::path::PathBuf::from(plain);
+    }
+    std::path::PathBuf::from(value.as_ref())
 }
 
 fn file_handle(file: &File) -> HANDLE {

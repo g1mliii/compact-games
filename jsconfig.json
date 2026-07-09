@@ -1,0 +1,32 @@
+{
+  // Editor-only config (noEmit). Gives VS Code's TypeScript service a real
+  // project for the repo's plain-JS sources so it stops falling back to an
+  // inferred project, whose default moduleResolution ("node10") is deprecated
+  // in TypeScript 7.0. Uses the modern "bundler" resolution instead.
+  // checkJs is off: this provides IntelliSense without flagging type errors
+  // in untyped JS.
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "checkJs": false,
+    "allowJs": true,
+    "noEmit": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "cloudflare/*/src/**/*",
+    "cloudflare/*/test/**/*",
+    "compact-games-site-package/website/**/*.js",
+    "scripts/**/*.mjs"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/.wrangler",
+    "build",
+    "dist",
+    "rust/target",
+    ".dart_tool",
+    "promo"
+  ]
+}

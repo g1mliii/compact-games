@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 
 import 'shell_launch_args.dart';
 
-const int _shellHandoffPort = 49731;
+const int _legacyShellHandoffPort = 49731;
 const String _shellHandoffMagic = 'compact-games-shell-action-v1';
 const String _shellHandoffTokenDir = 'compact_games';
 const String _shellHandoffTokenFile = 'shell-handoff.token';
@@ -20,6 +20,37 @@ abstract final class _HandoffProtocol {
   static const String commandKey = 'command';
   static const String ok = 'ok';
   static const String error = 'error';
+}
+
+class _HandoffEndpoint {
+  const _HandoffEndpoint({required this.port, required this.token});
+
+  final int port;
+  final String token;
+
+  String encode() => jsonEncode(<String, Object>{'port': port, 'token': token});
+
+  static _HandoffEndpoint? decode(String descriptor) {
+    final trimmed = descriptor.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      final value = jsonDecode(trimmed);
+      if (value is Map) {
+        final port = value['port'];
+        final token = value['token'];
+        if (port is int &&
+            port > 0 &&
+            port <= 65535 &&
+            token is String &&
+            token.isNotEmpty) {
+          return _HandoffEndpoint(port: port, token: token);
+        }
+      }
+    } catch (_) {
+      // Releases before the ephemeral-port protocol wrote the token alone.
+    }
+    return _HandoffEndpoint(port: _legacyShellHandoffPort, token: trimmed);
+  }
 }
 
 class ShellCommandHandoffServer {
@@ -45,10 +76,10 @@ class ShellCommandHandoffServer {
       final token = _generateToken();
       server = await ServerSocket.bind(
         InternetAddress.loopbackIPv4,
-        _shellHandoffPort,
+        0,
         shared: false,
       );
-      await _writeTokenFile(token);
+      await _writeTokenFile(_HandoffEndpoint(port: server.port, token: token));
       tokenWritten = true;
       _server = server;
       _token = token;
@@ -91,8 +122,8 @@ class ShellCommandHandoffServer {
   }
 
   static Future<bool> _handoffToRunningApp(Map<String, Object?> payload) async {
-    final token = await _readTokenFile();
-    if (token == null) {
+    final endpoint = await _readTokenFile();
+    if (endpoint == null) {
       // No running instance has advertised a token, or we lack permission
       // to read it. Caller will fall through to launching its own app.
       return false;
@@ -102,7 +133,7 @@ class ShellCommandHandoffServer {
     try {
       socket = await Socket.connect(
         InternetAddress.loopbackIPv4,
-        _shellHandoffPort,
+        endpoint.port,
         timeout: const Duration(milliseconds: 250),
       );
       // Subscribe to the response stream BEFORE writing the request so we
@@ -116,7 +147,7 @@ class ShellCommandHandoffServer {
       socket.writeln(
         jsonEncode(<String, Object?>{
           _HandoffProtocol.magicKey: _shellHandoffMagic,
-          _HandoffProtocol.tokenKey: token,
+          _HandoffProtocol.tokenKey: endpoint.token,
           ...payload,
         }),
       );
@@ -159,8 +190,9 @@ class ShellCommandHandoffServer {
       if (command == 'show') {
         onShowWindow();
       } else {
-        final request =
-            ShellActionRequest.fromJson(decoded[_HandoffProtocol.requestKey]);
+        final request = ShellActionRequest.fromJson(
+          decoded[_HandoffProtocol.requestKey],
+        );
         if (request == null) {
           socket.writeln(_HandoffProtocol.error);
           return;
@@ -203,7 +235,7 @@ class ShellCommandHandoffServer {
     );
   }
 
-  static Future<void> _writeTokenFile(String token) async {
+  static Future<void> _writeTokenFile(_HandoffEndpoint endpoint) async {
     final file = _tokenFile();
     if (file == null) {
       throw const FileSystemException(
@@ -211,16 +243,15 @@ class ShellCommandHandoffServer {
       );
     }
     await file.parent.create(recursive: true);
-    await file.writeAsString(token, flush: true);
+    await file.writeAsString(endpoint.encode(), flush: true);
   }
 
-  static Future<String?> _readTokenFile() async {
+  static Future<_HandoffEndpoint?> _readTokenFile() async {
     final file = _tokenFile();
     if (file == null) return null;
     try {
       if (!await file.exists()) return null;
-      final value = (await file.readAsString()).trim();
-      return value.isEmpty ? null : value;
+      return _HandoffEndpoint.decode(await file.readAsString());
     } catch (_) {
       return null;
     }

@@ -177,6 +177,39 @@ fn startup_reconcile_dedupes_equivalent_watch_roots() {
 }
 
 #[test]
+fn startup_reconcile_handles_game_folder_under_a_library_root() {
+    let journal_dir = tempfile::TempDir::new().unwrap();
+    let watch_root = tempfile::TempDir::new().unwrap();
+    let game_dir = watch_root.path().join("NestedGame");
+    fs::create_dir_all(&game_dir).unwrap();
+    fs::write(game_dir.join("game.exe"), vec![0_u8; 4096]).unwrap();
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    add_compression_history(
+        &game_dir,
+        now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
+    );
+    fs::write(game_dir.join("patch.bin"), vec![1_u8; 1024]).unwrap();
+
+    let mut scheduler = test_scheduler(&journal_dir);
+    let mut attempted = HashSet::new();
+    let queued = enqueue_closed_session_reconcile_jobs(
+        &mut scheduler,
+        &[watch_root.path().to_string_lossy().into_owned()],
+        &mut attempted,
+    );
+
+    assert_eq!(queued.queued, 1);
+    assert!(!queued.hit_cap);
+    let queue = scheduler.queue_snapshot();
+    assert_eq!(queue.len(), 1);
+    assert_eq!(queue[0].game_path, game_dir);
+}
+
+#[test]
 fn startup_reconcile_handles_watch_path_that_is_itself_a_game_folder() {
     let journal_dir = tempfile::TempDir::new().unwrap();
     let game_dir = tempfile::TempDir::new().unwrap();
@@ -227,16 +260,18 @@ fn startup_change_marker_ignores_save_only_changes() {
 #[test]
 fn startup_reconcile_skips_recent_self_compression_echo() {
     let journal_dir = tempfile::TempDir::new().unwrap();
-    let game_dir = tempfile::TempDir::new().unwrap();
-    fs::write(game_dir.path().join("game.exe"), vec![0_u8; 4096]).unwrap();
+    let watch_root = tempfile::TempDir::new().unwrap();
+    let game_dir = watch_root.path().join("RecentlyCompressedGame");
+    fs::create_dir_all(&game_dir).unwrap();
+    fs::write(game_dir.join("game.exe"), vec![0_u8; 4096]).unwrap();
 
-    add_compression_history(game_dir.path(), crate::utils::unix_now_ms());
+    add_compression_history(&game_dir, crate::utils::unix_now_ms());
 
     let mut scheduler = test_scheduler(&journal_dir);
     let mut attempted = HashSet::new();
     let queued = enqueue_closed_session_reconcile_jobs(
         &mut scheduler,
-        &[game_dir.path().to_string_lossy().into_owned()],
+        &[watch_root.path().to_string_lossy().into_owned()],
         &mut attempted,
     );
 
@@ -248,14 +283,12 @@ fn startup_reconcile_skips_recent_self_compression_echo() {
 #[test]
 fn startup_reconcile_queues_recent_content_change_after_compression() {
     let journal_dir = tempfile::TempDir::new().unwrap();
-    let game_dir = tempfile::TempDir::new().unwrap();
-    fs::create_dir_all(game_dir.path().join("game").join("bin")).unwrap();
-    add_compression_history(
-        game_dir.path(),
-        crate::utils::unix_now_ms().saturating_sub(5_000),
-    );
+    let watch_root = tempfile::TempDir::new().unwrap();
+    let game_dir = watch_root.path().join("RecentlyModifiedGame");
+    fs::create_dir_all(game_dir.join("game").join("bin")).unwrap();
+    add_compression_history(&game_dir, crate::utils::unix_now_ms().saturating_sub(5_000));
     fs::write(
-        game_dir.path().join("game").join("bin").join("patch.bin"),
+        game_dir.join("game").join("bin").join("patch.bin"),
         vec![1_u8; 4096],
     )
     .unwrap();
@@ -264,7 +297,7 @@ fn startup_reconcile_queues_recent_content_change_after_compression() {
     let mut attempted = HashSet::new();
     let queued = enqueue_closed_session_reconcile_jobs(
         &mut scheduler,
-        &[game_dir.path().to_string_lossy().into_owned()],
+        &[watch_root.path().to_string_lossy().into_owned()],
         &mut attempted,
     );
 
@@ -276,10 +309,11 @@ fn startup_reconcile_queues_recent_content_change_after_compression() {
 #[test]
 fn startup_reconcile_still_queues_content_changes() {
     let journal_dir = tempfile::TempDir::new().unwrap();
-    let game_dir = tempfile::TempDir::new().unwrap();
-    fs::create_dir_all(game_dir.path().join("game").join("bin")).unwrap();
+    let watch_root = tempfile::TempDir::new().unwrap();
+    let game_dir = watch_root.path().join("ModifiedGame");
+    fs::create_dir_all(game_dir.join("game").join("bin")).unwrap();
     fs::write(
-        game_dir.path().join("game").join("bin").join("engine2.dll"),
+        game_dir.join("game").join("bin").join("engine2.dll"),
         vec![0_u8; 4096],
     )
     .unwrap();
@@ -289,11 +323,11 @@ fn startup_reconcile_still_queues_content_changes() {
         .unwrap_or_default()
         .as_millis() as u64;
     add_compression_history(
-        game_dir.path(),
+        &game_dir,
         now_ms.saturating_sub(OLDER_THAN_RECENT_WINDOW_MS),
     );
     fs::write(
-        game_dir.path().join("game").join("bin").join("engine2.dll"),
+        game_dir.join("game").join("bin").join("engine2.dll"),
         vec![1_u8; 8192],
     )
     .unwrap();
@@ -302,7 +336,7 @@ fn startup_reconcile_still_queues_content_changes() {
     let mut attempted = HashSet::new();
     let queued = enqueue_closed_session_reconcile_jobs(
         &mut scheduler,
-        &[game_dir.path().to_string_lossy().into_owned()],
+        &[watch_root.path().to_string_lossy().into_owned()],
         &mut attempted,
     );
 
@@ -341,7 +375,11 @@ fn startup_reconcile_allows_content_change_under_ancestor_named_cache_dir() {
     let mut attempted = HashSet::new();
     let queued = enqueue_closed_session_reconcile_jobs(
         &mut scheduler,
-        &[game_dir.to_string_lossy().into_owned()],
+        &[game_dir
+            .parent()
+            .expect("library root")
+            .to_string_lossy()
+            .into_owned()],
         &mut attempted,
     );
 

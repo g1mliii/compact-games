@@ -322,8 +322,7 @@ fn discover_common_custom_roots() -> Vec<PathBuf> {
 
 #[cfg(windows)]
 fn windows_drive_roots() -> Vec<PathBuf> {
-    // Skip A: and B: (floppy drives) -- probing these can cause multi-second
-    // hangs on systems with floppy controller emulation.
+    // Skip A: and B: because probing floppy-controller emulation can hang.
     (b'C'..=b'Z')
         .map(|drive| PathBuf::from(format!("{}:\\", drive as char)))
         .filter(|path| path.is_dir())
@@ -431,12 +430,7 @@ mod tests {
         std::fs::create_dir_all(&games).unwrap();
 
         let roots = common_custom_roots_from_mounts(vec![mount.path().to_path_buf()]);
-        assert!(
-            roots.iter().any(|p| p == &games),
-            "expected {:?} in {:?}",
-            games,
-            roots
-        );
+        assert!(roots.iter().any(|path| path == &games));
     }
 
     #[test]
@@ -450,23 +444,17 @@ mod tests {
             mount.path().to_path_buf(),
         ]);
 
-        assert_eq!(roots.len(), 1);
-        assert_eq!(roots[0], games);
+        assert_eq!(roots, vec![games]);
     }
 
     #[test]
-    fn common_custom_roots_detects_steamlibrary_alias() {
+    fn common_custom_roots_detects_steam_library_alias() {
         let mount = TempDir::new().unwrap();
         let steam_library = mount.path().join("SteamLibrary");
         std::fs::create_dir_all(&steam_library).unwrap();
 
         let roots = common_custom_roots_from_mounts(vec![mount.path().to_path_buf()]);
-        assert!(
-            roots.iter().any(|p| p == &steam_library),
-            "expected {:?} in {:?}",
-            steam_library,
-            roots
-        );
+        assert!(roots.iter().any(|path| path == &steam_library));
     }
 
     #[test]
