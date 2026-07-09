@@ -196,22 +196,41 @@ async function resolveGridByName(env, name, dimension) {
     return null;
   }
 
-  const normalized = name.toLowerCase();
-  let fallbackId = null;
+  const normalized = normalizeCatalogTitle(name);
+  const queryWordCount = normalized.split(" ").filter(Boolean).length;
+  let partialMatch = null;
   for (const item of data) {
     const id = readInteger(item?.id);
     if (id == null) {
       continue;
     }
-    fallbackId ??= id;
-    if (typeof item?.name === "string" && item.name.toLowerCase() === normalized) {
+    const candidate = typeof item?.name === "string" ? normalizeCatalogTitle(item.name) : "";
+    if (candidate === normalized) {
       return findGridUrlForTarget(env, `/api/v2/grids/game/${id}`, dimension);
+    }
+    if (queryWordCount < 2 || !candidate.includes(normalized)) {
+      continue;
+    }
+
+    const score = candidate.length - normalized.length;
+    if (partialMatch == null || score < partialMatch.score) {
+      partialMatch = { id, score };
     }
   }
 
-  return fallbackId == null
+  return partialMatch == null
     ? null
-    : findGridUrlForTarget(env, `/api/v2/grids/game/${fallbackId}`, dimension);
+    : findGridUrlForTarget(env, `/api/v2/grids/game/${partialMatch.id}`, dimension);
+}
+
+function normalizeCatalogTitle(value) {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 async function findGridUrlForTarget(env, endpointBase, dimension) {

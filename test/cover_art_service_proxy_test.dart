@@ -78,7 +78,89 @@ void main() {
     expect(result.source, CoverArtSource.steamGridDbApi);
     expect(result.uri, startsWith('file:'));
     expect(requests.length, 2);
+
+    final cached = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Counter-Strike 2',
+        path: r'C:\Steam\steamapps\common\Counter-Strike Global Offensive',
+        platform: Platform.steam,
+        sizeBytes: 1,
+        steamAppId: 730,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
+
+    expect(cached.source, CoverArtSource.steamGridDbApi);
+    expect(requests.length, 2);
   });
+
+  test(
+    'tagged API disk cache skips revalidation until explicitly refreshed',
+    () async {
+      final game = GameInfo(
+        name: 'Persisted API Cover',
+        path: r'C:\\Games\\persisted_api_cover',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      );
+      await _writeCachedCover(
+        tempDir,
+        game.path,
+        _fakePngHeader(width: 600, height: 900),
+      );
+      await _writeCachedCoverSource(
+        tempDir,
+        game.path,
+        CoverArtSource.steamGridDbApi,
+      );
+      final requests = <Uri>[];
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          requests.add(request.url);
+          if (request.url.host == 'proxy.example.test') {
+            return _jsonResponse({
+              'url': 'https://cdn2.steamgriddb.com/grid/refreshed.jpg',
+            });
+          }
+          return http.Response.bytes(
+            <int>[9, 8, 7, 6],
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }),
+      );
+
+      const service = CoverArtService();
+      final result = await service.resolveCover(
+        game,
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: const CoverArtProxyConfig(
+          url: 'https://proxy.example.test',
+          token: 'proxy-token',
+        ),
+      );
+
+      expect(result.source, CoverArtSource.steamGridDbApi);
+      expect(requests, isEmpty);
+
+      service.invalidateCoverForGame(game.path);
+      final refreshed = await service.resolveCover(
+        game,
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: const CoverArtProxyConfig(
+          url: 'https://proxy.example.test',
+          token: 'proxy-token',
+        ),
+      );
+
+      expect(refreshed.source, CoverArtSource.steamGridDbApi);
+      expect(requests.length, 2);
+    },
+  );
 
   test(
     'configured proxy replaces stale disk cache before local fallback',
@@ -251,66 +333,110 @@ void main() {
     expect(await cacheFile.readAsBytes(), apiBytes);
   });
 
-  test('configured proxy retries after a preferred memory fallback', () async {
+  test(
+    'configured proxy reuses a fallback until explicit invalidation',
+    () async {
+      final game = GameInfo(
+        name: 'Returning to Mia',
+        path: r'D:\Games\Returning to Mia',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      );
+      await _writeCachedCover(
+        tempDir,
+        game.path,
+        _fakePngHeader(width: 600, height: 900),
+      );
+      const proxyConfig = CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      );
+      final service = const CoverArtService();
+
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          expect(request.url.host, 'proxy.example.test');
+          return _jsonResponse({'error': 'unavailable'}, 503);
+        }),
+      );
+      final fallback = await service.resolveCover(
+        game,
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: proxyConfig,
+      );
+      expect(fallback.source, CoverArtSource.cache);
+
+      const apiBytes = <int>[81, 82, 83, 84];
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          if (request.url.host == 'proxy.example.test') {
+            expect(request.url.path, '/sgdb/by-name');
+            expect(request.url.queryParameters['name'], 'Returning to Mia');
+            return _jsonResponse({
+              'url': 'https://cdn2.steamgriddb.com/grid/returning-to-mia.jpg',
+              'source': 'steamgriddb',
+            });
+          }
+          if (request.url.host == 'cdn2.steamgriddb.com') {
+            return http.Response.bytes(
+              apiBytes,
+              200,
+              headers: const <String, String>{'content-type': 'image/jpeg'},
+            );
+          }
+          throw StateError('Unexpected request to ${request.url}');
+        }),
+      );
+
+      final reused = await service.resolveCover(
+        game,
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: proxyConfig,
+      );
+
+      expect(reused.source, CoverArtSource.cache);
+
+      service.invalidateCoverForGame(game.path);
+      final refreshed = await service.resolveCover(
+        game,
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: proxyConfig,
+      );
+
+      expect(refreshed.source, CoverArtSource.steamGridDbApi);
+    },
+  );
+
+  test('confirmed proxy misses discard a legacy custom cover cache', () async {
     final game = GameInfo(
-      name: 'Returning to Mia',
-      path: r'D:\Games\Returning to Mia',
+      name: 'Succesor',
+      path: r'D:\\Games\\Succesor',
       platform: Platform.custom,
       sizeBytes: 1,
     );
-    await _writeCachedCover(
+    final cacheFile = await _writeCachedCover(
       tempDir,
       game.path,
       _fakePngHeader(width: 600, height: 900),
     );
-    const proxyConfig = CoverArtProxyConfig(
-      url: 'https://proxy.example.test',
-      token: 'proxy-token',
-    );
-    final service = const CoverArtService();
-
     debugSetCoverArtApiHttpClientForTesting(
       MockClient((request) async {
         expect(request.url.host, 'proxy.example.test');
-        return _jsonResponse({'error': 'unavailable'}, 503);
-      }),
-    );
-    final fallback = await service.resolveCover(
-      game,
-      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
-      coverArtProxyConfig: proxyConfig,
-    );
-    expect(fallback.source, CoverArtSource.cache);
-
-    const apiBytes = <int>[81, 82, 83, 84];
-    debugSetCoverArtApiHttpClientForTesting(
-      MockClient((request) async {
-        if (request.url.host == 'proxy.example.test') {
-          expect(request.url.path, '/sgdb/by-name');
-          expect(request.url.queryParameters['name'], 'Returning to Mia');
-          return _jsonResponse({
-            'url': 'https://cdn2.steamgriddb.com/grid/returning-to-mia.jpg',
-            'source': 'steamgriddb',
-          });
-        }
-        if (request.url.host == 'cdn2.steamgriddb.com') {
-          return http.Response.bytes(
-            apiBytes,
-            200,
-            headers: const <String, String>{'content-type': 'image/jpeg'},
-          );
-        }
-        throw StateError('Unexpected request to ${request.url}');
+        return _jsonResponse({'error': 'Not found'}, 404);
       }),
     );
 
-    final refreshed = await service.resolveCover(
+    final result = await const CoverArtService().resolveCover(
       game,
       coverArtProviderMode: CoverArtProviderMode.bundledProxy,
-      coverArtProxyConfig: proxyConfig,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
     );
 
-    expect(refreshed.source, CoverArtSource.steamGridDbApi);
+    expect(result.source, CoverArtSource.none);
+    expect(await cacheFile.exists(), isFalse);
   });
 
   test(
@@ -968,6 +1094,15 @@ Future<File> _writeCachedCover(
   await file.parent.create(recursive: true);
   await file.writeAsBytes(bytes);
   return file;
+}
+
+Future<void> _writeCachedCoverSource(
+  Directory tempDir,
+  String gamePath,
+  CoverArtSource source,
+) {
+  final cover = _cachedCoverFile(tempDir, gamePath);
+  return File(p.setExtension(cover.path, '.source')).writeAsString(source.name);
 }
 
 File _cachedCoverFile(Directory tempDir, String gamePath) {

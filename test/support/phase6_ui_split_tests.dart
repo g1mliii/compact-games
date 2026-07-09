@@ -1267,6 +1267,43 @@ void runPhase6OversizeSplitTests() {
     },
   );
 
+  testWidgets('GameCard prioritizes the title over a long compressed date', (
+    WidgetTester tester,
+  ) async {
+    const gameName = 'Vampire Syndicate: Gangs of MoonFall';
+    const timestamp = 'Wednesday, July 9, 2026 at 10:19 PM';
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 280,
+            height: 420,
+            child: GameCard(
+              gameName: gameName,
+              platform: Platform.steam,
+              totalSizeBytes: 11 * _oneGiB,
+              compressedSizeBytes: 10 * _oneGiB,
+              isCompressed: true,
+              lastCompressedText: timestamp,
+              assumeBoundedHeight: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final title = tester.widget<Text>(find.text(gameName));
+    final date = tester.widget<Text>(find.text(timestamp));
+    final titleRect = tester.getRect(find.text(gameName));
+    final dateRect = tester.getRect(find.text(timestamp));
+    final cardRect = tester.getRect(find.byType(GameCard));
+
+    expect(title.overflow, TextOverflow.ellipsis);
+    expect(date.overflow, TextOverflow.ellipsis);
+    expect(titleRect.width, greaterThan(dateRect.width));
+    expect(dateRect.right, closeTo(cardRect.right - 14, 0.1));
+  });
+
   testWidgets('GameCard keeps badge row aligned across card states', (
     WidgetTester tester,
   ) async {

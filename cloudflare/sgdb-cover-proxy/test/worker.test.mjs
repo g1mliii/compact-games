@@ -153,6 +153,55 @@ test("by-name lookup resolves game id before grid lookup", async (t) => {
   assert.match(upstreamUrls[1], /\/api\/v2\/grids\/game\/20\?types=static&dimensions=342x482$/);
 });
 
+test("by-name lookup accepts the closest catalog title containing a multiword query", async (t) => {
+  t.mock.method(Date, "now", () => BASE_TIME_MS);
+  const upstreamUrls = [];
+  const env = createEnv((url) => {
+    upstreamUrls.push(url);
+    if (url.includes("/search/autocomplete/")) {
+      return jsonResponse({
+        data: [
+          { id: 10, name: "Vampire Syndicate" },
+          { id: 20, name: "Vampire Syndicate: Gangs of MoonFall" },
+        ],
+      });
+    }
+    return jsonResponse({
+      data: [
+        {
+          url: "https://cdn2.steamgriddb.com/grid/gangs-of-moonfall.jpg",
+          width: 600,
+          height: 900,
+        },
+      ],
+    });
+  });
+
+  const result = await fetchJson(env, "/sgdb/by-name?name=Gangs%20of%20MoonFall&dimension=tall");
+
+  assert.equal(result.response.status, 200);
+  assert.match(upstreamUrls[1], /\/api\/v2\/grids\/game\/20\?types=static&dimensions=342x482$/);
+});
+
+test("by-name lookup rejects unrelated autocomplete results", async (t) => {
+  t.mock.method(Date, "now", () => BASE_TIME_MS);
+  const upstreamUrls = [];
+  const env = createEnv((url) => {
+    upstreamUrls.push(url);
+    return jsonResponse({
+      data: [
+        { id: 10, name: "Unity" },
+        { id: 20, name: "Vampire Syndicate" },
+      ],
+    });
+  });
+
+  const result = await fetchJson(env, "/sgdb/by-name?name=Succubus%20Successor&dimension=tall");
+
+  assert.equal(result.response.status, 404);
+  assert.equal(upstreamUrls.length, 1);
+});
+
 test("positive KV hits do not spend D1 rate-limit quota", async (t) => {
   t.mock.method(Date, "now", () => BASE_TIME_MS);
   let upstreamCalls = 0;

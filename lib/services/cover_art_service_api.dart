@@ -57,37 +57,9 @@ extension _CoverArtServiceApi on CoverArtService {
   Future<String?> _resolveSteamGridDbCover(
     GameInfo game, {
     required String cacheKey,
-    required String? apiKey,
-    required CoverArtProviderMode providerMode,
-    required CoverArtProxyConfig proxyConfig,
+    required String apiKey,
   }) async {
-    final normalizedKey = apiKey?.trim();
-    if (providerMode == CoverArtProviderMode.userKey &&
-        (normalizedKey == null || normalizedKey.isEmpty)) {
-      return null;
-    }
-
     try {
-      if (providerMode == CoverArtProviderMode.bundledProxy) {
-        final proxyResult = await _resolveSteamGridDbCoverViaProxy(
-          game,
-          cacheKey: cacheKey,
-          proxyConfig: proxyConfig,
-        );
-        if (proxyResult.status == _CoverProxyLookupStatus.found) {
-          return proxyResult.path;
-        }
-        if (proxyResult.status == _CoverProxyLookupStatus.notFound) {
-          return null;
-        }
-        if (normalizedKey == null || normalizedKey.isEmpty) {
-          return null;
-        }
-      }
-
-      if (normalizedKey == null || normalizedKey.isEmpty) {
-        return null;
-      }
       String? imageUrl;
       if (game.platform == Platform.steam) {
         final steamAppId =
@@ -96,13 +68,13 @@ extension _CoverArtServiceApi on CoverArtService {
         if (steamAppId != null) {
           imageUrl = await _findSteamGridDbGridUrlBySteamAppId(
             steamAppId: steamAppId,
-            apiKey: normalizedKey,
+            apiKey: apiKey,
           );
         }
       }
       imageUrl ??= await _resolveSteamGridDbGridUrlByName(
         gameName: game.name,
-        apiKey: normalizedKey,
+        apiKey: apiKey,
       );
       if (imageUrl == null) {
         return null;
@@ -353,7 +325,11 @@ extension _CoverArtServiceApi on CoverArtService {
     final cacheDir = await _ensureCacheDir();
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await target.writeAsBytes(response.bodyBytes, flush: true);
-    await _clearCachedCoverSource(cacheDir, cacheKey);
+    await _writeCachedCoverSource(
+      cacheDir,
+      cacheKey,
+      CoverArtSource.steamGridDbApi,
+    );
     _scheduleCacheEviction(cacheDir);
     return target.path;
   }

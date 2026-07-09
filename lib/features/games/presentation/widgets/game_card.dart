@@ -266,42 +266,50 @@ class GameCard extends StatelessWidget {
           decoration: _infoDecoration,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final timestampWidth = (constraints.maxWidth * 0.34)
+                    .clamp(84.0, 112.0)
+                    .toDouble();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Text(
-                        gameName,
-                        style: AppTypography.headingSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (_hasLastCompressedText) ...[
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          lastCompressedText!.trim(),
-                          style: AppTypography.bodySmall.copyWith(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            gameName,
+                            style: AppTypography.headingSmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.end,
                         ),
-                      ),
-                    ],
+                        if (_hasLastCompressedText) ...[
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: timestampWidth,
+                            child: Text(
+                              lastCompressedText!.trim(),
+                              style: AppTypography.bodySmall.copyWith(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.end,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    _buildStatusRow(context),
+                    const SizedBox(height: 5),
+                    _buildSizeInfo(context),
                   ],
-                ),
-                const SizedBox(height: 4),
-                _buildStatusRow(context),
-                const SizedBox(height: 5),
-                _buildSizeInfo(context),
-              ],
+                );
+              },
             ),
           ),
         ),

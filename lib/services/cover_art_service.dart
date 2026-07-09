@@ -57,6 +57,8 @@ class CoverArtService {
   static const Duration _steamManifestCacheTtl = Duration(minutes: 15);
   static final LinkedHashMap<String, CoverArtResult> _memoryCache =
       LinkedHashMap<String, CoverArtResult>();
+  static final LinkedHashMap<String, bool> _forcedProviderRefreshCacheKeys =
+      LinkedHashMap<String, bool>();
   static final LinkedHashMap<String, int> _coverRevisions =
       LinkedHashMap<String, int>();
   static const int _maxInFlightEntries = 100;
@@ -80,6 +82,7 @@ class CoverArtService {
   void invalidateCoverForGame(String gamePath) {
     final cacheKey = _cacheKey(gamePath);
     _removeRuntimeEntriesForDiskCacheKey(cacheKey);
+    _markProviderRefresh(cacheKey);
   }
 
   void invalidateCoverForGames(Iterable<String> gamePaths) {
@@ -124,16 +127,19 @@ class CoverArtService {
       coverArtProviderMode: coverArtProviderMode,
       coverArtProxyConfig: coverArtProxyConfig,
     );
-    final apiEnabled = _isApiEnabled(
-      steamGridDbApiKey,
-      providerMode: coverArtProviderMode,
-      proxyConfig: coverArtProxyConfig,
-    );
-    final memory = _readMemoryCache(runtimeCacheKey);
-    // A configured provider owns the preferred cover. Keep its successful
-    // result in memory, but retry after any cache/icon/placeholder fallback.
-    if (memory != null &&
-        (!apiEnabled || memory.source == CoverArtSource.steamGridDbApi)) {
+    final refreshProviderCover =
+        _isApiEnabled(
+          steamGridDbApiKey,
+          providerMode: coverArtProviderMode,
+          proxyConfig: coverArtProxyConfig,
+        ) &&
+        _consumeProviderRefresh(cacheKey);
+    final memory = refreshProviderCover
+        ? null
+        : _readMemoryCache(runtimeCacheKey);
+    // Every resolved result belongs to this provider configuration for the
+    // current process. An explicit invalidation is the retry path.
+    if (memory != null) {
       return Future<CoverArtResult>.value(memory);
     }
 
@@ -155,6 +161,7 @@ class CoverArtService {
       coverArtProviderMode: coverArtProviderMode,
       coverArtProxyConfig: coverArtProxyConfig,
       rustBridge: rustBridge,
+      refreshProviderCover: refreshProviderCover,
     );
     _inFlight[runtimeCacheKey] = future;
     return future.whenComplete(() {
@@ -172,6 +179,7 @@ class CoverArtService {
     required CoverArtProviderMode coverArtProviderMode,
     required CoverArtProxyConfig coverArtProxyConfig,
     RustBridgeService? rustBridge,
+    required bool refreshProviderCover,
   }) async {
     CoverArtResult store(CoverArtResult result) {
       _writeMemoryCache(runtimeCacheKey, result);
@@ -206,34 +214,51 @@ class CoverArtService {
       providerMode: coverArtProviderMode,
       proxyConfig: coverArtProxyConfig,
     );
-    final cached = await _readCachedCover(cacheKey);
+    var cached = await _readCachedCover(cacheKey);
+    if (apiEnabled &&
+        !refreshProviderCover &&
+        cached?.source == CoverArtSource.steamGridDbApi) {
+      return store(cached!);
+    }
     if (apiEnabled) {
-      final apiResult = await _resolveApiCover(
+      final primaryLookup = await _resolveApiCover(
         game,
         cacheKey: cacheKey,
         apiKey: steamGridDbApiKey,
         providerMode: coverArtProviderMode,
         proxyConfig: coverArtProxyConfig,
       );
-      if (apiResult != null) {
-        return store(apiResult);
+      if (primaryLookup.cover != null) {
+        return store(primaryLookup.cover!);
       }
 
       final executableLookupName = _executableLookupName(
         await resolvePrimaryExe(),
         currentName: game.name,
       );
+      var providerConfirmedNoMatch =
+          primaryLookup.status == _CoverArtProviderLookupStatus.notFound;
       if (executableLookupName != null) {
-        final executableApiResult = await _resolveApiCover(
+        final executableLookup = await _resolveApiCover(
           game.copyWith(name: executableLookupName),
           cacheKey: cacheKey,
           apiKey: steamGridDbApiKey,
           providerMode: coverArtProviderMode,
           proxyConfig: coverArtProxyConfig,
         );
-        if (executableApiResult != null) {
-          return store(executableApiResult);
+        if (executableLookup.cover != null) {
+          return store(executableLookup.cover!);
         }
+        providerConfirmedNoMatch =
+            providerConfirmedNoMatch &&
+            executableLookup.status == _CoverArtProviderLookupStatus.notFound;
+      }
+
+      if (providerConfirmedNoMatch &&
+          game.platform == Platform.custom &&
+          cached?.source == CoverArtSource.cache) {
+        await _deleteCachedCover(cacheKey);
+        cached = null;
       }
     }
 
@@ -303,7 +328,11 @@ class CoverArtService {
     }
 
     try {
-      final copied = await _copyIntoCache(cacheKey, steamCover);
+      final copied = await _copyIntoCache(
+        cacheKey,
+        steamCover,
+        source: CoverArtSource.steamLibraryCache,
+      );
       final revision = _bumpCoverRevision(cacheKey);
       return CoverArtResult(
         uri: File(copied).uri.toString(),
@@ -419,32 +448,58 @@ class CoverArtService {
     );
   }
 
-  Future<CoverArtResult?> _resolveApiCover(
+  Future<_CoverArtProviderLookup> _resolveApiCover(
     GameInfo game, {
     required String cacheKey,
     required String? apiKey,
     required CoverArtProviderMode providerMode,
     required CoverArtProxyConfig proxyConfig,
   }) async {
+    if (providerMode == CoverArtProviderMode.bundledProxy) {
+      final proxyLookup = await _resolveSteamGridDbCoverViaProxy(
+        game,
+        cacheKey: cacheKey,
+        proxyConfig: proxyConfig,
+      );
+      if (proxyLookup.status == _CoverProxyLookupStatus.found) {
+        return _CoverArtProviderLookup.found(
+          CoverArtResult(
+            uri: File(proxyLookup.path!).uri.toString(),
+            source: CoverArtSource.steamGridDbApi,
+            revision: _bumpCoverRevision(cacheKey),
+          ),
+        );
+      }
+      if (proxyLookup.status == _CoverProxyLookupStatus.notFound) {
+        return const _CoverArtProviderLookup.notFound();
+      }
+    }
+
+    final normalizedApiKey = apiKey?.trim();
+    if (normalizedApiKey == null || normalizedApiKey.isEmpty) {
+      return const _CoverArtProviderLookup.unavailable();
+    }
     final apiPath = await _resolveSteamGridDbCover(
       game,
       cacheKey: cacheKey,
-      apiKey: apiKey,
-      providerMode: providerMode,
-      proxyConfig: proxyConfig,
+      apiKey: normalizedApiKey,
     );
-    if (apiPath == null) {
-      return null;
-    }
-    final revision = _bumpCoverRevision(cacheKey);
-    return CoverArtResult(
-      uri: File(apiPath).uri.toString(),
-      source: CoverArtSource.steamGridDbApi,
-      revision: revision,
-    );
+    return apiPath == null
+        ? const _CoverArtProviderLookup.unavailable()
+        : _CoverArtProviderLookup.found(
+            CoverArtResult(
+              uri: File(apiPath).uri.toString(),
+              source: CoverArtSource.steamGridDbApi,
+              revision: _bumpCoverRevision(cacheKey),
+            ),
+          );
   }
 
-  Future<String> _copyIntoCache(String cacheKey, String sourcePath) async {
+  Future<String> _copyIntoCache(
+    String cacheKey,
+    String sourcePath, {
+    required CoverArtSource source,
+  }) async {
     final cacheDir = await _ensureCacheDir();
     final sourceFile = File(sourcePath);
     // Refuse to copy in zero-byte sources so we never poison the cache with
@@ -455,7 +510,7 @@ class CoverArtService {
     }
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await sourceFile.copy(target.path);
-    await _clearCachedCoverSource(cacheDir, cacheKey);
+    await _writeCachedCoverSource(cacheDir, cacheKey, source);
     _scheduleCacheEviction(cacheDir);
     return target.path;
   }
@@ -467,8 +522,10 @@ class CoverArtService {
     final sourceFile = _cachedCoverSourceFile(cacheDir, cacheKey);
     try {
       final value = (await sourceFile.readAsString()).trim();
-      if (value == CoverArtSource.exeIcon.name) {
-        return CoverArtSource.exeIcon;
+      for (final source in CoverArtSource.values) {
+        if (source != CoverArtSource.none && value == source.name) {
+          return source;
+        }
       }
     } catch (_) {}
     return CoverArtSource.cache;
@@ -498,6 +555,14 @@ class CoverArtService {
 
   File _cachedCoverSourceFile(Directory cacheDir, String cacheKey) {
     return File(p.join(cacheDir.path, '$cacheKey.source'));
+  }
+
+  Future<void> _deleteCachedCover(String cacheKey) async {
+    final cacheDir = await _ensureCacheDir();
+    try {
+      await File(p.join(cacheDir.path, '$cacheKey.img')).delete();
+    } catch (_) {}
+    await _clearCachedCoverSource(cacheDir, cacheKey);
   }
 
   Future<Directory> _ensureCacheDir() async {
@@ -605,6 +670,16 @@ class CoverArtService {
     _inFlight.removeWhere(
       (key, _) => _matchesRuntimeCacheKey(key, diskCacheKey),
     );
+  }
+
+  void _markProviderRefresh(String cacheKey) {
+    _forcedProviderRefreshCacheKeys.remove(cacheKey);
+    _forcedProviderRefreshCacheKeys[cacheKey] = true;
+    _trimLru(_forcedProviderRefreshCacheKeys, _maxMemoryCacheEntries);
+  }
+
+  bool _consumeProviderRefresh(String cacheKey) {
+    return _forcedProviderRefreshCacheKeys.remove(cacheKey) != null;
   }
 
   bool _hasMemoryPlaceholderForDiskCacheKey(String diskCacheKey) {

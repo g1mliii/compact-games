@@ -18,6 +18,23 @@ class _CoverProxyLookupResult {
     : this._(_CoverProxyLookupStatus.unavailable, null);
 }
 
+enum _CoverArtProviderLookupStatus { found, notFound, unavailable }
+
+class _CoverArtProviderLookup {
+  const _CoverArtProviderLookup._(this.status, this.cover);
+
+  final _CoverArtProviderLookupStatus status;
+  final CoverArtResult? cover;
+
+  _CoverArtProviderLookup.found(CoverArtResult cover)
+    : this._(_CoverArtProviderLookupStatus.found, cover);
+
+  const _CoverArtProviderLookup.notFound()
+    : this._(_CoverArtProviderLookupStatus.notFound, null);
+  const _CoverArtProviderLookup.unavailable()
+    : this._(_CoverArtProviderLookupStatus.unavailable, null);
+}
+
 extension _CoverArtServiceProxy on CoverArtService {
   Future<_CoverProxyLookupResult> _resolveSteamGridDbCoverViaProxy(
     GameInfo game, {
@@ -120,8 +137,7 @@ extension _CoverArtServiceProxy on CoverArtService {
         : base.path;
     final merged = <String, List<String>>{
       ...base.queryParametersAll,
-      for (final entry in queryParameters.entries)
-        entry.key: [entry.value],
+      for (final entry in queryParameters.entries) entry.key: [entry.value],
     };
     return base.replace(
       path: '$prefix$endpoint',

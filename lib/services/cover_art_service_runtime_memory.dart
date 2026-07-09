@@ -8,6 +8,7 @@ const int _backgroundCoverQualityCacheEntries = 320;
 void trimCoverArtRuntimeCaches({required bool aggressive}) {
   if (aggressive) {
     CoverArtService._memoryCache.clear();
+    CoverArtService._forcedProviderRefreshCacheKeys.clear();
     CoverArtService._estimateHints.clear();
     CoverArtService._steamManifestCache.clear();
     CoverArtService._coverQualityPathCache.clear();
