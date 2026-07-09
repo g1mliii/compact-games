@@ -50,7 +50,7 @@ version = "2"
 version = "7"
 
 [dependencies.sysinfo]
-version = "0.33"
+version = "0.39"
 
 [dependencies.crossbeam-channel]
 version = "0.5"
