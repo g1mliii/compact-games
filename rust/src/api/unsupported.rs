@@ -124,7 +124,10 @@ mod tests {
     use super::*;
 
     fn bundle_for(asset_body: &str) -> String {
-        let sha256 = format!("{:x}", Sha256::digest(asset_body.as_bytes()));
+        let sha256 = Sha256::digest(asset_body.as_bytes())
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
         serde_json::json!({
             "version": COMMUNITY_LIST_BUNDLE_VERSION,
             "asset": COMMUNITY_LIST_ASSET_NAME,
