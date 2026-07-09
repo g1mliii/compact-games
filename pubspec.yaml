@@ -16,7 +16,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
 
   # Window management
-  window_manager: ^0.4.3
+  window_manager: ^0.5.2
 
   # System tray
   tray_manager: ^0.2.3
