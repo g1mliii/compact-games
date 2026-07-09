@@ -213,7 +213,7 @@ jobs:
           Get-FileHash (Join-Path $bundle 'compact_games_core.dll') -Algorithm SHA256
 
       - name: Upload release bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-release-build
           path: build/windows/x64/runner/Release/
@@ -303,7 +303,7 @@ jobs:
           subject-path: dist/CompactGames-Setup-${{ needs.build.outputs.version }}.exe
 
       - name: Upload installer artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: installer-artifacts
           path: |
@@ -348,7 +348,7 @@ jobs:
           node ./scripts/normalize-compression-database.mjs --source="IridiumIO/CompactGUI@${SOURCE_SHA}"
 
       - name: Upload compression database artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: compression-database
           path: dist/compression-db/
@@ -380,7 +380,7 @@ jobs:
         run: node ./scripts/export-unsupported-community-list.mjs
 
       - name: Upload unsupported community artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unsupported-community-list
           path: dist/unsupported-community/
