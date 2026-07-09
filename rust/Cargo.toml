@@ -68,7 +68,7 @@ version = "5"
 version = "3"
 
 [dependencies.sha2]
-version = "0.10"
+version = "0.11"
 
 [dependencies.num_cpus]
 version = "1"
