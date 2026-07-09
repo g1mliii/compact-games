@@ -27,7 +27,10 @@ class _StatLine extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: crossAxisAlignment,
-        children: [label, Expanded(child: valueWidget)],
+        children: [
+          label,
+          Expanded(child: valueWidget),
+        ],
       ),
     );
   }

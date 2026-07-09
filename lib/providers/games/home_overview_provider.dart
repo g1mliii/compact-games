@@ -35,7 +35,7 @@ const double _maximumSavingsRatio = 0.32;
 
 final homeOverviewProvider = Provider<HomeOverviewUiModel>((ref) {
   final games =
-      ref.watch(gameListProvider.select((state) => state.valueOrNull?.games)) ??
+      ref.watch(gameListProvider.select((state) => state.value?.games)) ??
       const <GameInfo>[];
   var totalGames = 0;
   var readyCount = 0;
@@ -67,8 +67,10 @@ final homeOverviewProvider = Provider<HomeOverviewUiModel>((ref) {
   }
   final learnedRatio = ratioCount == 0
       ? _fallbackSavingsRatio
-      : (ratioSum / ratioCount)
-          .clamp(_minimumSavingsRatio, _maximumSavingsRatio);
+      : (ratioSum / ratioCount).clamp(
+          _minimumSavingsRatio,
+          _maximumSavingsRatio,
+        );
   final reclaimableBytes = (readySizeBytes * learnedRatio).round();
 
   final primaryAction = readyCount > 0
@@ -87,4 +89,3 @@ final homeOverviewProvider = Provider<HomeOverviewUiModel>((ref) {
     primaryAction: primaryAction,
   );
 });
-

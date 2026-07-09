@@ -111,7 +111,7 @@ pub(crate) mod platform {
             }
 
             if !icon_info.hbmMask.is_invalid() {
-                let _ = DeleteObject(icon_info.hbmMask);
+                let _ = DeleteObject(icon_info.hbmMask.into());
             }
             let color_bmp = icon_info.hbmColor;
             if color_bmp.is_invalid() {
@@ -120,11 +120,11 @@ pub(crate) mod platform {
 
             let mut bitmap: BITMAP = mem::zeroed();
             let got = GetObjectW(
-                color_bmp,
+                color_bmp.into(),
                 mem::size_of::<BITMAP>() as i32,
                 Some((&mut bitmap as *mut BITMAP).cast()),
             );
-            let _ = DeleteObject(color_bmp);
+            let _ = DeleteObject(color_bmp.into());
             if got == 0 {
                 return None;
             }
@@ -150,7 +150,7 @@ pub(crate) mod platform {
             }
 
             if !icon_info.hbmMask.is_invalid() {
-                let _ = DeleteObject(icon_info.hbmMask);
+                let _ = DeleteObject(icon_info.hbmMask.into());
             }
             let color_bmp = icon_info.hbmColor;
             if color_bmp.is_invalid() {
@@ -159,7 +159,7 @@ pub(crate) mod platform {
 
             let hdc = CreateCompatibleDC(None);
             if hdc.is_invalid() {
-                let _ = DeleteObject(color_bmp);
+                let _ = DeleteObject(color_bmp.into());
                 return None;
             }
 
@@ -179,27 +179,27 @@ pub(crate) mod platform {
             let row_bytes = (width as usize) * 4;
             let buf_size = row_bytes * (height as usize);
             let mut bits = ptr::null_mut();
-            let dib = match CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0) {
+            let dib = match CreateDIBSection(Some(hdc), &bmi, DIB_RGB_COLORS, &mut bits, None, 0) {
                 Ok(bitmap) => bitmap,
                 Err(_) => {
                     let _ = DeleteDC(hdc);
-                    let _ = DeleteObject(color_bmp);
+                    let _ = DeleteObject(color_bmp.into());
                     return None;
                 }
             };
             if dib.is_invalid() || bits.is_null() {
                 let _ = DeleteDC(hdc);
-                let _ = DeleteObject(color_bmp);
+                let _ = DeleteObject(color_bmp.into());
                 return None;
             }
 
             ptr::write_bytes(bits, 0, buf_size);
 
-            let old_object = SelectObject(hdc, dib);
+            let old_object = SelectObject(hdc, dib.into());
             if old_object.is_invalid() {
-                let _ = DeleteObject(dib);
+                let _ = DeleteObject(dib.into());
                 let _ = DeleteDC(hdc);
-                let _ = DeleteObject(color_bmp);
+                let _ = DeleteObject(color_bmp.into());
                 return None;
             }
             let drew = DrawIconEx(hdc, 0, 0, icon, width, height, 0, None, DI_NORMAL);
@@ -207,24 +207,24 @@ pub(crate) mod platform {
             let _ = SelectObject(hdc, old_object);
 
             if drew.is_err() {
-                let _ = DeleteObject(dib);
+                let _ = DeleteObject(dib.into());
                 let _ = DeleteDC(hdc);
-                let _ = DeleteObject(color_bmp);
+                let _ = DeleteObject(color_bmp.into());
                 return None;
             }
             if !GdiFlush().as_bool() {
-                let _ = DeleteObject(dib);
+                let _ = DeleteObject(dib.into());
                 let _ = DeleteDC(hdc);
-                let _ = DeleteObject(color_bmp);
+                let _ = DeleteObject(color_bmp.into());
                 return None;
             }
 
             let pixels = std::slice::from_raw_parts(bits.cast::<u8>(), buf_size);
             let mut pixels = pixels.to_vec();
 
-            let _ = DeleteObject(dib);
+            let _ = DeleteObject(dib.into());
             let _ = DeleteDC(hdc);
-            let _ = DeleteObject(color_bmp);
+            let _ = DeleteObject(color_bmp.into());
 
             // Convert BGRA to RGBA in place.
             for chunk in pixels.chunks_exact_mut(4) {

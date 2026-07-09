@@ -19,9 +19,9 @@ class AboutSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final autoCheck = ref.watch(
-      settingsProvider.select((s) => s.valueOrNull?.settings.autoCheckUpdates),
+      settingsProvider.select((s) => s.value?.settings.autoCheckUpdates),
     );
-    final updateState = ref.watch(updateProvider.select((s) => s.valueOrNull));
+    final updateState = ref.watch(updateProvider.select((s) => s.value));
     final hasActiveCompression = ref.watch(
       compressionProvider.select((s) => s.hasActiveJob),
     );

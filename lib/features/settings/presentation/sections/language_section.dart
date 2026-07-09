@@ -19,7 +19,7 @@ class LanguageSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final localeTag = ref.watch(
-      settingsProvider.select((s) => s.valueOrNull?.settings.localeTag),
+      settingsProvider.select((s) => s.value?.settings.localeTag),
     );
     final selectableLocales = ref.watch(selectableAppLocaleDefinitionsProvider);
     final l10n = context.l10n;

@@ -163,8 +163,7 @@ class _StatusActionButtons extends ConsumerWidget {
     final l10n = context.l10n;
     final allowDirectStorageOverride = ref.watch(
       settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.directStorageOverrideEnabled ?? false,
+        (async) => async.value?.settings.directStorageOverrideEnabled ?? false,
       ),
     );
     final primaryAction = _buildCompressionButton(

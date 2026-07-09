@@ -45,7 +45,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
     if (state.hasActiveJob || _progressSubscription != null) return;
 
     _completeActiveJobCompletion(CompressionJobStatus.cancelled);
-    final settings = ref.read(settingsProvider).valueOrNull?.settings;
+    final settings = ref.read(settingsProvider).value?.settings;
     final algo =
         algorithm ?? settings?.algorithm ?? CompressionAlgorithm.xpress8k;
     final dsOverride =
@@ -150,7 +150,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
       final bridge = ref.read(rustBridgeServiceProvider);
       final ioParallelismOverride = ref
           .read(settingsProvider)
-          .valueOrNull
+          .value
           ?.settings
           .ioParallelismOverride;
       final stream = bridge.decompressGame(

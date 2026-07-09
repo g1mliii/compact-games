@@ -14,7 +14,10 @@ class SettingsPersistence {
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   Future<AppSettings> load() async {
-    final (prefs, secureApiKey) = await (_prefsFuture, _readSecureApiKey()).wait;
+    final (prefs, secureApiKey) = await (
+      _prefsFuture,
+      _readSecureApiKey(),
+    ).wait;
     final loaded = _loadSettingsFromPrefs(prefs);
     final settings = loaded.settings;
 

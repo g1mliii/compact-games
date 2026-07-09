@@ -48,7 +48,7 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
   }
 
   void toggleAutoCompress() {
-    final current = state.valueOrNull?.settings;
+    final current = state.value?.settings;
     if (current == null) return;
     _updateSetting((s) => s.copyWith(autoCompress: !s.autoCompress));
   }
@@ -96,7 +96,7 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
   }
 
   void toggleGameExclusion(String gamePath) {
-    final current = state.valueOrNull?.settings;
+    final current = state.value?.settings;
     if (current == null) return;
     final excluded = List<String>.from(current.excludedPaths);
     if (excluded.contains(gamePath)) {
@@ -156,7 +156,7 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     _debounceTimer?.cancel();
     _debounceTimer = null;
 
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) {
       return;
     }
@@ -165,7 +165,7 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
   }
 
   void _updateSetting(AppSettings Function(AppSettings) updater) {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) return;
     final newSettings = updater(current.settings).validated();
     if (_settingsEqual(current.settings, newSettings)) {

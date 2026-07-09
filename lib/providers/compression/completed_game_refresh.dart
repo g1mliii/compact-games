@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../../models/game_info.dart';
 import '../games/game_list_provider.dart';
@@ -47,7 +47,7 @@ Future<void> refreshCompletedGameAfterJob({
     // Best-effort cache eviction; hydration/refresh fallback still applies.
   }
 
-  final gameListState = read(gameListProvider).valueOrNull;
+  final gameListState = read(gameListProvider).value;
   if (gameListState == null) {
     gameListNotifier.requestHydration(gamePath);
     return;
@@ -101,7 +101,7 @@ void _applyOptimisticCompressionCompletionUpdate({
 }
 
 GameInfo? _currentGameForPath(ProviderReader read, String gamePath) {
-  final gameListState = read(gameListProvider).valueOrNull;
+  final gameListState = read(gameListProvider).value;
   if (gameListState == null) {
     return null;
   }

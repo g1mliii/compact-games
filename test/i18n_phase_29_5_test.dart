@@ -167,7 +167,10 @@ void main() {
     expect(items[2].label, 'Comprimiendo: Halo');
     expect(items[4].label, 'Abrir Compact Games');
     expect(items[5].label, 'Reanudar compresión automática');
-    expect(trayTooltipForStatus(status), 'Compact Games - Comprimiendo Halo (42%)');
+    expect(
+      trayTooltipForStatus(status),
+      'Compact Games - Comprimiendo Halo (42%)',
+    );
   });
 
   test('formatLocalMonthDayTime uses locale-aware month formatting', () {
@@ -226,10 +229,7 @@ void main() {
       await tester.tap(find.text('Spanish'));
       await tester.pump();
 
-      expect(
-        container.read(settingsProvider).valueOrNull?.settings.localeTag,
-        'es',
-      );
+      expect(container.read(settingsProvider).value?.settings.localeTag, 'es');
 
       await tester.pump(const Duration(milliseconds: 600));
       expect(persistence.current.localeTag, 'es');
@@ -290,7 +290,7 @@ void main() {
       final updatedSelectorHost = tester.widget<SizedBox>(selectorHostFinder);
       expect(identical(updatedSelectorHost, initialSelectorHost), isTrue);
       expect(
-        container.read(settingsProvider).valueOrNull?.settings.algorithm,
+        container.read(settingsProvider).value?.settings.algorithm,
         CompressionAlgorithm.lzx,
       );
 

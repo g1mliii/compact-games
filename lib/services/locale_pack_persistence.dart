@@ -2,7 +2,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/localization/app_locale.dart';
 
-const _installedLocalePackTagsKey = 'compact_games_installed_locale_pack_tags_v1';
+const _installedLocalePackTagsKey =
+    'compact_games_installed_locale_pack_tags_v1';
 
 /// Persists the set of installed non-bundled locale-pack tags.
 ///

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/localization/app_localization.dart';
@@ -27,7 +28,7 @@ class HomeCoverArtNudge extends ConsumerWidget {
 
     final coverSettings = ref.watch(
       settingsProvider.select((s) {
-        final settings = s.valueOrNull?.settings;
+        final settings = s.value?.settings;
         if (settings == null) {
           return null;
         }

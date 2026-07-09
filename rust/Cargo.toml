@@ -10,11 +10,11 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 # Flutter Rust Bridge
-flutter_rust_bridge = "=2.11.1"
+flutter_rust_bridge = "=2.12.0"
 
 # Windows API bindings
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.58", features = [
+windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
     "Win32_System_IO",
@@ -47,10 +47,10 @@ version = "1.10"
 version = "2"
 
 [dependencies.notify]
-version = "7"
+version = "8"
 
 [dependencies.sysinfo]
-version = "0.33"
+version = "0.39"
 
 [dependencies.crossbeam-channel]
 version = "0.5"
@@ -62,13 +62,13 @@ version = "0.4"
 version = "0.11"
 
 [dependencies.dirs]
-version = "5"
+version = "6"
 
 [dependencies.ureq]
 version = "3"
 
 [dependencies.sha2]
-version = "0.10"
+version = "0.11"
 
 [dependencies.num_cpus]
 version = "1"

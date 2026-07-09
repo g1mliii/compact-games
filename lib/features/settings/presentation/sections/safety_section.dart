@@ -26,7 +26,7 @@ class _SafetySectionState extends ConsumerState<SafetySection> {
     final l10n = context.l10n;
     final dsOverride = ref.watch(
       settingsProvider.select(
-        (s) => s.valueOrNull?.settings.directStorageOverrideEnabled,
+        (s) => s.value?.settings.directStorageOverrideEnabled,
       ),
     );
     if (dsOverride == null) return const SizedBox.shrink();

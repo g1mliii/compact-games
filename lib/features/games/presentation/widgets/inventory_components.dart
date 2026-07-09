@@ -50,7 +50,7 @@ const EdgeInsets _inventoryWatcherCellPadding = EdgeInsets.only(left: 10);
 final inventoryLastCheckedLabelProvider = Provider<String>((ref) {
   final l10n = ref.watch(appLocalizationsProvider);
   final lastChecked = ref.watch(
-    gameListProvider.select((state) => state.valueOrNull?.lastRefreshed),
+    gameListProvider.select((state) => state.value?.lastRefreshed),
   );
   if (lastChecked == null) {
     return l10n.commonNotAvailable;
@@ -254,12 +254,7 @@ class _SortFieldButton extends StatelessWidget {
     return _SortMenuPosition(
       width: buttonRect.width,
       position: RelativeRect.fromRect(
-        Rect.fromLTWH(
-          buttonRect.left,
-          buttonRect.bottom,
-          buttonRect.width,
-          0,
-        ),
+        Rect.fromLTWH(buttonRect.left, buttonRect.bottom, buttonRect.width, 0),
         Offset.zero & overlayBox.size,
       ),
     );

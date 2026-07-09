@@ -41,9 +41,7 @@ class _HomeGameGridState extends ConsumerState<HomeGameGrid> {
     // actually changes, not on every game-list data mutation.
     final isLoading = ref.watch(gameListProvider.select((s) => s.isLoading));
     // Domain-level error stored inside GameListState (provider catches exceptions).
-    final loadError = ref.watch(
-      gameListProvider.select((s) => s.valueOrNull?.error),
-    );
+    final loadError = ref.watch(gameListProvider.select((s) => s.value?.error));
     final gamePaths = ref.watch(filteredGamePathsProvider);
 
     if (isLoading && gamePaths.isEmpty) {

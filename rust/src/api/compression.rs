@@ -157,10 +157,7 @@ pub fn compress_game(
         })
         .with_directstorage_override(allow_directstorage_override);
     let cancel_token = engine.cancel_token();
-    let file_manifest = match engine.build_file_manifest(&path) {
-        Ok(files) => files,
-        Err(e) => return Err(e.into()),
-    };
+    let file_manifest = engine.build_file_manifest(&path)?;
 
     let estimate_snapshot = match engine.estimate_folder_savings_with_manifest_and_context(
         &path,

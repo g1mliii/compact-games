@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/navigation/app_routes.dart';
 
@@ -26,9 +27,7 @@ class RouteStateObserver extends NavigatorObserver with ChangeNotifier {
 
   void _updateRoute(Route<dynamic>? route, {Route<dynamic>? fallback}) {
     final nextName =
-        route?.settings.name ??
-        fallback?.settings.name ??
-        _currentRouteName;
+        route?.settings.name ?? fallback?.settings.name ?? _currentRouteName;
     if (nextName == _currentRouteName) {
       return;
     }

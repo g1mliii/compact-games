@@ -6,12 +6,10 @@ import 'game_list_provider.dart';
 /// Shared refresh-and-invalidate logic used by both the home header and
 /// inventory screen.  Avoids duplicating the same provider reads and
 /// cover-art cache invalidation in two places.
-Future<void> refreshGamesAndInvalidateCovers(
-  WidgetRef ref,
-) async {
+Future<void> refreshGamesAndInvalidateCovers(WidgetRef ref) async {
   await ref.read(gameListProvider.notifier).refresh();
 
-  final games = ref.read(gameListProvider).valueOrNull?.games ?? const [];
+  final games = ref.read(gameListProvider).value?.games ?? const [];
   if (games.isEmpty) return;
 
   final paths = games.map((game) => game.path).toList(growable: false);

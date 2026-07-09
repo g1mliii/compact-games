@@ -42,7 +42,7 @@ class _CoverArtSectionState extends ConsumerState<CoverArtSection> {
   void initState() {
     super.initState();
     _apiKeySub = ref.listenManual(
-      settingsProvider.select((s) => s.valueOrNull?.settings.steamGridDbApiKey),
+      settingsProvider.select((s) => s.value?.settings.steamGridDbApiKey),
       (previous, next) {
         if (_dirty) {
           return;
@@ -102,12 +102,12 @@ class _CoverArtSectionState extends ConsumerState<CoverArtSection> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final savedKey = ref.watch(
-      settingsProvider.select((s) => s.valueOrNull?.settings.steamGridDbApiKey),
+      settingsProvider.select((s) => s.value?.settings.steamGridDbApiKey),
     );
     final providerMode = ref.watch(
       settingsProvider.select(
         (s) =>
-            s.valueOrNull?.settings.coverArtProviderMode ??
+            s.value?.settings.coverArtProviderMode ??
             CoverArtProviderMode.bundledProxy,
       ),
     );

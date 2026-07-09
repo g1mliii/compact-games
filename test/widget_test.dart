@@ -890,7 +890,7 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(
-      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      container.read(gameListProvider).value?.games.first.isUnsupported,
       isFalse,
     );
 
@@ -905,7 +905,7 @@ void main() {
     expect(bridge.reportUnsupportedGameCalls, 1);
     expect(bridge.lastReportedUnsupportedGamePath, game.path);
     expect(
-      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      container.read(gameListProvider).value?.games.first.isUnsupported,
       isTrue,
     );
     expect(find.textContaining('marked as unsupported'), findsOneWidget);
@@ -921,7 +921,7 @@ void main() {
     expect(bridge.unreportUnsupportedGameCalls, 1);
     expect(bridge.lastUnreportedUnsupportedGamePath, game.path);
     expect(
-      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      container.read(gameListProvider).value?.games.first.isUnsupported,
       isFalse,
     );
     expect(find.textContaining('marked as supported'), findsOneWidget);
@@ -964,11 +964,7 @@ void main() {
     await tester.tap(find.text('Mark as Unsupported'));
     await tester.pumpAndSettle();
 
-    final updatedGame = container
-        .read(gameListProvider)
-        .valueOrNull!
-        .games
-        .first;
+    final updatedGame = container.read(gameListProvider).value!.games.first;
     expect(updatedGame.isUnsupported, isTrue);
     expect(updatedGame.isCompressed, isTrue);
     expect(updatedGame.compressedSize, 30 * _oneGiB);
@@ -1082,7 +1078,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(
-        container.read(settingsProvider).valueOrNull?.settings.algorithm,
+        container.read(settingsProvider).value?.settings.algorithm,
         CompressionAlgorithm.lzx,
       );
       expect(
@@ -1147,7 +1143,7 @@ void main() {
 
       final refreshedGame = container
           .read(gameListProvider)
-          .valueOrNull!
+          .value!
           .games
           .firstWhere((game) => game.path == originalGame.path);
 
@@ -1225,7 +1221,7 @@ void main() {
 
       final refreshedGame = container
           .read(gameListProvider)
-          .valueOrNull!
+          .value!
           .games
           .firstWhere((game) => game.path == originalGame.path);
 
@@ -1288,7 +1284,7 @@ void main() {
       expect(
         container
             .read(gameListProvider)
-            .valueOrNull
+            .value
             ?.games
             .any((game) => game.path == r'C:\Games\resident_evil_requiem'),
         isFalse,

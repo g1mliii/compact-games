@@ -13,10 +13,10 @@ dependencies:
     sdk: flutter
 
   # State management
-  flutter_riverpod: ^2.6.1
+  flutter_riverpod: ^3.3.2
 
   # Window management
-  window_manager: ^0.4.3
+  window_manager: ^0.5.2
 
   # System tray
   tray_manager: ^0.2.3
@@ -32,11 +32,11 @@ dependencies:
   flutter_secure_storage: ^9.2.4
 
   # Path utilities
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
   path: ^1.9.1
 
   # Flutter Rust Bridge
-  flutter_rust_bridge: 2.11.1
+  flutter_rust_bridge: 2.12.0
 
   # Code generation (FRB needs freezed_annotation at runtime)
   freezed_annotation: ^3.1.0
@@ -51,7 +51,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   freezed: ^3.2.5
   build_runner: ^2.11.1
-  path_provider_platform_interface: ^2.1.2
+  path_provider_platform_interface: ^2.1.3
 
 flutter:
   generate: true

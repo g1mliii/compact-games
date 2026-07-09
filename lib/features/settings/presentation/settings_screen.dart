@@ -113,15 +113,13 @@ class _AutomationSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final idleMinutes = ref.watch(
-      settingsProvider.select(
-        (s) => s.valueOrNull?.settings.idleDurationMinutes,
-      ),
+      settingsProvider.select((s) => s.value?.settings.idleDurationMinutes),
     );
     final cpuThreshold = ref.watch(
-      settingsProvider.select((s) => s.valueOrNull?.settings.cpuThreshold),
+      settingsProvider.select((s) => s.value?.settings.cpuThreshold),
     );
     final minimizeToTray = ref.watch(
-      settingsProvider.select((s) => s.valueOrNull?.settings.minimizeToTray),
+      settingsProvider.select((s) => s.value?.settings.minimizeToTray),
     );
     if (idleMinutes == null || cpuThreshold == null) {
       return const SizedBox.shrink();
@@ -207,7 +205,7 @@ class _LaunchAtStartupToggle extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final enabled = ref.watch(
-      launchAtStartupProvider.select((s) => s.valueOrNull ?? false),
+      launchAtStartupProvider.select((s) => s.value ?? false),
     );
     return ScaledSwitchRow(
       label: l10n.settingsLaunchAtStartupLabel,
@@ -229,7 +227,7 @@ class _PathsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final customFolders = ref.watch(
-      settingsProvider.select((s) => s.valueOrNull?.settings.customFolders),
+      settingsProvider.select((s) => s.value?.settings.customFolders),
     );
     if (customFolders == null) return const SizedBox.shrink();
 

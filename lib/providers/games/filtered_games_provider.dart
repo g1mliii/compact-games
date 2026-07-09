@@ -22,7 +22,7 @@ final _filteredGamePathsMemoProvider = Provider<_FilteredGamePathsMemo>((ref) {
 
 final _gamesProvider = Provider<List<GameInfo>>((ref) {
   return ref.watch(
-        gameListProvider.select((asyncState) => asyncState.valueOrNull?.games),
+        gameListProvider.select((asyncState) => asyncState.value?.games),
       ) ??
       const <GameInfo>[];
 });
@@ -33,7 +33,7 @@ final filteredGamesProvider = Provider<List<GameInfo>>((ref) {
   final sortedGamesMemo = ref.watch(_sortedGamesMemoProvider);
   final inputs = ref.watch(
     gameListProvider.select((asyncState) {
-      final state = asyncState.valueOrNull;
+      final state = asyncState.value;
       if (state == null) {
         return null;
       }

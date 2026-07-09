@@ -78,7 +78,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     required _DiscoveryLoadMode mode,
   }) async {
     if (_isStaleRequest(requestId)) {
-      return state.valueOrNull ?? const GameListState();
+      return state.value ?? const GameListState();
     }
 
     try {
@@ -90,7 +90,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       final games = dedupeDiscoveredGames(fetchedGames);
       _logDiscoveryBatch(fetchedGames, games, mode);
       if (_isStaleRequest(requestId)) {
-        return state.valueOrNull ?? const GameListState();
+        return state.value ?? const GameListState();
       }
 
       _queueResetForNewGameSet(
@@ -102,10 +102,10 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       final modeLabel = mode == _DiscoveryLoadMode.quick ? 'quick' : 'full';
       debugPrint('[discovery][$modeLabel] load failed: $e');
       if (_isStaleRequest(requestId)) {
-        return state.valueOrNull ?? const GameListState();
+        return state.value ?? const GameListState();
       }
       return _buildLoadedState(
-        games: state.valueOrNull?.games ?? const [],
+        games: state.value?.games ?? const [],
         error: '$e',
       );
     }
@@ -137,7 +137,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     required List<GameInfo> games,
     String? error,
   }) {
-    final previous = state.valueOrNull;
+    final previous = state.value;
     return GameListState(
       games: games,
       searchQuery: previous?.searchQuery ?? '',
@@ -155,7 +155,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     if (state.isLoading) return;
     final requestId = ++_requestGeneration;
     debugPrint('[discovery][refresh] start request=$requestId');
-    state = const AsyncValue<GameListState>.loading().copyWithPrevious(state);
+    state = const AsyncValue<GameListState>.loading();
     final bridge = ref.read(rustBridgeServiceProvider);
     try {
       bridge.clearDiscoveryCache();
@@ -256,7 +256,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     if (_manualImportInProgress) {
       throw StateError('Another add operation is still running.');
     }
-    final initialState = state.valueOrNull;
+    final initialState = state.value;
     if (initialState == null) {
       throw StateError('Library is still loading. Try again in a moment.');
     }
@@ -264,7 +264,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     try {
       final selected = await resolveItem();
 
-      final latestState = state.valueOrNull;
+      final latestState = state.value;
       if (latestState == null) {
         throw StateError('Library is still loading. Try again in a moment.');
       }
@@ -316,7 +316,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       return;
     }
 
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || current.games.every((g) => g.path != gamePath)) {
       return;
     }
@@ -342,7 +342,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
     try {
       if (_disposed) return;
 
-      final snapshot = state.valueOrNull;
+      final snapshot = state.value;
       final games = snapshot?.games;
       if (games == null) return;
       final matchIndex = games.indexWhere((g) => g.path == gamePath);
@@ -454,7 +454,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
   }
 
   void _updateState(GameListState Function(GameListState) updater) {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) return;
     final next = updater(current);
     if (identical(next, current)) return;

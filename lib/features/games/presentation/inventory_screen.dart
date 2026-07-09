@@ -56,9 +56,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final games = ref.watch(
-      gameListProvider.select((s) => s.valueOrNull?.games),
-    );
+    final games = ref.watch(gameListProvider.select((s) => s.value?.games));
     final isLoading = ref.watch(gameListProvider.select((s) => s.isLoading));
     final hasError = ref.watch(gameListProvider.select((s) => s.hasError));
     final errorValue = ref.watch(
@@ -67,32 +65,27 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final algorithm = ref.watch(
       settingsProvider.select(
         (value) =>
-            value.valueOrNull?.settings.algorithm ??
-            CompressionAlgorithm.xpress8k,
+            value.value?.settings.algorithm ?? CompressionAlgorithm.xpress8k,
       ),
     );
     final algorithmLabel = algorithm.localizedLabel(l10n);
     final advancedEnabled = ref.watch(
       settingsProvider.select(
-        (value) =>
-            value.valueOrNull?.settings.inventoryAdvancedScanEnabled ?? false,
+        (value) => value.value?.settings.inventoryAdvancedScanEnabled ?? false,
       ),
     );
     final watcherEnabled = ref.watch(
       settingsProvider.select(
-        (value) => value.valueOrNull?.settings.autoCompress ?? false,
+        (value) => value.value?.settings.autoCompress ?? false,
       ),
     );
     final excludedPaths = ref.watch(
       settingsProvider.select(
-        (value) =>
-            value.valueOrNull?.settings.excludedPaths ?? const <String>[],
+        (value) => value.value?.settings.excludedPaths ?? const <String>[],
       ),
     );
     final watcherActive = ref.watch(
-      autoCompressionRunningProvider.select(
-        (value) => value.valueOrNull ?? false,
-      ),
+      autoCompressionRunningProvider.select((value) => value.value ?? false),
     );
     final lastCheckedLabel = ref.watch(inventoryLastCheckedLabelProvider);
     final refreshAllowed = !isLoading;

@@ -101,8 +101,7 @@ class GameDetailsInfoCard extends ConsumerWidget {
     final isExcluded = ref.watch(
       settingsProvider.select(
         (async) =>
-            async.valueOrNull?.settings.excludedPaths.contains(game.path) ??
-            false,
+            async.value?.settings.excludedPaths.contains(game.path) ?? false,
       ),
     );
     final statusSection = _StatusSectionHeader(
@@ -111,15 +110,12 @@ class GameDetailsInfoCard extends ConsumerWidget {
     );
     final algorithm =
         ref.watch(
-          settingsProvider.select(
-            (async) => async.valueOrNull?.settings.algorithm,
-          ),
+          settingsProvider.select((async) => async.value?.settings.algorithm),
         ) ??
         CompressionAlgorithm.xpress8k;
     final allowDirectStorageOverride = ref.watch(
       settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.directStorageOverrideEnabled ?? false,
+        (async) => async.value?.settings.directStorageOverrideEnabled ?? false,
       ),
     );
     final directStorageBlocked =
@@ -136,7 +132,7 @@ class GameDetailsInfoCard extends ConsumerWidget {
                   algorithm: algorithm,
                 )),
               )
-              .valueOrNull;
+              .value;
 
     return RepaintBoundary(
       child: Card(

@@ -24,7 +24,6 @@ class LaunchAtStartupNotifier extends AsyncNotifier<bool> {
     // Optimistic update: flip the switch immediately and keep the prior value
     // if the registry write fails. Avoids a visible flicker (loading → false →
     // true) while reg.exe runs.
-    final previous = state.valueOrNull ?? !enabled;
     final requestGeneration = ++_requestGeneration;
     state = AsyncValue.data(enabled);
 
@@ -42,10 +41,7 @@ class LaunchAtStartupNotifier extends AsyncNotifier<bool> {
       if (requestGeneration != _requestGeneration) {
         return;
       }
-      state = AsyncValue<bool>.error(
-        e,
-        st,
-      ).copyWithPrevious(AsyncValue<bool>.data(previous));
+      state = AsyncValue<bool>.error(e, st);
     }
   }
 }

@@ -15,20 +15,23 @@ import 'package:flutter_test/flutter_test.dart';
 /// test fails. If a field truly does not need explicit disposal, add it to
 /// [_allowedFields] below with a comment explaining why.
 void main() {
-  test('every StatefulWidget disposes its controllers, timers, and streams',
-      () {
+  test('every StatefulWidget disposes its controllers, timers, and streams', () {
     final libDir = Directory('lib');
-    expect(libDir.existsSync(), isTrue,
-        reason: 'Run this test from the project root.');
+    expect(
+      libDir.existsSync(),
+      isTrue,
+      reason: 'Run this test from the project root.',
+    );
 
     final violations = <String>[];
     var stateClassesScanned = 0;
     var classesWithDisposables = 0;
 
-    for (final file in libDir
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.dart'))) {
+    for (final file
+        in libDir
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.dart'))) {
       final source = file.readAsStringSync();
       // Strip line comments to avoid "// disposed via X" false positives
       // and block comments for the same reason.
@@ -66,10 +69,16 @@ void main() {
 
     // Sanity-check: if the regex finds zero classes, the test is a no-op
     // and is lying about coverage. The repo has >20 State classes today.
-    expect(stateClassesScanned, greaterThan(10),
-        reason: 'Audit regex did not find State classes — it is broken.');
-    expect(classesWithDisposables, greaterThan(3),
-        reason: 'Audit regex did not find disposable fields — it is broken.');
+    expect(
+      stateClassesScanned,
+      greaterThan(10),
+      reason: 'Audit regex did not find State classes — it is broken.',
+    );
+    expect(
+      classesWithDisposables,
+      greaterThan(3),
+      reason: 'Audit regex did not find disposable fields — it is broken.',
+    );
 
     expect(
       violations,

@@ -109,8 +109,7 @@ class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
     final activeActivity = ref.watch(activeCompressionUiModelProvider);
     final viewMode = ref.watch(
       settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.homeViewMode ?? HomeViewMode.grid,
+        (async) => async.value?.settings.homeViewMode ?? HomeViewMode.grid,
       ),
     );
     final listMode = viewMode == HomeViewMode.list;
@@ -122,8 +121,7 @@ class _HomeOverviewPanelState extends ConsumerState<_HomeOverviewPanelInner> {
     final stackWideSummary = widget.stackWideSummary;
     final libraryState = ref.watch(
       gameListProvider.select(
-        (state) =>
-            (isLoading: state.isLoading, error: state.valueOrNull?.error),
+        (state) => (isLoading: state.isLoading, error: state.value?.error),
       ),
     );
     if (activeActivity != null) {
