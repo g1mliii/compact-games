@@ -47,8 +47,7 @@ class _HomeContentSwitcher extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final viewMode = ref.watch(
       settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.homeViewMode ?? HomeViewMode.grid,
+        (async) => async.value?.settings.homeViewMode ?? HomeViewMode.grid,
       ),
     );
 
@@ -85,8 +84,8 @@ class _HomeCoverArtNudgeContent extends ConsumerWidget {
     final libraryState = ref.watch(
       gameListProvider.select(
         (state) => (
-          gameCount: state.valueOrNull?.games.length ?? 0,
-          error: state.valueOrNull?.error,
+          gameCount: state.value?.games.length ?? 0,
+          error: state.value?.error,
         ),
       ),
     );

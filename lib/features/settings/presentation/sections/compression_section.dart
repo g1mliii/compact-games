@@ -20,7 +20,7 @@ class CompressionSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasSettings = ref.watch(
-      settingsProvider.select((s) => s.valueOrNull?.settings != null),
+      settingsProvider.select((s) => s.value?.settings != null),
     );
     if (!hasSettings) return const SizedBox.shrink();
     final l10n = context.l10n;
@@ -65,8 +65,7 @@ class _AlgorithmSelectorHost extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final algorithm = ref.watch(
       settingsProvider.select(
-        (s) =>
-            s.valueOrNull?.settings.algorithm ?? CompressionAlgorithm.xpress8k,
+        (s) => s.value?.settings.algorithm ?? CompressionAlgorithm.xpress8k,
       ),
     );
 
@@ -86,9 +85,7 @@ class _IoOverrideSelectorHost extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ioOverride = ref.watch(
-      settingsProvider.select(
-        (s) => s.valueOrNull?.settings.ioParallelismOverride,
-      ),
+      settingsProvider.select((s) => s.value?.settings.ioParallelismOverride),
     );
 
     return RepaintBoundary(

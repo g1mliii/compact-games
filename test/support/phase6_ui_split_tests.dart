@@ -778,7 +778,7 @@ void runPhase6OversizeSplitTests() {
       expect(bridge.removeGameFromDiscoveryCalls, 1);
       expect(bridge.lastRemovedGamePath, game.path);
       expect(container.read(selectedGameProvider), isNull);
-      expect(container.read(gameListProvider).valueOrNull?.games, isEmpty);
+      expect(container.read(gameListProvider).value?.games, isEmpty);
       expect(find.text('Choose a game'), findsOneWidget);
       expect(find.text('Nothing matches this view'), findsOneWidget);
 
@@ -828,7 +828,7 @@ void runPhase6OversizeSplitTests() {
       expect(bridge.removeGameFromDiscoveryCalls, 1);
       expect(bridge.lastRemovedGamePath, game.path);
       expect(container.read(selectedGameProvider), isNull);
-      expect(container.read(gameListProvider).valueOrNull?.games, isEmpty);
+      expect(container.read(gameListProvider).value?.games, isEmpty);
     },
   );
 
@@ -880,7 +880,7 @@ void runPhase6OversizeSplitTests() {
       );
       final initialCoverResult = container
           .read(coverArtProvider(game.path))
-          .valueOrNull;
+          .value;
       final initialCoverProvider = initialCover.coverProvider;
       expect(initialCoverResult?.revision, 1);
       expect(initialCoverProvider, isNotNull);
@@ -893,7 +893,7 @@ void runPhase6OversizeSplitTests() {
 
       final updatedCoverResult = container
           .read(coverArtProvider(game.path))
-          .valueOrNull;
+          .value;
       final updatedInfoCard = tester.widget<Card>(
         find.byKey(const ValueKey<String>('detailsInfoCard')),
       );
@@ -1539,7 +1539,7 @@ void runPhase6OversizeSplitTests() {
     expect(bridge.reportUnsupportedGameCalls, 1);
     expect(bridge.lastReportedUnsupportedGamePath, game.path);
     expect(
-      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      container.read(gameListProvider).value?.games.first.isUnsupported,
       isTrue,
     );
     expect(find.byTooltip('Mark as Supported'), findsOneWidget);
@@ -1552,7 +1552,7 @@ void runPhase6OversizeSplitTests() {
     expect(bridge.unreportUnsupportedGameCalls, 1);
     expect(bridge.lastUnreportedUnsupportedGamePath, game.path);
     expect(
-      container.read(gameListProvider).valueOrNull?.games.first.isUnsupported,
+      container.read(gameListProvider).value?.games.first.isUnsupported,
       isFalse,
     );
     expect(find.byTooltip('Mark as Unsupported'), findsOneWidget);
@@ -1648,7 +1648,7 @@ void runPhase6OversizeSplitTests() {
       expect(bridge.removeGameFromDiscoveryCalls, 1);
       expect(bridge.lastRemovedGamePath, game.path);
       expect(container.read(selectedGameProvider), isNull);
-      expect(container.read(gameListProvider).valueOrNull?.games, isEmpty);
+      expect(container.read(gameListProvider).value?.games, isEmpty);
       expect(find.text('Game not found.'), findsOneWidget);
 
       bridge.completeRemoval();
@@ -1694,7 +1694,7 @@ void runPhase6OversizeSplitTests() {
       expect(bridge.removeGameFromDiscoveryCalls, 1);
       expect(bridge.lastRemovedGamePath, game.path);
       expect(container.read(selectedGameProvider), isNull);
-      expect(container.read(gameListProvider).valueOrNull?.games, isEmpty);
+      expect(container.read(gameListProvider).value?.games, isEmpty);
       expect(find.text('Game not found.'), findsOneWidget);
     },
   );
@@ -1758,11 +1758,7 @@ void runPhase6OversizeSplitTests() {
       notifier.addCustomFolder(r'C:\Games\ManualEntry\game.exe');
 
       final folders =
-          container
-              .read(settingsProvider)
-              .valueOrNull
-              ?.settings
-              .customFolders ??
+          container.read(settingsProvider).value?.settings.customFolders ??
           const <String>[];
       expect(folders.length, 1);
       expect(folders.first.toLowerCase().endsWith('.exe'), isFalse);

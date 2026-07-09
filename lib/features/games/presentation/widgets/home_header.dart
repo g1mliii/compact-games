@@ -83,8 +83,7 @@ class _HeaderViewToggleGroup extends ConsumerWidget {
     final l10n = context.l10n;
     final viewMode = ref.watch(
       settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.homeViewMode ?? HomeViewMode.grid,
+        (async) => async.value?.settings.homeViewMode ?? HomeViewMode.grid,
       ),
     );
 

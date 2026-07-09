@@ -88,7 +88,10 @@ where
 }
 
 pub fn verify_sha256(bytes: &[u8], expected_sha256: &str) -> Result<(), String> {
-    let actual = format!("{:x}", Sha256::digest(bytes));
+    let actual = Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
     if actual.eq_ignore_ascii_case(expected_sha256.trim()) {
         Ok(())
     } else {

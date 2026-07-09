@@ -19,7 +19,7 @@ final automationDiscoveredWatchPathsProvider =
       return ref.watch(
         gameListProvider.select(
           (async) => AutomationDiscoveredWatchPaths.fromGames(
-            async.valueOrNull?.games ?? const <GameInfo>[],
+            async.value?.games ?? const <GameInfo>[],
           ),
         ),
       );
@@ -27,49 +27,39 @@ final automationDiscoveredWatchPathsProvider =
 
 final automationSyncConfigProvider = Provider<AutomationSyncConfig?>((ref) {
   final autoCompress = ref.watch(
-    settingsProvider.select(
-      (async) => async.valueOrNull?.settings.autoCompress,
-    ),
+    settingsProvider.select((async) => async.value?.settings.autoCompress),
   );
   final cpuThreshold = ref.watch(
-    settingsProvider.select(
-      (async) => async.valueOrNull?.settings.cpuThreshold,
-    ),
+    settingsProvider.select((async) => async.value?.settings.cpuThreshold),
   );
   final idleDurationMinutes = ref.watch(
     settingsProvider.select(
-      (async) => async.valueOrNull?.settings.idleDurationMinutes,
+      (async) => async.value?.settings.idleDurationMinutes,
     ),
   );
   final cooldownMinutes = ref.watch(
-    settingsProvider.select(
-      (async) => async.valueOrNull?.settings.cooldownMinutes,
-    ),
+    settingsProvider.select((async) => async.value?.settings.cooldownMinutes),
   );
   final customFolders = ref.watch(
-    settingsProvider.select(
-      (async) => async.valueOrNull?.settings.customFolders,
-    ),
+    settingsProvider.select((async) => async.value?.settings.customFolders),
   );
   final discoveredWatchPaths = ref.watch(
     automationDiscoveredWatchPathsProvider,
   );
   final excludedPaths = ref.watch(
-    settingsProvider.select(
-      (async) => async.valueOrNull?.settings.excludedPaths,
-    ),
+    settingsProvider.select((async) => async.value?.settings.excludedPaths),
   );
   final algorithm = ref.watch(
-    settingsProvider.select((async) => async.valueOrNull?.settings.algorithm),
+    settingsProvider.select((async) => async.value?.settings.algorithm),
   );
   final ioParallelismOverride = ref.watch(
     settingsProvider.select(
-      (async) => async.valueOrNull?.settings.ioParallelismOverride,
+      (async) => async.value?.settings.ioParallelismOverride,
     ),
   );
   final allowDirectStorageOverride = ref.watch(
     settingsProvider.select(
-      (async) => async.valueOrNull?.settings.directStorageOverrideEnabled,
+      (async) => async.value?.settings.directStorageOverrideEnabled,
     ),
   );
 

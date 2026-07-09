@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/localization/app_locale.dart';
 import '../../core/localization/app_localization.dart';
@@ -14,7 +15,7 @@ final systemLocaleControllerProvider =
 
 final effectiveLocaleProvider = Provider<Locale>((ref) {
   final preferredLocaleTag = ref.watch(
-    settingsProvider.select((s) => s.valueOrNull?.settings.localeTag),
+    settingsProvider.select((s) => s.value?.settings.localeTag),
   );
   final systemLocale = ref.watch(
     systemLocaleControllerProvider.select((controller) => controller.locale),

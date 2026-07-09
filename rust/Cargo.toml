@@ -10,7 +10,7 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 # Flutter Rust Bridge
-flutter_rust_bridge = "=2.11.1"
+flutter_rust_bridge = "=2.12.0"
 
 # Windows API bindings
 [target.'cfg(windows)'.dependencies]

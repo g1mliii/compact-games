@@ -759,7 +759,7 @@ void main() {
     expect(
       container
           .read(settingsProvider)
-          .valueOrNull
+          .value
           ?.settings
           .excludedPaths
           .contains(game.path),
@@ -919,8 +919,7 @@ void main() {
     expect(platformValue, findsOneWidget);
 
     final gap =
-        tester.getRect(platformChip).left -
-        tester.getRect(platformLabel).right;
+        tester.getRect(platformChip).left - tester.getRect(platformLabel).right;
     expect(gap, lessThanOrEqualTo(18));
     expect(tester.takeException(), isNull);
   });
@@ -1295,11 +1294,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      container
-          .read(settingsProvider)
-          .valueOrNull
-          ?.settings
-          .idleDurationMinutes,
+      container.read(settingsProvider).value?.settings.idleDurationMinutes,
       15,
     );
     expect(find.text('15 min'), findsOneWidget);
@@ -1314,10 +1309,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Set'));
     await tester.pumpAndSettle();
 
-    expect(
-      container.read(settingsProvider).valueOrNull?.settings.cpuThreshold,
-      80,
-    );
+    expect(container.read(settingsProvider).value?.settings.cpuThreshold, 80);
     expect(find.text('80%'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 600));
@@ -1508,11 +1500,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(
-        container
-            .read(settingsProvider)
-            .valueOrNull
-            ?.settings
-            .ioParallelismOverride,
+        container.read(settingsProvider).value?.settings.ioParallelismOverride,
         4,
       );
 
@@ -1522,11 +1510,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(
-        container
-            .read(settingsProvider)
-            .valueOrNull
-            ?.settings
-            .ioParallelismOverride,
+        container.read(settingsProvider).value?.settings.ioParallelismOverride,
         isNull,
       );
 
@@ -1575,11 +1559,7 @@ void main() {
 
       expect(persistence.saveCalls, 0);
       expect(
-        container
-            .read(settingsProvider)
-            .valueOrNull
-            ?.settings
-            .ioParallelismOverride,
+        container.read(settingsProvider).value?.settings.ioParallelismOverride,
         4,
       );
     },
@@ -1706,7 +1686,7 @@ void main() {
       );
       expect(identical(updatedListBoundary, initialListBoundary), isTrue);
       expect(
-        container.read(settingsProvider).valueOrNull?.settings.algorithm,
+        container.read(settingsProvider).value?.settings.algorithm,
         CompressionAlgorithm.lzx,
       );
       await tester.pump(const Duration(milliseconds: 600));

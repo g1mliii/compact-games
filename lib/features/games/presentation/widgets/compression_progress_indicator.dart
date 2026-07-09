@@ -213,10 +213,7 @@ class _ActivityHeaderAction extends StatelessWidget {
               horizontal: compact ? 10 : 12,
               vertical: compact ? 6 : 8,
             ),
-            minimumSize: const Size(
-              appDesktopControlMin,
-              appDesktopControlMin,
-            ),
+            minimumSize: const Size(appDesktopControlMin, appDesktopControlMin),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             visualDensity: compact
                 ? VisualDensity.compact

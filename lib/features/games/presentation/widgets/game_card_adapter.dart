@@ -198,7 +198,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     if (game == null) return const SizedBox.shrink();
     final coverSnapshot = ref.watch(
       coverArtProvider(widget.gamePath).select((value) {
-        final result = value.valueOrNull;
+        final result = value.value;
         return (
           uri: result?.uri,
           revision: result?.revision ?? 0,
@@ -208,15 +208,12 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     );
     final allowDirectStorageOverride = ref.watch(
       settingsProvider.select(
-        (async) =>
-            async.valueOrNull?.settings.directStorageOverrideEnabled ?? false,
+        (async) => async.value?.settings.directStorageOverrideEnabled ?? false,
       ),
     );
     final algorithm =
         ref.watch(
-          settingsProvider.select(
-            (async) => async.valueOrNull?.settings.algorithm,
-          ),
+          settingsProvider.select((async) => async.value?.settings.algorithm),
         ) ??
         CompressionAlgorithm.xpress8k;
 
@@ -370,7 +367,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     final allowDirectStorageOverride =
         ref
             .read(settingsProvider)
-            .valueOrNull
+            .value
             ?.settings
             .directStorageOverrideEnabled ??
         false;
@@ -431,7 +428,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
   bool _readIsExcluded(String gamePath) {
     return ref
             .read(settingsProvider)
-            .valueOrNull
+            .value
             ?.settings
             .excludedPaths
             .contains(gamePath) ??
@@ -441,7 +438,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
   bool _readDirectStorageOverride() {
     return ref
             .read(settingsProvider)
-            .valueOrNull
+            .value
             ?.settings
             .directStorageOverrideEnabled ??
         false;

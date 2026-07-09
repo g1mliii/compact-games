@@ -7,7 +7,7 @@ import 'game_list_provider.dart';
 /// Derived map for O(1) per-game lookup keyed by absolute game path.
 final gamesByPathProvider = Provider<Map<String, GameInfo>>((ref) {
   final games = ref.watch(
-    gameListProvider.select((state) => state.valueOrNull?.games),
+    gameListProvider.select((state) => state.value?.games),
   );
   if (games == null) {
     return const {};

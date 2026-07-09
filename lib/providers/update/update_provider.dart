@@ -84,7 +84,7 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
   }
 
   Future<void> checkForUpdate() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) return;
     if (current.status == UpdateStatus.checking ||
         current.status == UpdateStatus.downloading) {
@@ -101,7 +101,7 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
           .checkForUpdate(currentVersion: AppConstants.appVersion);
 
       // Re-read state after the await to avoid clobbering concurrent changes.
-      final post = state.valueOrNull ?? current;
+      final post = state.value ?? current;
       if (result.updateAvailable) {
         state = AsyncValue.data(
           post.copyWith(status: UpdateStatus.available, info: () => result),
@@ -111,7 +111,7 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
       }
     } catch (e) {
       state = AsyncValue.data(
-        (state.valueOrNull ?? current).copyWith(
+        (state.value ?? current).copyWith(
           status: UpdateStatus.error,
           error: () => e.toString(),
         ),
@@ -120,7 +120,7 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
   }
 
   Future<void> downloadUpdate() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || current.info == null) return;
     if (current.status == UpdateStatus.downloading) return;
 
@@ -145,14 +145,14 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
 
       // Re-read state after the await to avoid clobbering concurrent changes.
       state = AsyncValue.data(
-        (state.valueOrNull ?? current).copyWith(
+        (state.value ?? current).copyWith(
           status: UpdateStatus.downloaded,
           installerPath: () => resultPath,
         ),
       );
     } catch (e) {
       state = AsyncValue.data(
-        (state.valueOrNull ?? current).copyWith(
+        (state.value ?? current).copyWith(
           status: UpdateStatus.error,
           error: () => e.toString(),
         ),
@@ -161,7 +161,7 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
   }
 
   Future<void> launchInstaller() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || current.installerPath == null) return;
 
     // Don't install while compression is active.

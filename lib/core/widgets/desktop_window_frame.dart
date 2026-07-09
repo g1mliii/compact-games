@@ -33,7 +33,8 @@ class _CompactGamesWindowTitleBar extends StatefulWidget {
       _CompactGamesWindowTitleBarState();
 }
 
-class _CompactGamesWindowTitleBarState extends State<_CompactGamesWindowTitleBar>
+class _CompactGamesWindowTitleBarState
+    extends State<_CompactGamesWindowTitleBar>
     with WindowListener {
   static const double _titleBarHeight = 32;
   static const ValueKey<String> _titleBarKey = ValueKey<String>(

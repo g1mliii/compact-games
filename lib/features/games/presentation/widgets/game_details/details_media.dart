@@ -40,9 +40,7 @@ class GameDetailsCover extends StatelessWidget {
                 coverProvider == null
                     ? _CoverFallback(platform: platform)
                     : coverArtType == CoverArtType.icon
-                    ? _IconCoverLayout(
-                        coverProvider: coverProvider!,
-                      )
+                    ? _IconCoverLayout(coverProvider: coverProvider!)
                     : _CachedResizeImage(
                         provider: coverProvider!,
                         decodeWidth: decodeWidth,

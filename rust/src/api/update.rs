@@ -181,7 +181,11 @@ pub fn download_update(
 
     // Verify checksum.
     if !expected_sha256.is_empty() {
-        let actual = format!("{:x}", hasher.finalize());
+        let actual = hasher
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
         if !actual.eq_ignore_ascii_case(&expected_sha256) {
             let _ = fs::remove_file(&tmp_path);
             return Err(format!(

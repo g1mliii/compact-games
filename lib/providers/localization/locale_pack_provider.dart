@@ -20,8 +20,7 @@ final selectableAppLocaleDefinitionsProvider =
 final installableAppLocaleDefinitionsProvider =
     Provider<List<AppLocaleDefinition>>((ref) {
       final installedPackTags =
-          ref.watch(installedLocalePackTagsProvider).valueOrNull ??
-          const <String>{};
+          ref.watch(installedLocalePackTagsProvider).value ?? const <String>{};
       return buildInstallableAppLocaleDefinitions(
         installedPackTags: installedPackTags,
       );

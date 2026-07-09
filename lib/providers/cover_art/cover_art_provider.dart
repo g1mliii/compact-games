@@ -54,25 +54,27 @@ final coverArtProvider = FutureProvider.autoDispose
       if (coverKey == null) {
         return const CoverArtResult.none();
       }
-      // Wait for settings without selectAsync; that Riverpod path can read
-      // after ProviderContainer disposal in widget tests.
-      final settingsState = await ref.watch(settingsProvider.future);
-      final coverSettings = (
-        apiKey: settingsState.settings.steamGridDbApiKey,
-        mode: settingsState.settings.coverArtProviderMode,
-      );
-
       final game = ref.read(singleGameProvider(gamePath));
       if (game == null) {
         return const CoverArtResult.none();
       }
       final service = ref.read(coverArtServiceProvider);
       final bridge = ref.read(rustBridgeServiceProvider);
+      final proxyConfig = ref.read(coverArtProxyConfigProvider);
+
+      // Capture resolution dependencies before the async settings wait because
+      // the provider may rebuild while the settings future is pending.
+      final settingsState = await ref.watch(settingsProvider.future);
+      final coverSettings = (
+        apiKey: settingsState.settings.steamGridDbApiKey,
+        mode: settingsState.settings.coverArtProviderMode,
+      );
+
       return service.resolveCover(
         game,
         steamGridDbApiKey: coverSettings.apiKey,
         coverArtProviderMode: coverSettings.mode,
-        coverArtProxyConfig: ref.read(coverArtProxyConfigProvider),
+        coverArtProxyConfig: proxyConfig,
         rustBridge: bridge,
       );
     });

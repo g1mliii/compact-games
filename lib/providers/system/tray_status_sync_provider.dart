@@ -43,21 +43,17 @@ final trayStatusSyncProvider = Provider<void>((ref) {
 
   final autoRunningState = ref.watch(
     autoCompressionRunningProvider.select(
-      (a) => (running: a.valueOrNull ?? false, hasError: a.hasError),
+      (a) => (running: a.value ?? false, hasError: a.hasError),
     ),
   );
   final autoRunning = autoRunningState.running;
   final autoRunningHasError = autoRunningState.hasError;
 
   final minimizeToTray = ref.watch(
-    settingsProvider.select(
-      (s) => s.valueOrNull?.settings.minimizeToTray ?? true,
-    ),
+    settingsProvider.select((s) => s.value?.settings.minimizeToTray ?? true),
   );
   final autoCompressionEnabled = ref.watch(
-    settingsProvider.select(
-      (s) => s.valueOrNull?.settings.autoCompress ?? false,
-    ),
+    settingsProvider.select((s) => s.value?.settings.autoCompress ?? false),
   );
   final l10n = ref.watch(appLocalizationsProvider);
 
