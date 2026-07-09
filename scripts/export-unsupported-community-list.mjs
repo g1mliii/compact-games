@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -11,6 +12,9 @@ const DEFAULTS = {
   minRepeatReporters: "1",
   maxAgeDays: "180",
 };
+const MIN_RELEASE_REPORTERS = 3;
+const RELEASE_BUNDLE_VERSION = 1;
+const RELEASE_ASSET_NAME = "unsupported_games.json";
 
 async function main() {
   const workerUrl = normalizeWorkerBaseUrl(
@@ -30,8 +34,7 @@ async function main() {
       DEFAULT_OUTPUT_DIR,
   );
   const bundleUrl = new URL("/release-bundle", workerUrl);
-  bundleUrl.searchParams.set(
-    "min_reporters",
+  const minReporters = parseMinimumReporters(
     readOption(
       "min-reporters",
       process.env.COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS ??
@@ -39,23 +42,35 @@ async function main() {
       DEFAULTS.minReporters,
     ),
   );
-  bundleUrl.searchParams.set(
-    "min_repeat_reporters",
+  const minRepeatReporters = parsePositiveInteger(
     readOption(
       "min-repeat-reporters",
       process.env.COMPACT_GAMES_UNSUPPORTED_MIN_REPEAT_REPORTERS ??
         process.env.PRESSPLAY_UNSUPPORTED_MIN_REPEAT_REPORTERS,
       DEFAULTS.minRepeatReporters,
     ),
+    "min-repeat-reporters",
   );
-  bundleUrl.searchParams.set(
-    "max_age_days",
+  const maxAgeDays = parsePositiveInteger(
     readOption(
       "max-age-days",
       process.env.COMPACT_GAMES_UNSUPPORTED_MAX_AGE_DAYS ??
         process.env.PRESSPLAY_UNSUPPORTED_MAX_AGE_DAYS,
       DEFAULTS.maxAgeDays,
     ),
+    "max-age-days",
+  );
+  bundleUrl.searchParams.set(
+    "min_reporters",
+    String(minReporters),
+  );
+  bundleUrl.searchParams.set(
+    "min_repeat_reporters",
+    String(minRepeatReporters),
+  );
+  bundleUrl.searchParams.set(
+    "max_age_days",
+    String(maxAgeDays),
   );
 
   const response = await fetch(bundleUrl, {
@@ -80,10 +95,17 @@ async function main() {
 
   const gamesPath = path.join(outputDir, "unsupported_games.json");
   const bundlePath = path.join(outputDir, "unsupported_games.bundle.json");
+  const gamesJson = `${JSON.stringify(bundle.games, null, 2)}\n`;
+  const releaseBundle = {
+    ...bundle,
+    version: RELEASE_BUNDLE_VERSION,
+    asset: RELEASE_ASSET_NAME,
+    sha256: createHash("sha256").update(gamesJson).digest("hex"),
+  };
 
   await Promise.all([
-    writeFile(gamesPath, `${JSON.stringify(bundle.games, null, 2)}\n`, "utf8"),
-    writeFile(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`, "utf8"),
+    writeFile(gamesPath, gamesJson, "utf8"),
+    writeFile(bundlePath, `${JSON.stringify(releaseBundle, null, 2)}\n`, "utf8"),
   ]);
 
   console.log(`Wrote ${bundle.games.length} unsupported games to ${gamesPath}`);
@@ -110,6 +132,24 @@ function normalizeWorkerBaseUrl(rawValue) {
     url.pathname = url.pathname.slice(0, -"/unsupported-reports".length) || "/";
   }
   return url;
+}
+
+function parseMinimumReporters(rawValue) {
+  const minReporters = parsePositiveInteger(rawValue, "min-reporters");
+  if (minReporters < MIN_RELEASE_REPORTERS) {
+    throw new Error(
+      `min-reporters must be at least ${MIN_RELEASE_REPORTERS} for a published community list`,
+    );
+  }
+  return minReporters;
+}
+
+function parsePositiveInteger(rawValue, optionName) {
+  const value = Number(rawValue);
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${optionName} must be a positive integer`);
+  }
+  return value;
 }
 
 main().catch((error) => {

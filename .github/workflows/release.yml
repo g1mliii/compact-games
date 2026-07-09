@@ -44,7 +44,9 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          dart format lib test
+          git diff --ignore-space-at-eol --exit-code -- lib test
 
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust/Cargo.toml --check
@@ -377,7 +379,7 @@ jobs:
       - name: Export unsupported community bundle
         env:
           COMPACT_GAMES_UNSUPPORTED_WORKER_URL: ${{ vars.COMPACT_GAMES_UNSUPPORTED_WORKER_URL || 'https://compact-games-unsupported-report-ingest.pressplay-subai.workers.dev' }}
-          COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS: ${{ vars.COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS || '1' }}
+          COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS: ${{ vars.COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS || '3' }}
           COMPACT_GAMES_UNSUPPORTED_MIN_REPEAT_REPORTERS: ${{ vars.COMPACT_GAMES_UNSUPPORTED_MIN_REPEAT_REPORTERS || '1' }}
           COMPACT_GAMES_UNSUPPORTED_MAX_AGE_DAYS: ${{ vars.COMPACT_GAMES_UNSUPPORTED_MAX_AGE_DAYS || '180' }}
         run: node ./scripts/export-unsupported-community-list.mjs

@@ -460,6 +460,46 @@ test("community endpoints expose thresholded candidates, list, and release bundl
   ]);
 });
 
+test("release bundle defaults require three reporters and one repeat reporter", async (t) => {
+  const env = createEnv();
+  t.mock.method(Date, "now", () => BASE_TIME_MS);
+
+  for (const [index, serverSubmissionCount] of [2, 1].entries()) {
+    seedCurrentSnapshot(env, {
+      install_id: `two-reporters-${index}`,
+      folder_name: "two-reporters-game",
+      server_submission_count: serverSubmissionCount,
+    });
+  }
+  for (const [index, serverSubmissionCount] of [2, 1, 1].entries()) {
+    seedCurrentSnapshot(env, {
+      install_id: `accepted-${index}`,
+      folder_name: "accepted-game",
+      server_submission_count: serverSubmissionCount,
+    });
+  }
+  for (const index of [0, 1, 2]) {
+    seedCurrentSnapshot(env, {
+      install_id: `no-repeat-${index}`,
+      folder_name: "no-repeat-game",
+      server_submission_count: 1,
+    });
+  }
+
+  const releaseBundle = await fetchJson(env, "/release-bundle");
+
+  assert.equal(releaseBundle.response.status, 200);
+  assert.deepEqual(releaseBundle.json.criteria, {
+    minReporters: 3,
+    minRepeatReporters: 1,
+    maxSubmissionAgeDays: 180,
+    minSubmittedAtMs: BASE_TIME_MS - 180 * 24 * 60 * 60 * 1000,
+    note:
+      "Thresholds are based on server-observed positive reporting signals only. Missing reports are not treated as negative votes.",
+  });
+  assert.deepEqual(releaseBundle.json.games, ["accepted-game"]);
+});
+
 test("community read endpoints use short cache and invalidate after submissions", async (t) => {
   const env = createEnv();
   t.mock.method(Date, "now", () => BASE_TIME_MS);

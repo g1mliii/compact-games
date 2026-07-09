@@ -39,7 +39,9 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          dart format lib test
+          git diff --ignore-space-at-eol --exit-code -- lib test
 
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust/Cargo.toml --check
@@ -166,3 +168,19 @@ jobs:
       - name: Run worker tests
         working-directory: ${{ matrix.worker }}
         run: npm test
+
+  release-data-export:
+    name: Validate release data export
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Run release data export tests
+        run: node --test scripts/test/export-unsupported-community-list.test.mjs
