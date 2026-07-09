@@ -1,0 +1,165 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.41.6"
+  RUST_TOOLCHAIN: "stable"
+
+jobs:
+  formatting:
+    name: Check source formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path rust/Cargo.toml --check
+
+  windows-app:
+    name: Validate Windows app
+    runs-on: windows-latest
+    timeout-minutes: 55
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rust-${{ runner.os }}-
+
+      - name: Verify source version consistency
+        run: python scripts/verify_release_source.py
+
+      - name: Install Flutter Rust Bridge code generator
+        run: cargo install flutter_rust_bridge_codegen@2.11.1 --locked
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Regenerate Flutter Rust Bridge bindings
+        run: flutter_rust_bridge_codegen generate
+
+      - name: Check generated Flutter Rust Bridge bindings
+        shell: bash
+        run: git diff --exit-code -- lib/src/rust windows/runner/bridge_generated.h
+
+      - name: Regenerate localizations
+        run: flutter gen-l10n
+
+      - name: Check generated localizations
+        shell: bash
+        run: git diff --exit-code -- lib/l10n
+
+      - name: Analyze Flutter code
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Lint Rust code
+        run: cargo clippy --manifest-path rust/Cargo.toml --all-targets --all-features -- -D warnings
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path rust/Cargo.toml --all-targets --all-features
+
+      - name: Build Rust release library
+        run: cargo build --manifest-path rust/Cargo.toml --release
+
+      - name: Build Windows release bundle
+        run: flutter build windows --release
+
+      - name: Verify Windows release bundle
+        shell: pwsh
+        run: |
+          $bundle = 'build/windows/x64/runner/Release'
+          Copy-Item 'rust/target/release/compact_games_core.dll' $bundle -Force
+          $requiredFiles = @(
+            'compact_games.exe',
+            'compact_games_core.dll'
+          )
+          foreach ($file in $requiredFiles) {
+            $path = Join-Path $bundle $file
+            if (-not (Test-Path $path) -or (Get-Item $path).Length -eq 0) {
+              throw "Release bundle is missing $file."
+            }
+          }
+          Get-FileHash (Join-Path $bundle 'compact_games.exe') -Algorithm SHA256
+          Get-FileHash (Join-Path $bundle 'compact_games_core.dll') -Algorithm SHA256
+
+  cloudflare-workers:
+    name: Validate Cloudflare workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        worker:
+          - cloudflare/sgdb-cover-proxy
+          - cloudflare/unsupported-report-ingest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Check Node supply chain
+        working-directory: ${{ matrix.worker }}
+        run: npm run security:check
+
+      - name: Check worker syntax
+        working-directory: ${{ matrix.worker }}
+        run: npm run check
+
+      - name: Run worker tests
+        working-directory: ${{ matrix.worker }}
+        run: npm test

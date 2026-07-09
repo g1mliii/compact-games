@@ -1,48 +1,80 @@
-name: Build & Release
+name: Build Release Draft
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. 0.2.0)"
+        description: "Release version (for example, 0.2.0)"
         required: true
       release_notes:
-        description: "Release notes (one paragraph)"
+        description: "Release notes"
         required: false
         default: ""
-  release:
-    types: [created]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
 
 env:
   FLUTTER_VERSION: "3.41.6"
   RUST_TOOLCHAIN: "stable"
 
 jobs:
+  formatting:
+    name: Check source formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path rust/Cargo.toml --check
+
   build:
-    name: Build Windows Release
+    name: Build and validate Windows release
     runs-on: windows-latest
+    timeout-minutes: 65
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Require the default branch
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "Production releases must run from $DEFAULT_BRANCH, got $GITHUB_REF." >&2
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Determine version
         id: version
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          DISPATCH_VERSION: ${{ github.event.inputs.version }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          VERSION: ${{ inputs.version }}
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            VERSION="$DISPATCH_VERSION"
-          else
-            VERSION="${RELEASE_TAG#v}"
-          fi
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid release version: $VERSION" >&2
             exit 1
@@ -50,52 +82,24 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Validate source version
-        shell: bash
         env:
           EXPECTED_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          PUBSPEC_VERSION=$(python - <<'PY'
-          import re
-          from pathlib import Path
+        run: python scripts/verify_release_source.py --expected-version "$env:EXPECTED_VERSION"
 
-          text = Path("pubspec.yaml").read_text(encoding="utf-8")
-          match = re.search(r"^version:\s*([0-9]+\.[0-9]+\.[0-9]+)", text, re.MULTILINE)
-          if not match:
-              raise SystemExit("Failed to read version from pubspec.yaml")
-          print(match.group(1))
-          PY
-          )
-          APP_CONSTANTS_VERSION=$(python - <<'PY'
-          import re
-          from pathlib import Path
-
-          text = Path("lib/core/constants/app_constants.dart").read_text(encoding="utf-8")
-          match = re.search(r"appVersion\s*=\s*'([^']+)'", text)
-          if not match:
-              raise SystemExit("Failed to read AppConstants.appVersion")
-          print(match.group(1))
-          PY
-          )
-
-          if [ "$EXPECTED_VERSION" != "$PUBSPEC_VERSION" ] || [ "$EXPECTED_VERSION" != "$APP_CONSTANTS_VERSION" ]; then
-            echo "Release version $EXPECTED_VERSION does not match source versions (pubspec=$PUBSPEC_VERSION, app_constants=$APP_CONSTANTS_VERSION)." >&2
-            exit 1
-          fi
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Cache Rust dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
@@ -104,18 +108,40 @@ jobs:
           key: rust-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: rust-${{ runner.os }}-
 
-      - name: Install flutter_rust_bridge_codegen
-        run: cargo install flutter_rust_bridge_codegen@2.11.1
+      - name: Install Flutter Rust Bridge code generator
+        run: cargo install flutter_rust_bridge_codegen@2.11.1 --locked
 
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Generate FRB bindings
+      - name: Regenerate Flutter Rust Bridge bindings
         run: flutter_rust_bridge_codegen generate
 
-      - name: Build Rust release
+      - name: Check generated Flutter Rust Bridge bindings
         shell: bash
-        run: cd rust && cargo build --release
+        run: git diff --exit-code -- lib/src/rust windows/runner/bridge_generated.h
+
+      - name: Regenerate localizations
+        run: flutter gen-l10n
+
+      - name: Check generated localizations
+        shell: bash
+        run: git diff --exit-code -- lib/l10n
+
+      - name: Analyze Flutter code
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Lint Rust code
+        run: cargo clippy --manifest-path rust/Cargo.toml --all-targets --all-features -- -D warnings
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path rust/Cargo.toml --all-targets --all-features
+
+      - name: Build Rust release library
+        run: cargo build --manifest-path rust/Cargo.toml --release
 
       - name: Verify bundled cover-art proxy access
         shell: pwsh
@@ -135,7 +161,7 @@ jobs:
             throw 'Bundled cover-art proxy did not return a cover URL.'
           }
 
-      - name: Build Windows release
+      - name: Build Windows release bundle
         shell: pwsh
         env:
           COMPACT_GAMES_SGDB_PROXY_URL: ${{ vars.COMPACT_GAMES_SGDB_PROXY_URL }}
@@ -146,163 +172,274 @@ jobs:
             "--dart-define=COMPACT_GAMES_SGDB_TOKEN=$env:COMPACT_GAMES_SGDB_TOKEN"
 
       - name: Copy Rust DLL to release bundle
-        shell: bash
-        run: cp rust/target/release/compact_games_core.dll build/windows/x64/runner/Release/
+        shell: pwsh
+        run: Copy-Item rust/target/release/compact_games_core.dll build/windows/x64/runner/Release/ -Force
 
       - name: Bundle VC++ runtime DLLs
-        shell: powershell
+        shell: pwsh
         run: |
-          $vcrtDir = Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Recurse -Directory -Filter "Microsoft.VC*.CRT" |
+          $vcrtDir = Get-ChildItem 'C:\Program Files\Microsoft Visual Studio' -Recurse -Directory -Filter 'Microsoft.VC*.CRT' |
             Where-Object { $_.FullName -match 'x64' -and (Test-Path (Join-Path $_.FullName 'vcruntime140.dll')) } |
             Select-Object -First 1
           if (-not $vcrtDir) {
-            $vcrtDir = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio" -Recurse -Directory -Filter "Microsoft.VC*.CRT" |
+            $vcrtDir = Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio' -Recurse -Directory -Filter 'Microsoft.VC*.CRT' |
               Where-Object { $_.FullName -match 'x64' -and (Test-Path (Join-Path $_.FullName 'vcruntime140.dll')) } |
               Select-Object -First 1
           }
-          if (-not $vcrtDir) { throw "VC++ runtime DLLs not found" }
-          $dest = "build\windows\x64\runner\Release"
-          Copy-Item (Join-Path $vcrtDir.FullName "vcruntime140.dll") $dest
-          Copy-Item (Join-Path $vcrtDir.FullName "vcruntime140_1.dll") $dest
-          Copy-Item (Join-Path $vcrtDir.FullName "msvcp140.dll") $dest
-          Write-Host "Bundled VC++ runtime from $($vcrtDir.FullName)"
+          if (-not $vcrtDir) { throw 'VC++ runtime DLLs not found.' }
+          $destination = 'build/windows/x64/runner/Release'
+          Copy-Item (Join-Path $vcrtDir.FullName 'vcruntime140.dll') $destination -Force
+          Copy-Item (Join-Path $vcrtDir.FullName 'vcruntime140_1.dll') $destination -Force
+          Copy-Item (Join-Path $vcrtDir.FullName 'msvcp140.dll') $destination -Force
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Verify release bundle contents
+        shell: pwsh
+        run: |
+          $bundle = 'build/windows/x64/runner/Release'
+          $requiredFiles = @(
+            'compact_games.exe',
+            'compact_games_core.dll',
+            'vcruntime140.dll',
+            'vcruntime140_1.dll',
+            'msvcp140.dll'
+          )
+          foreach ($file in $requiredFiles) {
+            $path = Join-Path $bundle $file
+            if (-not (Test-Path $path) -or (Get-Item $path).Length -eq 0) {
+              throw "Release bundle is missing $file."
+            }
+          }
+          Get-FileHash (Join-Path $bundle 'compact_games.exe') -Algorithm SHA256
+          Get-FileHash (Join-Path $bundle 'compact_games_core.dll') -Algorithm SHA256
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-release-build
           path: build/windows/x64/runner/Release/
+          retention-days: 1
+          if-no-files-found: error
 
   package:
-    name: Package Installer
+    name: Package and attest installer
     needs: build
     runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Download release bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: windows-release-build
           path: build/windows/x64/runner/Release/
 
       - name: Install Inno Setup
-        shell: powershell
+        shell: pwsh
         run: choco install innosetup -y --no-progress
 
       - name: Build installer
         shell: cmd
         env:
           APP_VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=%APP_VERSION% installer\compact_games.iss
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=%APP_VERSION% installer\compact_games.iss'
 
-      - name: Generate checksums
+      - name: Generate checksum and update manifest
         shell: bash
         env:
-          VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          cd dist
-          sha256sum "CompactGames-Setup-${VERSION}.exe" > sha256sums.txt
-          cat sha256sums.txt
-
-      - name: Generate latest.json manifest
-        shell: bash
-        env:
-          RELEASE_NOTES: ${{ github.event.inputs.release_notes || github.event.release.body || '' }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
           REPOSITORY: ${{ github.repository }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
+          INSTALLER="dist/CompactGames-Setup-${VERSION}.exe"
+          sha256sum "$INSTALLER" > dist/sha256sums.txt
           CHECKSUM=$(awk '{print $1}' dist/sha256sums.txt)
-          PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          export VERSION CHECKSUM PUBLISHED_AT REPOSITORY
-
+          GENERATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          export VERSION CHECKSUM GENERATED_AT REPOSITORY
           python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          version = os.environ["VERSION"]
-          repository = os.environ["REPOSITORY"]
+          version = os.environ['VERSION']
+          repository = os.environ['REPOSITORY']
           manifest = {
-              "version": version,
-              "download_url": f"https://github.com/{repository}/releases/latest/download/CompactGames-Setup-{version}.exe",
-              "checksum_sha256": os.environ["CHECKSUM"],
-              "release_notes": os.environ.get("RELEASE_NOTES", "").strip(),
-              "published_at": os.environ["PUBLISHED_AT"],
+              'version': version,
+              'download_url': f'https://github.com/{repository}/releases/latest/download/CompactGames-Setup-{version}.exe',
+              'checksum_sha256': os.environ['CHECKSUM'],
+              'release_notes': os.environ.get('RELEASE_NOTES', '').strip(),
+              'published_at': os.environ['GENERATED_AT'],
           }
-          Path("dist/latest.json").write_text(
-              json.dumps(manifest, indent=2) + "\n",
-              encoding="utf-8",
-          )
+          Path('dist/latest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
           PY
 
-          echo "Generated latest.json:"
-          cat dist/latest.json
+      - name: Verify installer and manifest integrity
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          $installer = "dist/CompactGames-Setup-$env:VERSION.exe"
+          if (-not (Test-Path $installer) -or (Get-Item $installer).Length -eq 0) {
+            throw 'Installer was not created.'
+          }
+          $manifest = Get-Content 'dist/latest.json' -Raw | ConvertFrom-Json
+          $checksum = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expectedUrl = "https://github.com/$env:REPOSITORY/releases/latest/download/CompactGames-Setup-$env:VERSION.exe"
+          if ($manifest.version -ne $env:VERSION -or $manifest.download_url -ne $expectedUrl -or $manifest.checksum_sha256 -ne $checksum) {
+            throw 'latest.json does not match the installer.'
+          }
+          Get-Content 'dist/sha256sums.txt'
+          Get-Content 'dist/latest.json'
+
+      - name: Attest installer provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: dist/CompactGames-Setup-${{ needs.build.outputs.version }}.exe
 
       - name: Upload installer artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: installer-artifacts
           path: |
             dist/CompactGames-Setup-*.exe
             dist/latest.json
             dist/sha256sums.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  compression-database:
+    name: Export compression database
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check out CompactGUI database
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: IridiumIO/CompactGUI
+          ref: database
+          path: compactgui-database
+          sparse-checkout: |
+            database.json
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Check Node supply-chain guardrails
+        run: node ./scripts/check-node-supply-chain.mjs
+
+      - name: Export compression database bundle
+        env:
+          COMPACT_GAMES_COMPRESSION_DB_INPUT: compactgui-database/database.json
+          COMPACT_GAMES_COMPRESSION_DB_MIN_SAMPLES: ${{ vars.COMPACT_GAMES_COMPRESSION_DB_MIN_SAMPLES || '3' }}
+        run: |
+          SOURCE_SHA="$(git -C compactgui-database rev-parse HEAD)"
+          node ./scripts/normalize-compression-database.mjs --source="IridiumIO/CompactGUI@${SOURCE_SHA}"
+
+      - name: Upload compression database artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: compression-database
+          path: dist/compression-db/
+          retention-days: 1
+          if-no-files-found: error
+
+  unsupported-community-list:
+    name: Export unsupported community list
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Check Node supply-chain guardrails
+        run: node ./scripts/check-node-supply-chain.mjs
+
+      - name: Export unsupported community bundle
+        env:
+          COMPACT_GAMES_UNSUPPORTED_WORKER_URL: ${{ vars.COMPACT_GAMES_UNSUPPORTED_WORKER_URL || 'https://compact-games-unsupported-report-ingest.pressplay-subai.workers.dev' }}
+          COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS: ${{ vars.COMPACT_GAMES_UNSUPPORTED_MIN_REPORTERS || '1' }}
+          COMPACT_GAMES_UNSUPPORTED_MIN_REPEAT_REPORTERS: ${{ vars.COMPACT_GAMES_UNSUPPORTED_MIN_REPEAT_REPORTERS || '1' }}
+          COMPACT_GAMES_UNSUPPORTED_MAX_AGE_DAYS: ${{ vars.COMPACT_GAMES_UNSUPPORTED_MAX_AGE_DAYS || '180' }}
+        run: node ./scripts/export-unsupported-community-list.mjs
+
+      - name: Upload unsupported community artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsupported-community-list
+          path: dist/unsupported-community/
+          retention-days: 1
+          if-no-files-found: error
 
   release:
-    name: Attach to GitHub Release
-    needs: [build, package]
+    name: Create complete draft release
+    needs: [formatting, build, package, compression-database, unsupported-community-list]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
+    timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       - name: Download installer artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: installer-artifacts
           path: dist/
 
-      - name: Attach assets to release
-        uses: softprops/action-gh-release@v2
+      - name: Download compression database artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          files: |
-            dist/CompactGames-Setup-*.exe
-            dist/latest.json
-            dist/sha256sums.txt
+          name: compression-database
+          path: dist/compression-db/
 
-  release-dispatch:
-    name: Create Draft Release (manual trigger)
-    needs: [build, package]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Download installer artifacts
-        uses: actions/download-artifact@v4
+      - name: Download unsupported community artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: installer-artifacts
-          path: dist/
+          name: unsupported-community-list
+          path: dist/unsupported-community/
 
-      - name: Create draft release
+      - name: Create complete draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
-          VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
           REPOSITORY: ${{ github.repository }}
+          TARGET_COMMITISH: ${{ github.sha }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           python - <<'PY'
           import os
           from pathlib import Path
 
-          version = os.environ["VERSION"]
-          notes = os.environ.get("RELEASE_NOTES", "").strip() or f"Release v{version}"
-          Path("dist/release-notes.md").write_text(notes, encoding="utf-8")
+          version = os.environ['VERSION']
+          notes = os.environ.get('RELEASE_NOTES', '').strip() or f'Release v{version}'
+          Path('dist/release-notes.md').write_text(notes, encoding='utf-8')
           PY
-
+          find dist -maxdepth 2 -type f -print
           gh release create "v${VERSION}" \
             --repo "$REPOSITORY" \
+            --target "$TARGET_COMMITISH" \
             --title "Compact Games v${VERSION}" \
             --notes-file dist/release-notes.md \
             --draft \
             dist/CompactGames-Setup-${VERSION}.exe \
             dist/latest.json \
-            dist/sha256sums.txt
+            dist/sha256sums.txt \
+            dist/compression-db/compression_db.v1.json \
+            dist/compression-db/compression_db.v1.bundle.json \
+            dist/unsupported-community/unsupported_games.json \
+            dist/unsupported-community/unsupported_games.bundle.json
