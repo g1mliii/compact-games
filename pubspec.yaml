@@ -36,7 +36,7 @@ dependencies:
   path: ^1.9.1
 
   # Flutter Rust Bridge
-  flutter_rust_bridge: 2.11.1
+  flutter_rust_bridge: 2.12.0
 
   # Code generation (FRB needs freezed_annotation at runtime)
   freezed_annotation: ^3.1.0
