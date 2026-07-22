@@ -430,8 +430,10 @@ jobs:
           # release a bare SHA that touches .github/workflows and has no branch
           # head or tag pointing at it. That is the state we land in whenever
           # main advances mid-run, so tag first and release from the tag.
-          existing=$(gh api "repos/${REPOSITORY}/git/ref/tags/v${VERSION}" --jq .object.sha 2>/dev/null || true)
-          if [ -n "$existing" ]; then
+          # Branch on gh's exit status, not on whether $existing is empty: gh
+          # prints the 404 response body to stdout, so a missing tag still
+          # yields a non-empty value.
+          if existing=$(gh api "repos/${REPOSITORY}/git/ref/tags/v${VERSION}" --jq .object.sha 2>/dev/null); then
             if [ "$existing" != "$TARGET_COMMITISH" ]; then
               echo "Tag v${VERSION} already points at ${existing}, not ${TARGET_COMMITISH}." >&2
               exit 1
