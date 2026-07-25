@@ -136,6 +136,17 @@ jobs:
       - name: Analyze Flutter code
         run: flutter analyze
 
+      # The native bridge test loads whichever compact_games_core.dll it finds.
+      # A cached debug build from an earlier run predates the bindings just
+      # regenerated above, and its content-hash check would fail the suite, so
+      # drop it and build the library this commit actually describes.
+      - name: Drop stale cached Rust library
+        shell: pwsh
+        run: Remove-Item rust/target/debug/compact_games_core.dll -ErrorAction SilentlyContinue
+
+      - name: Build Rust release library
+        run: cargo build --manifest-path rust/Cargo.toml --release
+
       - name: Run Flutter tests
         run: flutter test
 
@@ -144,9 +155,6 @@ jobs:
 
       - name: Run Rust tests
         run: cargo test --manifest-path rust/Cargo.toml --all-targets --all-features
-
-      - name: Build Rust release library
-        run: cargo build --manifest-path rust/Cargo.toml --release
 
       - name: Verify bundled cover-art proxy access
         shell: pwsh
