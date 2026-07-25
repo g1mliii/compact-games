@@ -6,40 +6,14 @@ use std::sync::Arc;
 
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
-use std::sync::Mutex;
 
-/// Single cached thread pool.
-///
-/// Keeping only one pool avoids unbounded resident worker threads when users
-/// change thread overrides frequently (for example 2 -> 4 -> 8 -> ...), while
-/// still reusing the most recently used pool for the common steady-state case.
-type CachedPool = Option<(usize, Arc<rayon::ThreadPool>)>;
-
-static THREAD_POOL_CACHE: std::sync::LazyLock<Mutex<CachedPool>> =
-    std::sync::LazyLock::new(|| Mutex::new(None));
-
-fn get_or_create_thread_pool(
-    parallelism: usize,
-) -> Result<Arc<rayon::ThreadPool>, CompressionError> {
-    let mut cache = THREAD_POOL_CACHE.lock().unwrap_or_else(|e| {
-        log::warn!("Thread pool cache lock poisoned; recovering");
-        e.into_inner()
-    });
-    if let Some((cached_parallelism, pool)) = cache.as_ref() {
-        if *cached_parallelism == parallelism {
-            return Ok(Arc::clone(pool));
-        }
-    }
-    let pool = Arc::new(
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(parallelism)
-            .build()
-            .map_err(|e| CompressionError::Io {
-                source: std::io::Error::other(e.to_string()),
-            })?,
-    );
-    *cache = Some((parallelism, Arc::clone(&pool)));
-    Ok(pool)
+fn build_thread_pool(parallelism: usize) -> Result<rayon::ThreadPool, CompressionError> {
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(parallelism)
+        .build()
+        .map_err(|e| CompressionError::Io {
+            source: std::io::Error::other(e.to_string()),
+        })
 }
 
 use super::super::error::CompressionError;
@@ -62,7 +36,9 @@ where
     F: Fn(&T) -> Result<(), CompressionError> + Sync + Send,
 {
     if let Some(policy) = policy {
-        let pool = get_or_create_thread_pool(policy.io_parallelism)?;
+        // Keep compression workers scoped to the operation so they terminate
+        // when the job finishes instead of retaining stacks while idle in tray.
+        let pool = build_thread_pool(policy.io_parallelism)?;
         pool.install(|| files.par_iter().try_for_each(&operation))
     } else {
         files.par_iter().try_for_each(operation)
