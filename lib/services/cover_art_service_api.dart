@@ -60,6 +60,7 @@ extension _CoverArtServiceApi on CoverArtService {
     GameInfo game, {
     required String cacheKey,
     required String apiKey,
+    required RustBridgeService? rustBridge,
   }) async {
     try {
       String? imageUrl;
@@ -77,6 +78,7 @@ extension _CoverArtServiceApi on CoverArtService {
       imageUrl ??= await _resolveSteamGridDbGridUrlByName(
         gameName: game.name,
         apiKey: apiKey,
+        rustBridge: rustBridge,
       );
       if (imageUrl == null) {
         return null;
@@ -91,10 +93,12 @@ extension _CoverArtServiceApi on CoverArtService {
   Future<String?> _resolveSteamGridDbGridUrlByName({
     required String gameName,
     required String apiKey,
+    required RustBridgeService? rustBridge,
   }) async {
     final gameId = await _searchSteamGridDbGameId(
       gameName: gameName,
       apiKey: apiKey,
+      rustBridge: rustBridge,
     );
     if (gameId == null) {
       return null;
@@ -128,9 +132,10 @@ extension _CoverArtServiceApi on CoverArtService {
   Future<int?> _searchSteamGridDbGameId({
     required String gameName,
     required String apiKey,
+    required RustBridgeService? rustBridge,
   }) async {
     final rawName = gameName.trim();
-    final normalizedName = normalizeGameName(rawName);
+    final normalizedName = _lookupName(rawName, rustBridge);
     final lookupName = normalizedName.isEmpty ? rawName : normalizedName;
     final cacheKey = lookupName.toLowerCase();
     final cached = _readApiLru(_apiGameIdCache, cacheKey);
@@ -142,6 +147,7 @@ extension _CoverArtServiceApi on CoverArtService {
       queryName: lookupName,
       matchName: lookupName,
       apiKey: apiKey,
+      rustBridge: rustBridge,
     );
     if (resolved == null &&
         rawName.isNotEmpty &&
@@ -150,6 +156,7 @@ extension _CoverArtServiceApi on CoverArtService {
         queryName: rawName,
         matchName: lookupName,
         apiKey: apiKey,
+        rustBridge: rustBridge,
       );
     }
     if (resolved != null) {
@@ -162,6 +169,7 @@ extension _CoverArtServiceApi on CoverArtService {
     required String queryName,
     required String matchName,
     required String apiKey,
+    required RustBridgeService? rustBridge,
   }) async {
     final query = Uri.encodeComponent(queryName);
     final endpoint = '/api/v2/search/autocomplete/$query';
@@ -175,7 +183,10 @@ extension _CoverArtServiceApi on CoverArtService {
       return null;
     }
 
-    final normalizedMatchName = normalizeGameName(matchName).toLowerCase();
+    final normalizedMatchName = _lookupName(
+      matchName,
+      rustBridge,
+    ).toLowerCase();
     int? fallback;
     for (final item in data) {
       if (item is! Map) {
@@ -188,7 +199,7 @@ extension _CoverArtServiceApi on CoverArtService {
       fallback ??= id;
       final name = item['name'] as String?;
       if (name != null &&
-          normalizeGameName(name).toLowerCase() == normalizedMatchName) {
+          _lookupName(name, rustBridge).toLowerCase() == normalizedMatchName) {
         return id;
       }
     }
@@ -323,12 +334,7 @@ extension _CoverArtServiceApi on CoverArtService {
     CoverArtSource source = CoverArtSource.steamGridDbApi,
   }) async {
     final uri = Uri.tryParse(imageUrl);
-    final trusted =
-        uri != null &&
-        (source == CoverArtSource.steamStoreApi
-            ? _isTrustedSteamStoreImageUri(uri)
-            : _isTrustedSteamGridImageUri(uri));
-    if (!trusted) {
+    if (uri == null || !_isTrustedImageUri(uri, source)) {
       return null;
     }
 

@@ -6,6 +6,8 @@ import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/byte_formatting.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../providers/compression/compression_state.dart';
 import '../../../../providers/restore/restore_games_provider.dart';
 import '../../../../services/uninstall_service.dart';
 import '../widgets/settings_section_card.dart';
@@ -258,7 +260,7 @@ class _FailureCard extends ConsumerWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            failure.message,
+            _failureMessage(l10n, failure.reason),
             style: AppTypography.bodySmall.copyWith(color: AppColors.error),
           ),
           const SizedBox(height: 8),
@@ -283,6 +285,18 @@ class _FailureCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _failureMessage(AppLocalizations l10n, RestoreFailureReason reason) {
+  return switch (reason) {
+    RestoreAlreadyQueued() => l10n.settingsRestoreFailureAlreadyQueued,
+    RestoreEndedWith(:final status) => switch (status) {
+      CompressionJobStatus.cancelled => l10n.settingsRestoreFailureCancelled,
+      CompressionJobStatus.failed => l10n.settingsRestoreFailureFailed,
+      _ => l10n.settingsRestoreFailureIncomplete,
+    },
+    RestoreThrew(:final error) => l10n.settingsRestoreFailureError(error),
+  };
 }
 
 class _StatusRow extends StatelessWidget {

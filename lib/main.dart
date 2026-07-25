@@ -77,7 +77,7 @@ Future<void> main(List<String> args) async {
       onShowWindow: () {
         unawaited(TrayService.instance.showAndFocusWindow());
       },
-      onPrepareUninstall: PrepareUninstallDispatcher.instance.enqueue,
+      onPrepareUninstall: PrepareUninstallDispatcher.instance.signal,
     );
     if (!ownsSingleInstance) {
       debugPrint('[shell] continuing without shell handoff support');
@@ -136,7 +136,7 @@ Future<void> main(List<String> args) async {
     ShellActionDispatcher.instance.enqueue(shellActionRequest);
   }
   if (shellLaunchArgs.prepareUninstall) {
-    PrepareUninstallDispatcher.instance.enqueue();
+    PrepareUninstallDispatcher.instance.signal();
   }
 
   runApp(const _RustBridgeReloadHost(child: CompactGamesApp()));

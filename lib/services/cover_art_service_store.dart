@@ -14,6 +14,7 @@ extension _CoverArtServiceStore on CoverArtService {
     GameInfo game, {
     required String cacheKey,
     String? alternateLookupName,
+    required RustBridgeService? rustBridge,
   }) async {
     try {
       int? appId = game.steamAppId;
@@ -27,11 +28,11 @@ extension _CoverArtServiceStore on CoverArtService {
         final lookupNames = <String>[game.name, ?alternateLookupName];
         final seen = <String>{};
         for (final lookupName in lookupNames) {
-          final folded = _foldSteamStoreTitle(lookupName);
+          final folded = _foldSteamStoreTitle(lookupName, rustBridge);
           if (folded.isEmpty || !seen.add(folded)) {
             continue;
           }
-          appId = await _searchSteamStoreAppId(lookupName);
+          appId = await _searchSteamStoreAppId(lookupName, rustBridge);
           if (appId != null) {
             break;
           }
@@ -63,8 +64,11 @@ extension _CoverArtServiceStore on CoverArtService {
     }
   }
 
-  Future<int?> _searchSteamStoreAppId(String gameName) async {
-    final foldedName = _foldSteamStoreTitle(gameName);
+  Future<int?> _searchSteamStoreAppId(
+    String gameName,
+    RustBridgeService? rustBridge,
+  ) async {
+    final foldedName = _foldSteamStoreTitle(gameName, rustBridge);
     if (foldedName.isEmpty) {
       return null;
     }
@@ -99,7 +103,7 @@ extension _CoverArtServiceStore on CoverArtService {
       if (name is! String || id == null) {
         continue;
       }
-      final foldedCandidate = _foldSteamStoreTitle(name);
+      final foldedCandidate = _foldSteamStoreTitle(name, rustBridge);
       if (foldedCandidate == foldedName) {
         _writeApiLru(_steamStoreAppIdCache, foldedName, id);
         return id;
@@ -167,7 +171,8 @@ extension _CoverArtServiceStore on CoverArtService {
       final imageUri = Uri.tryParse(
         'https://$_steamStoreAssetHost/store_item_assets/$relative',
       );
-      if (imageUri == null || !_isTrustedSteamStoreImageUri(imageUri)) {
+      if (imageUri == null ||
+          !_isTrustedImageUri(imageUri, CoverArtSource.steamStoreApi)) {
         continue;
       }
       final resolved = imageUri.toString();
@@ -199,8 +204,8 @@ extension _CoverArtServiceStore on CoverArtService {
     }
   }
 
-  String _foldSteamStoreTitle(String value) {
-    var folded = normalizeGameName(value).toLowerCase();
+  String _foldSteamStoreTitle(String value, RustBridgeService? rustBridge) {
+    var folded = _lookupName(value, rustBridge).toLowerCase();
     const replacements = <String, String>{
       '\u00e0': 'a',
       '\u00e1': 'a',

@@ -92,7 +92,11 @@ extension _CoverArtServiceApiSecurity on CoverArtService {
     await subscription.cancel();
   }
 
-  bool _isTrustedSteamGridImageUri(Uri uri) {
+  /// Whether [uri] is an https image host allowed for [source].
+  ///
+  /// A source without an entry in [_trustedImageHosts] fails closed, so adding
+  /// a cover provider cannot silently inherit another provider's allowlist.
+  bool _isTrustedImageUri(Uri uri, CoverArtSource source) {
     if (!uri.hasScheme || uri.scheme.toLowerCase() != 'https') {
       return false;
     }
@@ -104,25 +108,31 @@ extension _CoverArtServiceApiSecurity on CoverArtService {
       return false;
     }
 
-    return host == 'steamgriddb.com' || host.endsWith('.steamgriddb.com');
-  }
-
-  bool _isTrustedSteamStoreImageUri(Uri uri) {
-    if (!uri.hasScheme || uri.scheme.toLowerCase() != 'https') {
+    final allowed = _trustedImageHosts[source];
+    if (allowed == null) {
       return false;
     }
-
-    final host = uri.host.toLowerCase();
-    if (host.isEmpty ||
-        host == 'localhost' ||
-        _ipv4HostPattern.hasMatch(host)) {
-      return false;
-    }
-
-    return host == 'shared.akamai.steamstatic.com' ||
-        host == 'shared.fastly.steamstatic.com';
+    return allowed.any(
+      (allowedHost) =>
+          host == allowedHost ||
+          (allowedHost.startsWith('.') && host.endsWith(allowedHost)),
+    );
   }
 }
+
+/// Image hosts each cover source may download from. A leading dot matches any
+/// subdomain of that suffix.
+const Map<CoverArtSource, Set<String>> _trustedImageHosts =
+    <CoverArtSource, Set<String>>{
+      CoverArtSource.steamGridDbApi: <String>{
+        'steamgriddb.com',
+        '.steamgriddb.com',
+      },
+      CoverArtSource.steamStoreApi: <String>{
+        'shared.akamai.steamstatic.com',
+        'shared.fastly.steamstatic.com',
+      },
+    };
 
 class _BoundedImageResponse {
   const _BoundedImageResponse({

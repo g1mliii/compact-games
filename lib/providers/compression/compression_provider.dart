@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/game_path_key.dart';
 import '../../models/compression_algorithm.dart';
 import '../../models/compression_progress.dart';
 import '../games/game_list_provider.dart';
@@ -52,7 +53,8 @@ class CompressionNotifier extends Notifier<CompressionState> {
     CompressionAlgorithm? algorithm,
     bool? allowDirectStorageOverride,
   }) async {
-    if (ref.read(restoreGateProvider) || _containsGamePath(gamePath)) {
+    // Duplicate-path admission is enforced once, in [_scheduleJob].
+    if (ref.read(restoreGateProvider)) {
       return false;
     }
 
@@ -151,7 +153,6 @@ class CompressionNotifier extends Notifier<CompressionState> {
     required String gamePath,
     required String gameName,
   }) async {
-    if (_containsGamePath(gamePath)) return null;
     final completion = Completer<CompressionJobStatus>();
     final started = _scheduleDecompression(
       gamePath: gamePath,
@@ -167,7 +168,6 @@ class CompressionNotifier extends Notifier<CompressionState> {
     required String gameName,
     Completer<CompressionJobStatus>? completion,
   }) {
-    if (_containsGamePath(gamePath)) return false;
     final settings = ref.read(settingsProvider).value?.settings;
     return _scheduleJob(
       CompressionJobState(
@@ -264,24 +264,16 @@ class CompressionNotifier extends Notifier<CompressionState> {
   }
 
   bool _containsGamePath(String gamePath) {
-    final normalizedPath = _normalizeGamePath(gamePath);
+    final normalizedPath = gamePathKey(gamePath);
     final activeJob = state.activeJob;
     if (activeJob != null &&
         (activeJob.isActive || _progressSubscription != null) &&
-        _normalizeGamePath(activeJob.gamePath) == normalizedPath) {
+        gamePathKey(activeJob.gamePath) == normalizedPath) {
       return true;
     }
     return state.queue.any(
-      (job) => _normalizeGamePath(job.gamePath) == normalizedPath,
+      (job) => gamePathKey(job.gamePath) == normalizedPath,
     );
-  }
-
-  String _normalizeGamePath(String gamePath) {
-    var normalized = gamePath.trim().replaceAll('/', '\\').toLowerCase();
-    while (normalized.length > 3 && normalized.endsWith('\\')) {
-      normalized = normalized.substring(0, normalized.length - 1);
-    }
-    return normalized;
   }
 
   void _completeQueuedJob(int runId, CompressionJobStatus status) {
@@ -460,17 +452,10 @@ class CompressionNotifier extends Notifier<CompressionState> {
     }
     if (state.queue.isEmpty) return;
 
-    final terminalJob = state.activeJob;
-    if (terminalJob != null) {
-      _archiveJob(terminalJob);
-    }
-    if (state.queue.isEmpty) return;
-
     final nextJob = state.queue.first;
-    state = state.copyWith(
-      activeJob: () => null,
-      queue: state.queue.skip(1).toList(growable: false),
-    );
+    state = state.copyWith(queue: state.queue.skip(1).toList(growable: false));
+    // [_beginJob] archives the outgoing terminal job before it starts the next
+    // one, so the queue advance does not need to clear the active slot itself.
     _beginJob(nextJob);
   }
 

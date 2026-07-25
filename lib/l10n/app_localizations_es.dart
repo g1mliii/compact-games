@@ -1038,6 +1038,24 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsRestoreFailuresTitle => 'Errores de restauración';
 
   @override
+  String get settingsRestoreFailureAlreadyQueued =>
+      'El juego ya tiene una operación en cola.';
+
+  @override
+  String get settingsRestoreFailureCancelled => 'Se canceló la descompresión.';
+
+  @override
+  String get settingsRestoreFailureFailed => 'Error en la descompresión.';
+
+  @override
+  String get settingsRestoreFailureIncomplete => 'La descompresión no terminó.';
+
+  @override
+  String settingsRestoreFailureError(String error) {
+    return 'Error en la descompresión: $error';
+  }
+
+  @override
   String get settingsRestoreSkip => 'Omitir';
 
   @override

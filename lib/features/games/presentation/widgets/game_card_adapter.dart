@@ -465,12 +465,8 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     final l10n = context.l10n;
     final isExcluded = _readIsExcluded(game.path);
     final allowDirectStorageOverride = _readDirectStorageOverride();
-    final queue = ref.read(compressionProvider).queue;
-    final queuedJobIndex = queue.indexWhere(
-      (job) => job.gamePath.toLowerCase() == game.path.toLowerCase(),
-    );
-    final queuePosition = queuedJobIndex < 0 ? null : queuedJobIndex + 1;
-    final queuedJob = queuedJobIndex < 0 ? null : queue[queuedJobIndex];
+    final queuePosition = ref.read(compressionQueuePositionProvider(game.path));
+    final queuedJob = ref.read(compressionQueueEntryProvider(game.path));
     final action = await showMenu<GameContextAction>(
       context: context,
       position: _menuPosition(tapDown),

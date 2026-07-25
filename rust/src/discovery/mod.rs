@@ -4,6 +4,7 @@ pub mod change_feed;
 pub mod custom;
 pub mod ea;
 pub mod epic;
+pub mod game_name;
 pub mod gog;
 pub mod hidden_paths;
 pub mod index;

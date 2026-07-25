@@ -219,6 +219,16 @@ fn remove_game_from_discovery_inner(game_path: &Path, platform: Platform) {
     crate::discovery::hidden_paths::hide_path(&stats_path);
 }
 
+/// Strip release-site, scene-group, version, and language tags from a game name.
+///
+/// Exposed so the Dart cover-art lookup uses the exact rules discovery used to
+/// build the displayed title — one rule set, one place to add a newly observed
+/// tag.
+#[frb(sync)]
+pub fn normalize_game_name(name: String) -> String {
+    crate::discovery::game_name::normalize_game_name(&name)
+}
+
 fn discovery_stats_path(game_path: &Path, platform: Platform) -> PathBuf {
     if platform == Platform::XboxGamePass && game_path.join("Content").is_dir() {
         game_path.join("Content")

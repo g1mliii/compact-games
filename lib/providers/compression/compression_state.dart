@@ -77,8 +77,6 @@ class CompressionState {
   bool get hasActiveJob => activeJob != null && activeJob!.isActive;
   int get queueLength => queue.length;
 
-  bool isQueued(int runId) => queue.any((job) => job.runId == runId);
-
   CompressionState copyWith({
     CompressionJobState? Function()? activeJob,
     List<CompressionJobState>? queue,

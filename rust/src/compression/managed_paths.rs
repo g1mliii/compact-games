@@ -193,6 +193,24 @@ fn merge_history_entries(ledger: &mut ManagedPathLedger, history: Vec<Compressio
     }
 }
 
+/// Apply `edit` to a copy of the ledger and persist it when it reports a change.
+///
+/// Every mutation goes through here so the load guard, the write lock, and the
+/// write-then-swap commit order live in one place.
+fn mutate_ledger(edit: impl FnOnce(&mut ManagedPathLedger) -> bool) -> std::io::Result<()> {
+    ensure_loaded();
+    let mut guard = LEDGER
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let ledger = guard.get_or_insert_with(default_ledger);
+
+    let mut next_ledger = ledger.clone();
+    if !edit(&mut next_ledger) {
+        return Ok(());
+    }
+    commit_ledger(ledger, next_ledger)
+}
+
 /// Add or update an owned path after compression succeeds.
 pub fn record_managed_compression(
     game_path: String,
@@ -200,17 +218,6 @@ pub fn record_managed_compression(
     original_bytes: u64,
     compressed_bytes: u64,
 ) -> std::io::Result<()> {
-    ensure_loaded();
-    let mut guard = LEDGER
-        .write()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let Some(ledger) = guard.as_mut() else {
-        return Err(std::io::Error::other(
-            "managed-path ledger was not initialized",
-        ));
-    };
-
-    let mut next_ledger = ledger.clone();
     let key = crate::utils::normalize_path_key(Path::new(&game_path));
     let next = ManagedPathEntry {
         game_path,
@@ -219,41 +226,30 @@ pub fn record_managed_compression(
         original_bytes,
         compressed_bytes,
     };
-    if let Some(existing) = next_ledger
-        .entries
-        .iter_mut()
-        .find(|entry| crate::utils::normalize_path_key(Path::new(&entry.game_path)) == key)
-    {
-        *existing = next;
-    } else {
-        next_ledger.entries.push(next);
-    }
-
-    commit_ledger(ledger, next_ledger)
+    mutate_ledger(|ledger| {
+        if let Some(existing) = ledger
+            .entries
+            .iter_mut()
+            .find(|entry| crate::utils::normalize_path_key(Path::new(&entry.game_path)) == key)
+        {
+            *existing = next;
+        } else {
+            ledger.entries.push(next);
+        }
+        true
+    })
 }
 
 /// Remove an owned path after decompression succeeds.
 pub fn remove_managed_path(game_path: &Path) -> std::io::Result<()> {
-    ensure_loaded();
-    let mut guard = LEDGER
-        .write()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let Some(ledger) = guard.as_mut() else {
-        return Err(std::io::Error::other(
-            "managed-path ledger was not initialized",
-        ));
-    };
-    let mut next_ledger = ledger.clone();
     let key = crate::utils::normalize_path_key(game_path);
-    let previous_len = next_ledger.entries.len();
-    next_ledger
-        .entries
-        .retain(|entry| crate::utils::normalize_path_key(Path::new(&entry.game_path)) != key);
-    if next_ledger.entries.len() == previous_len {
-        return Ok(());
-    }
-
-    commit_ledger(ledger, next_ledger)
+    mutate_ledger(|ledger| {
+        let previous_len = ledger.entries.len();
+        ledger
+            .entries
+            .retain(|entry| crate::utils::normalize_path_key(Path::new(&entry.game_path)) != key);
+        ledger.entries.len() != previous_len
+    })
 }
 
 /// Recheck every owned path and build a restore preflight plan.
@@ -353,20 +349,13 @@ pub fn build_restore_plan() -> Result<ManagedRestorePlan, CompressionError> {
 }
 
 fn remove_stale_entries(stale_keys: &[String]) -> std::io::Result<()> {
-    let mut guard = LEDGER
-        .write()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let Some(ledger) = guard.as_mut() else {
-        return Err(std::io::Error::other(
-            "managed-path ledger was not initialized",
-        ));
-    };
-    let mut next_ledger = ledger.clone();
-    next_ledger.entries.retain(|entry| {
-        let key = crate::utils::normalize_path_key(Path::new(&entry.game_path));
-        !stale_keys.contains(&key)
-    });
-    commit_ledger(ledger, next_ledger)
+    mutate_ledger(|ledger| {
+        ledger.entries.retain(|entry| {
+            let key = crate::utils::normalize_path_key(Path::new(&entry.game_path));
+            !stale_keys.contains(&key)
+        });
+        true
+    })
 }
 
 fn persist_ledger(ledger: &ManagedPathLedger) -> std::io::Result<()> {

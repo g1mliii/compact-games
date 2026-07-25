@@ -982,6 +982,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsRestoreFailuresTitle => '还原失败';
 
   @override
+  String get settingsRestoreFailureAlreadyQueued => '该游戏已有排队中的操作。';
+
+  @override
+  String get settingsRestoreFailureCancelled => '解压缩已取消。';
+
+  @override
+  String get settingsRestoreFailureFailed => '解压缩失败。';
+
+  @override
+  String get settingsRestoreFailureIncomplete => '解压缩未完成。';
+
+  @override
+  String settingsRestoreFailureError(String error) {
+    return '解压缩失败：$error';
+  }
+
+  @override
   String get settingsRestoreSkip => '跳过';
 
   @override

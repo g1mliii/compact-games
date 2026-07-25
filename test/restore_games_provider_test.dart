@@ -83,56 +83,64 @@ void main() {
     expect(container.read(restoreGamesProvider).plan?.hasEnoughSpace, isFalse);
   });
 
-  test('failed restore stays paused until the failure is skipped', () async {
-    final bridge = _RestoreQueueBridge();
-    final singlePlan = ManagedRestorePlan(
-      games: const [
-        ManagedRestoreGame(
-          gamePath: r'C:\Games\A',
-          gameName: 'A',
-          drive: r'C:\',
-          requiredBytes: 1_000,
-        ),
-      ],
-      drives: const [
-        ManagedRestoreDrive(
-          drive: r'C:\',
-          requiredBytes: 1_000,
-          availableBytes: 5_000,
-        ),
-      ],
-    );
-    final container = ProviderContainer(
-      overrides: [
-        rustBridgeServiceProvider.overrideWithValue(bridge),
-        managedRestoreServiceProvider.overrideWithValue(
-          _FakeManagedRestoreService(() => singlePlan),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-    addTearDown(bridge.dispose);
+  test(
+    'failed restore releases the gate and keeps the failure skippable',
+    () async {
+      final bridge = _RestoreQueueBridge();
+      final singlePlan = ManagedRestorePlan(
+        games: const [
+          ManagedRestoreGame(
+            gamePath: r'C:\Games\A',
+            gameName: 'A',
+            drive: r'C:\',
+            requiredBytes: 1_000,
+          ),
+        ],
+        drives: const [
+          ManagedRestoreDrive(
+            drive: r'C:\',
+            requiredBytes: 1_000,
+            availableBytes: 5_000,
+          ),
+        ],
+      );
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          managedRestoreServiceProvider.overrideWithValue(
+            _FakeManagedRestoreService(() => singlePlan),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(bridge.dispose);
 
-    container.read(restoreGamesProvider);
-    await _flushEvents();
-    final restore = container.read(restoreGamesProvider.notifier).restoreAll();
-    await _flushEvents();
-    bridge.failActive('locked file');
-    await restore;
+      container.read(restoreGamesProvider);
+      await _flushEvents();
+      final restore = container
+          .read(restoreGamesProvider.notifier)
+          .restoreAll();
+      await _flushEvents();
+      bridge.failActive('locked file');
+      await restore;
 
-    expect(container.read(restoreGamesProvider).failures, hasLength(1));
-    expect(container.read(restoreGateProvider), isTrue);
+      expect(container.read(restoreGamesProvider).failures, hasLength(1));
+      // The run has stopped, so the gate is released even with failures pending:
+      // holding it would block every manual and automatic compression app-wide
+      // with no user feedback. Each retry re-pauses it for its own decompression.
+      expect(container.read(restoreGateProvider), isFalse);
 
-    await container
-        .read(restoreGamesProvider.notifier)
-        .skipFailure(r'C:\Games\A');
+      await container
+          .read(restoreGamesProvider.notifier)
+          .skipFailure(r'C:\Games\A');
 
-    final state = container.read(restoreGamesProvider);
-    expect(state.failures, isEmpty);
-    expect(state.skippedGames, hasLength(1));
-    expect(state.canOfferUninstall, isFalse);
-    expect(container.read(restoreGateProvider), isFalse);
-  });
+      final state = container.read(restoreGamesProvider);
+      expect(state.failures, isEmpty);
+      expect(state.skippedGames, hasLength(1));
+      expect(state.canOfferUninstall, isFalse);
+      expect(container.read(restoreGateProvider), isFalse);
+    },
+  );
 }
 
 ManagedRestorePlan _plan({required int availableBytes}) {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/game_path_key.dart';
 import '../../models/managed_restore_plan.dart';
 import '../../services/managed_restore_service.dart';
 import '../compression/compression_provider.dart';
@@ -14,11 +15,39 @@ final restoreGamesProvider =
       RestoreGamesNotifier.new,
     );
 
+/// Why a managed game could not be restored.
+///
+/// The provider records the reason, never the sentence: display text is
+/// resolved through `l10n` at the widget layer so failures are translated and
+/// no job-status enum name leaks into the UI.
+sealed class RestoreFailureReason {
+  const RestoreFailureReason();
+}
+
+/// Compression admission rejected the game because it is already queued.
+class RestoreAlreadyQueued extends RestoreFailureReason {
+  const RestoreAlreadyQueued();
+}
+
+/// The decompression job ended in a state other than completed.
+class RestoreEndedWith extends RestoreFailureReason {
+  const RestoreEndedWith(this.status);
+
+  final CompressionJobStatus status;
+}
+
+/// The decompression call threw before or while running.
+class RestoreThrew extends RestoreFailureReason {
+  const RestoreThrew(this.error);
+
+  final String error;
+}
+
 class RestoreFailure {
-  const RestoreFailure({required this.game, required this.message});
+  const RestoreFailure({required this.game, required this.reason});
 
   final ManagedRestoreGame game;
-  final String message;
+  final RestoreFailureReason reason;
 }
 
 class RestoreGamesState {
@@ -160,24 +189,18 @@ class RestoreGamesNotifier extends Notifier<RestoreGamesState> {
     final failures = <RestoreFailure>[];
     var completed = 0;
     for (final entry in queued.entries) {
-      CompressionJobStatus? status;
       try {
-        status = await entry.value;
+        final status = await entry.value;
+        if (status == CompressionJobStatus.completed) {
+          completed += 1;
+        } else {
+          failures.add(
+            RestoreFailure(game: entry.key, reason: _statusReason(status)),
+          );
+        }
       } catch (error) {
         failures.add(
-          RestoreFailure(game: entry.key, message: error.toString()),
-        );
-      }
-      if (status == CompressionJobStatus.completed) {
-        completed += 1;
-      } else if (!failures.any((failure) => failure.game == entry.key)) {
-        failures.add(
-          RestoreFailure(
-            game: entry.key,
-            message: status == null
-                ? 'The game already has a queued operation.'
-                : 'Decompression ended with ${status.name}.',
-          ),
+          RestoreFailure(game: entry.key, reason: RestoreThrew('$error')),
         );
       }
       state = state.copyWith(
@@ -219,7 +242,7 @@ class RestoreGamesNotifier extends Notifier<RestoreGamesState> {
   Future<void> retryFailure(String gamePath) async {
     if (state.isRestoring) return;
     final index = state.failures.indexWhere(
-      (failure) => _pathKey(failure.game.gamePath) == _pathKey(gamePath),
+      (failure) => gamePathKey(failure.game.gamePath) == gamePathKey(gamePath),
     );
     if (index < 0) return;
     final failure = state.failures[index];
@@ -227,7 +250,7 @@ class RestoreGamesNotifier extends Notifier<RestoreGamesState> {
     _pauseAutomationAndCompressionAdmission();
     state = state.copyWith(isRestoring: true, error: () => null);
     CompressionJobStatus? status;
-    String? failureMessage;
+    RestoreFailureReason? thrownReason;
     try {
       status = await ref
           .read(compressionProvider.notifier)
@@ -236,7 +259,7 @@ class RestoreGamesNotifier extends Notifier<RestoreGamesState> {
             gameName: failure.game.gameName,
           );
     } catch (error) {
-      failureMessage = error.toString();
+      thrownReason = RestoreThrew('$error');
     }
 
     final failures = <RestoreFailure>[...state.failures]..removeAt(index);
@@ -247,11 +270,7 @@ class RestoreGamesNotifier extends Notifier<RestoreGamesState> {
       failures.add(
         RestoreFailure(
           game: failure.game,
-          message:
-              failureMessage ??
-              (status == null
-                  ? 'The game already has a queued operation.'
-                  : 'Decompression ended with ${status.name}.'),
+          reason: thrownReason ?? _statusReason(status),
         ),
       );
     }
@@ -274,7 +293,7 @@ class RestoreGamesNotifier extends Notifier<RestoreGamesState> {
   Future<void> skipFailure(String gamePath) async {
     if (state.isRestoring) return;
     final index = state.failures.indexWhere(
-      (failure) => _pathKey(failure.game.gamePath) == _pathKey(gamePath),
+      (failure) => gamePathKey(failure.game.gamePath) == gamePathKey(gamePath),
     );
     if (index < 0) return;
     final skipped = state.failures[index].game;
@@ -324,11 +343,7 @@ class RestoreGamesNotifier extends Notifier<RestoreGamesState> {
     }
   }
 
-  String _pathKey(String path) {
-    var normalized = path.trim().replaceAll('/', r'\').toLowerCase();
-    while (normalized.length > 3 && normalized.endsWith(r'\')) {
-      normalized = normalized.substring(0, normalized.length - 1);
-    }
-    return normalized;
-  }
+  /// A null status means admission rejected the game (already queued).
+  RestoreFailureReason _statusReason(CompressionJobStatus? status) =>
+      status == null ? const RestoreAlreadyQueued() : RestoreEndedWith(status);
 }

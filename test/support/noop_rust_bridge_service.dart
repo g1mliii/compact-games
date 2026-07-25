@@ -107,6 +107,9 @@ class NoOpRustBridgeService implements RustBridgeService {
   Future<String?> discoverPrimaryExe(String folder) async => null;
 
   @override
+  String normalizeGameName(String name) => name.trim();
+
+  @override
   Future<rust_update.UpdateCheckResult> checkForUpdate({
     required String currentVersion,
   }) async => const rust_update.UpdateCheckResult(

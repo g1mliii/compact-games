@@ -265,6 +265,14 @@ class RustBridgeService {
     return rust_icon.discoverPrimaryExe(folder: folder);
   }
 
+  /// Strip release-site, scene, version, and language tags from a game name.
+  ///
+  /// Shares the discovery normalizer, so a cover-art query is built from the
+  /// same rules that produced the title shown on the card.
+  String normalizeGameName(String name) {
+    return rust_discovery.normalizeGameName(name: name);
+  }
+
   Future<int> fetchCommunityUnsupportedList() {
     return rust_unsupported.fetchCommunityUnsupportedList();
   }

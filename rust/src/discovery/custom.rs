@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use rayon::prelude::*;
 use walkdir::WalkDir;
 
+use super::game_name::normalize_game_name;
 use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
@@ -22,30 +23,6 @@ const MAX_SIZE_SAMPLE_DEPTH: usize = 3;
 const MAX_SIZE_SAMPLE_FILES: usize = 50;
 /// Max non-directory entries allowed in a wrapper folder (e.g. a readme or shortcut).
 const MAX_WRAPPER_LOOSE_FILES: usize = 3;
-
-/// Release-site and scene-group suffixes commonly found on extracted games.
-///
-/// Keep this in sync with the lookup normalizer's core suffixes in Dart.
-const GAME_RELEASE_SUFFIXES: &[&str] = &[
-    "steamgg.net",
-    "steamrip",
-    "fitgirl repack",
-    "fitgirl",
-    "dodi repack",
-    "dodi",
-    "elamigos",
-    "codex",
-    "plaza",
-    "skidrow",
-    "empress",
-    "rune",
-    "tenoke",
-    "gog",
-    "repack",
-    "early access",
-];
-const AMBIGUOUS_GAME_RELEASE_SUFFIXES: &[&str] =
-    &["codex", "plaza", "skidrow", "empress", "rune", "tenoke"];
 
 /// Non-game folders to always skip.
 const SKIP_FOLDERS: &[&str] = &[
@@ -142,7 +119,7 @@ fn scan_custom_path(
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Unknown Game".to_owned());
-        let name = normalize_game_display_name(&name);
+        let name = normalize_game_name(&name);
 
         if let Some(game) =
             utils::build_game_info_with_mode(name, root.to_path_buf(), Platform::Custom, mode)
@@ -218,11 +195,11 @@ struct ResolvedCandidate {
 }
 
 fn resolve_display_name(outer_name: &str, inner_name: Option<&str>) -> String {
-    let outer_clean = normalize_game_display_name(outer_name);
+    let outer_clean = normalize_game_name(outer_name);
     let Some(inner_name) = inner_name else {
         return outer_clean;
     };
-    let inner_clean = normalize_game_display_name(inner_name);
+    let inner_clean = normalize_game_name(inner_name);
 
     // When both folders describe the same title, keep whichever spelling
     // carries real casing. The wrapper is often a user-renamed folder with
@@ -249,62 +226,14 @@ fn prefer_better_cased(primary: String, secondary: String) -> String {
     }
 }
 
-fn normalize_game_display_name(name: &str) -> String {
-    let original = name.trim();
-    if original.is_empty() {
-        return original.to_owned();
-    }
-
-    let mut normalized = original.to_owned();
-    loop {
-        let before = normalized.clone();
-        normalized = normalized
-            .trim_end_matches(is_release_separator)
-            .trim()
-            .to_owned();
-        let lower = normalized.to_ascii_lowercase();
-
-        for suffix in GAME_RELEASE_SUFFIXES {
-            if !lower.ends_with(suffix) || normalized.len() == suffix.len() {
-                continue;
-            }
-            let prefix_end = normalized.len() - suffix.len();
-            let prefix = &normalized[..prefix_end];
-            let has_boundary = if AMBIGUOUS_GAME_RELEASE_SUFFIXES.contains(suffix) {
-                prefix
-                    .trim_end_matches(char::is_whitespace)
-                    .chars()
-                    .next_back()
-                    .is_some_and(is_strong_release_separator)
-            } else {
-                prefix.chars().next_back().is_some_and(is_release_separator)
-            };
-            if has_boundary {
-                normalized = prefix
-                    .trim_end_matches(is_release_separator)
-                    .trim()
-                    .to_owned();
-                break;
-            }
-        }
-
-        if normalized == before {
-            break;
-        }
-    }
-
-    let collapsed = normalized.split_whitespace().collect::<Vec<_>>().join(" ");
-    if collapsed.is_empty() {
-        original.to_owned()
-    } else {
-        collapsed
-    }
-}
-
+/// Comparison key for "are these two folder names the same title".
+///
+/// Input is expected to be already normalized; the extra pass keeps the key
+/// correct for raw callers and is idempotent.
 fn game_name_comparison_key(name: &str) -> String {
     let mut key = String::with_capacity(name.len());
     let mut pending_space = false;
-    for ch in normalize_game_display_name(name).chars() {
+    for ch in normalize_game_name(name).chars() {
         if ch.is_alphanumeric() {
             if pending_space && !key.is_empty() {
                 key.push(' ');
@@ -316,14 +245,6 @@ fn game_name_comparison_key(name: &str) -> String {
         }
     }
     key
-}
-
-fn is_release_separator(ch: char) -> bool {
-    ch.is_whitespace() || matches!(ch, '-' | '–' | '—' | '_' | '|' | ':')
-}
-
-fn is_strong_release_separator(ch: char) -> bool {
-    matches!(ch, '-' | '–' | '—' | '_' | '|' | ':')
 }
 
 /// Returns the resolved game path if `path` (or its single wrapped child)

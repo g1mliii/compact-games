@@ -20,12 +20,9 @@ use crate::compression::engine::{
     CancellationToken, CompressionEngine, CompressionProgressHandle, EstimateGameContext,
 };
 use crate::compression::error::CompressionError;
-use crate::compression::history::{
-    persist_if_dirty, record_compression, CompressionHistoryEntry, EstimateSnapshot,
-};
-use crate::compression::managed_paths::{
-    build_restore_plan, record_managed_compression, remove_managed_path,
-};
+use crate::compression::history::{persist_if_dirty, EstimateSnapshot};
+use crate::compression::managed_paths::{build_restore_plan, remove_managed_path};
+use crate::compression::record_successful_compression;
 
 use crate::compression::thread_policy::compute_thread_policy;
 use crate::frb_generated::StreamSink;
@@ -219,27 +216,13 @@ pub fn compress_game(
                 saved_ratio
             );
 
-            record_compression(CompressionHistoryEntry::from_compression_stats(
+            record_successful_compression(
                 game_path.clone(),
-                game_name.clone(),
+                game_name,
                 estimate_snapshot,
                 &stats,
                 algo,
-            ));
-            if let Err(error) = record_managed_compression(
-                game_path.clone(),
-                game_name,
-                stats.original_bytes,
-                stats.compressed_bytes,
-            ) {
-                // The files are compressed and history is recorded; a failure to
-                // persist the ownership ledger must not be reported to the user
-                // as a failed compression. The game is simply not tracked for
-                // managed restore until the ledger becomes writable again.
-                log::warn!(
-                    "Compression completed for \"{game_path}\", but its restore record could not be saved: {error}"
-                );
-            }
+            );
 
             Ok(stats.into())
         }

@@ -49,6 +49,9 @@ class _TestRustBridgeService implements RustBridgeService {
   final List<GameInfo> games;
   final bool autoCompressionRunning;
   final List<CompressionEstimate> compressionEstimates;
+
+  @override
+  String normalizeGameName(String name) => name.trim();
   int compressCalls = 0;
   int decompressCalls = 0;
   int estimateCompressionSavingsCalls = 0;

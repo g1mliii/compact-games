@@ -1019,6 +1019,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsRestoreFailuresTitle => 'Restore failures';
 
   @override
+  String get settingsRestoreFailureAlreadyQueued =>
+      'The game already has a queued operation.';
+
+  @override
+  String get settingsRestoreFailureCancelled => 'Decompression was cancelled.';
+
+  @override
+  String get settingsRestoreFailureFailed => 'Decompression failed.';
+
+  @override
+  String get settingsRestoreFailureIncomplete =>
+      'Decompression did not finish.';
+
+  @override
+  String settingsRestoreFailureError(String error) {
+    return 'Decompression failed: $error';
+  }
+
+  @override
   String get settingsRestoreSkip => 'Skip';
 
   @override

@@ -1844,6 +1844,36 @@ abstract class AppLocalizations {
   /// **'Restore failures'**
   String get settingsRestoreFailuresTitle;
 
+  /// Restore failure reason: compression admission rejected the game because it is already queued.
+  ///
+  /// In en, this message translates to:
+  /// **'The game already has a queued operation.'**
+  String get settingsRestoreFailureAlreadyQueued;
+
+  /// Restore failure reason: the decompression job was cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Decompression was cancelled.'**
+  String get settingsRestoreFailureCancelled;
+
+  /// Restore failure reason: the decompression job reported a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Decompression failed.'**
+  String get settingsRestoreFailureFailed;
+
+  /// Restore failure reason: the decompression job ended without completing.
+  ///
+  /// In en, this message translates to:
+  /// **'Decompression did not finish.'**
+  String get settingsRestoreFailureIncomplete;
+
+  /// Restore failure reason: the decompression call threw. {error} is the raw error text.
+  ///
+  /// In en, this message translates to:
+  /// **'Decompression failed: {error}'**
+  String settingsRestoreFailureError(String error);
+
   /// Action to leave one failed game compressed.
   ///
   /// In en, this message translates to:

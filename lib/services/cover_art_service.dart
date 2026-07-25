@@ -11,7 +11,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/config/cover_art_proxy_config.dart';
 import '../core/constants/app_constants.dart';
-import '../core/utils/game_name_normalizer.dart';
 import '../models/app_settings.dart';
 import '../models/compression_estimate.dart';
 import '../models/game_info.dart';
@@ -237,6 +236,7 @@ class CoverArtService {
         apiKey: steamGridDbApiKey,
         providerMode: coverArtProviderMode,
         proxyConfig: coverArtProxyConfig,
+        rustBridge: rustBridge,
       );
       if (primaryLookup.cover != null) {
         return store(primaryLookup.cover!);
@@ -255,6 +255,7 @@ class CoverArtService {
           apiKey: steamGridDbApiKey,
           providerMode: coverArtProviderMode,
           proxyConfig: coverArtProxyConfig,
+          rustBridge: rustBridge,
         );
         if (executableLookup.cover != null) {
           return store(executableLookup.cover!);
@@ -270,6 +271,7 @@ class CoverArtService {
           game,
           cacheKey: cacheKey,
           alternateLookupName: executableLookupName,
+          rustBridge: rustBridge,
         );
         if (steamStoreCover != null) {
           return store(steamStoreCover);
@@ -470,12 +472,20 @@ class CoverArtService {
     );
   }
 
+  /// Normalizes a game name for lookup using the Rust discovery rules.
+  ///
+  /// Without a bridge — unit tests — the raw name is used; that only costs
+  /// query quality, never correctness.
+  String _lookupName(String name, RustBridgeService? rustBridge) =>
+      rustBridge?.normalizeGameName(name) ?? name.trim();
+
   Future<_CoverArtProviderLookup> _resolveApiCover(
     GameInfo game, {
     required String cacheKey,
     required String? apiKey,
     required CoverArtProviderMode providerMode,
     required CoverArtProxyConfig proxyConfig,
+    required RustBridgeService? rustBridge,
   }) async {
     if (providerMode == CoverArtProviderMode.bundledProxy) {
       final proxyLookup = await _resolveSteamGridDbCoverViaProxy(
@@ -505,6 +515,7 @@ class CoverArtService {
       game,
       cacheKey: cacheKey,
       apiKey: normalizedApiKey,
+      rustBridge: rustBridge,
     );
     return apiPath == null
         ? const _CoverArtProviderLookup.unavailable()

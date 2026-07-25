@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../core/utils/game_path_key.dart';
 import '../../models/compression_progress.dart';
 import '../system/route_state_provider.dart';
 import 'compression_state.dart';
@@ -92,34 +93,40 @@ final compressionQueueProvider = Provider<List<CompressionJobState>>((ref) {
   return ref.watch(compressionProvider.select((state) => state.queue));
 });
 
-/// Number of pending manual jobs.
-final compressionQueueCountProvider = Provider<int>((ref) {
-  return ref.watch(compressionProvider.select((state) => state.queueLength));
+/// Zero-based queue slot per normalized game path.
+///
+/// Derived from [compressionQueueProvider] so path normalization runs once per
+/// queue change rather than once per card on every progress tick.
+final _compressionQueueIndexProvider = Provider<Map<String, int>>((ref) {
+  final queue = ref.watch(compressionQueueProvider);
+  final index = <String, int>{};
+  for (var slot = 0; slot < queue.length; slot++) {
+    index.putIfAbsent(gamePathKey(queue[slot].gamePath), () => slot);
+  }
+  return index;
 });
 
 /// One-based pending queue position for a game path, or null when not queued.
-final compressionQueuePositionProvider = Provider.family<int?, String>((
-  ref,
-  gamePath,
-) {
-  String normalizePath(String path) {
-    var normalized = path.trim().replaceAll('/', '\\').toLowerCase();
-    while (normalized.length > 3 && normalized.endsWith('\\')) {
-      normalized = normalized.substring(0, normalized.length - 1);
-    }
-    return normalized;
-  }
-
-  final normalizedPath = normalizePath(gamePath);
-  return ref.watch(
-    compressionProvider.select((state) {
-      final index = state.queue.indexWhere(
-        (job) => normalizePath(job.gamePath) == normalizedPath,
+final compressionQueuePositionProvider = Provider.autoDispose
+    .family<int?, String>((ref, gamePath) {
+      final key = gamePathKey(gamePath);
+      final slot = ref.watch(
+        _compressionQueueIndexProvider.select((index) => index[key]),
       );
-      return index < 0 ? null : index + 1;
-    }),
-  );
-});
+      return slot == null ? null : slot + 1;
+    });
+
+/// Pending queue entry for a game path, or null when not queued.
+final compressionQueueEntryProvider = Provider.autoDispose
+    .family<CompressionJobState?, String>((ref, gamePath) {
+      final key = gamePathKey(gamePath);
+      final slot = ref.watch(
+        _compressionQueueIndexProvider.select((index) => index[key]),
+      );
+      if (slot == null) return null;
+      final queue = ref.watch(compressionQueueProvider);
+      return slot < queue.length ? queue[slot] : null;
+    });
 
 /// Active compression/decompression job. Null when idle.
 final activeCompressionJobProvider = Provider<CompressionJobState?>((ref) {

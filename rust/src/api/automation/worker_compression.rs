@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::automation::scheduler::AutomationJob;
 use crate::compression::algorithm::CompressionAlgorithm;
 use crate::compression::engine::{CancellationToken, CompressionEngine};
-use crate::compression::history::{record_compression, CompressionHistoryEntry};
-use crate::compression::managed_paths::record_managed_compression;
+use crate::compression::record_successful_compression;
 use crate::compression::thread_policy::compute_thread_policy;
 use crate::safety::directstorage::is_directstorage_game;
 use crate::safety::process::ProcessChecker;
@@ -136,30 +135,13 @@ pub(super) fn spawn_compression_job(
                     );
                     // Auto path skips pre-flight estimate; None keeps history usable
                     // for "last compressed" without biasing adaptive estimate learning.
-                    record_compression(CompressionHistoryEntry::from_compression_stats(
+                    record_successful_compression(
                         game_path.to_string_lossy().into_owned(),
                         game_name.clone().unwrap_or_else(|| "unknown".to_string()),
                         None,
                         &stats,
                         algorithm,
-                    ));
-                    let ownership_result = record_managed_compression(
-                        game_path.to_string_lossy().into_owned(),
-                        game_name.clone().unwrap_or_else(|| "unknown".to_string()),
-                        stats.original_bytes,
-                        stats.compressed_bytes,
                     );
-                    // A ledger-write failure must not mark an already-compressed
-                    // game as Failed: the scheduler would otherwise treat it as
-                    // unfinished and recompress it. The files are compressed and
-                    // history is recorded; the game is just not tracked for
-                    // managed restore until the ledger becomes writable again.
-                    if let Err(error) = ownership_result {
-                        log::error!(
-                            "Auto-compression completed for {}, but its restore record could not be saved: {error}",
-                            game_path.display()
-                        );
-                    }
                     CompressionResult::Success { idempotency_key }
                 }
                 Err(crate::compression::error::CompressionError::Cancelled) => {

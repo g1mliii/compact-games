@@ -1391,6 +1391,31 @@
   "@settingsRestoreFailuresTitle": {
     "description": "Heading above failed restore jobs."
   },
+  "settingsRestoreFailureAlreadyQueued": "The game already has a queued operation.",
+  "@settingsRestoreFailureAlreadyQueued": {
+    "description": "Restore failure reason: compression admission rejected the game because it is already queued."
+  },
+  "settingsRestoreFailureCancelled": "Decompression was cancelled.",
+  "@settingsRestoreFailureCancelled": {
+    "description": "Restore failure reason: the decompression job was cancelled."
+  },
+  "settingsRestoreFailureFailed": "Decompression failed.",
+  "@settingsRestoreFailureFailed": {
+    "description": "Restore failure reason: the decompression job reported a failure."
+  },
+  "settingsRestoreFailureIncomplete": "Decompression did not finish.",
+  "@settingsRestoreFailureIncomplete": {
+    "description": "Restore failure reason: the decompression job ended without completing."
+  },
+  "settingsRestoreFailureError": "Decompression failed: {error}",
+  "@settingsRestoreFailureError": {
+    "description": "Restore failure reason: the decompression call threw. {error} is the raw error text.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "settingsRestoreSkip": "Skip",
   "@settingsRestoreSkip": {
     "description": "Action to leave one failed game compressed."

@@ -37,6 +37,27 @@ void main() {
     await RustBridgeService.instance.shutdownApp();
   });
 
+  test('real bridge normalizes game names with the discovery rules', () {
+    final bridge = RustBridgeService.instance;
+
+    // The cover-art lookup name must come out of the same rule set discovery
+    // used for the card title, so these run over the real FFI call.
+    expect(
+      bridge.normalizeGameName('Cyberpunk 2077 - SteamGG.NET'),
+      'Cyberpunk 2077',
+    );
+    expect(bridge.normalizeGameName('Example Game v1.2.3'), 'Example Game');
+    expect(
+      bridge.normalizeGameName('Example Game [v1.2.3 MULTi7]'),
+      'Example Game',
+    );
+    expect(
+      bridge.normalizeGameName('Example Adventure (2016)'),
+      'Example Adventure (2016)',
+    );
+    expect(bridge.normalizeGameName('The Empress'), 'The Empress');
+  }, skip: skipReason);
+
   test(
     'real bridge request-response maps application folder metadata',
     () async {
