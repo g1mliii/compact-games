@@ -43,8 +43,31 @@ fn get_or_create_thread_pool(
 }
 
 use super::super::error::CompressionError;
+use super::super::thread_policy::ThreadPolicy;
 use super::super::wof::{self, CompressFileResult};
 use super::{CompressionEngine, CompressionStats, ManifestFile, MIN_COMPRESSIBLE_SIZE};
+
+/// Run a per-file operation through the same policy-controlled dispatcher used
+/// by both compression and decompression.
+///
+/// Keeping this in one place makes the concurrency contract testable without
+/// requiring a timing-sensitive WOF call in the unit test itself.
+fn try_for_each_file<T, F>(
+    files: &[T],
+    policy: Option<&ThreadPolicy>,
+    operation: F,
+) -> Result<(), CompressionError>
+where
+    T: Sync,
+    F: Fn(&T) -> Result<(), CompressionError> + Sync + Send,
+{
+    if let Some(policy) = policy {
+        let pool = get_or_create_thread_pool(policy.io_parallelism)?;
+        pool.install(|| files.par_iter().try_for_each(&operation))
+    } else {
+        files.par_iter().try_for_each(operation)
+    }
+}
 
 impl CompressionEngine {
     pub(super) fn compress_impl(
@@ -206,19 +229,15 @@ impl CompressionEngine {
             Ok(())
         };
 
-        let result = if let Some(policy) = &self.thread_policy {
-            let pool = get_or_create_thread_pool(policy.io_parallelism)?;
+        if let Some(policy) = &self.thread_policy {
             log::info!(
                 "[compression][thread_policy] io_parallelism={} background={}",
                 policy.io_parallelism,
                 policy.is_background,
             );
-            pool.install(|| files.par_iter().try_for_each(compress_body))
-        } else {
-            files.par_iter().try_for_each(compress_body)
-        };
+        }
 
-        result?;
+        try_for_each_file(&files, self.thread_policy.as_ref(), compress_body)?;
 
         let duration = start.elapsed();
         let original = self.bytes_original.load(Ordering::Relaxed);
@@ -364,14 +383,15 @@ impl CompressionEngine {
             Ok(())
         };
 
-        let result = if let Some(policy) = &self.thread_policy {
-            let pool = get_or_create_thread_pool(policy.io_parallelism)?;
-            pool.install(|| files.par_iter().try_for_each(decompress_body))
-        } else {
-            files.par_iter().try_for_each(decompress_body)
-        };
+        if let Some(policy) = &self.thread_policy {
+            log::info!(
+                "[decompression][thread_policy] io_parallelism={} background={}",
+                policy.io_parallelism,
+                policy.is_background,
+            );
+        }
 
-        result?;
+        try_for_each_file(&files, self.thread_policy.as_ref(), decompress_body)?;
         log::info!(
             "[decompression][summary] path=\"{}\" files={} candidates={} skipped_likely_uncompressed={}",
             folder.display(),
@@ -403,5 +423,75 @@ impl CompressionEngine {
         }
 
         Ok(physical_total.load(Ordering::Relaxed) as f64 / logical as f64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+    use std::time::Duration;
+
+    use super::*;
+
+    fn observe_dispatch(parallelism: usize) -> (usize, usize) {
+        let files = vec![(); 32];
+        let active = Arc::new(AtomicUsize::new(0));
+        let peak_active = Arc::new(AtomicUsize::new(0));
+        let worker_threads = Arc::new(Mutex::new(HashSet::new()));
+        let policy = ThreadPolicy {
+            io_parallelism: parallelism,
+            is_background: false,
+        };
+
+        try_for_each_file(&files, Some(&policy), |_| {
+            let current = active.fetch_add(1, Ordering::SeqCst) + 1;
+            peak_active.fetch_max(current, Ordering::SeqCst);
+            worker_threads
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .insert(thread::current().id());
+
+            // Sleeping keeps several dispatched operations in flight at once,
+            // making overlap deterministic without depending on CPU speed.
+            thread::sleep(Duration::from_millis(15));
+            active.fetch_sub(1, Ordering::SeqCst);
+            Ok(())
+        })
+        .expect("dispatch should complete");
+
+        let unique_workers = worker_threads
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .len();
+        (peak_active.load(Ordering::SeqCst), unique_workers)
+    }
+
+    #[test]
+    fn file_dispatch_uses_multiple_workers_when_policy_allows_it() {
+        let (peak_active, unique_workers) = observe_dispatch(4);
+
+        assert!(
+            peak_active > 1,
+            "four-worker policy must overlap per-file operations"
+        );
+        assert!(
+            peak_active <= 4,
+            "dispatcher exceeded configured parallelism: {peak_active}"
+        );
+        assert!(
+            unique_workers > 1 && unique_workers <= 4,
+            "expected 2..=4 worker threads, observed {unique_workers}"
+        );
+    }
+
+    #[test]
+    fn file_dispatch_stays_serial_for_one_worker_policy() {
+        let (peak_active, unique_workers) = observe_dispatch(1);
+
+        assert_eq!(peak_active, 1);
+        assert_eq!(unique_workers, 1);
     }
 }

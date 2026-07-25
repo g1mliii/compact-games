@@ -57,6 +57,13 @@ impl Default for IdleConfig {
     }
 }
 
+/// A single system-CPU reading and the idle verdict derived from it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct IdleSample {
+    pub is_idle: bool,
+    pub cpu_usage_percent: f32,
+}
+
 /// Monitors system metrics to determine whether the machine is idle.
 pub struct IdleDetector {
     metrics_source: Box<dyn SystemMetricsSource>,
@@ -84,9 +91,30 @@ impl IdleDetector {
         }
     }
 
+    /// Takes **one** CPU reading and derives both the idle verdict and the
+    /// usage figure from it.
+    ///
+    /// Callers that need both values must use this rather than calling
+    /// [`Self::is_idle`] and [`Self::cpu_usage`] back to back. On Windows
+    /// `sysinfo` reads global CPU through PDH counters, which report the delta
+    /// between consecutive collections; a second collection microseconds after
+    /// the first spans a near-zero window and comes back pegged at 100%. That
+    /// bogus reading used to reach `compute_thread_policy`, pinning every
+    /// auto-compression job to its highest-CPU-pressure branch.
+    pub fn poll(&mut self) -> IdleSample {
+        let cpu_usage_percent = self.metrics_source.global_cpu_usage();
+        IdleSample {
+            is_idle: self.evaluate_idle(cpu_usage_percent),
+            cpu_usage_percent,
+        }
+    }
+
     pub fn is_idle(&mut self) -> bool {
         let cpu_usage = self.metrics_source.global_cpu_usage();
+        self.evaluate_idle(cpu_usage)
+    }
 
+    fn evaluate_idle(&mut self, cpu_usage: f32) -> bool {
         if cpu_usage < self.config.cpu_threshold_percent {
             let now = Instant::now();
             let idle_start = self.idle_since.get_or_insert(now);
@@ -183,6 +211,59 @@ mod tests {
 
         std::thread::sleep(Duration::from_millis(5));
         assert!(!detector.is_idle());
+    }
+
+    /// `poll` must read the CPU source exactly once. Two reads per tick make
+    /// the second one span a near-zero window, which PDH reports as 100% and
+    /// which then pins `compute_thread_policy` to its highest-pressure branch.
+    #[test]
+    fn poll_samples_cpu_source_only_once() {
+        struct CountingSource {
+            reads: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        }
+        impl SystemMetricsSource for CountingSource {
+            fn global_cpu_usage(&mut self) -> f32 {
+                self.reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                12.5
+            }
+            fn available_memory(&mut self) -> u64 {
+                1024
+            }
+        }
+
+        let reads = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut detector = IdleDetector::with_metrics_source(
+            IdleConfig::default(),
+            Box::new(CountingSource {
+                reads: reads.clone(),
+            }),
+        );
+
+        let sample = detector.poll();
+
+        assert_eq!(reads.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!((sample.cpu_usage_percent - 12.5).abs() < f32::EPSILON);
+    }
+
+    /// The reading reported alongside the idle verdict must be the same one the
+    /// verdict was computed from.
+    #[test]
+    fn poll_reports_the_reading_the_verdict_used() {
+        let config = IdleConfig {
+            cpu_threshold_percent: 40.0,
+            idle_duration: Duration::from_millis(1),
+        };
+        let mock = MockMetricsSource {
+            cpu: 90.0,
+            memory: 1024,
+        };
+        let mut detector = IdleDetector::with_metrics_source(config, Box::new(mock));
+
+        std::thread::sleep(Duration::from_millis(5));
+        let sample = detector.poll();
+
+        assert!(!sample.is_idle, "90% CPU is above the 40% threshold");
+        assert!((sample.cpu_usage_percent - 90.0).abs() < f32::EPSILON);
     }
 
     #[test]

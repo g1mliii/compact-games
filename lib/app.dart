@@ -45,49 +45,98 @@ class CompactGamesApp extends StatelessWidget {
   }
 }
 
-class _CompactGamesRoot extends ConsumerWidget {
+class _CompactGamesRoot extends ConsumerStatefulWidget {
   const _CompactGamesRoot();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CompactGamesRoot> createState() => _CompactGamesRootState();
+}
+
+class _CompactGamesRootState extends ConsumerState<_CompactGamesRoot> {
+  late bool _isHiddenToTray;
+
+  /// Route to rebuild the navigator stack with when the window is restored.
+  /// Captured before the UI unmounts so hiding to the tray does not silently
+  /// send the user back to the home screen.
+  String _restoreRoute = AppRoutes.home;
+
+  @override
+  void initState() {
+    super.initState();
+    _isHiddenToTray = appWindowVisibilityController.isHiddenToTray;
+    appWindowVisibilityController.addListener(_onVisibilityChanged);
+  }
+
+  @override
+  void dispose() {
+    appWindowVisibilityController.removeListener(_onVisibilityChanged);
+    super.dispose();
+  }
+
+  void _onVisibilityChanged() {
+    final isHidden = appWindowVisibilityController.isHiddenToTray;
+    if (isHidden == _isHiddenToTray) {
+      return;
+    }
+    if (isHidden) {
+      _restoreRoute = ref.read(routeStateObserverProvider).currentRouteName;
+    }
+    setState(() {
+      _isHiddenToTray = isHidden;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final routeObserver = ref.read(routeStateObserverProvider);
     final locale = ref.watch(effectiveLocaleProvider);
     return Column(
       children: [
         // Effect-only watcher — zero pixels, never causes child rebuilds.
-        // Sits above AnimatedBuilder so visibility toggles don't touch it.
+        // Deliberately a sibling of the UI subtree so background automation,
+        // watcher and tray-status effects keep running while the window is
+        // unmounted in the tray.
         const _EffectProviderHost(),
         Expanded(
-          child: AnimatedBuilder(
-            animation: appWindowVisibilityController,
-            builder: (context, _) {
-              final isHiddenToTray =
-                  appWindowVisibilityController.isHiddenToTray;
-              return TickerMode(
-                enabled: !isHiddenToTray,
-                child: Offstage(
-                  offstage: isHiddenToTray,
-                  child: MaterialApp(
-                    title: AppConstants.appName,
-                    debugShowCheckedModeBanner: false,
-                    theme: _appTheme,
-                    locale: locale,
-                    localizationsDelegates:
-                        AppLocalizations.localizationsDelegates,
-                    supportedLocales: appSupportedLocales,
-                    navigatorObservers: [routeObserver],
-                    navigatorKey: _appNavigatorKey,
-                    builder: _appBuilder,
-                    initialRoute: AppRoutes.home,
-                    onGenerateRoute: AppRoutes.onGenerateRoute,
-                  ),
+          // While hidden in the tray the entire UI is unmounted rather than
+          // kept offstage. Offstage retains every element, render object and
+          // decoded image, which is what kept idle tray memory high; dropping
+          // the subtree lets the framework release them and makes the
+          // `trayHide` image-cache purge actually reclaim.
+          child: _isHiddenToTray
+              ? const SizedBox.shrink()
+              : MaterialApp(
+                  title: AppConstants.appName,
+                  debugShowCheckedModeBanner: false,
+                  theme: _appTheme,
+                  locale: locale,
+                  localizationsDelegates:
+                      AppLocalizations.localizationsDelegates,
+                  supportedLocales: appSupportedLocales,
+                  navigatorObservers: [routeObserver],
+                  navigatorKey: _appNavigatorKey,
+                  builder: _appBuilder,
+                  onGenerateInitialRoutes: _buildInitialRoutes,
+                  onGenerateRoute: AppRoutes.onGenerateRoute,
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
+  }
+
+  /// Rebuilds the navigator stack on (re)mount. Anything deeper than home is
+  /// restored on top of home so the back button still works.
+  List<Route<dynamic>> _buildInitialRoutes(String _) {
+    final home = AppRoutes.onGenerateRoute(
+      const RouteSettings(name: AppRoutes.home),
+    );
+    if (_restoreRoute == AppRoutes.home || _restoreRoute == '/') {
+      return <Route<dynamic>>[home];
+    }
+    return <Route<dynamic>>[
+      home,
+      AppRoutes.onGenerateRoute(RouteSettings(name: _restoreRoute)),
+    ];
   }
 
   Widget _appBuilder(BuildContext context, Widget? child) {

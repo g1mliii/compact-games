@@ -39,9 +39,25 @@ fn compute_thread_policy_for_storage(
     cpu_usage_percent: Option<f32>,
     io_parallelism_override: Option<usize>,
 ) -> ThreadPolicy {
+    compute_thread_policy_for_storage_and_cpu_count(
+        storage,
+        is_background,
+        cpu_usage_percent,
+        io_parallelism_override,
+        num_cpus::get(),
+    )
+}
+
+fn compute_thread_policy_for_storage_and_cpu_count(
+    storage: StorageClass,
+    is_background: bool,
+    cpu_usage_percent: Option<f32>,
+    io_parallelism_override: Option<usize>,
+    logical_cpu_count: usize,
+) -> ThreadPolicy {
     let storage_base = match storage {
         StorageClass::Hdd => 2,
-        StorageClass::Ssd | StorageClass::Unknown => num_cpus::get().min(8),
+        StorageClass::Ssd | StorageClass::Unknown => logical_cpu_count.clamp(1, 8),
     };
 
     // When CPU is already busy, reduce foreground pressure.
@@ -116,6 +132,32 @@ mod tests {
         let high_cpu = policy_for_storage(StorageClass::Ssd, false, Some(90.0), None);
         assert!(high_cpu.io_parallelism <= low_cpu.io_parallelism);
         assert!(high_cpu.io_parallelism <= 2);
+    }
+
+    #[test]
+    fn low_cpu_background_ssd_keeps_four_workers_on_eight_core_host() {
+        let policy = compute_thread_policy_for_storage_and_cpu_count(
+            StorageClass::Ssd,
+            true,
+            Some(10.0),
+            None,
+            8,
+        );
+
+        assert_eq!(policy.io_parallelism, 4);
+    }
+
+    #[test]
+    fn bogus_high_cpu_sample_would_collapse_background_ssd_to_one_worker() {
+        let policy = compute_thread_policy_for_storage_and_cpu_count(
+            StorageClass::Ssd,
+            true,
+            Some(100.0),
+            None,
+            8,
+        );
+
+        assert_eq!(policy.io_parallelism, 1);
     }
 
     #[test]

@@ -47,7 +47,14 @@ Future<void> main(List<String> args) async {
         request: shellActionRequest,
         prepareUninstall: shellLaunchArgs.prepareUninstall,
       )) {
-    return;
+    // The already-running instance accepted the request, so this process has
+    // nothing left to do. Returning from `main` is not enough to end it: the
+    // native runner created the window and started the engine before Dart ran,
+    // and its message loop keeps going regardless. Without an explicit exit
+    // every extra launch (Start menu, shortcut, or an Explorer context-menu
+    // action while the app sits in the tray) strands a windowless ~70 MB
+    // process for the rest of the session.
+    exit(0);
   }
 
   if (!kIsWeb && _enableShaderWarmUp) {

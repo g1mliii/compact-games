@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use super::*;
+use crate::compression::thread_policy::ThreadPolicy;
 use crate::compression::wof;
 use crossbeam_channel::TryRecvError;
 
@@ -109,6 +110,45 @@ fn decompression_restores_logical_size() {
 
     let restored_size = fs::metadata(&path).unwrap().len();
     assert_eq!(original_size, restored_size);
+}
+
+#[test]
+fn four_worker_policy_roundtrip_preserves_all_files() {
+    let dir = TempDir::new().unwrap();
+    let originals: Vec<_> = (0..12)
+        .map(|index| {
+            let path = dir.path().join(format!("parallel_{index}.dat"));
+            let contents = vec![index as u8; 262_144];
+            fs::write(&path, &contents).unwrap();
+            (path, contents)
+        })
+        .collect();
+    let policy = ThreadPolicy {
+        io_parallelism: 4,
+        is_background: false,
+    };
+
+    let compression =
+        CompressionEngine::new(CompressionAlgorithm::Xpress4K).with_thread_policy(policy);
+    let stats = compression.compress_folder(dir.path()).unwrap();
+
+    assert_eq!(stats.files_processed, originals.len() as u64);
+    for (path, contents) in &originals {
+        assert_eq!(fs::read(path).unwrap(), *contents);
+        assert_eq!(
+            wof::wof_get_compression(path).unwrap(),
+            Some(CompressionAlgorithm::Xpress4K)
+        );
+    }
+
+    let decompression =
+        CompressionEngine::new(CompressionAlgorithm::Xpress4K).with_thread_policy(policy);
+    decompression.decompress_folder(dir.path()).unwrap();
+
+    for (path, contents) in &originals {
+        assert_eq!(fs::read(path).unwrap(), *contents);
+        assert_eq!(wof::wof_get_compression(path).unwrap(), None);
+    }
 }
 
 #[test]

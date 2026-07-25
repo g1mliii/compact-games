@@ -200,8 +200,11 @@ pub(super) fn auto_loop(
             &mut startup_reconcile_attempted_paths,
         );
 
-        let is_idle = idle_detector.is_idle();
-        let cpu_usage_percent = idle_detector.cpu_usage();
+        // One CPU sample per tick feeds both the idle verdict and the figure
+        // handed to the thread policy; see `IdleDetector::poll`.
+        let idle_sample = idle_detector.poll();
+        let is_idle = idle_sample.is_idle;
+        let cpu_usage_percent = idle_sample.cpu_usage_percent;
 
         if !is_idle {
             if let Some(ref job) = active_compression {

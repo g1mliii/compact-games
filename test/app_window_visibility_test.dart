@@ -53,7 +53,10 @@ void main() {
     appWindowVisibilityController.markHiddenToTray();
     await tester.pump();
 
-    expect(find.byType(MaterialApp, skipOffstage: false), findsOneWidget);
+    // Hiding to the tray must fully unmount the UI, not merely take it
+    // offstage — an offstage subtree retains every element, render object and
+    // decoded image, which is what kept idle tray memory high.
+    expect(find.byType(MaterialApp, skipOffstage: false), findsNothing);
 
     appWindowVisibilityController.markVisible();
     await tester.pumpAndSettle();

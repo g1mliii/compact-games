@@ -1,7 +1,7 @@
 /// Application-wide constants.
 abstract final class AppConstants {
   static const String appName = 'Compact Games';
-  static const String appVersion = '0.1.16';
+  static const String appVersion = '0.1.17';
 
   // Window
   static const double minWindowWidth = 900;
