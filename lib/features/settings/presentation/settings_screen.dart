@@ -18,9 +18,12 @@ import 'sections/about_section.dart';
 import 'sections/compression_section.dart';
 import 'sections/cover_art_section.dart';
 import 'sections/safety_section.dart';
+import 'sections/restore_games_section.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.focusRestore = false});
+
+  final bool focusRestore;
 
   static const ValueKey<String> backButtonKey = ValueKey<String>(
     'settingsBackButton',
@@ -32,6 +35,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final TextEditingController _folderController = TextEditingController();
+  final GlobalKey _restoreSectionKey = GlobalKey();
+  bool _restoreFocusScheduled = false;
 
   @override
   void dispose() {
@@ -47,6 +52,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         (s) => (isLoading: s.isLoading, error: s.hasError ? s.error : null),
       ),
     );
+    if (widget.focusRestore &&
+        !loadState.isLoading &&
+        !_restoreFocusScheduled) {
+      _restoreFocusScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final restoreContext = _restoreSectionKey.currentContext;
+        if (!mounted || restoreContext == null) {
+          _restoreFocusScheduled = false;
+          return;
+        }
+        Scrollable.ensureVisible(
+          restoreContext,
+          alignment: 0.08,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      });
+    }
 
     return Scaffold(
       appBar: buildRouteAppBar(
@@ -81,6 +104,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const CoverArtSection(),
                       const SizedBox(height: 14),
                       const SafetySection(),
+                      const SizedBox(height: 14),
+                      KeyedSubtree(
+                        key: _restoreSectionKey,
+                        child: const RestoreGamesSection(),
+                      ),
                       const SizedBox(height: 14),
                       const AboutSection(),
                     ],

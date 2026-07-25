@@ -588,8 +588,10 @@ pub(crate) fn is_non_game_exe(name: &str) -> bool {
         || name.contains("vcredist")
         || name.contains("dxsetup")
         || name.contains("dotnet")
+        || name.contains("prereq")
         || name.contains("crashpad")
         || name.contains("crashreport")
+        || name.contains("crashhandler")
         || name == "updater.exe"
         || name.ends_with("_updater.exe")
         || name.ends_with("-updater.exe")

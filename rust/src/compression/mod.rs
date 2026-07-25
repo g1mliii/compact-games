@@ -3,6 +3,7 @@ pub mod community_db;
 pub mod engine;
 pub mod error;
 pub mod history;
+pub mod managed_paths;
 pub mod thread_policy;
 #[cfg(windows)]
 pub mod wof;

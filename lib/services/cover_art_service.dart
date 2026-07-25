@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/config/cover_art_proxy_config.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/game_name_normalizer.dart';
 import '../models/app_settings.dart';
 import '../models/compression_estimate.dart';
 import '../models/game_info.dart';
@@ -24,8 +25,16 @@ part 'cover_art_service_api_security.dart';
 part 'cover_art_service_cache_maintenance.dart';
 part 'cover_art_service_quality.dart';
 part 'cover_art_service_runtime_memory.dart';
+part 'cover_art_service_store.dart';
 
-enum CoverArtSource { cache, steamLibraryCache, steamGridDbApi, exeIcon, none }
+enum CoverArtSource {
+  cache,
+  steamLibraryCache,
+  steamGridDbApi,
+  steamStoreApi,
+  exeIcon,
+  none,
+}
 
 enum CoverArtType { poster, icon }
 
@@ -217,7 +226,8 @@ class CoverArtService {
     var cached = await _readCachedCover(cacheKey);
     if (apiEnabled &&
         !refreshProviderCover &&
-        cached?.source == CoverArtSource.steamGridDbApi) {
+        (cached?.source == CoverArtSource.steamGridDbApi ||
+            cached?.source == CoverArtSource.steamStoreApi)) {
       return store(cached!);
     }
     if (apiEnabled) {
@@ -252,6 +262,18 @@ class CoverArtService {
         providerConfirmedNoMatch =
             providerConfirmedNoMatch &&
             executableLookup.status == _CoverArtProviderLookupStatus.notFound;
+      }
+
+      if (coverArtProviderMode == CoverArtProviderMode.userKey &&
+          game.platform != Platform.steam) {
+        final steamStoreCover = await _resolveSteamStoreCover(
+          game,
+          cacheKey: cacheKey,
+          alternateLookupName: executableLookupName,
+        );
+        if (steamStoreCover != null) {
+          return store(steamStoreCover);
+        }
       }
 
       if (providerConfirmedNoMatch &&

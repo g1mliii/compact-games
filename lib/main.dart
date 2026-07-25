@@ -15,6 +15,7 @@ import 'core/performance/compact_games_shader_warm_up.dart';
 import 'core/performance/ui_memory_lifecycle.dart';
 import 'services/rust_bridge_service.dart';
 import 'services/rust_library_candidates.dart';
+import 'services/prepare_uninstall_dispatcher.dart';
 import 'services/shell_action_dispatcher.dart';
 import 'services/shell_command_handoff_server.dart';
 import 'services/shell_launch_args.dart';
@@ -44,6 +45,7 @@ Future<void> main(List<String> args) async {
       defaultTargetPlatform == TargetPlatform.windows &&
       await ShellCommandHandoffServer.handoffLaunchToRunningApp(
         request: shellActionRequest,
+        prepareUninstall: shellLaunchArgs.prepareUninstall,
       )) {
     return;
   }
@@ -75,6 +77,7 @@ Future<void> main(List<String> args) async {
       onShowWindow: () {
         unawaited(TrayService.instance.showAndFocusWindow());
       },
+      onPrepareUninstall: PrepareUninstallDispatcher.instance.enqueue,
     );
     if (!ownsSingleInstance) {
       debugPrint('[shell] continuing without shell handoff support');
@@ -131,6 +134,9 @@ Future<void> main(List<String> args) async {
 
   if (shellActionRequest != null) {
     ShellActionDispatcher.instance.enqueue(shellActionRequest);
+  }
+  if (shellLaunchArgs.prepareUninstall) {
+    PrepareUninstallDispatcher.instance.enqueue();
   }
 
   runApp(const _RustBridgeReloadHost(child: CompactGamesApp()));

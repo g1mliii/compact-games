@@ -81,6 +81,46 @@ void main() {
     },
   );
 
+  test(
+    'prepare-uninstall handoff shows and redirects the running app',
+    () async {
+      final tokenFile = _handoffTokenFile();
+      if (tokenFile == null) {
+        return;
+      }
+
+      final previousToken = await _readExistingToken(tokenFile);
+      var showRequests = 0;
+      var prepareRequests = 0;
+      try {
+        final started = await ShellCommandHandoffServer.instance.start(
+          onRequest: (_) {},
+          onShowWindow: () {
+            showRequests += 1;
+          },
+          onPrepareUninstall: () {
+            prepareRequests += 1;
+          },
+        );
+        if (!started) {
+          return;
+        }
+
+        final handedOff =
+            await ShellCommandHandoffServer.handoffLaunchToRunningApp(
+              prepareUninstall: true,
+            );
+
+        expect(handedOff, isTrue);
+        expect(showRequests, 1);
+        expect(prepareRequests, 1);
+      } finally {
+        await ShellCommandHandoffServer.instance.dispose();
+        await _restoreToken(tokenFile, previousToken);
+      }
+    },
+  );
+
   test('a reserved legacy port does not prevent handoff startup', () async {
     final tokenFile = _handoffTokenFile();
     if (tokenFile == null) {

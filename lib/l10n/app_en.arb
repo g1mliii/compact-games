@@ -880,6 +880,37 @@
   "@activityDismissMonitor": {
     "description": "Localized message for activity dismiss monitor."
   },
+  "activityQueuedCount": "Queued ({count})",
+  "@activityQueuedCount": {
+    "description": "Heading for the pending manual compression queue.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityQueuePosition": "Queued #{position}",
+  "@activityQueuePosition": {
+    "description": "One-based position of a game in the manual compression queue.",
+    "placeholders": {
+      "position": {
+        "type": "int"
+      }
+    }
+  },
+  "activityRemoveQueuedGame": "Remove {gameName} from queue",
+  "@activityRemoveQueuedGame": {
+    "description": "Accessible label for removing one pending queue entry.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "activityClearQueue": "Clear queue",
+  "@activityClearQueue": {
+    "description": "Action that removes all pending manual jobs."
+  },
   "activityCompressing": "Compressing",
   "@activityCompressing": {
     "description": "Localized message for activity compressing."
@@ -1272,5 +1303,130 @@
   "trayError": "Error",
   "@trayError": {
     "description": "Localized message for tray error."
+  },
+  "settingsRestoreSectionTitle": "Restore compressed games",
+  "@settingsRestoreSectionTitle": {
+    "description": "Settings section title for restoring games managed by Compact Games."
+  },
+  "settingsRestoreDescription": "Restore only games recorded as successfully compressed by Compact Games. The actual filesystem state is checked again before decompression.",
+  "@settingsRestoreDescription": {
+    "description": "Explains the managed restore ownership boundary."
+  },
+  "settingsRestoreChecking": "Checking managed games and free space...",
+  "@settingsRestoreChecking": {
+    "description": "Status shown while the restore plan is loading."
+  },
+  "settingsRestoreNoGames": "No games managed by Compact Games currently need restoring.",
+  "@settingsRestoreNoGames": {
+    "description": "Empty state for the restore plan."
+  },
+  "settingsRestoreSummary": "{count, plural, =1{1 game needs up to {space} of additional disk space.} other{{count} games need up to {space} of additional disk space.}}",
+  "@settingsRestoreSummary": {
+    "description": "Restore game count and estimated space requirement.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "space": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRestoreLongRuntime": "This can take a long time. Automation will pause, and new compression jobs will be rejected until the restore finishes or failures are skipped.",
+  "@settingsRestoreLongRuntime": {
+    "description": "Long-running restore warning."
+  },
+  "settingsRestoreDriveSpace": "{drive}: {required} required, {available} available",
+  "@settingsRestoreDriveSpace": {
+    "description": "Per-drive restore free-space summary.",
+    "placeholders": {
+      "drive": {
+        "type": "String"
+      },
+      "required": {
+        "type": "String"
+      },
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRestoreDriveInsufficient": "Not enough free space on one or more drives. Free space before restoring.",
+  "@settingsRestoreDriveInsufficient": {
+    "description": "Restore preflight insufficient-space error."
+  },
+  "settingsRestoreAction": "Restore all managed games",
+  "@settingsRestoreAction": {
+    "description": "Button that opens the restore confirmation dialog."
+  },
+  "settingsRestoreConfirmTitle": "Restore all managed games?",
+  "@settingsRestoreConfirmTitle": {
+    "description": "Restore confirmation dialog title."
+  },
+  "settingsRestoreConfirmBody": "Queue {count} games for decompression. Up to {space} of additional disk space may be required. Keep Compact Games open until the queue finishes.",
+  "@settingsRestoreConfirmBody": {
+    "description": "Restore confirmation dialog body.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "space": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRestoreProgress": "Restored {completed} of {total} games",
+  "@settingsRestoreProgress": {
+    "description": "Restore queue progress.",
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsRestoreFailuresTitle": "Restore failures",
+  "@settingsRestoreFailuresTitle": {
+    "description": "Heading above failed restore jobs."
+  },
+  "settingsRestoreSkip": "Skip",
+  "@settingsRestoreSkip": {
+    "description": "Action to leave one failed game compressed."
+  },
+  "settingsRestoreSkipped": "{count, plural, =1{1 skipped game remains compressed.} other{{count} skipped games remain compressed.}}",
+  "@settingsRestoreSkipped": {
+    "description": "Count of explicitly skipped restore failures.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsRestoreSuccess": "All managed games were restored. Compact Games can now be uninstalled.",
+  "@settingsRestoreSuccess": {
+    "description": "Successful restore completion message."
+  },
+  "settingsRestoreUninstallAction": "Uninstall Compact Games",
+  "@settingsRestoreUninstallAction": {
+    "description": "Button to launch the Windows uninstaller after restore."
+  },
+  "settingsRestoreUninstallNotFound": "The Compact Games uninstaller could not be found.",
+  "@settingsRestoreUninstallNotFound": {
+    "description": "Error shown when no installed uninstaller is available."
+  },
+  "settingsRestoreRefresh": "Recheck",
+  "@settingsRestoreRefresh": {
+    "description": "Action to recheck the managed restore plan."
+  },
+  "settingsRestoreLoadFailed": "Could not check managed games: {error}",
+  "@settingsRestoreLoadFailed": {
+    "description": "Restore plan load error.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }

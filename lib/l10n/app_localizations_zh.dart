@@ -644,6 +644,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get activityDismissMonitor => '关闭监视器';
 
   @override
+  String activityQueuedCount(int count) {
+    return '队列中（$count）';
+  }
+
+  @override
+  String activityQueuePosition(int position) {
+    return '排队中（第 $position 位）';
+  }
+
+  @override
+  String activityRemoveQueuedGame(String gameName) {
+    return '从队列中移除“$gameName”';
+  }
+
+  @override
+  String get activityClearQueue => '清空队列';
+
+  @override
   String get activityCompressing => '正在压缩';
 
   @override
@@ -903,4 +921,94 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get trayError => '错误';
+
+  @override
+  String get settingsRestoreSectionTitle => '还原已压缩的游戏';
+
+  @override
+  String get settingsRestoreDescription =>
+      '仅还原由 Compact Games 记录为成功压缩的游戏。解压前会再次检查实际文件系统状态。';
+
+  @override
+  String get settingsRestoreChecking => '正在检查托管游戏和可用空间...';
+
+  @override
+  String get settingsRestoreNoGames => '当前没有由 Compact Games 托管且需要还原的游戏。';
+
+  @override
+  String settingsRestoreSummary(int count, String space) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个游戏最多需要 $space 额外空间。',
+      one: '1 个游戏最多需要 $space 额外空间。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsRestoreLongRuntime =>
+      '此过程可能需要很长时间。自动化将暂停，并拒绝新的压缩任务，直到还原完成或失败项被跳过。';
+
+  @override
+  String settingsRestoreDriveSpace(
+    String drive,
+    String required,
+    String available,
+  ) {
+    return '$drive：需要 $required，可用 $available';
+  }
+
+  @override
+  String get settingsRestoreDriveInsufficient => '一个或多个驱动器的可用空间不足。请先释放空间。';
+
+  @override
+  String get settingsRestoreAction => '还原所有托管游戏';
+
+  @override
+  String get settingsRestoreConfirmTitle => '还原所有托管游戏？';
+
+  @override
+  String settingsRestoreConfirmBody(int count, String space) {
+    return '将 $count 个游戏加入解压队列。最多可能需要 $space 额外空间。请保持 Compact Games 运行直到队列完成。';
+  }
+
+  @override
+  String settingsRestoreProgress(int completed, int total) {
+    return '已还原 $completed/$total 个游戏';
+  }
+
+  @override
+  String get settingsRestoreFailuresTitle => '还原失败';
+
+  @override
+  String get settingsRestoreSkip => '跳过';
+
+  @override
+  String settingsRestoreSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个跳过的游戏仍保持压缩。',
+      one: '1 个跳过的游戏仍保持压缩。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsRestoreSuccess => '所有托管游戏均已还原。现在可以卸载 Compact Games。';
+
+  @override
+  String get settingsRestoreUninstallAction => '卸载 Compact Games';
+
+  @override
+  String get settingsRestoreUninstallNotFound => '找不到 Compact Games 卸载程序。';
+
+  @override
+  String get settingsRestoreRefresh => '重新检查';
+
+  @override
+  String settingsRestoreLoadFailed(String error) {
+    return '无法检查托管游戏：$error';
+  }
 }

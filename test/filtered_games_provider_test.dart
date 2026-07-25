@@ -119,38 +119,38 @@ void main() {
     test('name sort is case-insensitive for mixed-case titles', () async {
       final mixedCaseGames = <GameInfo>[
         GameInfo(
-          name: 'Wallpaper Engine',
-          path: r'C:\Games\wallpaper',
+          name: 'Zenith Sample',
+          path: r'C:\Games\zenith_sample',
           platform: Platform.steam,
           sizeBytes: 3 * _gib,
         ),
         GameInfo(
-          name: 'tekken 8',
-          path: r'C:\Games\tekken8',
+          name: 'binary Quest',
+          path: r'C:\Games\binary_quest',
           platform: Platform.steam,
           sizeBytes: 6 * _gib,
         ),
         GameInfo(
-          name: 'Tom Clancy',
-          path: r'C:\Games\tomclancy',
+          name: 'orbit Tactics',
+          path: r'C:\Games\orbit_tactics',
           platform: Platform.steam,
           sizeBytes: 9 * _gib,
         ),
         GameInfo(
-          name: 'Counterstrike',
-          path: r'C:\Games\counterstrike',
+          name: 'Arcade Builder',
+          path: r'C:\Games\arcade_builder',
           platform: Platform.steam,
           sizeBytes: 5 * _gib,
         ),
         GameInfo(
-          name: 'Cairn',
-          path: r'C:\Games\cairn',
+          name: 'Cyberpunk 2077',
+          path: r'C:\Games\cyberpunk_2077',
           platform: Platform.steam,
           sizeBytes: 4 * _gib,
         ),
         GameInfo(
-          name: 'Battlefield',
-          path: r'C:\Games\battlefield',
+          name: 'Delta Runner',
+          path: r'C:\Games\delta_runner',
           platform: Platform.steam,
           sizeBytes: 7 * _gib,
         ),
@@ -170,12 +170,12 @@ void main() {
       expect(
         filtered.map((g) => g.name).toList(growable: false),
         equals(<String>[
-          'Battlefield',
-          'Cairn',
-          'Counterstrike',
-          'tekken 8',
-          'Tom Clancy',
-          'Wallpaper Engine',
+          'Arcade Builder',
+          'binary Quest',
+          'Cyberpunk 2077',
+          'Delta Runner',
+          'orbit Tactics',
+          'Zenith Sample',
         ]),
       );
     });

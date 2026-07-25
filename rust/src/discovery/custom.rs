@@ -23,6 +23,30 @@ const MAX_SIZE_SAMPLE_FILES: usize = 50;
 /// Max non-directory entries allowed in a wrapper folder (e.g. a readme or shortcut).
 const MAX_WRAPPER_LOOSE_FILES: usize = 3;
 
+/// Release-site and scene-group suffixes commonly found on extracted games.
+///
+/// Keep this in sync with the lookup normalizer's core suffixes in Dart.
+const GAME_RELEASE_SUFFIXES: &[&str] = &[
+    "steamgg.net",
+    "steamrip",
+    "fitgirl repack",
+    "fitgirl",
+    "dodi repack",
+    "dodi",
+    "elamigos",
+    "codex",
+    "plaza",
+    "skidrow",
+    "empress",
+    "rune",
+    "tenoke",
+    "gog",
+    "repack",
+    "early access",
+];
+const AMBIGUOUS_GAME_RELEASE_SUFFIXES: &[&str] =
+    &["codex", "plaza", "skidrow", "empress", "rune", "tenoke"];
+
 /// Non-game folders to always skip.
 const SKIP_FOLDERS: &[&str] = &[
     "windows",
@@ -118,6 +142,7 @@ fn scan_custom_path(
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Unknown Game".to_owned());
+        let name = normalize_game_display_name(&name);
 
         if let Some(game) =
             utils::build_game_info_with_mode(name, root.to_path_buf(), Platform::Custom, mode)
@@ -156,10 +181,7 @@ fn scan_custom_path(
     // when the candidate list is large enough to justify the overhead.
     let resolve = |name: String, path: PathBuf| -> Option<(String, PathBuf)> {
         let resolved = resolve_game_candidate(&path)?;
-        let display_name = match resolved.inner_name {
-            Some(inner) => inner,
-            None => name,
-        };
+        let display_name = resolve_display_name(&name, resolved.inner_name.as_deref());
         Some((display_name, resolved.path))
     };
     let candidates: Vec<(String, PathBuf)> = if raw_entries.len() >= PARALLEL_HEURISTIC_MIN {
@@ -195,6 +217,115 @@ struct ResolvedCandidate {
     inner_name: Option<String>,
 }
 
+fn resolve_display_name(outer_name: &str, inner_name: Option<&str>) -> String {
+    let outer_clean = normalize_game_display_name(outer_name);
+    let Some(inner_name) = inner_name else {
+        return outer_clean;
+    };
+    let inner_clean = normalize_game_display_name(inner_name);
+
+    // When both folders describe the same title, keep whichever spelling
+    // carries real casing. The wrapper is often a user-renamed folder with
+    // sloppy casing (e.g. "tekken 8" wrapping the installer's "TEKKEN 8"), but
+    // the reverse also happens, so prefer the inner (installer) name unless it
+    // is entirely lowercase while the outer name is not. When the wrapper is
+    // materially different, keep the inner name as before.
+    if game_name_comparison_key(&outer_clean) == game_name_comparison_key(&inner_clean) {
+        prefer_better_cased(inner_clean, outer_clean)
+    } else {
+        inner_clean
+    }
+}
+
+/// Returns `primary` unless it is entirely lowercase while `secondary` carries
+/// uppercase casing, in which case the better-cased `secondary` wins.
+fn prefer_better_cased(primary: String, secondary: String) -> String {
+    let primary_has_upper = primary.chars().any(char::is_uppercase);
+    let secondary_has_upper = secondary.chars().any(char::is_uppercase);
+    if !primary_has_upper && secondary_has_upper {
+        secondary
+    } else {
+        primary
+    }
+}
+
+fn normalize_game_display_name(name: &str) -> String {
+    let original = name.trim();
+    if original.is_empty() {
+        return original.to_owned();
+    }
+
+    let mut normalized = original.to_owned();
+    loop {
+        let before = normalized.clone();
+        normalized = normalized
+            .trim_end_matches(is_release_separator)
+            .trim()
+            .to_owned();
+        let lower = normalized.to_ascii_lowercase();
+
+        for suffix in GAME_RELEASE_SUFFIXES {
+            if !lower.ends_with(suffix) || normalized.len() == suffix.len() {
+                continue;
+            }
+            let prefix_end = normalized.len() - suffix.len();
+            let prefix = &normalized[..prefix_end];
+            let has_boundary = if AMBIGUOUS_GAME_RELEASE_SUFFIXES.contains(suffix) {
+                prefix
+                    .trim_end_matches(char::is_whitespace)
+                    .chars()
+                    .next_back()
+                    .is_some_and(is_strong_release_separator)
+            } else {
+                prefix.chars().next_back().is_some_and(is_release_separator)
+            };
+            if has_boundary {
+                normalized = prefix
+                    .trim_end_matches(is_release_separator)
+                    .trim()
+                    .to_owned();
+                break;
+            }
+        }
+
+        if normalized == before {
+            break;
+        }
+    }
+
+    let collapsed = normalized.split_whitespace().collect::<Vec<_>>().join(" ");
+    if collapsed.is_empty() {
+        original.to_owned()
+    } else {
+        collapsed
+    }
+}
+
+fn game_name_comparison_key(name: &str) -> String {
+    let mut key = String::with_capacity(name.len());
+    let mut pending_space = false;
+    for ch in normalize_game_display_name(name).chars() {
+        if ch.is_alphanumeric() {
+            if pending_space && !key.is_empty() {
+                key.push(' ');
+            }
+            key.extend(ch.to_lowercase());
+            pending_space = false;
+        } else {
+            pending_space = true;
+        }
+    }
+    key
+}
+
+fn is_release_separator(ch: char) -> bool {
+    ch.is_whitespace() || matches!(ch, '-' | '–' | '—' | '_' | '|' | ':')
+}
+
+fn is_strong_release_separator(ch: char) -> bool {
+    matches!(ch, '-' | '–' | '—' | '_' | '|' | ':')
+}
+
 /// Returns the resolved game path if `path` (or its single wrapped child)
 /// passes `is_game_folder`. Returns `None` if neither qualifies.
 fn resolve_game_candidate(path: &Path) -> Option<ResolvedCandidate> {
@@ -206,7 +337,7 @@ fn resolve_game_candidate(path: &Path) -> Option<ResolvedCandidate> {
     }
 
     // Wrapper folder pattern: a folder containing exactly one subfolder
-    // and few/no loose files (e.g. "Goblin-Nest/Goblin Nest/<game files>").
+    // and few/no loose files (e.g. "Sample-Game/Sample Game/<game files>").
     // Relax the heuristic for the inner folder: the wrapper pattern itself
     // is strong signal of a game install, so a valid large exe is enough
     // even when the size sample is below MIN_GAME_SIZE.

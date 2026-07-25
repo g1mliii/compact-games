@@ -4,12 +4,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$expectedVersion = "2.11.1"
+$expectedVersion = "2.12.0"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
 if (-not (Get-Command "flutter_rust_bridge_codegen" -ErrorAction SilentlyContinue)) {
-    throw "flutter_rust_bridge_codegen is not installed. Install with: cargo install flutter_rust_bridge_codegen --version $expectedVersion"
+    throw "flutter_rust_bridge_codegen is not installed. Install with: cargo install flutter_rust_bridge_codegen@$expectedVersion --locked"
 }
 
 $versionOutput = & flutter_rust_bridge_codegen --version

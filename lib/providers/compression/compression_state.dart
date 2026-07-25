@@ -14,6 +14,8 @@ class CompressionJobState {
   final String gameName;
   final CompressionJobType type;
   final CompressionAlgorithm algorithm;
+  final bool allowDirectStorageOverride;
+  final int? ioParallelismOverride;
   final CompressionJobStatus status;
   final CompressionProgress? progress;
   final CompressionStats? stats;
@@ -25,6 +27,8 @@ class CompressionJobState {
     required this.gameName,
     required this.type,
     required this.algorithm,
+    this.allowDirectStorageOverride = false,
+    this.ioParallelismOverride,
     this.status = CompressionJobStatus.pending,
     this.progress,
     this.stats,
@@ -48,6 +52,8 @@ class CompressionJobState {
       gameName: gameName,
       type: type ?? this.type,
       algorithm: algorithm,
+      allowDirectStorageOverride: allowDirectStorageOverride,
+      ioParallelismOverride: ioParallelismOverride,
       status: status ?? this.status,
       progress: progress != null ? progress() : this.progress,
       stats: stats != null ? stats() : this.stats,
@@ -59,18 +65,28 @@ class CompressionJobState {
 /// Immutable top-level compression state.
 class CompressionState {
   final CompressionJobState? activeJob;
+  final List<CompressionJobState> queue;
   final List<CompressionJobState> history;
 
-  const CompressionState({this.activeJob, this.history = const []});
+  const CompressionState({
+    this.activeJob,
+    this.queue = const [],
+    this.history = const [],
+  });
 
   bool get hasActiveJob => activeJob != null && activeJob!.isActive;
+  int get queueLength => queue.length;
+
+  bool isQueued(int runId) => queue.any((job) => job.runId == runId);
 
   CompressionState copyWith({
     CompressionJobState? Function()? activeJob,
+    List<CompressionJobState>? queue,
     List<CompressionJobState>? history,
   }) {
     return CompressionState(
       activeJob: activeJob != null ? activeJob() : this.activeJob,
+      queue: queue ?? this.queue,
       history: history ?? this.history,
     );
   }

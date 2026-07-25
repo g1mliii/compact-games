@@ -48,6 +48,10 @@ impl Default for SharedAutoState {
 }
 
 static ACTIVE_AUTO: OnceLock<Mutex<Option<ActiveAutoCompression>>> = OnceLock::new();
+/// Handle of a worker that has been told to stop and is being joined off the
+/// caller's thread. The next `start_auto_compression` waits on it so starts and
+/// stops stay serialized without ever blocking the Flutter UI isolate.
+static PENDING_SHUTDOWN: OnceLock<Mutex<Option<JoinHandle<()>>>> = OnceLock::new();
 static SHARED_STATE: OnceLock<Mutex<SharedAutoState>> = OnceLock::new();
 static AUTO_STATUS_SINKS: OnceLock<Mutex<Vec<StreamSink<bool>>>> = OnceLock::new();
 static WATCHER_EVENT_SINKS: OnceLock<Mutex<Vec<StreamSink<FrbWatcherEvent>>>> = OnceLock::new();
@@ -59,6 +63,25 @@ const MAX_STREAM_SINKS: usize = 32;
 
 fn active_auto_lock() -> &'static Mutex<Option<ActiveAutoCompression>> {
     ACTIVE_AUTO.get_or_init(|| Mutex::new(None))
+}
+
+fn pending_shutdown_lock() -> &'static Mutex<Option<JoinHandle<()>>> {
+    PENDING_SHUTDOWN.get_or_init(|| Mutex::new(None))
+}
+
+/// Join any worker that a previous stop left winding down. Runs on the caller's
+/// thread; only call it from async FRB entry points (never a `#[frb(sync)]`
+/// call) so the Flutter UI isolate is never blocked.
+fn join_pending_shutdown() {
+    let pending = {
+        let mut guard = pending_shutdown_lock()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        guard.take()
+    };
+    if let Some(handle) = pending {
+        let _ = handle.join();
+    }
 }
 
 pub(super) fn shared_state_lock() -> &'static Mutex<SharedAutoState> {
@@ -86,6 +109,11 @@ pub(super) fn automation_queue_sinks_lock() -> &'static Mutex<Vec<StreamSink<Vec
 
 /// Start auto-compression background service.
 pub fn start_auto_compression() -> Result<(), FrbAutomationError> {
+    // Ensure a worker a previous stop left winding down has fully exited before
+    // a new one spawns. This call is async (off the UI isolate), so waiting here
+    // never freezes the UI.
+    join_pending_shutdown();
+
     let mut guard = active_auto_lock().lock().unwrap_or_else(|poisoned| {
         log::warn!("AUTO compression lock poisoned during start; recovering");
         poisoned.into_inner()
@@ -132,12 +160,38 @@ pub fn stop_auto_compression() -> Result<(), FrbAutomationError> {
         return Err(FrbAutomationError::NotRunning);
     };
 
+    // Signal the worker to stop and reflect the stopped state immediately.
     let _ = active.stop_tx.send(());
-    let join_result = active.handle.join();
     worker::broadcast_auto_status(false);
-    join_result.map_err(|_| FrbAutomationError::StopFailed {
-        message: "auto-compression thread panicked during shutdown".to_owned(),
-    })?;
+
+    // The worker can take several seconds to cancel an in-flight compression
+    // before it exits. Join it on a dedicated thread so this `#[frb(sync)]` call
+    // returns at once and never blocks the Flutter UI isolate (which would make
+    // Windows mark the window "Not Responding"). The next start joins this
+    // handle first, keeping starts and stops serialized.
+    let handle = active.handle;
+    let shutdown_thread = thread::Builder::new()
+        .name("compact-games-auto-shutdown".to_owned())
+        .spawn(move || {
+            let _ = handle.join();
+        });
+
+    match shutdown_thread {
+        Ok(shutdown_handle) => {
+            let mut guard = pending_shutdown_lock()
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            // Replace any earlier pending handle. In practice `start` always
+            // clears it first, so this is only defensive; dropping an old handle
+            // simply detaches that (already short-lived) joiner without blocking.
+            *guard = Some(shutdown_handle);
+        }
+        Err(error) => {
+            // Could not spawn the joiner: the worker is detached but still exits
+            // on its own once it observes the stop signal.
+            log::warn!("Failed to spawn auto-compression shutdown thread: {error}");
+        }
+    }
 
     Ok(())
 }

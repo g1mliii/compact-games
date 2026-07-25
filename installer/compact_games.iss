@@ -114,6 +114,87 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
+// Uninstall guard: managed compressed games are restored inside the app.
+//
+// Silent uninstall is deliberately non-interactive and never decompresses.
+// Interactive uninstall offers three explicit choices:
+//   Yes    - open Compact Games at the restore section and abort uninstall
+//   No     - continue while leaving managed games compressed
+//   Cancel - abort uninstall
+// ---------------------------------------------------------------------------
+function InitializeUninstall(): Boolean;
+var
+  Choice: Integer;
+  ResultCode: Integer;
+  MarkerPath: String;
+begin
+  Result := True;
+
+  if UninstallSilent then
+    Exit;
+
+  MarkerPath :=
+    ExpandConstant('{userappdata}\compact_games\managed_compressed_games.present');
+  if not FileExists(MarkerPath) then
+    Exit;
+
+  Choice := MsgBox(
+    'Compact Games still manages one or more compressed games.' + #13#10 + #13#10 +
+    'The games remain usable because Windows compression is transparent, ' +
+    'but restoring them before uninstall gives you full control of their disk state.' + #13#10 + #13#10 +
+    'Yes - Open Compact Games and restore first (recommended)' + #13#10 +
+    'No - Continue and leave games compressed' + #13#10 +
+    'Cancel - Do not uninstall',
+    mbConfirmation,
+    MB_YESNOCANCEL);
+
+  if Choice = IDYES then
+  begin
+    if FileExists(ExpandConstant('{app}\{#AppExeName}')) then
+    begin
+      if ShellExec(
+        '',
+        ExpandConstant('{app}\{#AppExeName}'),
+        '--prepare-uninstall',
+        ExpandConstant('{app}'),
+        SW_SHOWNORMAL,
+        ewNoWait,
+        ResultCode) then
+        // Launched: abort the uninstall so the user can restore first.
+        Result := False
+      else
+      begin
+        // The app could not be started; do not silently trap the user with a
+        // cancelled uninstall and no window. Report it and let uninstall proceed.
+        MsgBox(
+          'Compact Games could not be started automatically, so your games were ' +
+          'not restored.' + #13#10 + #13#10 +
+          'The uninstall will continue. You can restore compressed games later by ' +
+          'reinstalling Compact Games.',
+          mbError,
+          MB_OK);
+        Result := True;
+      end;
+    end
+    else
+    begin
+      // The app executable is missing, so it cannot be opened to restore.
+      MsgBox(
+        'Compact Games is no longer installed at its expected location, so it ' +
+        'cannot be opened to restore your games.' + #13#10 + #13#10 +
+        'The uninstall will continue.',
+        mbInformation,
+        MB_OK);
+      Result := True;
+    end;
+  end
+  else if Choice = IDNO then
+    Result := True
+  else
+    Result := False;
+end;
+
+// ---------------------------------------------------------------------------
 // Uninstall: add "remove user data" checkbox above the progress bar.
 // Only shown in interactive mode — silent uninstalls preserve user data.
 // ---------------------------------------------------------------------------
@@ -141,6 +222,7 @@ var
   ResultCode: Integer;
 begin
   if CurUninstallStep <> usPostUninstall then Exit;
+  if UninstallSilent then Exit;
   if not (Assigned(DeleteUserDataCheckbox) and DeleteUserDataCheckbox.Checked) then Exit;
 
   // Rust config dir — %APPDATA%\compact_games

@@ -106,6 +106,22 @@ extension _CoverArtServiceApiSecurity on CoverArtService {
 
     return host == 'steamgriddb.com' || host.endsWith('.steamgriddb.com');
   }
+
+  bool _isTrustedSteamStoreImageUri(Uri uri) {
+    if (!uri.hasScheme || uri.scheme.toLowerCase() != 'https') {
+      return false;
+    }
+
+    final host = uri.host.toLowerCase();
+    if (host.isEmpty ||
+        host == 'localhost' ||
+        _ipv4HostPattern.hasMatch(host)) {
+      return false;
+    }
+
+    return host == 'shared.akamai.steamstatic.com' ||
+        host == 'shared.fastly.steamstatic.com';
+  }
 }
 
 class _BoundedImageResponse {

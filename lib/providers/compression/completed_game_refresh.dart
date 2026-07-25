@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/misc.dart';
 
 import '../../models/game_info.dart';
+import '../../services/managed_restore_service.dart';
 import '../games/game_list_provider.dart';
 import 'compression_state.dart';
 
@@ -27,6 +28,10 @@ Future<void> refreshCompletedGameAfterJob({
 }) async {
   final bridge = read(rustBridgeServiceProvider);
   final gameListNotifier = read(gameListProvider.notifier);
+
+  // The native operation updates the managed-path ledger before its stream
+  // closes. Notify an already-open Settings page to re-read that durable state.
+  read(managedRestoreRefreshProvider.notifier).notifyPlanChanged();
 
   if (jobType == CompressionJobType.compression) {
     _applyOptimisticCompressionCompletionUpdate(

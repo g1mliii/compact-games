@@ -87,6 +87,40 @@ class _BucketedFileProgress {
   final bool isApproximate;
 }
 
+/// Pending manual jobs in FIFO order.
+final compressionQueueProvider = Provider<List<CompressionJobState>>((ref) {
+  return ref.watch(compressionProvider.select((state) => state.queue));
+});
+
+/// Number of pending manual jobs.
+final compressionQueueCountProvider = Provider<int>((ref) {
+  return ref.watch(compressionProvider.select((state) => state.queueLength));
+});
+
+/// One-based pending queue position for a game path, or null when not queued.
+final compressionQueuePositionProvider = Provider.family<int?, String>((
+  ref,
+  gamePath,
+) {
+  String normalizePath(String path) {
+    var normalized = path.trim().replaceAll('/', '\\').toLowerCase();
+    while (normalized.length > 3 && normalized.endsWith('\\')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return normalized;
+  }
+
+  final normalizedPath = normalizePath(gamePath);
+  return ref.watch(
+    compressionProvider.select((state) {
+      final index = state.queue.indexWhere(
+        (job) => normalizePath(job.gamePath) == normalizedPath,
+      );
+      return index < 0 ? null : index + 1;
+    }),
+  );
+});
+
 /// Active compression/decompression job. Null when idle.
 final activeCompressionJobProvider = Provider<CompressionJobState?>((ref) {
   return ref.watch(

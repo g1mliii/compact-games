@@ -116,17 +116,17 @@ fn quick_scan_accepts_medium_folder_with_game_executable() {
 fn quick_scan_accepts_unity_layout_with_small_bootstrap_exe() {
     let _guard = lock_discovery_test();
     let temp = tempfile::TempDir::new().unwrap();
-    let game_dir = temp.path().join("Cairn");
-    let data_dir = game_dir.join("Cairn_Data");
+    let game_dir = temp.path().join("Cyberpunk 2077");
+    let data_dir = game_dir.join("Cyberpunk 2077_Data");
     fs::create_dir_all(&data_dir).unwrap();
-    File::create(game_dir.join("Cairn.exe"))
+    File::create(game_dir.join("Cyberpunk 2077.exe"))
         .unwrap()
         .set_len(512 * 1024)
         .unwrap();
     fs::write(data_dir.join("globalgamemanagers"), vec![9_u8; 4096]).unwrap();
 
     let quick_scan = build_game_info_with_mode_and_stats_path(
-        "Cairn".to_owned(),
+        "Cyberpunk 2077".to_owned(),
         game_dir.clone(),
         game_dir,
         Platform::Custom,

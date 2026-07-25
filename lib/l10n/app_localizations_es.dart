@@ -690,6 +690,24 @@ class AppLocalizationsEs extends AppLocalizations {
   String get activityDismissMonitor => 'Cerrar monitor';
 
   @override
+  String activityQueuedCount(int count) {
+    return 'En cola ($count)';
+  }
+
+  @override
+  String activityQueuePosition(int position) {
+    return 'En cola, puesto $position';
+  }
+
+  @override
+  String activityRemoveQueuedGame(String gameName) {
+    return 'Quitar $gameName de la cola';
+  }
+
+  @override
+  String get activityClearQueue => 'Vaciar cola';
+
+  @override
   String get activityCompressing => 'Comprimiendo';
 
   @override
@@ -954,4 +972,101 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get trayError => 'Error';
+
+  @override
+  String get settingsRestoreSectionTitle => 'Restaurar juegos comprimidos';
+
+  @override
+  String get settingsRestoreDescription =>
+      'Restaura solo los juegos registrados como comprimidos correctamente por Compact Games. El estado real del sistema de archivos se comprueba de nuevo antes de descomprimir.';
+
+  @override
+  String get settingsRestoreChecking =>
+      'Comprobando juegos administrados y espacio libre...';
+
+  @override
+  String get settingsRestoreNoGames =>
+      'Ningún juego administrado por Compact Games necesita restauración.';
+
+  @override
+  String settingsRestoreSummary(int count, String space) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count juegos necesitan hasta $space de espacio adicional.',
+      one: '1 juego necesita hasta $space de espacio adicional.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsRestoreLongRuntime =>
+      'Esto puede tardar mucho. La automatización se pausará y se rechazarán nuevos trabajos de compresión hasta que termine la restauración o se omitan los errores.';
+
+  @override
+  String settingsRestoreDriveSpace(
+    String drive,
+    String required,
+    String available,
+  ) {
+    return '$drive: se requieren $required, hay $available disponibles';
+  }
+
+  @override
+  String get settingsRestoreDriveInsufficient =>
+      'No hay suficiente espacio libre en una o más unidades. Libera espacio antes de restaurar.';
+
+  @override
+  String get settingsRestoreAction =>
+      'Restaurar todos los juegos administrados';
+
+  @override
+  String get settingsRestoreConfirmTitle =>
+      '¿Restaurar todos los juegos administrados?';
+
+  @override
+  String settingsRestoreConfirmBody(int count, String space) {
+    return 'Se pondrán $count juegos en la cola de descompresión. Pueden requerirse hasta $space de espacio adicional. Mantén Compact Games abierto hasta que termine la cola.';
+  }
+
+  @override
+  String settingsRestoreProgress(int completed, int total) {
+    return 'Restaurados $completed de $total juegos';
+  }
+
+  @override
+  String get settingsRestoreFailuresTitle => 'Errores de restauración';
+
+  @override
+  String get settingsRestoreSkip => 'Omitir';
+
+  @override
+  String settingsRestoreSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count juegos omitidos permanecen comprimidos.',
+      one: '1 juego omitido permanece comprimido.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsRestoreSuccess =>
+      'Todos los juegos administrados se restauraron. Ahora puedes desinstalar Compact Games.';
+
+  @override
+  String get settingsRestoreUninstallAction => 'Desinstalar Compact Games';
+
+  @override
+  String get settingsRestoreUninstallNotFound =>
+      'No se encontró el desinstalador de Compact Games.';
+
+  @override
+  String get settingsRestoreRefresh => 'Volver a comprobar';
+
+  @override
+  String settingsRestoreLoadFailed(String error) {
+    return 'No se pudieron comprobar los juegos administrados: $error';
+  }
 }

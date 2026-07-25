@@ -14,6 +14,7 @@ import '../../../../models/compression_algorithm.dart';
 import '../../../../models/compression_estimate.dart';
 import '../../../../models/game_info.dart';
 import '../../../../providers/compression/compression_provider.dart';
+import '../../../../providers/compression/compression_progress_provider.dart';
 import '../../../../providers/compression/compression_state.dart';
 import '../../../../providers/cover_art/cover_art_provider.dart';
 import '../../../../providers/games/game_list_provider.dart';
@@ -216,6 +217,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
           settingsProvider.select((async) => async.value?.settings.algorithm),
         ) ??
         CompressionAlgorithm.xpress8k;
+    final queuePosition = ref.watch(
+      compressionQueuePositionProvider(widget.gamePath),
+    );
 
     _scheduleHydrationRequest();
     if (_isEstimatePrefetchAllowed(context)) {
@@ -239,6 +243,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         isCompressed: cardData.isCompressed,
         isDirectStorage: cardData.isDirectStorage,
         isUnsupported: cardData.isUnsupported,
+        queuePosition: queuePosition,
         estimatedSavedBytes: _estimatedSavedBytesFor(
           game,
           allowDirectStorageOverride,
@@ -460,6 +465,12 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     final l10n = context.l10n;
     final isExcluded = _readIsExcluded(game.path);
     final allowDirectStorageOverride = _readDirectStorageOverride();
+    final queue = ref.read(compressionProvider).queue;
+    final queuedJobIndex = queue.indexWhere(
+      (job) => job.gamePath.toLowerCase() == game.path.toLowerCase(),
+    );
+    final queuePosition = queuedJobIndex < 0 ? null : queuedJobIndex + 1;
+    final queuedJob = queuedJobIndex < 0 ? null : queue[queuedJobIndex];
     final action = await showMenu<GameContextAction>(
       context: context,
       position: _menuPosition(tapDown),
@@ -477,21 +488,35 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
           value: GameContextAction.compress,
           enabled:
               !game.isCompressed &&
+              queuedJob == null &&
               !_isDirectStorageBlocked(game, allowDirectStorageOverride),
-          child: _buildMenuLabel(l10n.gameMenuCompressNow, LucideIcons.archive),
+          child: _buildMenuLabel(
+            queuedJob?.type == CompressionJobType.compression
+                ? l10n.activityQueuePosition(queuePosition!)
+                : l10n.gameMenuCompressNow,
+            LucideIcons.archive,
+          ),
         ),
         PopupMenuItem(
           value: GameContextAction.recompress,
           enabled:
               game.isCompressed &&
+              queuedJob == null &&
               !_isDirectStorageBlocked(game, allowDirectStorageOverride),
-          child: _buildMenuLabel(l10n.gameMenuRecompress, LucideIcons.archive),
+          child: _buildMenuLabel(
+            queuedJob?.type == CompressionJobType.compression
+                ? l10n.activityQueuePosition(queuePosition!)
+                : l10n.gameMenuRecompress,
+            LucideIcons.archive,
+          ),
         ),
         PopupMenuItem(
           value: GameContextAction.decompress,
-          enabled: game.isCompressed,
+          enabled: game.isCompressed && queuedJob == null,
           child: _buildMenuLabel(
-            l10n.gameMenuDecompress,
+            queuedJob?.type == CompressionJobType.decompression
+                ? l10n.activityQueuePosition(queuePosition!)
+                : l10n.gameMenuDecompress,
             LucideIcons.archiveRestore,
           ),
         ),

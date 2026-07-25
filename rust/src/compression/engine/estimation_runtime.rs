@@ -411,7 +411,15 @@ fn executable_score(path: &Path, file_size: u64) -> Option<u16> {
         .and_then(|n| n.to_str())
         .map(|n| n.to_ascii_lowercase())
         .unwrap_or_default();
-    if is_non_game_executable_name(&file_name) {
+    if crate::discovery::utils::is_non_game_exe(&file_name) {
+        return None;
+    }
+    // Launchers make poor cover-art hints: a generic "Launcher.exe" yields the
+    // lookup name "Launcher", which matches an unrelated game in autocomplete.
+    // Discovery deliberately keeps launchers as valid launch targets (see
+    // is_non_game_exe / Lesson 67), so this stricter rule lives here, scoped to
+    // the estimate's cover-art candidate rather than the shared filter.
+    if file_name.contains("launcher") {
         return None;
     }
 
@@ -421,12 +429,23 @@ fn executable_score(path: &Path, file_size: u64) -> Option<u16> {
     Some(20 + size_score)
 }
 
-fn is_non_game_executable_name(name: &str) -> bool {
-    name.contains("setup")
-        || name.contains("install")
-        || name.contains("unins")
-        || name.contains("launcher")
-        || name.contains("vcredist")
-        || name.contains("dxsetup")
-        || name.contains("prereq")
+#[cfg(test)]
+mod tests {
+    use super::executable_score;
+    use std::path::Path;
+
+    #[test]
+    fn executable_candidate_rejects_crash_handlers() {
+        assert!(executable_score(Path::new("UnityCrashHandler64.exe"), 2_000_000).is_none());
+        assert!(executable_score(Path::new("Sample Cafe.exe"), 600_000).is_some());
+    }
+
+    #[test]
+    fn executable_candidate_rejects_launchers() {
+        // A generic launcher must never become the cover-art hint, even when it
+        // is the largest exe present.
+        assert!(executable_score(Path::new("Launcher.exe"), 50_000_000).is_none());
+        assert!(executable_score(Path::new("GameLauncher.exe"), 50_000_000).is_none());
+        assert!(executable_score(Path::new("Sample Cafe.exe"), 600_000).is_some());
+    }
 }

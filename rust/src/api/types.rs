@@ -17,6 +17,9 @@ use crate::compression::engine::{
     CompressionEstimate, CompressionEstimateSource, CompressionStats,
 };
 use crate::compression::error::CompressionError;
+use crate::compression::managed_paths::{
+    ManagedRestoreDrive, ManagedRestoreGame, ManagedRestorePlan,
+};
 use crate::discovery::platform::{GameInfo, Platform};
 use crate::progress::tracker::CompressionProgress;
 use thiserror::Error;
@@ -239,6 +242,57 @@ impl From<CompressionEstimate> for FrbCompressionEstimate {
             adaptive_applied: e.adaptive_applied,
             community_samples: e.community_samples,
             community_lookup_pending: e.community_lookup_pending,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FrbManagedRestoreGame {
+    pub game_path: String,
+    pub game_name: String,
+    pub drive: String,
+    pub required_bytes: u64,
+}
+
+impl From<ManagedRestoreGame> for FrbManagedRestoreGame {
+    fn from(game: ManagedRestoreGame) -> Self {
+        Self {
+            game_path: game.game_path,
+            game_name: game.game_name,
+            drive: game.drive,
+            required_bytes: game.required_bytes,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FrbManagedRestoreDrive {
+    pub drive: String,
+    pub required_bytes: u64,
+    pub available_bytes: u64,
+}
+
+impl From<ManagedRestoreDrive> for FrbManagedRestoreDrive {
+    fn from(drive: ManagedRestoreDrive) -> Self {
+        Self {
+            drive: drive.drive,
+            required_bytes: drive.required_bytes,
+            available_bytes: drive.available_bytes,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FrbManagedRestorePlan {
+    pub games: Vec<FrbManagedRestoreGame>,
+    pub drives: Vec<FrbManagedRestoreDrive>,
+}
+
+impl From<ManagedRestorePlan> for FrbManagedRestorePlan {
+    fn from(plan: ManagedRestorePlan) -> Self {
+        Self {
+            games: plan.games.into_iter().map(Into::into).collect(),
+            drives: plan.drives.into_iter().map(Into::into).collect(),
         }
     }
 }

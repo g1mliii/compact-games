@@ -100,7 +100,7 @@ void main() {
             .execute(
               const ShellActionRequest(
                 kind: ShellActionKind.compress,
-                path: r'C:\Users\subai\Desktop\Example.lnk',
+                path: r'C:\Users\TestUser\Desktop\Example.lnk',
               ),
             ),
         throwsStateError,

@@ -53,6 +53,14 @@ void main() {
     );
   });
 
+  test('prepare-uninstall launch opens visibly without a path argument', () {
+    final launchArgs = ShellLaunchArgs.parse(const ['--prepare-uninstall']);
+
+    expect(launchArgs.prepareUninstall, isTrue);
+    expect(launchArgs.shellAction, isNull);
+    expect(launchArgs.startHiddenInTray, isFalse);
+  });
+
   test(
     'normal Windows startup shows inactive and initializes tray after show',
     () async {

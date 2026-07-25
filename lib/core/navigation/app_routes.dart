@@ -11,6 +11,7 @@ abstract final class AppRoutes {
   static const String home = '/home';
   static const String inventory = '/inventory';
   static const String settings = '/settings';
+  static const String settingsRestore = '/settings/restore';
   static const String gamePrefix = '/game/';
 
   static String gameDetails(String gamePath) {
@@ -37,6 +38,13 @@ abstract final class AppRoutes {
       return _desktopInstantRoute<void>(
         builder: (_) => const SettingsScreen(),
         settings: const RouteSettings(name: settings),
+      );
+    }
+
+    if (name == settingsRestore) {
+      return _desktopInstantRoute<void>(
+        builder: (_) => const SettingsScreen(focusRestore: true),
+        settings: const RouteSettings(name: settingsRestore),
       );
     }
 

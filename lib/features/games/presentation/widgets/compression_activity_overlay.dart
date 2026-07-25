@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../providers/compression/compression_progress_provider.dart';
+import '../../../../providers/compression/compression_provider.dart';
 import 'compression_progress_indicator.dart';
 
 const ValueKey<String> compressionFloatingActivityHostKey = ValueKey<String>(
@@ -45,6 +46,12 @@ class CompressionActivityOverlay extends ConsumerWidget {
               child: CompressionProgressIndicator(
                 key: compressionFloatingActivityHostKey,
                 activity: activity,
+                queue: ref.watch(compressionQueueProvider),
+                onRemoveQueued: (runId) => ref
+                    .read(compressionProvider.notifier)
+                    .removeFromQueue(runId),
+                onClearQueue: () =>
+                    ref.read(compressionProvider.notifier).clearQueue(),
                 compact: true,
                 action: CompressionActivityAction.icon(
                   label: l10n.activityDismissMonitor,

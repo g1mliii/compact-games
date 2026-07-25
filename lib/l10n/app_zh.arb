@@ -880,6 +880,37 @@
   "@activityDismissMonitor": {
     "description": "Localized message for activity dismiss monitor."
   },
+  "activityQueuedCount": "队列中（{count}）",
+  "@activityQueuedCount": {
+    "description": "Heading for the pending manual compression queue.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityQueuePosition": "排队中（第 {position} 位）",
+  "@activityQueuePosition": {
+    "description": "One-based position of a game in the manual compression queue.",
+    "placeholders": {
+      "position": {
+        "type": "int"
+      }
+    }
+  },
+  "activityRemoveQueuedGame": "从队列中移除“{gameName}”",
+  "@activityRemoveQueuedGame": {
+    "description": "Accessible label for removing one pending queue entry.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "activityClearQueue": "清空队列",
+  "@activityClearQueue": {
+    "description": "Action that removes all pending manual jobs."
+  },
   "activityCompressing": "正在压缩",
   "@activityCompressing": {
     "description": "Localized message for activity compressing."
@@ -1272,5 +1303,25 @@
   "trayError": "错误",
   "@trayError": {
     "description": "Localized message for tray error."
-  }
+  },
+  "settingsRestoreSectionTitle": "还原已压缩的游戏",
+  "settingsRestoreDescription": "仅还原由 Compact Games 记录为成功压缩的游戏。解压前会再次检查实际文件系统状态。",
+  "settingsRestoreChecking": "正在检查托管游戏和可用空间...",
+  "settingsRestoreNoGames": "当前没有由 Compact Games 托管且需要还原的游戏。",
+  "settingsRestoreSummary": "{count, plural, =1{1 个游戏最多需要 {space} 额外空间。} other{{count} 个游戏最多需要 {space} 额外空间。}}",
+  "settingsRestoreLongRuntime": "此过程可能需要很长时间。自动化将暂停，并拒绝新的压缩任务，直到还原完成或失败项被跳过。",
+  "settingsRestoreDriveSpace": "{drive}：需要 {required}，可用 {available}",
+  "settingsRestoreDriveInsufficient": "一个或多个驱动器的可用空间不足。请先释放空间。",
+  "settingsRestoreAction": "还原所有托管游戏",
+  "settingsRestoreConfirmTitle": "还原所有托管游戏？",
+  "settingsRestoreConfirmBody": "将 {count} 个游戏加入解压队列。最多可能需要 {space} 额外空间。请保持 Compact Games 运行直到队列完成。",
+  "settingsRestoreProgress": "已还原 {completed}/{total} 个游戏",
+  "settingsRestoreFailuresTitle": "还原失败",
+  "settingsRestoreSkip": "跳过",
+  "settingsRestoreSkipped": "{count, plural, =1{1 个跳过的游戏仍保持压缩。} other{{count} 个跳过的游戏仍保持压缩。}}",
+  "settingsRestoreSuccess": "所有托管游戏均已还原。现在可以卸载 Compact Games。",
+  "settingsRestoreUninstallAction": "卸载 Compact Games",
+  "settingsRestoreUninstallNotFound": "找不到 Compact Games 卸载程序。",
+  "settingsRestoreRefresh": "重新检查",
+  "settingsRestoreLoadFailed": "无法检查托管游戏：{error}"
 }

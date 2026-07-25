@@ -13,7 +13,7 @@ use sysinfo::System;
 
 use super::types::{
     FrbCompressionAlgorithm, FrbCompressionError, FrbCompressionEstimate, FrbCompressionProgress,
-    FrbCompressionStats, FrbEstimateContext,
+    FrbCompressionStats, FrbEstimateContext, FrbManagedRestorePlan,
 };
 use crate::compression::algorithm::CompressionAlgorithm;
 use crate::compression::engine::{
@@ -22,6 +22,9 @@ use crate::compression::engine::{
 use crate::compression::error::CompressionError;
 use crate::compression::history::{
     persist_if_dirty, record_compression, CompressionHistoryEntry, EstimateSnapshot,
+};
+use crate::compression::managed_paths::{
+    build_restore_plan, record_managed_compression, remove_managed_path,
 };
 
 use crate::compression::thread_policy::compute_thread_policy;
@@ -223,6 +226,20 @@ pub fn compress_game(
                 &stats,
                 algo,
             ));
+            if let Err(error) = record_managed_compression(
+                game_path.clone(),
+                game_name,
+                stats.original_bytes,
+                stats.compressed_bytes,
+            ) {
+                // The files are compressed and history is recorded; a failure to
+                // persist the ownership ledger must not be reported to the user
+                // as a failed compression. The game is simply not tracked for
+                // managed restore until the ledger becomes writable again.
+                log::warn!(
+                    "Compression completed for \"{game_path}\", but its restore record could not be saved: {error}"
+                );
+            }
 
             Ok(stats.into())
         }
@@ -307,6 +324,17 @@ pub fn decompress_game(
                 stats.compressed_bytes,
                 restored
             );
+            if crate::discovery::utils::dir_has_wof_compressed_file(&path)? {
+                return Err(FrbCompressionError::IoError {
+                    message: "Decompression finished, but compressed files remain in the folder"
+                        .into(),
+                });
+            }
+            remove_managed_path(&path).map_err(|error| FrbCompressionError::IoError {
+                message: format!(
+                    "Decompression completed, but its restore record could not be updated: {error}"
+                ),
+            })?;
             Ok(())
         }
         Some(Err(CompressionError::Cancelled)) => Ok(()),
@@ -342,6 +370,13 @@ pub fn estimate_compression_savings(
         },
     )?;
     Ok(estimate.into())
+}
+
+/// Revalidate Compact Games-owned paths and build a per-drive restore plan.
+pub fn get_managed_restore_plan() -> Result<FrbManagedRestorePlan, FrbCompressionError> {
+    build_restore_plan()
+        .map(Into::into)
+        .map_err(FrbCompressionError::from)
 }
 
 /// Check if a game uses DirectStorage.

@@ -192,8 +192,8 @@ mod tests {
     #[test]
     fn serde_roundtrip() {
         let game = GameInfo {
-            name: "Portal 2".into(),
-            path: PathBuf::from(r"C:\Steam\steamapps\common\Portal 2"),
+            name: "Cyberpunk 2077".into(),
+            path: PathBuf::from(r"C:\Steam\steamapps\common\Cyberpunk 2077"),
             platform: Platform::Steam,
             size_bytes: 12_000_000_000,
             compressed_size: Some(8_000_000_000),
@@ -201,7 +201,7 @@ mod tests {
             is_directstorage: false,
             is_unsupported: false,
             excluded: false,
-            steam_app_id: Some(620),
+            steam_app_id: Some(1_091_500),
             last_played: None,
         };
         let json = serde_json::to_string(&game).unwrap();

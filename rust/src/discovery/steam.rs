@@ -389,8 +389,8 @@ mod tests {
         assert!(is_steam_tool("Steamworks Shared"));
         assert!(is_steam_tool("Visual C++ Redistributable"));
         assert!(is_steam_tool("SteamVR"));
-        assert!(!is_steam_tool("Half-Life 2"));
-        assert!(!is_steam_tool("Portal 2"));
+        assert!(!is_steam_tool("Cyberpunk 2077"));
+        assert!(!is_steam_tool("Sample Adventure"));
     }
 
     #[test]

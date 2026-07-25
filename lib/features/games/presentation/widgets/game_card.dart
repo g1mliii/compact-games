@@ -26,6 +26,7 @@ class GameCard extends StatelessWidget {
     this.isCompressed = false,
     this.isDirectStorage = false,
     this.isUnsupported = false,
+    this.queuePosition,
     this.estimatedSavedBytes,
     this.estimatedFromCommunity = false,
     this.lastCompressedText,
@@ -48,6 +49,7 @@ class GameCard extends StatelessWidget {
   final bool isCompressed;
   final bool isDirectStorage;
   final bool isUnsupported;
+  final int? queuePosition;
   final int? estimatedSavedBytes;
   final bool estimatedFromCommunity;
   final String? lastCompressedText;
@@ -323,6 +325,13 @@ class GameCard extends StatelessWidget {
 
   Widget _buildStatusBadge(BuildContext context) {
     final l10n = context.l10n;
+    if (queuePosition != null) {
+      return StatusBadge(
+        color: AppColors.info,
+        label: l10n.activityQueuePosition(queuePosition!),
+        icon: LucideIcons.listOrdered,
+      );
+    }
     if (isDirectStorage) {
       return StatusBadge(
         color: AppColors.directStorage,

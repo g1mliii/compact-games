@@ -26,6 +26,10 @@ class HomeCompressionBanner extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
       child: CompressionProgressIndicator(
         activity: activity,
+        queue: ref.watch(compressionQueueProvider),
+        onRemoveQueued: (runId) =>
+            ref.read(compressionProvider.notifier).removeFromQueue(runId),
+        onClearQueue: () => ref.read(compressionProvider.notifier).clearQueue(),
         action: activity.canCancel
             ? CompressionActivityAction.button(
                 label: l10n.commonCancel,

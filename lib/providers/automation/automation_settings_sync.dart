@@ -7,6 +7,7 @@ import '../../models/compression_algorithm.dart';
 import '../../models/game_info.dart';
 import '../games/game_list_provider.dart';
 import '../settings/settings_provider.dart';
+import '../restore/restore_gate_provider.dart';
 
 /// Reactive settings sync: when automation-relevant settings change,
 /// push the new config to the Rust backend.
@@ -26,6 +27,7 @@ final automationDiscoveredWatchPathsProvider =
     });
 
 final automationSyncConfigProvider = Provider<AutomationSyncConfig?>((ref) {
+  final restoreInProgress = ref.watch(restoreGateProvider);
   final autoCompress = ref.watch(
     settingsProvider.select((async) => async.value?.settings.autoCompress),
   );
@@ -63,7 +65,7 @@ final automationSyncConfigProvider = Provider<AutomationSyncConfig?>((ref) {
     ),
   );
 
-  if (autoCompress != true) {
+  if (autoCompress != true || restoreInProgress) {
     return null;
   }
 

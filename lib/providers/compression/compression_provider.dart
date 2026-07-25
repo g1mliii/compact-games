@@ -6,6 +6,7 @@ import '../../models/compression_algorithm.dart';
 import '../../models/compression_progress.dart';
 import '../games/game_list_provider.dart';
 import '../settings/settings_provider.dart';
+import '../restore/restore_gate_provider.dart';
 import 'completed_game_refresh.dart';
 import 'compression_state.dart';
 
@@ -17,7 +18,10 @@ final compressionProvider =
 class CompressionNotifier extends Notifier<CompressionState> {
   StreamSubscription<CompressionProgress>? _progressSubscription;
   Completer<CompressionJobStatus>? _activeJobCompletion;
+  final Map<int, Completer<CompressionJobStatus>> _queuedJobCompletions =
+      <int, Completer<CompressionJobStatus>>{};
   Timer? _historyTimer;
+  Timer? _cancelWatchdog;
   bool _disposed = false;
   bool _cancelRequested = false;
   int _nextRunId = 1;
@@ -31,20 +35,27 @@ class CompressionNotifier extends Notifier<CompressionState> {
       _historyTimer?.cancel();
       _cancelSubscription();
       _completeActiveJobCompletion(CompressionJobStatus.cancelled);
+      for (final completion in _queuedJobCompletions.values) {
+        if (!completion.isCompleted) {
+          completion.complete(CompressionJobStatus.cancelled);
+        }
+      }
+      _queuedJobCompletions.clear();
     });
     return const CompressionState();
   }
 
-  /// Start compression for a game. Only one job at a time.
-  Future<void> startCompression({
+  /// Start compression for a game, or append it to the manual FIFO queue.
+  Future<bool> startCompression({
     required String gamePath,
     required String gameName,
     CompressionAlgorithm? algorithm,
     bool? allowDirectStorageOverride,
   }) async {
-    if (state.hasActiveJob || _progressSubscription != null) return;
+    if (ref.read(restoreGateProvider) || _containsGamePath(gamePath)) {
+      return false;
+    }
 
-    _completeActiveJobCompletion(CompressionJobStatus.cancelled);
     final settings = ref.read(settingsProvider).value?.settings;
     final algo =
         algorithm ?? settings?.algorithm ?? CompressionAlgorithm.xpress8k;
@@ -53,28 +64,28 @@ class CompressionNotifier extends Notifier<CompressionState> {
         settings?.directStorageOverrideEnabled ??
         false;
     final ioParallelismOverride = settings?.ioParallelismOverride;
-    _cancelRequested = false;
-
-    state = state.copyWith(
-      activeJob: () => CompressionJobState(
+    return _scheduleJob(
+      CompressionJobState(
         runId: _allocateRunId(),
         gamePath: gamePath,
         gameName: gameName,
         type: CompressionJobType.compression,
         algorithm: algo,
-        status: CompressionJobStatus.running,
-        progress: _initialProgress(gameName),
+        allowDirectStorageOverride: dsOverride,
+        ioParallelismOverride: ioParallelismOverride,
       ),
     );
+  }
 
+  void _beginCompression(CompressionJobState job) {
     try {
       final bridge = ref.read(rustBridgeServiceProvider);
       final stream = bridge.compressGame(
-        gamePath: gamePath,
-        gameName: gameName,
-        algorithm: algo,
-        allowDirectStorageOverride: dsOverride,
-        ioParallelismOverride: ioParallelismOverride,
+        gamePath: job.gamePath,
+        gameName: job.gameName,
+        algorithm: job.algorithm,
+        allowDirectStorageOverride: job.allowDirectStorageOverride,
+        ioParallelismOverride: job.ioParallelismOverride,
       );
       _subscribeToProgressStream(stream);
     } catch (e) {
@@ -88,6 +99,10 @@ class CompressionNotifier extends Notifier<CompressionState> {
     final job = state.activeJob;
     if (job == null || !job.isActive) return;
     _cancelRequested = true;
+    state = state.copyWith(
+      activeJob: () => job.copyWith(status: CompressionJobStatus.cancelled),
+    );
+    _completeActiveJobCompletion(CompressionJobStatus.cancelled);
     try {
       ref.read(rustBridgeServiceProvider).cancelCompression();
     } catch (e) {
@@ -95,11 +110,32 @@ class CompressionNotifier extends Notifier<CompressionState> {
       _failJob('Failed to cancel compression: $e');
       return;
     }
-    // Prevent a stuck native stream from retaining a live subscription.
-    _cancelSubscription();
-    _cancelRequested = false;
-    _completeActiveJobCompletion(CompressionJobStatus.cancelled);
-    _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
+
+    // Keep the subscription until the native operation exits. Rust owns the
+    // serialization guard, so starting the next queued job before its stream
+    // closes can race that guard and incorrectly fail the next job. Guard
+    // against a native stream that never closes (e.g. a worker stalled on a
+    // locked file) with a watchdog so the queue can never wedge permanently.
+    _armCancelWatchdog();
+    _drainQueue();
+  }
+
+  /// If a cancelled operation's native stream never emits done/error, its
+  /// subscription would stay live forever and every later [_drainQueue] would
+  /// early-return, wedging the queue. This detaches the stalled subscription
+  /// and advances the queue after a generous grace period.
+  void _armCancelWatchdog() {
+    _cancelWatchdog?.cancel();
+    _cancelWatchdog = Timer(const Duration(seconds: 20), () {
+      if (_disposed) return;
+      if (_progressSubscription == null) return;
+      final job = state.activeJob;
+      _cancelSubscription();
+      if (job != null && !job.isActive) {
+        _archiveJob(job);
+      }
+      _drainQueue();
+    });
   }
 
   /// Start decompression with progress streaming.
@@ -107,7 +143,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
     required String gamePath,
     required String gameName,
   }) async {
-    await _startDecompression(gamePath: gamePath, gameName: gameName);
+    _scheduleDecompression(gamePath: gamePath, gameName: gameName);
   }
 
   /// Start decompression and complete with the final job status.
@@ -115,8 +151,9 @@ class CompressionNotifier extends Notifier<CompressionState> {
     required String gamePath,
     required String gameName,
   }) async {
+    if (_containsGamePath(gamePath)) return null;
     final completion = Completer<CompressionJobStatus>();
-    final started = await _startDecompression(
+    final started = _scheduleDecompression(
       gamePath: gamePath,
       gameName: gameName,
       completion: completion,
@@ -125,47 +162,132 @@ class CompressionNotifier extends Notifier<CompressionState> {
     return completion.future;
   }
 
-  Future<bool> _startDecompression({
+  bool _scheduleDecompression({
     required String gamePath,
     required String gameName,
     Completer<CompressionJobStatus>? completion,
-  }) async {
-    if (state.hasActiveJob || _progressSubscription != null) return false;
-
-    _completeActiveJobCompletion(CompressionJobStatus.cancelled);
-    _activeJobCompletion = completion;
-    state = state.copyWith(
-      activeJob: () => CompressionJobState(
+  }) {
+    if (_containsGamePath(gamePath)) return false;
+    final settings = ref.read(settingsProvider).value?.settings;
+    return _scheduleJob(
+      CompressionJobState(
         runId: _allocateRunId(),
         gamePath: gamePath,
         gameName: gameName,
         type: CompressionJobType.decompression,
         algorithm: CompressionAlgorithm.xpress4k,
+        ioParallelismOverride: settings?.ioParallelismOverride,
+      ),
+      completion: completion,
+    );
+  }
+
+  void _beginDecompression(CompressionJobState job) {
+    try {
+      final bridge = ref.read(rustBridgeServiceProvider);
+      final stream = bridge.decompressGame(
+        job.gamePath,
+        gameName: job.gameName,
+        ioParallelismOverride: job.ioParallelismOverride,
+      );
+      _subscribeToProgressStream(stream);
+    } catch (e) {
+      if (_disposed) return;
+      _cancelRequested = false;
+      _failJob('Decompression failed: $e');
+    }
+  }
+
+  bool _scheduleJob(
+    CompressionJobState job, {
+    Completer<CompressionJobStatus>? completion,
+  }) {
+    if (_disposed || _containsGamePath(job.gamePath)) return false;
+    if (completion != null) {
+      _queuedJobCompletions[job.runId] = completion;
+    }
+
+    if (state.hasActiveJob || _progressSubscription != null) {
+      state = state.copyWith(queue: <CompressionJobState>[...state.queue, job]);
+      return true;
+    }
+
+    _beginJob(job);
+    return true;
+  }
+
+  void _beginJob(CompressionJobState job) {
+    if (_disposed) return;
+    final previousJob = state.activeJob;
+    if (previousJob != null) {
+      _archiveJob(previousJob);
+    }
+
+    _completeActiveJobCompletion(CompressionJobStatus.cancelled);
+    _activeJobCompletion = _queuedJobCompletions.remove(job.runId);
+    _cancelRequested = false;
+    state = state.copyWith(
+      activeJob: () => job.copyWith(
         status: CompressionJobStatus.running,
-        progress: _initialProgress(gameName),
+        progress: () => _initialProgress(job.gameName),
+        error: () => null,
       ),
     );
 
-    try {
-      final bridge = ref.read(rustBridgeServiceProvider);
-      final ioParallelismOverride = ref
-          .read(settingsProvider)
-          .value
-          ?.settings
-          .ioParallelismOverride;
-      final stream = bridge.decompressGame(
-        gamePath,
-        gameName: gameName,
-        ioParallelismOverride: ioParallelismOverride,
-      );
-      _subscribeToProgressStream(stream);
-      return true;
-    } catch (e) {
-      if (_disposed) return false;
-      _cancelRequested = false;
-      _failJob('Decompression failed: $e');
-      return false;
+    switch (job.type) {
+      case CompressionJobType.compression:
+        _beginCompression(job);
+        break;
+      case CompressionJobType.decompression:
+        _beginDecompression(job);
+        break;
     }
+  }
+
+  /// Removes one pending job without affecting the active operation.
+  void removeFromQueue(int runId) {
+    final index = state.queue.indexWhere((job) => job.runId == runId);
+    if (index < 0) return;
+    final updatedQueue = <CompressionJobState>[...state.queue]..removeAt(index);
+    state = state.copyWith(queue: updatedQueue);
+    _completeQueuedJob(runId, CompressionJobStatus.cancelled);
+  }
+
+  /// Clears all pending jobs without affecting the active operation.
+  void clearQueue() {
+    if (state.queue.isEmpty) return;
+    final removedRunIds = state.queue.map((job) => job.runId).toList();
+    state = state.copyWith(queue: const <CompressionJobState>[]);
+    for (final runId in removedRunIds) {
+      _completeQueuedJob(runId, CompressionJobStatus.cancelled);
+    }
+  }
+
+  bool _containsGamePath(String gamePath) {
+    final normalizedPath = _normalizeGamePath(gamePath);
+    final activeJob = state.activeJob;
+    if (activeJob != null &&
+        (activeJob.isActive || _progressSubscription != null) &&
+        _normalizeGamePath(activeJob.gamePath) == normalizedPath) {
+      return true;
+    }
+    return state.queue.any(
+      (job) => _normalizeGamePath(job.gamePath) == normalizedPath,
+    );
+  }
+
+  String _normalizeGamePath(String gamePath) {
+    var normalized = gamePath.trim().replaceAll('/', '\\').toLowerCase();
+    while (normalized.length > 3 && normalized.endsWith('\\')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return normalized;
+  }
+
+  void _completeQueuedJob(int runId, CompressionJobStatus status) {
+    final completion = _queuedJobCompletions.remove(runId);
+    if (completion == null || completion.isCompleted) return;
+    completion.complete(status);
   }
 
   void _onProgress(CompressionProgress progress) {
@@ -183,24 +305,17 @@ class CompressionNotifier extends Notifier<CompressionState> {
   void _onError(Object error, [StackTrace? _]) {
     if (_disposed) return;
     final message = error.toString();
-    if (_cancelRequested) {
+    final job = state.activeJob;
+    if (_cancelRequested ||
+        job?.status == CompressionJobStatus.cancelled ||
+        _isCancellationMessage(message)) {
       _cancelRequested = false;
       _cancelSubscription();
-      final job = state.activeJob;
-      if (job != null && job.isActive) {
+      if (job != null) {
         _completeActiveJobCompletion(CompressionJobStatus.cancelled);
         _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
       }
-      return;
-    }
-    if (_isCancellationMessage(message)) {
-      _cancelRequested = false;
-      _cancelSubscription();
-      final job = state.activeJob;
-      if (job != null && job.isActive) {
-        _completeActiveJobCompletion(CompressionJobStatus.cancelled);
-        _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
-      }
+      _drainQueue();
       return;
     }
     _cancelRequested = false;
@@ -208,11 +323,26 @@ class CompressionNotifier extends Notifier<CompressionState> {
   }
 
   void _onDone() {
+    final job = state.activeJob;
+    final wasCancelled =
+        _cancelRequested || job?.status == CompressionJobStatus.cancelled;
     _cancelSubscription();
     _cancelRequested = false;
     if (_disposed) return;
-    final job = state.activeJob;
-    if (job == null || !job.isActive) return;
+    if (job == null) {
+      _drainQueue();
+      return;
+    }
+    if (wasCancelled) {
+      _completeActiveJobCompletion(CompressionJobStatus.cancelled);
+      _archiveJob(job.copyWith(status: CompressionJobStatus.cancelled));
+      _drainQueue();
+      return;
+    }
+    if (!job.isActive) {
+      _drainQueue();
+      return;
+    }
     _completeJob();
   }
 
@@ -225,6 +355,7 @@ class CompressionNotifier extends Notifier<CompressionState> {
     final completedJob = job.copyWith(status: CompressionJobStatus.completed);
     _completeActiveJobCompletion(CompressionJobStatus.completed);
     _archiveJob(completedJob);
+    _drainQueue();
 
     unawaited(
       refreshCompletedGameAfterJob(
@@ -252,6 +383,11 @@ class CompressionNotifier extends Notifier<CompressionState> {
     );
 
     _completeActiveJobCompletion(CompressionJobStatus.failed);
+    // Keep the failed job in the active slot for its display window before
+    // draining. Calling _drainQueue() here would immediately archive the failed
+    // job whenever the queue is non-empty, cancelling that window so the user
+    // never sees which game failed. The timer archives the job and then advances
+    // the queue.
     _moveToHistoryAfterDelay();
   }
 
@@ -304,18 +440,43 @@ class CompressionNotifier extends Notifier<CompressionState> {
       final job = state.activeJob;
       if (job == null || job.isActive) return;
       _archiveJob(job);
+      // Advance any queued jobs now that the failed job's display window has
+      // elapsed and it has been archived to history.
+      _drainQueue();
     });
   }
 
   void _archiveJob(CompressionJobState job) {
     _historyTimer?.cancel();
-    state = CompressionState(
-      activeJob: null,
+    state = state.copyWith(
+      activeJob: () => null,
       history: [job, ...state.history.take(9)],
     );
   }
 
+  void _drainQueue() {
+    if (_disposed || state.hasActiveJob || _progressSubscription != null) {
+      return;
+    }
+    if (state.queue.isEmpty) return;
+
+    final terminalJob = state.activeJob;
+    if (terminalJob != null) {
+      _archiveJob(terminalJob);
+    }
+    if (state.queue.isEmpty) return;
+
+    final nextJob = state.queue.first;
+    state = state.copyWith(
+      activeJob: () => null,
+      queue: state.queue.skip(1).toList(growable: false),
+    );
+    _beginJob(nextJob);
+  }
+
   void _cancelSubscription() {
+    _cancelWatchdog?.cancel();
+    _cancelWatchdog = null;
     _progressSubscription?.cancel();
     _progressSubscription = null;
   }

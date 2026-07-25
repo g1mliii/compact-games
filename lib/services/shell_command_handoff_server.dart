@@ -65,6 +65,7 @@ class ShellCommandHandoffServer {
   Future<bool> start({
     required void Function(ShellActionRequest request) onRequest,
     required VoidCallback onShowWindow,
+    VoidCallback? onPrepareUninstall,
   }) async {
     if (_server != null) {
       return true;
@@ -84,7 +85,9 @@ class ShellCommandHandoffServer {
       _server = server;
       _token = token;
       server.listen((socket) {
-        unawaited(_handleClient(socket, onRequest, onShowWindow));
+        unawaited(
+          _handleClient(socket, onRequest, onShowWindow, onPrepareUninstall),
+        );
       });
       return true;
     } catch (error) {
@@ -110,9 +113,14 @@ class ShellCommandHandoffServer {
 
   static Future<bool> handoffLaunchToRunningApp({
     ShellActionRequest? request,
+    bool prepareUninstall = false,
   }) async {
     return _handoffToRunningApp(<String, Object?>{
-      _HandoffProtocol.commandKey: request == null ? 'show' : 'shellAction',
+      _HandoffProtocol.commandKey: prepareUninstall
+          ? 'prepareUninstall'
+          : request == null
+          ? 'show'
+          : 'shellAction',
       if (request != null) _HandoffProtocol.requestKey: request.toJson(),
     });
   }
@@ -164,6 +172,7 @@ class ShellCommandHandoffServer {
     Socket socket,
     void Function(ShellActionRequest request) onRequest,
     VoidCallback onShowWindow,
+    VoidCallback? onPrepareUninstall,
   ) async {
     try {
       final line = await socket
@@ -189,6 +198,9 @@ class ShellCommandHandoffServer {
       final command = decoded[_HandoffProtocol.commandKey];
       if (command == 'show') {
         onShowWindow();
+      } else if (command == 'prepareUninstall') {
+        onShowWindow();
+        onPrepareUninstall?.call();
       } else {
         final request = ShellActionRequest.fromJson(
           decoded[_HandoffProtocol.requestKey],

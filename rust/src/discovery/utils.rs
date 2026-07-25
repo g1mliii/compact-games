@@ -13,4 +13,6 @@ pub use scanning::{
     scan_all_platforms_with_mode, scan_custom_paths, scan_custom_paths_with_mode,
     scan_game_subdirs,
 };
-pub use stats::{dir_stats, dir_stats_quick, DirStats};
+pub use stats::{
+    dir_has_wof_compressed_file, dir_stats, dir_stats_authoritative, dir_stats_quick, DirStats,
+};

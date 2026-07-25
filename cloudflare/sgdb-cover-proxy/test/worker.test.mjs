@@ -161,15 +161,15 @@ test("by-name lookup accepts the closest catalog title containing a multiword qu
     if (url.includes("/search/autocomplete/")) {
       return jsonResponse({
         data: [
-          { id: 10, name: "Vampire Syndicate" },
-          { id: 20, name: "Vampire Syndicate: Gangs of MoonFall" },
+          { id: 10, name: "Phantom Arena" },
+          { id: 20, name: "Cyberpunk 2077: Phantom Liberty" },
         ],
       });
     }
     return jsonResponse({
       data: [
         {
-          url: "https://cdn2.steamgriddb.com/grid/gangs-of-moonfall.jpg",
+          url: "https://cdn2.steamgriddb.com/grid/cyberpunk-phantom-liberty.jpg",
           width: 600,
           height: 900,
         },
@@ -177,7 +177,7 @@ test("by-name lookup accepts the closest catalog title containing a multiword qu
     });
   });
 
-  const result = await fetchJson(env, "/sgdb/by-name?name=Gangs%20of%20MoonFall&dimension=tall");
+  const result = await fetchJson(env, "/sgdb/by-name?name=Phantom%20Liberty&dimension=tall");
 
   assert.equal(result.response.status, 200);
   assert.match(upstreamUrls[1], /\/api\/v2\/grids\/game\/20\?types=static&dimensions=342x482$/);
@@ -191,12 +191,12 @@ test("by-name lookup rejects unrelated autocomplete results", async (t) => {
     return jsonResponse({
       data: [
         { id: 10, name: "Unity" },
-        { id: 20, name: "Vampire Syndicate" },
+        { id: 20, name: "Cyberpunk 2077" },
       ],
     });
   });
 
-  const result = await fetchJson(env, "/sgdb/by-name?name=Succubus%20Successor&dimension=tall");
+  const result = await fetchJson(env, "/sgdb/by-name?name=Sample%20Adventure&dimension=tall");
 
   assert.equal(result.response.status, 404);
   assert.equal(upstreamUrls.length, 1);

@@ -1241,7 +1241,7 @@ void runPhase6OversizeSplitTests() {
               width: 280,
               height: 420,
               child: GameCard(
-                gameName: 'Cairn',
+                gameName: 'Cyberpunk 2077',
                 platform: Platform.steam,
                 totalSizeBytes: totalBytes,
                 compressedSizeBytes: compressedBytes,
@@ -1270,7 +1270,7 @@ void runPhase6OversizeSplitTests() {
   testWidgets('GameCard prioritizes the title over a long compressed date', (
     WidgetTester tester,
   ) async {
-    const gameName = 'Vampire Syndicate: Gangs of MoonFall';
+    const gameName = 'Cyberpunk 2077: Phantom Liberty';
     const timestamp = 'Wednesday, July 9, 2026 at 10:19 PM';
     await tester.pumpWidget(
       const MaterialApp(

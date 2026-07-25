@@ -57,9 +57,10 @@ fn is_non_game_exe_filters_installers() {
     assert!(is_non_game_exe("setup.exe"));
     assert!(is_non_game_exe("vcredist_x64.exe"));
     assert!(is_non_game_exe("dxsetup.exe"));
+    assert!(is_non_game_exe("unitycrashhandler64.exe"));
     assert!(!is_non_game_exe("game.exe"));
     assert!(!is_non_game_exe("gamelauncher.exe"));
-    assert!(!is_non_game_exe("portal2.exe"));
+    assert!(!is_non_game_exe("cyberpunk2077.exe"));
     assert!(!is_non_game_exe("superupdater.exe"));
     assert!(!is_non_game_exe("updaterquest.exe"));
     assert!(is_non_game_exe("updater.exe"));
@@ -77,11 +78,14 @@ fn skip_folders_are_lowercase() {
 #[test]
 fn detects_nested_unreal_style_layout() {
     let root = TempDir::new().unwrap();
-    let game_root = root.path().join("TekkenLike");
-    let win64 = game_root.join("Polaris").join("Binaries").join("Win64");
+    let game_root = root.path().join("Sample Unreal Game");
+    let win64 = game_root
+        .join("SampleProject")
+        .join("Binaries")
+        .join("Win64");
     std::fs::create_dir_all(&win64).unwrap();
-    std::fs::create_dir_all(game_root.join("Polaris").join("Content")).unwrap();
-    File::create(win64.join("Polaris-Win64-Shipping.exe"))
+    std::fs::create_dir_all(game_root.join("SampleProject").join("Content")).unwrap();
+    File::create(win64.join("SampleProject-Win64-Shipping.exe"))
         .unwrap()
         .set_len(MIN_EXE_SIZE + 1)
         .unwrap();
@@ -92,16 +96,19 @@ fn detects_nested_unreal_style_layout() {
 #[test]
 fn detects_double_nested_unreal_style_layout() {
     let root = TempDir::new().unwrap();
-    let game_root = root.path().join("tekken 8");
-    let wrapped_root = game_root.join("TEKKEN 8");
-    let win64 = wrapped_root.join("Polaris").join("Binaries").join("Win64");
+    let game_root = root.path().join("sample fighter");
+    let wrapped_root = game_root.join("Sample Fighter");
+    let win64 = wrapped_root
+        .join("SampleProject")
+        .join("Binaries")
+        .join("Win64");
     std::fs::create_dir_all(&win64).unwrap();
     std::fs::create_dir_all(wrapped_root.join("Engine")).unwrap();
-    File::create(wrapped_root.join("TEKKEN 8.exe"))
+    File::create(wrapped_root.join("Sample Fighter.exe"))
         .unwrap()
         .set_len(MIN_UNITY_BOOTSTRAP_EXE_SIZE + 1)
         .unwrap();
-    File::create(win64.join("Polaris-Win64-Shipping.exe"))
+    File::create(win64.join("SampleProject-Win64-Shipping.exe"))
         .unwrap()
         .set_len(MIN_EXE_SIZE + 1)
         .unwrap();
@@ -134,11 +141,11 @@ fn library_root_mode_skips_root_candidate() {
 fn detects_unity_layout_from_library_root() {
     let root = TempDir::new().unwrap();
     let games_root = root.path().join("Games");
-    let cairn = games_root.join("Cairn");
-    let data = cairn.join("Cairn_Data");
+    let game = games_root.join("Cyberpunk 2077");
+    let data = game.join("Cyberpunk 2077_Data");
 
     std::fs::create_dir_all(&data).unwrap();
-    File::create(cairn.join("Cairn.exe"))
+    File::create(game.join("Cyberpunk 2077.exe"))
         .unwrap()
         .set_len(MIN_UNITY_BOOTSTRAP_EXE_SIZE + 1)
         .unwrap();
@@ -149,7 +156,7 @@ fn detects_unity_layout_from_library_root() {
 
     let games = scan_custom_path(&games_root, DiscoveryScanMode::Full, false).unwrap();
     assert!(
-        games.iter().any(|g| g.path == cairn),
+        games.iter().any(|g| g.path == game),
         "Unity folder under Games root should be discovered"
     );
 }
@@ -159,13 +166,13 @@ fn wrapper_folder_with_unity_game_detected() {
     let root = TempDir::new().unwrap();
     let games_root = root.path().join("Games");
 
-    // "Third Crisis Neon Nights/Third Crisis Neon Nights/<Unity files>"
-    let wrapper = games_root.join("Third Crisis Neon Nights");
-    let inner = wrapper.join("Third Crisis Neon Nights");
-    let data_dir = inner.join("Third Crisis Neon Nights_Data");
+    // "Cyberpunk 2077/Cyberpunk 2077/<Unity files>"
+    let wrapper = games_root.join("Cyberpunk 2077");
+    let inner = wrapper.join("Cyberpunk 2077");
+    let data_dir = inner.join("Cyberpunk 2077_Data");
 
     std::fs::create_dir_all(&data_dir).unwrap();
-    File::create(inner.join("Third Crisis Neon Nights.exe"))
+    File::create(inner.join("Cyberpunk 2077.exe"))
         .unwrap()
         .set_len(MIN_UNITY_BOOTSTRAP_EXE_SIZE + 1)
         .unwrap();
@@ -176,9 +183,82 @@ fn wrapper_folder_with_unity_game_detected() {
 
     let games = scan_custom_path(&games_root, DiscoveryScanMode::Full, false).unwrap();
     assert!(
-        games.iter().any(|g| g.name == "Third Crisis Neon Nights"),
+        games.iter().any(|g| g.name == "Cyberpunk 2077"),
         "Unity game inside wrapper folder should be discovered; got: {:?}",
         games.iter().map(|g| &g.name).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn wrapper_scene_suffix_uses_clean_outer_display_name() {
+    let root = TempDir::new().unwrap();
+    let games_root = root.path().join("Games");
+    let wrapper = games_root.join("Cyberpunk 2077");
+    let inner = wrapper.join("Cyberpunk 2077 - SteamGG.NET");
+    let data_dir = inner.join("Cyberpunk 2077_Data");
+
+    std::fs::create_dir_all(&data_dir).unwrap();
+    File::create(inner.join("Cyberpunk 2077.exe"))
+        .unwrap()
+        .set_len(MIN_UNITY_BOOTSTRAP_EXE_SIZE + 1)
+        .unwrap();
+    File::create(data_dir.join("globalgamemanagers"))
+        .unwrap()
+        .set_len(2 * 1024 * 1024)
+        .unwrap();
+
+    let games = scan_custom_path(&games_root, DiscoveryScanMode::Full, false).unwrap();
+    assert!(
+        games.iter().any(|game| game.name == "Cyberpunk 2077"),
+        "scene suffix should not leak into the display name; got: {:?}",
+        games.iter().map(|game| &game.name).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn top_level_scene_suffix_is_removed_from_display_name() {
+    assert_eq!(
+        resolve_display_name("Cyberpunk 2077 - SteamGG.NET", None),
+        "Cyberpunk 2077"
+    );
+}
+
+#[test]
+fn ambiguous_scene_words_require_a_strong_separator() {
+    assert_eq!(resolve_display_name("The Empress", None), "The Empress");
+    assert_eq!(resolve_display_name("Shadow Rune", None), "Shadow Rune");
+    assert_eq!(resolve_display_name("Central Plaza", None), "Central Plaza");
+    assert_eq!(
+        resolve_display_name("Sample Adventure - RUNE", None),
+        "Sample Adventure"
+    );
+}
+
+#[test]
+fn materially_different_wrapper_still_uses_inner_name() {
+    assert_eq!(
+        resolve_display_name("Short", Some("Full Game Name - RUNE")),
+        "Full Game Name"
+    );
+}
+
+#[test]
+fn same_title_wrapper_keeps_the_better_cased_inner_name() {
+    // Classic nested layout: a sloppily-cased wrapper around the installer's
+    // canonical folder. The canonical casing must survive.
+    assert_eq!(
+        resolve_display_name("tekken 8", Some("TEKKEN 8")),
+        "TEKKEN 8"
+    );
+}
+
+#[test]
+fn same_title_wrapper_keeps_outer_casing_when_inner_is_lowercase() {
+    // Reverse case: the wrapper carries the canonical casing and the inner
+    // folder is the sloppy one.
+    assert_eq!(
+        resolve_display_name("TEKKEN 8", Some("tekken 8")),
+        "TEKKEN 8"
     );
 }
 
@@ -187,12 +267,12 @@ fn wrapper_folder_with_large_exe_game_detected() {
     let root = TempDir::new().unwrap();
     let games_root = root.path().join("Games");
 
-    // "Goblin-Nest/Goblin Nest/<game files>"
-    let wrapper = games_root.join("Goblin-Nest");
-    let inner = wrapper.join("Goblin Nest");
+    // "Sample-Game/Sample Game/<game files>"
+    let wrapper = games_root.join("Sample-Game");
+    let inner = wrapper.join("Sample Game");
 
     std::fs::create_dir_all(&inner).unwrap();
-    File::create(inner.join("GoblinNest.exe"))
+    File::create(inner.join("SampleGame.exe"))
         .unwrap()
         .set_len(MIN_EXE_SIZE + 1)
         .unwrap();
@@ -203,7 +283,7 @@ fn wrapper_folder_with_large_exe_game_detected() {
 
     let games = scan_custom_path(&games_root, DiscoveryScanMode::Full, false).unwrap();
     assert!(
-        games.iter().any(|g| g.name == "Goblin-Nest"),
+        games.iter().any(|g| g.name == "Sample-Game"),
         "game inside wrapper folder should be discovered; got: {:?}",
         games.iter().map(|g| &g.name).collect::<Vec<_>>()
     );
@@ -231,11 +311,11 @@ fn steamapps_container_root_is_not_detected_as_game() {
     let root = TempDir::new().unwrap();
     let steamapps = root.path().join("steamapps");
     let common = steamapps.join("common");
-    let game = common.join("Portal 2");
+    let game = common.join("Cyberpunk 2077");
 
     std::fs::create_dir_all(game.join("bin")).unwrap();
-    File::create(steamapps.join("appmanifest_620.acf")).unwrap();
-    File::create(game.join("portal2.exe"))
+    File::create(steamapps.join("appmanifest_1091500.acf")).unwrap();
+    File::create(game.join("Cyberpunk2077.exe"))
         .unwrap()
         .set_len(MIN_EXE_SIZE + 1)
         .unwrap();

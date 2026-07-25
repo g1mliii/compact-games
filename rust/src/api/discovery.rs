@@ -331,10 +331,10 @@ mod tests {
         clear_discovery_cache();
 
         let temp = tempfile::TempDir::new().unwrap();
-        let root = temp.path().join("Cairn");
-        let data = root.join("Cairn_Data");
+        let root = temp.path().join("Cyberpunk 2077");
+        let data = root.join("Cyberpunk 2077_Data");
         fs::create_dir_all(&data).unwrap();
-        File::create(root.join("Cairn.exe"))
+        File::create(root.join("Cyberpunk 2077.exe"))
             .unwrap()
             .set_len(512 * 1024)
             .unwrap();
@@ -348,7 +348,7 @@ mod tests {
         let game = &games[0];
         assert_eq!(game.platform, FrbPlatform::Custom);
         assert_eq!(PathBuf::from(&game.path), root);
-        assert_eq!(game.name, "Cairn");
+        assert_eq!(game.name, "Cyberpunk 2077");
         assert!(game.size_bytes > 0);
     }
 

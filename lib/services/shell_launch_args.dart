@@ -49,13 +49,16 @@ class ShellLaunchArgs {
   const ShellLaunchArgs({
     required this.startHiddenInTray,
     required this.shellAction,
+    this.prepareUninstall = false,
   });
 
   final bool startHiddenInTray;
   final ShellActionRequest? shellAction;
+  final bool prepareUninstall;
 
   static ShellLaunchArgs parse(List<String> args) {
     final minimized = args.contains('--minimized');
+    final prepareUninstall = args.contains('--prepare-uninstall');
     final actionValue = _optionValue(args, '--shell-action');
     final pathValue = _optionValue(args, '--path');
     final actionKind = actionValue == null
@@ -73,6 +76,7 @@ class ShellLaunchArgs {
     return ShellLaunchArgs(
       startHiddenInTray: minimized || request != null,
       shellAction: request,
+      prepareUninstall: prepareUninstall,
     );
   }
 }

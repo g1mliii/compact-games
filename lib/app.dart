@@ -23,12 +23,15 @@ import 'providers/settings/settings_provider.dart';
 import 'providers/system/tray_status_sync_provider.dart';
 import 'providers/update/update_provider.dart';
 import 'services/shell_action_dispatcher.dart';
+import 'services/prepare_uninstall_dispatcher.dart';
 import 'services/shell_launch_args.dart';
+import 'services/tray_service.dart';
 import 'services/unsupported_report_sync_service.dart';
 
 /// Cached theme — buildAppTheme() is pure with no dynamic inputs,
 /// so it only needs to run once.
 final ThemeData _appTheme = buildAppTheme();
+final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
 
 final bool _usesCustomDesktopFrame =
     !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
@@ -73,6 +76,7 @@ class _CompactGamesRoot extends ConsumerWidget {
                         AppLocalizations.localizationsDelegates,
                     supportedLocales: appSupportedLocales,
                     navigatorObservers: [routeObserver],
+                    navigatorKey: _appNavigatorKey,
                     builder: _appBuilder,
                     initialRoute: AppRoutes.home,
                     onGenerateRoute: AppRoutes.onGenerateRoute,
@@ -110,6 +114,7 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
   StreamSubscription<WatcherEvent>? _watcherEventsSub;
   StreamSubscription<List<AutomationJob>>? _automationQueueSub;
   StreamSubscription<ShellActionRequest>? _shellActionSub;
+  StreamSubscription<void>? _prepareUninstallSub;
   Future<void> _shellActionChain = Future<void>.value();
   Map<String, AutomationJobStatus> _automationStatusesByKey =
       <String, AutomationJobStatus>{};
@@ -143,6 +148,9 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
     }
     _shellActionSub = ShellActionDispatcher.instance.requests.listen(
       _handleShellActionRequest,
+    );
+    _prepareUninstallSub = PrepareUninstallDispatcher.instance.requests.listen(
+      (_) => _openPrepareUninstall(),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -188,6 +196,7 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
     unawaited(_watcherEventsSub?.cancel());
     unawaited(_automationQueueSub?.cancel());
     unawaited(_shellActionSub?.cancel());
+    unawaited(_prepareUninstallSub?.cancel());
     super.dispose();
   }
 
@@ -198,6 +207,18 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
         .catchError((Object error) {
           debugPrint('[shell] action failed: $error');
         });
+  }
+
+  void _openPrepareUninstall() {
+    unawaited(TrayService.instance.showAndFocusWindow());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = _appNavigatorKey.currentState;
+      if (navigator == null) return;
+      if (ref.read(currentRouteNameProvider) == AppRoutes.settingsRestore) {
+        return;
+      }
+      navigator.pushNamed(AppRoutes.settingsRestore);
+    });
   }
 
   void _handleAutomationQueueUpdate(List<AutomationJob> jobs) {

@@ -57,6 +57,65 @@ void _registerProgressIndicatorWidgetTests() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Compression queue expands and removes a selected pending job', (
+    WidgetTester tester,
+  ) async {
+    int? removedRunId;
+    final queue = <CompressionJobState>[
+      const CompressionJobState(
+        runId: 2,
+        gamePath: r'C:\Games\Second',
+        gameName: 'Second Game',
+        type: CompressionJobType.compression,
+        algorithm: CompressionAlgorithm.xpress8k,
+      ),
+      const CompressionJobState(
+        runId: 3,
+        gamePath: r'C:\Games\Third',
+        gameName: 'Third Game',
+        type: CompressionJobType.decompression,
+        algorithm: CompressionAlgorithm.xpress4k,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 420,
+            child: CompressionProgressIndicator(
+              activity: CompressionActivityUiModel(
+                type: CompressionJobType.compression,
+                gameName: 'Active Game',
+                filesProcessed: 10,
+                filesTotal: 100,
+                percent: 10,
+                bytesDelta: 0,
+                hasKnownFileTotal: true,
+                isFileCountApproximate: false,
+                canCancel: true,
+              ),
+              queue: queue,
+              onRemoveQueued: (runId) => removedRunId = runId,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Queued (2)'), findsOneWidget);
+    expect(find.text('Second Game'), findsNothing);
+
+    await tester.tap(find.text('Queued (2)'));
+    await tester.pump();
+
+    expect(find.text('Second Game'), findsOneWidget);
+    expect(find.text('Third Game'), findsOneWidget);
+    await tester.tap(find.byTooltip('Remove Second Game from queue'));
+    expect(removedRunId, 2);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'Activity header uses a static operation icon instead of spinner',
     (WidgetTester tester) async {

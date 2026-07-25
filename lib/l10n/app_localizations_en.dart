@@ -675,6 +675,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get activityDismissMonitor => 'Dismiss monitor';
 
   @override
+  String activityQueuedCount(int count) {
+    return 'Queued ($count)';
+  }
+
+  @override
+  String activityQueuePosition(int position) {
+    return 'Queued #$position';
+  }
+
+  @override
+  String activityRemoveQueuedGame(String gameName) {
+    return 'Remove $gameName from queue';
+  }
+
+  @override
+  String get activityClearQueue => 'Clear queue';
+
+  @override
   String get activityCompressing => 'Compressing';
 
   @override
@@ -937,4 +955,99 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get trayError => 'Error';
+
+  @override
+  String get settingsRestoreSectionTitle => 'Restore compressed games';
+
+  @override
+  String get settingsRestoreDescription =>
+      'Restore only games recorded as successfully compressed by Compact Games. The actual filesystem state is checked again before decompression.';
+
+  @override
+  String get settingsRestoreChecking =>
+      'Checking managed games and free space...';
+
+  @override
+  String get settingsRestoreNoGames =>
+      'No games managed by Compact Games currently need restoring.';
+
+  @override
+  String settingsRestoreSummary(int count, String space) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count games need up to $space of additional disk space.',
+      one: '1 game needs up to $space of additional disk space.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsRestoreLongRuntime =>
+      'This can take a long time. Automation will pause, and new compression jobs will be rejected until the restore finishes or failures are skipped.';
+
+  @override
+  String settingsRestoreDriveSpace(
+    String drive,
+    String required,
+    String available,
+  ) {
+    return '$drive: $required required, $available available';
+  }
+
+  @override
+  String get settingsRestoreDriveInsufficient =>
+      'Not enough free space on one or more drives. Free space before restoring.';
+
+  @override
+  String get settingsRestoreAction => 'Restore all managed games';
+
+  @override
+  String get settingsRestoreConfirmTitle => 'Restore all managed games?';
+
+  @override
+  String settingsRestoreConfirmBody(int count, String space) {
+    return 'Queue $count games for decompression. Up to $space of additional disk space may be required. Keep Compact Games open until the queue finishes.';
+  }
+
+  @override
+  String settingsRestoreProgress(int completed, int total) {
+    return 'Restored $completed of $total games';
+  }
+
+  @override
+  String get settingsRestoreFailuresTitle => 'Restore failures';
+
+  @override
+  String get settingsRestoreSkip => 'Skip';
+
+  @override
+  String settingsRestoreSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count skipped games remain compressed.',
+      one: '1 skipped game remains compressed.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsRestoreSuccess =>
+      'All managed games were restored. Compact Games can now be uninstalled.';
+
+  @override
+  String get settingsRestoreUninstallAction => 'Uninstall Compact Games';
+
+  @override
+  String get settingsRestoreUninstallNotFound =>
+      'The Compact Games uninstaller could not be found.';
+
+  @override
+  String get settingsRestoreRefresh => 'Recheck';
+
+  @override
+  String settingsRestoreLoadFailed(String error) {
+    return 'Could not check managed games: $error';
+  }
 }

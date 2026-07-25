@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 241481693;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 666613239;
 
 // Section: executor
 
@@ -703,6 +703,39 @@ fn wire__crate__api__compression__get_compression_ratio_impl(
                 transform_result_sse::<_, crate::api::types::FrbCompressionError>((move || {
                     let output_ok =
                         crate::api::compression::get_compression_ratio(api_folder_path)?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
+        },
+    )
+}
+fn wire__crate__api__compression__get_managed_restore_plan_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_managed_restore_plan",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::FrbCompressionError>((move || {
+                    let output_ok = crate::api::compression::get_managed_restore_plan()?;
                     Ok(output_ok)
                 })(
                 ))
@@ -1898,6 +1931,50 @@ impl SseDecode for crate::api::types::FrbGameInfo {
     }
 }
 
+impl SseDecode for crate::api::types::FrbManagedRestoreDrive {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_drive = <String>::sse_decode(deserializer);
+        let mut var_requiredBytes = <u64>::sse_decode(deserializer);
+        let mut var_availableBytes = <u64>::sse_decode(deserializer);
+        return crate::api::types::FrbManagedRestoreDrive {
+            drive: var_drive,
+            required_bytes: var_requiredBytes,
+            available_bytes: var_availableBytes,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::FrbManagedRestoreGame {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_gamePath = <String>::sse_decode(deserializer);
+        let mut var_gameName = <String>::sse_decode(deserializer);
+        let mut var_drive = <String>::sse_decode(deserializer);
+        let mut var_requiredBytes = <u64>::sse_decode(deserializer);
+        return crate::api::types::FrbManagedRestoreGame {
+            game_path: var_gamePath,
+            game_name: var_gameName,
+            drive: var_drive,
+            required_bytes: var_requiredBytes,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::FrbManagedRestorePlan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_games =
+            <Vec<crate::api::types::FrbManagedRestoreGame>>::sse_decode(deserializer);
+        let mut var_drives =
+            <Vec<crate::api::types::FrbManagedRestoreDrive>>::sse_decode(deserializer);
+        return crate::api::types::FrbManagedRestorePlan {
+            games: var_games,
+            drives: var_drives,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::FrbPlatform {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2057,6 +2134,34 @@ impl SseDecode for Vec<crate::api::types::FrbGameInfo> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::FrbGameInfo>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::types::FrbManagedRestoreDrive> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::FrbManagedRestoreDrive>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::types::FrbManagedRestoreGame> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::FrbManagedRestoreGame>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -2268,62 +2373,68 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        22 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__discovery__remove_game_from_discovery_impl(
+        20 => wire__crate__api__compression__get_managed_restore_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => {
+        23 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__discovery__remove_game_from_discovery_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        31 => {
             wire__crate__api__shell__resolve_shortcut_target_impl(port, ptr, rust_vec_len, data_len)
         }
-        31 => {
+        32 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        32 => wire__crate__api__automation__shared_auto_state_default_impl(
+        33 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__api__automation__start_auto_compression_impl(
+        34 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
+        36 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__automation__update_automation_config_impl(
+        38 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        39 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__automation__watch_automation_queue_impl(
+        40 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__automation__watch_scheduler_state_impl(
+        41 => wire__crate__api__automation__watch_scheduler_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => wire__crate__api__automation__watch_watcher_events_impl(
+        42 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2355,28 +2466,28 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        20 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
-        21 => {
+        21 => wire__crate__api__automation__get_scheduler_state_impl(ptr, rust_vec_len, data_len),
+        22 => {
             wire__crate__api__automation__get_watcher_diagnostics_impl(ptr, rust_vec_len, data_len)
         }
-        23 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__automation__is_auto_compression_running_impl(
+        24 => wire__crate__api__minimal__init_app_impl(ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__automation__is_auto_compression_running_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__compression__persist_compression_history_impl(
+        26 => wire__crate__api__compression__is_directstorage_impl(ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__unsupported__is_unsupported_impl(ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__compression__persist_compression_history_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => {
+        30 => {
             wire__crate__api__unsupported__report_unsupported_game_impl(ptr, rust_vec_len, data_len)
         }
-        34 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
+        35 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -2779,6 +2890,72 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbGameInfo>
     for crate::api::types::FrbGameInfo
 {
     fn into_into_dart(self) -> crate::api::types::FrbGameInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::types::FrbManagedRestoreDrive {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.drive.into_into_dart().into_dart(),
+            self.required_bytes.into_into_dart().into_dart(),
+            self.available_bytes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::types::FrbManagedRestoreDrive
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbManagedRestoreDrive>
+    for crate::api::types::FrbManagedRestoreDrive
+{
+    fn into_into_dart(self) -> crate::api::types::FrbManagedRestoreDrive {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::types::FrbManagedRestoreGame {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.game_path.into_into_dart().into_dart(),
+            self.game_name.into_into_dart().into_dart(),
+            self.drive.into_into_dart().into_dart(),
+            self.required_bytes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::types::FrbManagedRestoreGame
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbManagedRestoreGame>
+    for crate::api::types::FrbManagedRestoreGame
+{
+    fn into_into_dart(self) -> crate::api::types::FrbManagedRestoreGame {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::types::FrbManagedRestorePlan {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.games.into_into_dart().into_dart(),
+            self.drives.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::types::FrbManagedRestorePlan
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::types::FrbManagedRestorePlan>
+    for crate::api::types::FrbManagedRestorePlan
+{
+    fn into_into_dart(self) -> crate::api::types::FrbManagedRestorePlan {
         self
     }
 }
@@ -3334,6 +3511,33 @@ impl SseEncode for crate::api::types::FrbGameInfo {
     }
 }
 
+impl SseEncode for crate::api::types::FrbManagedRestoreDrive {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.drive, serializer);
+        <u64>::sse_encode(self.required_bytes, serializer);
+        <u64>::sse_encode(self.available_bytes, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::FrbManagedRestoreGame {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.game_path, serializer);
+        <String>::sse_encode(self.game_name, serializer);
+        <String>::sse_encode(self.drive, serializer);
+        <u64>::sse_encode(self.required_bytes, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::FrbManagedRestorePlan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::types::FrbManagedRestoreGame>>::sse_encode(self.games, serializer);
+        <Vec<crate::api::types::FrbManagedRestoreDrive>>::sse_encode(self.drives, serializer);
+    }
+}
+
 impl SseEncode for crate::api::types::FrbPlatform {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3474,6 +3678,26 @@ impl SseEncode for Vec<crate::api::types::FrbGameInfo> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::FrbGameInfo>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::types::FrbManagedRestoreDrive> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::FrbManagedRestoreDrive>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::types::FrbManagedRestoreGame> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::FrbManagedRestoreGame>::sse_encode(item, serializer);
         }
     }
 }

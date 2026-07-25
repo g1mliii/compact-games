@@ -880,6 +880,37 @@
   "@activityDismissMonitor": {
     "description": "Localized message for activity dismiss monitor."
   },
+  "activityQueuedCount": "En cola ({count})",
+  "@activityQueuedCount": {
+    "description": "Heading for the pending manual compression queue.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityQueuePosition": "En cola, puesto {position}",
+  "@activityQueuePosition": {
+    "description": "One-based position of a game in the manual compression queue.",
+    "placeholders": {
+      "position": {
+        "type": "int"
+      }
+    }
+  },
+  "activityRemoveQueuedGame": "Quitar {gameName} de la cola",
+  "@activityRemoveQueuedGame": {
+    "description": "Accessible label for removing one pending queue entry.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "activityClearQueue": "Vaciar cola",
+  "@activityClearQueue": {
+    "description": "Action that removes all pending manual jobs."
+  },
   "activityCompressing": "Comprimiendo",
   "@activityCompressing": {
     "description": "Localized message for activity compressing."
@@ -1272,5 +1303,25 @@
   "trayError": "Error",
   "@trayError": {
     "description": "Localized message for tray error."
-  }
+  },
+  "settingsRestoreSectionTitle": "Restaurar juegos comprimidos",
+  "settingsRestoreDescription": "Restaura solo los juegos registrados como comprimidos correctamente por Compact Games. El estado real del sistema de archivos se comprueba de nuevo antes de descomprimir.",
+  "settingsRestoreChecking": "Comprobando juegos administrados y espacio libre...",
+  "settingsRestoreNoGames": "Ningún juego administrado por Compact Games necesita restauración.",
+  "settingsRestoreSummary": "{count, plural, =1{1 juego necesita hasta {space} de espacio adicional.} other{{count} juegos necesitan hasta {space} de espacio adicional.}}",
+  "settingsRestoreLongRuntime": "Esto puede tardar mucho. La automatización se pausará y se rechazarán nuevos trabajos de compresión hasta que termine la restauración o se omitan los errores.",
+  "settingsRestoreDriveSpace": "{drive}: se requieren {required}, hay {available} disponibles",
+  "settingsRestoreDriveInsufficient": "No hay suficiente espacio libre en una o más unidades. Libera espacio antes de restaurar.",
+  "settingsRestoreAction": "Restaurar todos los juegos administrados",
+  "settingsRestoreConfirmTitle": "¿Restaurar todos los juegos administrados?",
+  "settingsRestoreConfirmBody": "Se pondrán {count} juegos en la cola de descompresión. Pueden requerirse hasta {space} de espacio adicional. Mantén Compact Games abierto hasta que termine la cola.",
+  "settingsRestoreProgress": "Restaurados {completed} de {total} juegos",
+  "settingsRestoreFailuresTitle": "Errores de restauración",
+  "settingsRestoreSkip": "Omitir",
+  "settingsRestoreSkipped": "{count, plural, =1{1 juego omitido permanece comprimido.} other{{count} juegos omitidos permanecen comprimidos.}}",
+  "settingsRestoreSuccess": "Todos los juegos administrados se restauraron. Ahora puedes desinstalar Compact Games.",
+  "settingsRestoreUninstallAction": "Desinstalar Compact Games",
+  "settingsRestoreUninstallNotFound": "No se encontró el desinstalador de Compact Games.",
+  "settingsRestoreRefresh": "Volver a comprobar",
+  "settingsRestoreLoadFailed": "No se pudieron comprobar los juegos administrados: {error}"
 }

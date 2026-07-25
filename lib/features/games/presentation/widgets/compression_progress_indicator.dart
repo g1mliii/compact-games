@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/compression/compression_progress_provider.dart';
+import '../../../../providers/compression/compression_state.dart';
 
 enum CompressionActivityActionStyle { icon, button }
 
@@ -34,12 +35,18 @@ class CompressionProgressIndicator extends StatelessWidget {
     required this.activity,
     this.compact = false,
     this.action,
+    this.queue = const <CompressionJobState>[],
+    this.onRemoveQueued,
+    this.onClearQueue,
     super.key,
   });
 
   final CompressionActivityUiModel activity;
   final bool compact;
   final CompressionActivityAction? action;
+  final List<CompressionJobState> queue;
+  final ValueChanged<int>? onRemoveQueued;
+  final VoidCallback? onClearQueue;
 
   static const LinearGradient _compressionGradient = AppColors.progressGradient;
   static const LinearGradient _decompressionGradient = LinearGradient(
@@ -110,11 +117,186 @@ class CompressionProgressIndicator extends StatelessWidget {
                       ? l10n.activityApproxFileProgress(processed, total)
                       : l10n.activityFileProgress(processed, total),
                 ),
+                _CompressionQueueSection(
+                  queue: queue,
+                  compact: compact,
+                  onRemoveQueued: onRemoveQueued,
+                  onClearQueue: onClearQueue,
+                ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CompressionQueueSection extends StatefulWidget {
+  const _CompressionQueueSection({
+    required this.queue,
+    required this.compact,
+    required this.onRemoveQueued,
+    required this.onClearQueue,
+  });
+
+  final List<CompressionJobState> queue;
+  final bool compact;
+  final ValueChanged<int>? onRemoveQueued;
+  final VoidCallback? onClearQueue;
+
+  @override
+  State<_CompressionQueueSection> createState() =>
+      _CompressionQueueSectionState();
+}
+
+class _CompressionQueueSectionState extends State<_CompressionQueueSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final queue = widget.queue;
+    if (queue.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final l10n = context.l10n;
+    final compact = widget.compact;
+    final rowHeight = compact ? 36.0 : 40.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(height: compact ? 10 : 12),
+        const Divider(height: 1, color: AppColors.borderSubtle),
+        SizedBox(height: compact ? 6 : 8),
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _expanded
+                            ? LucideIcons.chevronDown
+                            : LucideIcons.chevronRight,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        l10n.activityQueuedCount(queue.length),
+                        style: AppTypography.label.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (_expanded)
+              TextButton(
+                onPressed: widget.onClearQueue,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textMuted,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(
+                    appDesktopControlMin,
+                    appDesktopControlMin,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: Text(l10n.activityClearQueue),
+              ),
+          ],
+        ),
+        if (_expanded) ...[
+          const SizedBox(height: 4),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: rowHeight * queue.length.clamp(1, 5),
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemExtent: rowHeight,
+              itemCount: queue.length,
+              itemBuilder: (context, index) {
+                final job = queue[index];
+                return _CompressionQueueRow(
+                  job: job,
+                  position: index + 1,
+                  compact: compact,
+                  onRemove: widget.onRemoveQueued,
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _CompressionQueueRow extends StatelessWidget {
+  const _CompressionQueueRow({
+    required this.job,
+    required this.position,
+    required this.compact,
+    required this.onRemove,
+  });
+
+  final CompressionJobState job;
+  final int position;
+  final bool compact;
+  final ValueChanged<int>? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final isCompression = job.type == CompressionJobType.compression;
+    return Row(
+      children: [
+        SizedBox(
+          width: 24,
+          child: Text(
+            '$position.',
+            style: AppTypography.monoSmall.copyWith(color: AppColors.textMuted),
+          ),
+        ),
+        Icon(
+          isCompression ? LucideIcons.archive : LucideIcons.archiveRestore,
+          size: 15,
+          color: isCompression ? AppColors.richGold : AppColors.success,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            job.gameName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: compact ? AppTypography.bodySmall : AppTypography.bodyMedium,
+          ),
+        ),
+        IconButton(
+          tooltip: l10n.activityRemoveQueuedGame(job.gameName),
+          onPressed: onRemove == null ? null : () => onRemove!(job.runId),
+          icon: const Icon(LucideIcons.x, size: 16),
+          color: AppColors.textMuted,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(
+            minWidth: appDesktopControlMin,
+            minHeight: appDesktopControlMin,
+          ),
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
     );
   }
 }

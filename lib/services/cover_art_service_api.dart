@@ -51,6 +51,8 @@ void _clearCoverArtApiLookupCaches() {
   _apiGameIdCache.clear();
   _apiGridUrlCache.clear();
   _apiSteamAppGridUrlCache.clear();
+  _steamStoreAppIdCache.clear();
+  _steamStoreCoverUrlCache.clear();
 }
 
 extension _CoverArtServiceApi on CoverArtService {
@@ -127,13 +129,41 @@ extension _CoverArtServiceApi on CoverArtService {
     required String gameName,
     required String apiKey,
   }) async {
-    final cacheKey = gameName.trim().toLowerCase();
+    final rawName = gameName.trim();
+    final normalizedName = normalizeGameName(rawName);
+    final lookupName = normalizedName.isEmpty ? rawName : normalizedName;
+    final cacheKey = lookupName.toLowerCase();
     final cached = _readApiLru(_apiGameIdCache, cacheKey);
     if (cached != null) {
       return cached;
     }
 
-    final query = Uri.encodeComponent(gameName);
+    var resolved = await _searchSteamGridDbAutocomplete(
+      queryName: lookupName,
+      matchName: lookupName,
+      apiKey: apiKey,
+    );
+    if (resolved == null &&
+        rawName.isNotEmpty &&
+        rawName.toLowerCase() != lookupName.toLowerCase()) {
+      resolved = await _searchSteamGridDbAutocomplete(
+        queryName: rawName,
+        matchName: lookupName,
+        apiKey: apiKey,
+      );
+    }
+    if (resolved != null) {
+      _writeApiLru(_apiGameIdCache, cacheKey, resolved);
+    }
+    return resolved;
+  }
+
+  Future<int?> _searchSteamGridDbAutocomplete({
+    required String queryName,
+    required String matchName,
+    required String apiKey,
+  }) async {
+    final query = Uri.encodeComponent(queryName);
     final endpoint = '/api/v2/search/autocomplete/$query';
     final json = await _steamGridDbGetJson(endpoint: endpoint, apiKey: apiKey);
     if (json == null) {
@@ -145,7 +175,7 @@ extension _CoverArtServiceApi on CoverArtService {
       return null;
     }
 
-    final normalized = gameName.toLowerCase();
+    final normalizedMatchName = normalizeGameName(matchName).toLowerCase();
     int? fallback;
     for (final item in data) {
       if (item is! Map) {
@@ -156,14 +186,11 @@ extension _CoverArtServiceApi on CoverArtService {
         continue;
       }
       fallback ??= id;
-      final name = (item['name'] as String?)?.toLowerCase();
-      if (name != null && name == normalized) {
-        _writeApiLru(_apiGameIdCache, cacheKey, id);
+      final name = item['name'] as String?;
+      if (name != null &&
+          normalizeGameName(name).toLowerCase() == normalizedMatchName) {
         return id;
       }
-    }
-    if (fallback != null) {
-      _writeApiLru(_apiGameIdCache, cacheKey, fallback);
     }
     return fallback;
   }
@@ -292,10 +319,16 @@ extension _CoverArtServiceApi on CoverArtService {
 
   Future<String?> _downloadRemoteImageIntoCache(
     String cacheKey,
-    String imageUrl,
-  ) async {
+    String imageUrl, {
+    CoverArtSource source = CoverArtSource.steamGridDbApi,
+  }) async {
     final uri = Uri.tryParse(imageUrl);
-    if (uri == null || !_isTrustedSteamGridImageUri(uri)) {
+    final trusted =
+        uri != null &&
+        (source == CoverArtSource.steamStoreApi
+            ? _isTrustedSteamStoreImageUri(uri)
+            : _isTrustedSteamGridImageUri(uri));
+    if (!trusted) {
       return null;
     }
 
@@ -325,11 +358,7 @@ extension _CoverArtServiceApi on CoverArtService {
     final cacheDir = await _ensureCacheDir();
     final target = File(p.join(cacheDir.path, '$cacheKey.img'));
     await target.writeAsBytes(response.bodyBytes, flush: true);
-    await _writeCachedCoverSource(
-      cacheDir,
-      cacheKey,
-      CoverArtSource.steamGridDbApi,
-    );
+    await _writeCachedCoverSource(cacheDir, cacheKey, source);
     _scheduleCacheEviction(cacheDir);
     return target.path;
   }

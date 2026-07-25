@@ -287,8 +287,8 @@ void main() {
 
   test('configured proxy replaces a preferred disk cache', () async {
     final game = GameInfo(
-      name: 'Gangs of MoonFall',
-      path: r'D:\Games\Gangs of MoonFall',
+      name: 'Cyberpunk 2077',
+      path: r'D:\Games\Cyberpunk 2077',
       platform: Platform.custom,
       sizeBytes: 1,
     );
@@ -329,7 +329,7 @@ void main() {
     );
 
     expect(result.source, CoverArtSource.steamGridDbApi);
-    expect(requestedNames, <String>['Gangs of MoonFall']);
+    expect(requestedNames, <String>['Cyberpunk 2077']);
     expect(await cacheFile.readAsBytes(), apiBytes);
   });
 
@@ -337,8 +337,8 @@ void main() {
     'configured proxy reuses a fallback until explicit invalidation',
     () async {
       final game = GameInfo(
-        name: 'Returning to Mia',
-        path: r'D:\Games\Returning to Mia',
+        name: 'Sample Cache Game',
+        path: r'D:\Games\Sample Cache Game',
         platform: Platform.custom,
         sizeBytes: 1,
       );
@@ -371,9 +371,9 @@ void main() {
         MockClient((request) async {
           if (request.url.host == 'proxy.example.test') {
             expect(request.url.path, '/sgdb/by-name');
-            expect(request.url.queryParameters['name'], 'Returning to Mia');
+            expect(request.url.queryParameters['name'], 'Sample Cache Game');
             return _jsonResponse({
-              'url': 'https://cdn2.steamgriddb.com/grid/returning-to-mia.jpg',
+              'url': 'https://cdn2.steamgriddb.com/grid/sample-cache-game.jpg',
               'source': 'steamgriddb',
             });
           }
@@ -409,8 +409,8 @@ void main() {
 
   test('confirmed proxy misses discard a legacy custom cover cache', () async {
     final game = GameInfo(
-      name: 'Succesor',
-      path: r'D:\\Games\\Succesor',
+      name: 'Sample Missing Game',
+      path: r'D:\\Games\\Sample Missing Game',
       platform: Platform.custom,
       sizeBytes: 1,
     );
@@ -444,22 +444,23 @@ void main() {
     () async {
       final games = <GameInfo>[
         GameInfo(
-          name: 'Gangs of MoonFall',
-          path: r'D:\Games\Gangs of MoonFall',
+          name: 'Cyberpunk 2077 Wrapper',
+          path: r'D:\Games\Cyberpunk 2077 Wrapper',
           platform: Platform.custom,
           sizeBytes: 1,
         ),
         GameInfo(
-          name: 'Succesor',
-          path: r'D:\Games\Succesor',
+          name: 'Sample Game Alias',
+          path: r'D:\Games\Sample Game Alias',
           platform: Platform.custom,
           sizeBytes: 1,
         ),
       ];
       const executablePaths = <String, String>{
-        r'D:\Games\Gangs of MoonFall':
-            r'D:\Games\Gangs of MoonFall\VampireSyndicate.exe',
-        r'D:\Games\Succesor': r'D:\Games\Succesor\SuccubusSuccessor.exe',
+        r'D:\Games\Cyberpunk 2077 Wrapper':
+            r'D:\Games\Cyberpunk 2077 Wrapper\Cyberpunk_2077.exe',
+        r'D:\Games\Sample Game Alias':
+            r'D:\Games\Sample Game Alias\SampleGame.exe',
       };
       final requestedNames = <String>[];
       debugSetCoverArtApiHttpClientForTesting(
@@ -467,7 +468,8 @@ void main() {
           if (request.url.host == 'proxy.example.test') {
             final name = request.url.queryParameters['name']!;
             requestedNames.add(name);
-            if (name == 'Gangs of MoonFall' || name == 'Succesor') {
+            if (name == 'Cyberpunk 2077 Wrapper' ||
+                name == 'Sample Game Alias') {
               return _jsonResponse({'error': 'Not found'}, 404);
             }
             return _jsonResponse({
@@ -500,13 +502,186 @@ void main() {
       }
 
       expect(requestedNames, <String>[
-        'Gangs of MoonFall',
-        'Vampire Syndicate',
-        'Succesor',
-        'Succubus Successor',
+        'Cyberpunk 2077 Wrapper',
+        'Cyberpunk 2077',
+        'Sample Game Alias',
+        'Sample Game',
       ]);
     },
   );
+
+  test('user-key miss falls back to an exact Steam store portrait', () async {
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'www.steamgriddb.com') {
+          return _jsonResponse({'data': <Object>[]});
+        }
+        if (request.url.host == 'store.steampowered.com') {
+          expect(request.url.path, '/api/storesearch/');
+          expect(request.url.queryParameters['term'], 'Recent Launch');
+          return _jsonResponse({
+            'items': [
+              {'id': 4242, 'name': 'Recent Launch'},
+            ],
+          });
+        }
+        if (request.url.host == 'api.steampowered.com') {
+          expect(request.url.path, '/IStoreBrowseService/GetItems/v1/');
+          return _jsonResponse({
+            'response': {
+              'store_items': [
+                {
+                  'appid': 4242,
+                  'assets': {
+                    'asset_url_format': r'steam/apps/4242/${FILENAME}?t=123',
+                    'library_capsule_2x': 'portrait/library_capsule_2x.jpg',
+                  },
+                },
+              ],
+            },
+          });
+        }
+        if (request.url.host == 'shared.akamai.steamstatic.com') {
+          expect(
+            request.url.path,
+            '/store_item_assets/steam/apps/4242/portrait/'
+            'library_capsule_2x.jpg',
+          );
+          return http.Response.bytes(
+            <int>[31, 32, 33, 34],
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Recent Launch',
+        path: r'D:\Games\recent_launch',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      ),
+      steamGridDbApiKey: 'user-key',
+      coverArtProviderMode: CoverArtProviderMode.userKey,
+    );
+
+    expect(result.source, CoverArtSource.steamStoreApi);
+    expect(result.uri, startsWith('file:'));
+    expect(
+      requests.map((uri) => uri.host),
+      containsAll(<String>[
+        'www.steamgriddb.com',
+        'store.steampowered.com',
+        'api.steampowered.com',
+        'shared.akamai.steamstatic.com',
+      ]),
+    );
+  });
+
+  test(
+    'Steam store fallback accepts the closest multiword catalog title',
+    () async {
+      final storeTerms = <String>[];
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          if (request.url.host == 'www.steamgriddb.com') {
+            return _jsonResponse({'data': <Object>[]});
+          }
+          if (request.url.host == 'store.steampowered.com') {
+            final term = request.url.queryParameters['term']!;
+            storeTerms.add(term);
+            return _jsonResponse({
+              'items': [
+                {'id': 4444, 'name': 'Sunny Smile Caf\u00e9 Soundtrack'},
+                {'id': 4343, 'name': 'Sunny Smile Caf\u00e9'},
+                {'id': 4545, 'name': 'Sunny Smile Caf\u00e9 Artbook'},
+              ],
+            });
+          }
+          if (request.url.host == 'api.steampowered.com') {
+            return _jsonResponse({
+              'response': {
+                'store_items': [
+                  {
+                    'appid': 4343,
+                    'assets': {
+                      'asset_url_format': r'steam/apps/4343/${FILENAME}?t=456',
+                      'library_capsule': 'portrait/library_capsule.jpg',
+                    },
+                  },
+                ],
+              },
+            });
+          }
+          if (request.url.host == 'shared.akamai.steamstatic.com') {
+            return http.Response.bytes(
+              <int>[41, 42, 43, 44],
+              200,
+              headers: const <String, String>{'content-type': 'image/jpeg'},
+            );
+          }
+          throw StateError('Unexpected request to ${request.url}');
+        }),
+      );
+
+      final result = await const CoverArtService().resolveCover(
+        GameInfo(
+          name: 'Sunny Smile',
+          path: r'D:\Games\sunny_smile',
+          platform: Platform.custom,
+          sizeBytes: 1,
+        ),
+        steamGridDbApiKey: 'user-key',
+        coverArtProviderMode: CoverArtProviderMode.userKey,
+      );
+
+      expect(result.source, CoverArtSource.steamStoreApi);
+      expect(storeTerms, <String>['Sunny Smile']);
+    },
+  );
+
+  test('Steam store fallback rejects unrelated catalog results', () async {
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'www.steamgriddb.com') {
+          return _jsonResponse({'data': <Object>[]});
+        }
+        if (request.url.host == 'store.steampowered.com') {
+          return _jsonResponse({
+            'items': [
+              {'id': 4646, 'name': 'Different Adventure'},
+              {'id': 4747, 'name': 'Unrelated Sample'},
+            ],
+          });
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Sample Adventure',
+        path: r'D:\Games\sample_adventure_store_miss',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      ),
+      steamGridDbApiKey: 'user-key',
+      coverArtProviderMode: CoverArtProviderMode.userKey,
+    );
+
+    expect(result.source, CoverArtSource.none);
+    expect(requests.map((uri) => uri.host), <String>[
+      'www.steamgriddb.com',
+      'store.steampowered.com',
+    ]);
+  });
 
   test(
     'bad cached cover falls back to preferred nested Steam asset when proxy is unavailable',

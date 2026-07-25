@@ -463,3 +463,23 @@ fn discover_primary_exe_impl(folder: &str) -> Option<String> {
 
     best.map(|(p, _)| p)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::discover_primary_exe_impl;
+    use std::fs::File;
+
+    #[test]
+    fn primary_exe_discovery_skips_crash_handlers_larger_than_the_game() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let game_exe = temp.path().join("Sample Cafe.exe");
+        let crash_handler = temp.path().join("UnityCrashHandler64.exe");
+        File::create(&game_exe).unwrap().set_len(32).unwrap();
+        File::create(crash_handler).unwrap().set_len(128).unwrap();
+
+        assert_eq!(
+            discover_primary_exe_impl(temp.path().to_str().unwrap()),
+            Some(game_exe.to_string_lossy().into_owned()),
+        );
+    }
+}

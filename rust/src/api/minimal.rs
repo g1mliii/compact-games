@@ -10,6 +10,7 @@ pub fn init_app() -> String {
     {
         log::warn!("Failed to configure global thread pool: {e}");
     }
+    crate::compression::managed_paths::initialize();
     log::info!("Compact Games core initialized");
     String::from("Compact Games core ready")
 }

@@ -1282,6 +1282,30 @@ abstract class AppLocalizations {
   /// **'Dismiss monitor'**
   String get activityDismissMonitor;
 
+  /// Heading for the pending manual compression queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued ({count})'**
+  String activityQueuedCount(int count);
+
+  /// One-based position of a game in the manual compression queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued #{position}'**
+  String activityQueuePosition(int position);
+
+  /// Accessible label for removing one pending queue entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {gameName} from queue'**
+  String activityRemoveQueuedGame(String gameName);
+
+  /// Action that removes all pending manual jobs.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear queue'**
+  String get activityClearQueue;
+
   /// Localized message for activity compressing.
   ///
   /// In en, this message translates to:
@@ -1737,6 +1761,130 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Error'**
   String get trayError;
+
+  /// Settings section title for restoring games managed by Compact Games.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore compressed games'**
+  String get settingsRestoreSectionTitle;
+
+  /// Explains the managed restore ownership boundary.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore only games recorded as successfully compressed by Compact Games. The actual filesystem state is checked again before decompression.'**
+  String get settingsRestoreDescription;
+
+  /// Status shown while the restore plan is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking managed games and free space...'**
+  String get settingsRestoreChecking;
+
+  /// Empty state for the restore plan.
+  ///
+  /// In en, this message translates to:
+  /// **'No games managed by Compact Games currently need restoring.'**
+  String get settingsRestoreNoGames;
+
+  /// Restore game count and estimated space requirement.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 game needs up to {space} of additional disk space.} other{{count} games need up to {space} of additional disk space.}}'**
+  String settingsRestoreSummary(int count, String space);
+
+  /// Long-running restore warning.
+  ///
+  /// In en, this message translates to:
+  /// **'This can take a long time. Automation will pause, and new compression jobs will be rejected until the restore finishes or failures are skipped.'**
+  String get settingsRestoreLongRuntime;
+
+  /// Per-drive restore free-space summary.
+  ///
+  /// In en, this message translates to:
+  /// **'{drive}: {required} required, {available} available'**
+  String settingsRestoreDriveSpace(
+    String drive,
+    String required,
+    String available,
+  );
+
+  /// Restore preflight insufficient-space error.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough free space on one or more drives. Free space before restoring.'**
+  String get settingsRestoreDriveInsufficient;
+
+  /// Button that opens the restore confirmation dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore all managed games'**
+  String get settingsRestoreAction;
+
+  /// Restore confirmation dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore all managed games?'**
+  String get settingsRestoreConfirmTitle;
+
+  /// Restore confirmation dialog body.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue {count} games for decompression. Up to {space} of additional disk space may be required. Keep Compact Games open until the queue finishes.'**
+  String settingsRestoreConfirmBody(int count, String space);
+
+  /// Restore queue progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {completed} of {total} games'**
+  String settingsRestoreProgress(int completed, int total);
+
+  /// Heading above failed restore jobs.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore failures'**
+  String get settingsRestoreFailuresTitle;
+
+  /// Action to leave one failed game compressed.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get settingsRestoreSkip;
+
+  /// Count of explicitly skipped restore failures.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 skipped game remains compressed.} other{{count} skipped games remain compressed.}}'**
+  String settingsRestoreSkipped(int count);
+
+  /// Successful restore completion message.
+  ///
+  /// In en, this message translates to:
+  /// **'All managed games were restored. Compact Games can now be uninstalled.'**
+  String get settingsRestoreSuccess;
+
+  /// Button to launch the Windows uninstaller after restore.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstall Compact Games'**
+  String get settingsRestoreUninstallAction;
+
+  /// Error shown when no installed uninstaller is available.
+  ///
+  /// In en, this message translates to:
+  /// **'The Compact Games uninstaller could not be found.'**
+  String get settingsRestoreUninstallNotFound;
+
+  /// Action to recheck the managed restore plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Recheck'**
+  String get settingsRestoreRefresh;
+
+  /// Restore plan load error.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check managed games: {error}'**
+  String settingsRestoreLoadFailed(String error);
 }
 
 class _AppLocalizationsDelegate
