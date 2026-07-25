@@ -365,7 +365,7 @@ class _DetailPanel extends ConsumerWidget {
                 size: 36,
                 color: AppColors.textMuted,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
                 l10n.homeSelectGameTitle,
                 style: AppTypography.bodyMedium.copyWith(

@@ -536,14 +536,6 @@
   "@homeSwitchToGridViewTooltip": {
     "description": "Localized message for home switch to grid view tooltip."
   },
-  "homeCollapseOverviewTooltip": "收起概览",
-  "@homeCollapseOverviewTooltip": {
-    "description": "Localized message for home collapse overview tooltip."
-  },
-  "homeExpandOverviewTooltip": "展开概览",
-  "@homeExpandOverviewTooltip": {
-    "description": "Localized message for home expand overview tooltip."
-  },
   "homeHeaderTagline": "为你的电脑节省空间。",
   "@homeHeaderTagline": {
     "description": "Localized message for home header tagline."
@@ -564,14 +556,6 @@
   "homePrimaryReviewEligible": "查看可压缩游戏",
   "@homePrimaryReviewEligible": {
     "description": "Localized message for home primary review eligible action."
-  },
-  "homePrimaryOpenInventory": "打开清单",
-  "@homePrimaryOpenInventory": {
-    "description": "Localized message for home primary open inventory action."
-  },
-  "homePrimaryAddGame": "添加游戏",
-  "@homePrimaryAddGame": {
-    "description": "Localized message for home primary add game action."
   },
   "homeEmptyTitle": "当前视图中没有游戏",
   "@homeEmptyTitle": {
@@ -672,14 +656,6 @@
   "@homeOverviewEyebrow": {
     "description": "Localized message for home overview eyebrow."
   },
-  "homeOverviewEmptyHeadline": "先导入你的游戏库，再快速腾出空间。",
-  "@homeOverviewEmptyHeadline": {
-    "description": "Localized message for home overview empty headline."
-  },
-  "homeOverviewEmptySubtitle": "扫描你的启动器，或手动添加游戏文件夹，开始显示可回收空间。",
-  "@homeOverviewEmptySubtitle": {
-    "description": "Localized message for home overview empty subtitle."
-  },
   "homeOverviewReadyHeadline": "{count} 款游戏已可释放空间。",
   "@homeOverviewReadyHeadline": {
     "description": "Localized message for home overview ready headline.",
@@ -698,33 +674,9 @@
       }
     }
   },
-  "homeOverviewProtectedHeadline": "游戏库已发现完成，但这些标题仍保持受保护状态。",
-  "@homeOverviewProtectedHeadline": {
-    "description": "Localized message for home overview protected headline."
-  },
-  "homeOverviewProtectedSubtitle": "在强制压缩之前，请先在清单中检查 DirectStorage 和不受支持的游戏。",
-  "@homeOverviewProtectedSubtitle": {
-    "description": "Localized message for home overview protected subtitle."
-  },
-  "homeOverviewManagedHeadline": "你的已压缩游戏库正在稳住空间占用。",
-  "@homeOverviewManagedHeadline": {
-    "description": "Localized message for home overview managed headline."
-  },
-  "homeOverviewManagedSubtitle": "前往清单查看已节省的空间，并在新游戏出现时及时处理。",
-  "@homeOverviewManagedSubtitle": {
-    "description": "Localized message for home overview managed subtitle."
-  },
   "homeOverviewReadyCountLabel": "待压缩",
   "@homeOverviewReadyCountLabel": {
     "description": "Localized message for home overview ready count label."
-  },
-  "homeOverviewCompressedCountLabel": "已压缩",
-  "@homeOverviewCompressedCountLabel": {
-    "description": "Localized message for home overview compressed count label."
-  },
-  "homeOverviewProtectedCountLabel": "受保护",
-  "@homeOverviewProtectedCountLabel": {
-    "description": "Localized message for home overview protected count label."
   },
   "homeOverviewReclaimableLabel": "潜在空间",
   "@homeOverviewReclaimableLabel": {

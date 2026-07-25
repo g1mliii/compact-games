@@ -1,58 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:compact_games/l10n/app_localizations.dart';
 
 import '../../../../core/localization/app_localization.dart';
-import '../../../../core/navigation/app_routes.dart';
 import '../../../../models/app_settings.dart';
 import '../../../../providers/games/selected_game_provider.dart';
 import '../../../../providers/settings/settings_provider.dart';
 import '../../../../providers/games/game_list_provider.dart';
-import '../../../../providers/games/home_overview_provider.dart';
 import 'home_add_game_dialog.dart';
 
-String homePrimaryActionLabel(
-  AppLocalizations l10n,
-  HomePrimaryActionKind action,
-) {
-  return switch (action) {
-    HomePrimaryActionKind.reviewEligible => l10n.homePrimaryReviewEligible,
-    HomePrimaryActionKind.openInventory => l10n.homePrimaryOpenInventory,
-    HomePrimaryActionKind.addGame => l10n.homePrimaryAddGame,
-  };
-}
-
-IconData homePrimaryActionIcon(HomePrimaryActionKind action) {
-  return switch (action) {
-    HomePrimaryActionKind.reviewEligible => LucideIcons.archive,
-    HomePrimaryActionKind.openInventory => LucideIcons.list,
-    HomePrimaryActionKind.addGame => LucideIcons.folderPlus,
-  };
-}
-
-Future<void> runHomePrimaryAction(
-  BuildContext context,
+Future<void> reviewFirstEligibleGame(
   WidgetRef ref,
-  HomeOverviewUiModel overview,
+  String? firstReadyPath,
 ) async {
-  switch (overview.primaryAction) {
-    case HomePrimaryActionKind.reviewEligible:
-      final firstReadyPath = overview.firstReadyPath;
-      if (firstReadyPath == null) {
-        return;
-      }
-      ref.read(gameListProvider.notifier).setSearchQuery('');
-      ref.read(selectedGameProvider.notifier).state = firstReadyPath;
-      ref.read(settingsProvider.notifier).setHomeViewMode(HomeViewMode.list);
-      return;
-    case HomePrimaryActionKind.openInventory:
-      await Navigator.of(context).pushNamed(AppRoutes.inventory);
-      return;
-    case HomePrimaryActionKind.addGame:
-      await promptAddGame(context, ref);
-      return;
+  if (firstReadyPath == null) {
+    return;
   }
+  ref.read(gameListProvider.notifier).setSearchQuery('');
+  ref.read(selectedGameProvider.notifier).state = firstReadyPath;
+  await ref.read(settingsProvider.future);
+  ref.read(settingsProvider.notifier).setHomeViewMode(HomeViewMode.list);
 }
 
 Future<void> promptAddGame(BuildContext context, WidgetRef ref) async {

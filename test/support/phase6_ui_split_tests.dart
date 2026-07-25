@@ -121,179 +121,29 @@ void runPhase6OversizeSplitTests() {
     },
   );
 
-  testWidgets('Home overview panel reuses shell within the same layout mode', (
-    WidgetTester tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(980, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    final container = ProviderContainer(
-      overrides: [
-        rustBridgeServiceProvider.overrideWithValue(
-          _TestRustBridgeService(games: _sampleGames),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildAppTheme(),
-          home: const Scaffold(
-            body: HomeOverviewPanel(useCompactSummaryOverride: false),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final finder = find.byKey(const ValueKey<String>('homeOverviewPanelShell'));
-    final initialShell = tester.widget<Padding>(finder);
-
-    await tester.binding.setSurfaceSize(const Size(1008, 900));
-    await tester.pumpAndSettle();
-
-    final resizedShell = tester.widget<Padding>(finder);
-    expect(identical(resizedShell, initialShell), isTrue);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('Home overview panel can collapse into a compact summary', (
-    WidgetTester tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1400, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    final persistence = _InMemorySettingsPersistence();
-    await persistence.save(const AppSettings(homeViewMode: HomeViewMode.grid));
-    final container = ProviderContainer(
-      overrides: [
-        rustBridgeServiceProvider.overrideWithValue(
-          _TestRustBridgeService(games: _sampleGames),
-        ),
-        settingsPersistenceProvider.overrideWithValue(persistence),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildAppTheme(),
-          home: const Scaffold(
-            body: HomeOverviewPanel(useCompactSummaryOverride: false),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final shellFinder = find.byKey(
-      const ValueKey<String>('homeOverviewPanelShell'),
-    );
-    expect(shellFinder, findsOneWidget);
-    final compactLeadFinder = find.byKey(
-      const ValueKey<String>('homeOverviewCompactLead'),
-    );
-    final startedCompact = compactLeadFinder.evaluate().isNotEmpty;
-
-    final collapseButton = find.byKey(
-      const ValueKey<String>('homeOverviewToggleButton'),
-    );
-    expect(collapseButton, findsOneWidget);
-    final expandedShellRect = tester.getRect(shellFinder);
-    final expandedButtonRect = tester.getRect(collapseButton);
-    expect(
-      (expandedButtonRect.center.dx - expandedShellRect.center.dx).abs(),
-      lessThanOrEqualTo(1),
-    );
-    expect(expandedButtonRect.width, greaterThanOrEqualTo(88));
-    expect(
-      (expandedShellRect.bottom - expandedButtonRect.bottom).abs(),
-      lessThanOrEqualTo(1),
-    );
-    await tester.tap(collapseButton);
-    await tester.pumpAndSettle();
-
-    expect(compactLeadFinder.evaluate().isNotEmpty, isNot(startedCompact));
-
-    final expandButton = find.byKey(
-      const ValueKey<String>('homeOverviewToggleButton'),
-    );
-    expect(expandButton, findsOneWidget);
-    final compactShellRect = tester.getRect(shellFinder);
-    final compactButtonRect = tester.getRect(expandButton);
-    expect(
-      (compactButtonRect.center.dx - compactShellRect.center.dx).abs(),
-      lessThanOrEqualTo(1),
-    );
-    expect(compactButtonRect.width, greaterThanOrEqualTo(88));
-    expect(
-      (compactShellRect.bottom - compactButtonRect.bottom).abs(),
-      lessThanOrEqualTo(1),
-    );
-    await tester.tap(expandButton);
-    await tester.pumpAndSettle();
-
-    expect(compactLeadFinder.evaluate().isNotEmpty, startedCompact);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('Home overview toggle stays below stacked stats content', (
-    WidgetTester tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(820, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    final persistence = _InMemorySettingsPersistence();
-    await persistence.save(const AppSettings(homeViewMode: HomeViewMode.grid));
-    final container = ProviderContainer(
-      overrides: [
-        rustBridgeServiceProvider.overrideWithValue(
-          _TestRustBridgeService(games: _sampleGames),
-        ),
-        settingsPersistenceProvider.overrideWithValue(persistence),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildAppTheme(),
-          home: const Scaffold(
-            body: HomeOverviewPanel(useCompactSummaryOverride: false),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final statsRect = tester.getRect(
-      find.byKey(const ValueKey<String>('homeOverviewStatsCard')),
-    );
-    final toggleRect = tester.getRect(
-      find.byKey(const ValueKey<String>('homeOverviewToggleButton')),
-    );
-
-    expect(toggleRect.top, greaterThanOrEqualTo(statsRect.bottom));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets(
-    'Home compact overview keeps lead copy expanded, trailing actions pinned right, and hides the dead toggle',
-    (WidgetTester tester) async {
+  for (final entry in <String, List<GameInfo>>{
+    'empty library': const <GameInfo>[],
+    'compressed library': <GameInfo>[
+      _sampleGames.first.copyWith(isCompressed: true),
+    ],
+    'protected library': <GameInfo>[
+      _sampleGames.first.copyWith(isDirectStorage: true),
+    ],
+    'mixed library without eligible games': <GameInfo>[
+      _sampleGames.first.copyWith(isCompressed: true),
+      _sampleGames.last.copyWith(isUnsupported: true),
+    ],
+  }.entries) {
+    testWidgets('Home overview stays hidden for ${entry.key}', (
+      WidgetTester tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(1000, 720));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       final container = ProviderContainer(
         overrides: [
           rustBridgeServiceProvider.overrideWithValue(
-            _TestRustBridgeService(games: _sampleGames),
+            _TestRustBridgeService(games: entry.value),
           ),
         ],
       );
@@ -310,45 +160,211 @@ void runPhase6OversizeSplitTests() {
       );
       await tester.pumpAndSettle();
 
-      final shellFinder = find.byKey(
-        const ValueKey<String>('homeOverviewPanelShell'),
-      );
-      final leadFinder = find.byKey(
-        const ValueKey<String>('homeOverviewCompactLead'),
-      );
-      final trailingFinder = find.byKey(
-        const ValueKey<String>('homeOverviewCompactTrailing'),
-      );
-      final initialLeadRect = tester.getRect(leadFinder);
-      final initialTrailingRect = tester.getRect(trailingFinder);
-      final initialShellRect = tester.getRect(shellFinder);
-
-      expect(initialTrailingRect.right, greaterThan(initialLeadRect.right));
       expect(
-        initialShellRect.right - initialTrailingRect.right,
-        lessThanOrEqualTo(56),
-      );
-      expect(
-        find.byKey(const ValueKey<String>('homeOverviewToggleButton')),
+        find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
         findsNothing,
       );
+      expect(tester.takeException(), isNull);
+    });
+  }
 
-      await tester.binding.setSurfaceSize(const Size(1400, 720));
-      await tester.pumpAndSettle();
+  for (final viewMode in HomeViewMode.values) {
+    testWidgets(
+      'Home ${viewMode.name} mode uses one compact dismissible overview',
+      (WidgetTester tester) async {
+        await tester.binding.setSurfaceSize(const Size(1000, 720));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final widenedLeadRect = tester.getRect(leadFinder);
-      final widenedTrailingRect = tester.getRect(trailingFinder);
-      final widenedShellRect = tester.getRect(shellFinder);
+        final persistence = _InMemorySettingsPersistence();
+        await persistence.save(AppSettings(homeViewMode: viewMode));
+        final container = ProviderContainer(
+          overrides: [
+            rustBridgeServiceProvider.overrideWithValue(
+              _TestRustBridgeService(games: _sampleGames),
+            ),
+            settingsPersistenceProvider.overrideWithValue(persistence),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      expect(widenedLeadRect.width, greaterThan(initialLeadRect.width));
-      expect(
-        widenedShellRect.right - widenedTrailingRect.right,
-        lessThanOrEqualTo(56),
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: buildAppTheme(),
+              home: const Scaffold(body: HomeOverviewPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey<String>('homeOverviewCompactLead')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey<String>('homeOverviewCompactTrailing')),
+          findsOneWidget,
+        );
+        expect(find.byTooltip('Dismiss'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('Home overview dismissal lasts for the current app process', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final sessionContainer = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(sessionContainer.dispose);
+
+    Widget buildOverview(ProviderContainer container) {
+      return UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeOverviewPanel()),
+        ),
       );
+    }
+
+    await tester.pumpWidget(buildOverview(sessionContainer));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Dismiss'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
+      findsNothing,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(buildOverview(sessionContainer));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
+      findsNothing,
+    );
+
+    final relaunchedContainer = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(relaunchedContainer.dispose);
+    await tester.pumpWidget(buildOverview(relaunchedContainer));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home overview review action selects the first eligible game', (
+    WidgetTester tester,
+  ) async {
+    final persistence = _InMemorySettingsPersistence();
+    await persistence.save(const AppSettings(homeViewMode: HomeViewMode.grid));
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeOverviewPanel()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Review eligible games'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(container.read(selectedGameProvider), _sampleGames.first.path);
+    expect(
+      container.read(settingsProvider).value?.settings.homeViewMode,
+      HomeViewMode.list,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Active compression keeps the progress banner and hides overview',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 720));
+      final bridge = _DelayedActivityRustBridgeService(games: _sampleGames);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(() {
+        bridge.disposeStreams();
+        container.dispose();
+        tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(theme: buildAppTheme(), home: const HomeScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      await container
+          .read(compressionProvider.notifier)
+          .startCompression(
+            gamePath: _sampleGames.first.path,
+            gameName: _sampleGames.first.name,
+          );
+      await tester.pump();
+
       expect(
-        find.byKey(const ValueKey<String>('homeOverviewToggleButton')),
+        find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
         findsNothing,
       );
+      final activityHost = find.byKey(compressionInlineActivityHostKey);
+      expect(activityHost, findsOneWidget);
+      expect(
+        find.descendant(of: activityHost, matching: find.text('Compressing')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: activityHost, matching: find.text('Cancel')),
+        findsOneWidget,
+      );
+
+      bridge.finishCompression();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
       expect(tester.takeException(), isNull);
     },
   );

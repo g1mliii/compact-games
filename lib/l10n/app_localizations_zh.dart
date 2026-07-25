@@ -398,12 +398,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeSwitchToGridViewTooltip => '切换到网格视图';
 
   @override
-  String get homeCollapseOverviewTooltip => '收起概览';
-
-  @override
-  String get homeExpandOverviewTooltip => '展开概览';
-
-  @override
   String get homeHeaderTagline => '为你的电脑节省空间。';
 
   @override
@@ -416,12 +410,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get homePrimaryReviewEligible => '查看可压缩游戏';
-
-  @override
-  String get homePrimaryOpenInventory => '打开清单';
-
-  @override
-  String get homePrimaryAddGame => '添加游戏';
 
   @override
   String get homeEmptyTitle => '当前视图中没有游戏';
@@ -494,12 +482,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeOverviewEyebrow => '压缩概览';
 
   @override
-  String get homeOverviewEmptyHeadline => '先导入你的游戏库，再快速腾出空间。';
-
-  @override
-  String get homeOverviewEmptySubtitle => '扫描你的启动器，或手动添加游戏文件夹，开始显示可回收空间。';
-
-  @override
   String homeOverviewReadyHeadline(int count) {
     return '$count 款游戏已可释放空间。';
   }
@@ -510,26 +492,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get homeOverviewProtectedHeadline => '游戏库已发现完成，但这些标题仍保持受保护状态。';
-
-  @override
-  String get homeOverviewProtectedSubtitle =>
-      '在强制压缩之前，请先在清单中检查 DirectStorage 和不受支持的游戏。';
-
-  @override
-  String get homeOverviewManagedHeadline => '你的已压缩游戏库正在稳住空间占用。';
-
-  @override
-  String get homeOverviewManagedSubtitle => '前往清单查看已节省的空间，并在新游戏出现时及时处理。';
-
-  @override
   String get homeOverviewReadyCountLabel => '待压缩';
-
-  @override
-  String get homeOverviewCompressedCountLabel => '已压缩';
-
-  @override
-  String get homeOverviewProtectedCountLabel => '受保护';
 
   @override
   String get homeOverviewReclaimableLabel => '潜在空间';

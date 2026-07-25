@@ -826,18 +826,6 @@ abstract class AppLocalizations {
   /// **'Switch to grid view'**
   String get homeSwitchToGridViewTooltip;
 
-  /// Localized message for home collapse overview tooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Collapse overview'**
-  String get homeCollapseOverviewTooltip;
-
-  /// Localized message for home expand overview tooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Expand overview'**
-  String get homeExpandOverviewTooltip;
-
   /// Localized message for home header tagline.
   ///
   /// In en, this message translates to:
@@ -861,18 +849,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Review eligible games'**
   String get homePrimaryReviewEligible;
-
-  /// Localized message for home primary open inventory action.
-  ///
-  /// In en, this message translates to:
-  /// **'Open inventory'**
-  String get homePrimaryOpenInventory;
-
-  /// Localized message for home primary add game action.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a game'**
-  String get homePrimaryAddGame;
 
   /// Localized message for home empty title.
   ///
@@ -1000,18 +976,6 @@ abstract class AppLocalizations {
   /// **'Compression overview'**
   String get homeOverviewEyebrow;
 
-  /// Localized message for home overview empty headline.
-  ///
-  /// In en, this message translates to:
-  /// **'Bring your library in. Then make room fast.'**
-  String get homeOverviewEmptyHeadline;
-
-  /// Localized message for home overview empty subtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan your launchers or add a game folder manually to start surfacing reclaimable space.'**
-  String get homeOverviewEmptySubtitle;
-
   /// Localized message for home overview ready headline.
   ///
   /// In en, this message translates to:
@@ -1024,47 +988,11 @@ abstract class AppLocalizations {
   /// **'See which games are ready to compress and how much space you could save: {value}.'**
   String homeOverviewReadySubtitle(String value);
 
-  /// Localized message for home overview protected headline.
-  ///
-  /// In en, this message translates to:
-  /// **'Your library is discovered, but these titles stay protected.'**
-  String get homeOverviewProtectedHeadline;
-
-  /// Localized message for home overview protected subtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Review DirectStorage and unsupported games in the inventory before forcing compression.'**
-  String get homeOverviewProtectedSubtitle;
-
-  /// Localized message for home overview managed headline.
-  ///
-  /// In en, this message translates to:
-  /// **'Your compressed library is holding the line.'**
-  String get homeOverviewManagedHeadline;
-
-  /// Localized message for home overview managed subtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Check the inventory for saved space and review new titles as they appear.'**
-  String get homeOverviewManagedSubtitle;
-
   /// Localized message for home overview ready count label.
   ///
   /// In en, this message translates to:
   /// **'Ready'**
   String get homeOverviewReadyCountLabel;
-
-  /// Localized message for home overview compressed count label.
-  ///
-  /// In en, this message translates to:
-  /// **'Compressed'**
-  String get homeOverviewCompressedCountLabel;
-
-  /// Localized message for home overview protected count label.
-  ///
-  /// In en, this message translates to:
-  /// **'Protected'**
-  String get homeOverviewProtectedCountLabel;
 
   /// Localized message for home overview reclaimable label.
   ///

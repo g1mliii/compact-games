@@ -536,14 +536,6 @@
   "@homeSwitchToGridViewTooltip": {
     "description": "Localized message for home switch to grid view tooltip."
   },
-  "homeCollapseOverviewTooltip": "Contraer resumen",
-  "@homeCollapseOverviewTooltip": {
-    "description": "Localized message for home collapse overview tooltip."
-  },
-  "homeExpandOverviewTooltip": "Expandir resumen",
-  "@homeExpandOverviewTooltip": {
-    "description": "Localized message for home expand overview tooltip."
-  },
   "homeHeaderTagline": "Ahorra espacio en tu computadora.",
   "@homeHeaderTagline": {
     "description": "Localized message for home header tagline."
@@ -564,14 +556,6 @@
   "homePrimaryReviewEligible": "Revisar juegos elegibles",
   "@homePrimaryReviewEligible": {
     "description": "Localized message for home primary review eligible action."
-  },
-  "homePrimaryOpenInventory": "Abrir inventario",
-  "@homePrimaryOpenInventory": {
-    "description": "Localized message for home primary open inventory action."
-  },
-  "homePrimaryAddGame": "Agregar juego",
-  "@homePrimaryAddGame": {
-    "description": "Localized message for home primary add game action."
   },
   "homeEmptyTitle": "No hay juegos en esta vista",
   "@homeEmptyTitle": {
@@ -672,14 +656,6 @@
   "@homeOverviewEyebrow": {
     "description": "Localized message for home overview eyebrow."
   },
-  "homeOverviewEmptyHeadline": "Trae tu biblioteca. Luego haz espacio rápido.",
-  "@homeOverviewEmptyHeadline": {
-    "description": "Localized message for home overview empty headline."
-  },
-  "homeOverviewEmptySubtitle": "Escanea tus lanzadores o agrega manualmente una carpeta de juego para empezar a mostrar espacio recuperable.",
-  "@homeOverviewEmptySubtitle": {
-    "description": "Localized message for home overview empty subtitle."
-  },
   "homeOverviewReadyHeadline": "{count} juegos están listos para recuperar espacio.",
   "@homeOverviewReadyHeadline": {
     "description": "Localized message for home overview ready headline.",
@@ -698,33 +674,9 @@
       }
     }
   },
-  "homeOverviewProtectedHeadline": "La biblioteca ya está detectada, pero estos títulos siguen protegidos.",
-  "@homeOverviewProtectedHeadline": {
-    "description": "Localized message for home overview protected headline."
-  },
-  "homeOverviewProtectedSubtitle": "Revisa los juegos con DirectStorage o incompatibles en el inventario antes de forzar la compresión.",
-  "@homeOverviewProtectedSubtitle": {
-    "description": "Localized message for home overview protected subtitle."
-  },
-  "homeOverviewManagedHeadline": "Tu biblioteca comprimida está aguantando la línea.",
-  "@homeOverviewManagedHeadline": {
-    "description": "Localized message for home overview managed headline."
-  },
-  "homeOverviewManagedSubtitle": "Consulta el inventario para ver el espacio ahorrado y revisar títulos nuevos cuando aparezcan.",
-  "@homeOverviewManagedSubtitle": {
-    "description": "Localized message for home overview managed subtitle."
-  },
   "homeOverviewReadyCountLabel": "Listos",
   "@homeOverviewReadyCountLabel": {
     "description": "Localized message for home overview ready count label."
-  },
-  "homeOverviewCompressedCountLabel": "Comprimidos",
-  "@homeOverviewCompressedCountLabel": {
-    "description": "Localized message for home overview compressed count label."
-  },
-  "homeOverviewProtectedCountLabel": "Protegidos",
-  "@homeOverviewProtectedCountLabel": {
-    "description": "Localized message for home overview protected count label."
   },
   "homeOverviewReclaimableLabel": "Espacio potencial",
   "@homeOverviewReclaimableLabel": {

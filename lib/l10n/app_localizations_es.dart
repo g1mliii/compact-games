@@ -428,12 +428,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeSwitchToGridViewTooltip => 'Cambiar a vista de cuadrícula';
 
   @override
-  String get homeCollapseOverviewTooltip => 'Contraer resumen';
-
-  @override
-  String get homeExpandOverviewTooltip => 'Expandir resumen';
-
-  @override
   String get homeHeaderTagline => 'Ahorra espacio en tu computadora.';
 
   @override
@@ -446,12 +440,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get homePrimaryReviewEligible => 'Revisar juegos elegibles';
-
-  @override
-  String get homePrimaryOpenInventory => 'Abrir inventario';
-
-  @override
-  String get homePrimaryAddGame => 'Agregar juego';
 
   @override
   String get homeEmptyTitle => 'No hay juegos en esta vista';
@@ -530,14 +518,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeOverviewEyebrow => 'Resumen de compresión';
 
   @override
-  String get homeOverviewEmptyHeadline =>
-      'Trae tu biblioteca. Luego haz espacio rápido.';
-
-  @override
-  String get homeOverviewEmptySubtitle =>
-      'Escanea tus lanzadores o agrega manualmente una carpeta de juego para empezar a mostrar espacio recuperable.';
-
-  @override
   String homeOverviewReadyHeadline(int count) {
     return '$count juegos están listos para recuperar espacio.';
   }
@@ -548,29 +528,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get homeOverviewProtectedHeadline =>
-      'La biblioteca ya está detectada, pero estos títulos siguen protegidos.';
-
-  @override
-  String get homeOverviewProtectedSubtitle =>
-      'Revisa los juegos con DirectStorage o incompatibles en el inventario antes de forzar la compresión.';
-
-  @override
-  String get homeOverviewManagedHeadline =>
-      'Tu biblioteca comprimida está aguantando la línea.';
-
-  @override
-  String get homeOverviewManagedSubtitle =>
-      'Consulta el inventario para ver el espacio ahorrado y revisar títulos nuevos cuando aparezcan.';
-
-  @override
   String get homeOverviewReadyCountLabel => 'Listos';
-
-  @override
-  String get homeOverviewCompressedCountLabel => 'Comprimidos';
-
-  @override
-  String get homeOverviewProtectedCountLabel => 'Protegidos';
 
   @override
   String get homeOverviewReclaimableLabel => 'Espacio potencial';

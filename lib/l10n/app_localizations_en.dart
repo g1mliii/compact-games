@@ -418,12 +418,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeSwitchToGridViewTooltip => 'Switch to grid view';
 
   @override
-  String get homeCollapseOverviewTooltip => 'Collapse overview';
-
-  @override
-  String get homeExpandOverviewTooltip => 'Expand overview';
-
-  @override
   String get homeHeaderTagline => 'Save space on your computer.';
 
   @override
@@ -436,12 +430,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homePrimaryReviewEligible => 'Review eligible games';
-
-  @override
-  String get homePrimaryOpenInventory => 'Open inventory';
-
-  @override
-  String get homePrimaryAddGame => 'Add a game';
 
   @override
   String get homeEmptyTitle => 'No games in view';
@@ -519,14 +507,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeOverviewEyebrow => 'Compression overview';
 
   @override
-  String get homeOverviewEmptyHeadline =>
-      'Bring your library in. Then make room fast.';
-
-  @override
-  String get homeOverviewEmptySubtitle =>
-      'Scan your launchers or add a game folder manually to start surfacing reclaimable space.';
-
-  @override
   String homeOverviewReadyHeadline(int count) {
     return '$count games are ready to reclaim space.';
   }
@@ -537,29 +517,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get homeOverviewProtectedHeadline =>
-      'Your library is discovered, but these titles stay protected.';
-
-  @override
-  String get homeOverviewProtectedSubtitle =>
-      'Review DirectStorage and unsupported games in the inventory before forcing compression.';
-
-  @override
-  String get homeOverviewManagedHeadline =>
-      'Your compressed library is holding the line.';
-
-  @override
-  String get homeOverviewManagedSubtitle =>
-      'Check the inventory for saved space and review new titles as they appear.';
-
-  @override
   String get homeOverviewReadyCountLabel => 'Ready';
-
-  @override
-  String get homeOverviewCompressedCountLabel => 'Compressed';
-
-  @override
-  String get homeOverviewProtectedCountLabel => 'Protected';
 
   @override
   String get homeOverviewReclaimableLabel => 'Potential space';
