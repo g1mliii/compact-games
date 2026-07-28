@@ -1011,6 +1011,37 @@
   "@gameMenuViewDetails": {
     "description": "Localized message for game menu view details."
   },
+  "gameMenuLaunch": "Launch Game",
+  "@gameMenuLaunch": {
+    "description": "Localized message for game menu launch."
+  },
+  "gameLaunchAttempting": "Attempting to launch \"{gameName}\"...",
+  "@gameLaunchAttempting": {
+    "description": "Localized message shown while handing a game launch request to Windows.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameLaunchTargetNotFound": "No launchable executable was found for \"{gameName}\".",
+  "@gameLaunchTargetNotFound": {
+    "description": "Localized message shown when no game executable can be resolved.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameLaunchFailed": "Could not launch \"{gameName}\".",
+  "@gameLaunchFailed": {
+    "description": "Localized message shown when Windows rejects a game launch request.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
   "gameMenuCompressNow": "Compress Now",
   "@gameMenuCompressNow": {
     "description": "Localized message for game menu compress now."
@@ -1060,23 +1091,6 @@
         "type": "String"
       }
     }
-  },
-  "gameConfirmCompressionTitle": "Confirm Compression",
-  "@gameConfirmCompressionTitle": {
-    "description": "Localized message for game confirm compression title."
-  },
-  "gameConfirmCompressionMessage": "Compress \"{gameName}\"? This can affect disk usage and runtime performance.",
-  "@gameConfirmCompressionMessage": {
-    "description": "Localized message for game confirm compression message.",
-    "placeholders": {
-      "gameName": {
-        "type": "String"
-      }
-    }
-  },
-  "gameConfirmCompressionAction": "Compress",
-  "@gameConfirmCompressionAction": {
-    "description": "Localized message for game confirm compression action."
   },
   "gameDetailsTitleFallback": "Game Details",
   "@gameDetailsTitleFallback": {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:compact_games/l10n/app_localizations.dart';
 
@@ -8,8 +9,8 @@ import '../../../../core/localization/presentation_labels.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/platform_chip.dart';
 import '../../../../core/widgets/status_badge.dart';
-import '../../../../core/utils/platform_icon.dart';
 import '../../../../providers/games/filtered_games_provider.dart';
 import '../../../../providers/games/selected_game_provider.dart';
 import '../../../../providers/games/single_game_provider.dart';
@@ -108,11 +109,86 @@ double bucketHomeGameListPanelHeight(double maxHeight) {
       .toDouble();
 }
 
-class _GameListPanel extends ConsumerWidget {
+/// Moves the list selection by [delta] rows.
+class _MoveListSelectionIntent extends Intent {
+  const _MoveListSelectionIntent(this.delta);
+
+  final int delta;
+}
+
+class _GameListPanel extends ConsumerStatefulWidget {
   const _GameListPanel();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_GameListPanel> createState() => _GameListPanelState();
+}
+
+class _GameListPanelState extends ConsumerState<_GameListPanel> {
+  // Focus traversal cannot drive this list: `ListView.builder` only builds the
+  // rows near the viewport, so a Next/PreviousFocusIntent wraps back to the
+  // top once it runs out of built rows. Move the selection by index instead
+  // and scroll it into view ourselves.
+  static const _navigationShortcuts = <ShortcutActivator, Intent>{
+    SingleActivator(LogicalKeyboardKey.arrowUp): _MoveListSelectionIntent(-1),
+    SingleActivator(LogicalKeyboardKey.arrowDown): _MoveListSelectionIntent(1),
+  };
+
+  final ScrollController _scrollController = ScrollController();
+
+  /// One focus node for the whole list rather than one per row: rows are built
+  /// lazily, so per-row focus can only ever cover the visible window.
+  final FocusNode _listFocusNode = FocusNode(debugLabel: 'GameListPanel');
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _listFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _selectRow(String gamePath) {
+    _listFocusNode.requestFocus();
+    ref.read(selectedGameProvider.notifier).state = gamePath;
+  }
+
+  void _moveSelection(int delta, List<String> gamePaths) {
+    if (gamePaths.isEmpty) return;
+
+    final selected = ref.read(selectedGameProvider);
+    final currentIndex = selected == null ? -1 : gamePaths.indexOf(selected);
+    final nextIndex = currentIndex < 0
+        ? (delta > 0 ? 0 : gamePaths.length - 1)
+        : (currentIndex + delta).clamp(0, gamePaths.length - 1);
+    if (nextIndex == currentIndex) return;
+
+    ref.read(selectedGameProvider.notifier).state = gamePaths[nextIndex];
+    _revealRow(nextIndex);
+  }
+
+  void _revealRow(int index) {
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+    final rowTop = index * _rowExtent;
+    final rowBottom = rowTop + _rowExtent;
+    final viewportTop = position.pixels;
+    final viewportBottom = viewportTop + position.viewportDimension;
+
+    final double target;
+    if (rowTop < viewportTop) {
+      target = rowTop;
+    } else if (rowBottom > viewportBottom) {
+      target = rowBottom - position.viewportDimension;
+    } else {
+      return;
+    }
+    _scrollController.jumpTo(
+      target.clamp(position.minScrollExtent, position.maxScrollExtent),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final gamePaths = ref.watch(filteredGamePathsProvider);
     final l10n = context.l10n;
 
@@ -150,23 +226,51 @@ class _GameListPanel extends ConsumerWidget {
       );
     }
 
-    return ListView.builder(
-      itemCount: gamePaths.length,
-      itemExtent: 72,
-      addRepaintBoundaries: true,
-      addAutomaticKeepAlives: false,
-      itemBuilder: (context, index) {
-        final gamePath = gamePaths[index];
-        return _GameListRow(key: ValueKey(gamePath), gamePath: gamePath);
-      },
+    return Shortcuts(
+      shortcuts: _navigationShortcuts,
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _MoveListSelectionIntent: CallbackAction<_MoveListSelectionIntent>(
+            onInvoke: (intent) {
+              _moveSelection(intent.delta, gamePaths);
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          focusNode: _listFocusNode,
+          child: ListView.builder(
+            controller: _scrollController,
+            itemCount: gamePaths.length,
+            itemExtent: _rowExtent,
+            addRepaintBoundaries: true,
+            addAutomaticKeepAlives: false,
+            itemBuilder: (context, index) {
+              final gamePath = gamePaths[index];
+              return _GameListRow(
+                key: ValueKey(gamePath),
+                gamePath: gamePath,
+                onSelect: _selectRow,
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }
 
+const double _rowExtent = 72;
+
 class _GameListRow extends ConsumerWidget {
-  const _GameListRow({required this.gamePath, super.key});
+  const _GameListRow({
+    required this.gamePath,
+    required this.onSelect,
+    super.key,
+  });
 
   final String gamePath;
+  final ValueChanged<String> onSelect;
 
   static final _selectedDecoration = BoxDecoration(
     gradient: LinearGradient(
@@ -230,11 +334,7 @@ class _GameListRow extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(
-            platformIcon(gameData.platform),
-            size: 15,
-            color: isSelected ? AppColors.richGold : AppColors.textSecondary,
-          ),
+          PlatformChip(platform: gameData.platform, size: PlatformChipSize.sm),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -283,7 +383,10 @@ class _GameListRow extends ConsumerWidget {
       child: Ink(
         decoration: isSelected ? _selectedDecoration : _defaultDecoration,
         child: InkWell(
-          onTap: () => ref.read(selectedGameProvider.notifier).state = gamePath,
+          onTap: () => onSelect(gamePath),
+          // Keyboard navigation is owned by the panel's single focus node, so
+          // rows stay out of the traversal order.
+          canRequestFocus: false,
           mouseCursor: SystemMouseCursors.click,
           overlayColor: appInteractionOverlay,
           hoverColor: isSelected ? Colors.transparent : AppColors.hoverSurface,

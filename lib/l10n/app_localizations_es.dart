@@ -753,6 +753,24 @@ class AppLocalizationsEs extends AppLocalizations {
   String get gameMenuViewDetails => 'Ver detalles';
 
   @override
+  String get gameMenuLaunch => 'Iniciar juego';
+
+  @override
+  String gameLaunchAttempting(String gameName) {
+    return 'Intentando iniciar \"$gameName\"...';
+  }
+
+  @override
+  String gameLaunchTargetNotFound(String gameName) {
+    return 'No se encontró un ejecutable para iniciar \"$gameName\".';
+  }
+
+  @override
+  String gameLaunchFailed(String gameName) {
+    return 'No se pudo iniciar \"$gameName\".';
+  }
+
+  @override
   String get gameMenuCompressNow => 'Comprimir ahora';
 
   @override
@@ -787,17 +805,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String gameRemovalPersistFailed(String gameName) {
     return 'No se pudo guardar la eliminación de \"$gameName\". Actualizando la biblioteca.';
   }
-
-  @override
-  String get gameConfirmCompressionTitle => 'Confirmar compresión';
-
-  @override
-  String gameConfirmCompressionMessage(String gameName) {
-    return '¿Comprimir \"$gameName\"? Esto puede afectar el uso del disco y el rendimiento en ejecución.';
-  }
-
-  @override
-  String get gameConfirmCompressionAction => 'Comprimir';
 
   @override
   String get gameDetailsTitleFallback => 'Detalles del juego';

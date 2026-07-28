@@ -518,15 +518,69 @@ void runPhase6OversizeSplitTests() {
     await tester.pumpAndSettle();
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
-    expect(
-      container.read(selectedGameProvider),
-      anyOf(_sampleGames[0].path, _sampleGames[1].path),
-    );
+    // The list owns a single focus node; arrow keys move the selection
+    // directly rather than walking per-row focus, which a lazily built list
+    // cannot support beyond the rows near the viewport.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(container.read(selectedGameProvider), _sampleGames[1].path);
     expect(find.text('Status'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(container.read(selectedGameProvider), _sampleGames[0].path);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pumpAndSettle();
+    expect(container.read(selectedGameProvider), _sampleGames[1].path);
+
+    // The last row is the end of the list: ArrowDown must not wrap around.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(container.read(selectedGameProvider), _sampleGames[0].path);
+  });
+
+  testWidgets('Home list rows use the shared platform glyph chip', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeGameListView()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final firstRow = find.ancestor(
+      of: find.text('Pixel Raider'),
+      matching: find.byType(InkWell),
+    );
+    final chip = tester.widget<PlatformChip>(
+      find.descendant(of: firstRow, matching: find.byType(PlatformChip)),
+    );
+
+    expect(chip.platform, Platform.steam);
+    expect(chip.size, PlatformChipSize.sm);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -613,6 +667,11 @@ void runPhase6OversizeSplitTests() {
       ),
     );
     await tester.pumpAndSettle();
+
+    final grid = tester.widget<GridView>(find.byType(GridView));
+    final childrenDelegate =
+        grid.childrenDelegate as SliverChildBuilderDelegate;
+    expect(childrenDelegate.addAutomaticKeepAlives, isFalse);
 
     final adapterFinder = find.byType(GameCardAdapter).first;
     expect(adapterFinder, findsOneWidget);
@@ -753,6 +812,53 @@ void runPhase6OversizeSplitTests() {
     expect(bridge.estimateCompressionSavingsCalls, 2);
     expect(card.estimatedSavedBytes, 22 * _oneGiB);
     expect(card.estimatedFromCommunity, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home grid reuses completed estimates after cards are disposed', (
+    WidgetTester tester,
+  ) async {
+    GameCardAdapter.clearCompletedEstimateCache();
+    addTearDown(GameCardAdapter.clearCompletedEstimateCache);
+    await tester.binding.setSurfaceSize(const Size(900, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final games = List<GameInfo>.generate(
+      40,
+      (index) => GameInfo(
+        name: 'Cached Estimate $index',
+        path: 'C:\\Games\\cached_estimate_$index',
+        platform: Platform.custom,
+        sizeBytes: (index + 1) * _oneGiB,
+      ),
+    );
+    final bridge = _TestRustBridgeService(games: games);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final firstPath = games.first.path;
+    expect(bridge.estimateCompressionSavingsCallsByPath[firstPath], 1);
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byType(GridView),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey(firstPath)), findsNothing);
+
+    scrollable.position.jumpTo(0);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(ValueKey(firstPath)), findsOneWidget);
+    expect(bridge.estimateCompressionSavingsCallsByPath[firstPath], 1);
     expect(tester.takeException(), isNull);
   });
 
@@ -1208,6 +1314,13 @@ void runPhase6OversizeSplitTests() {
     expect(coverFinder, findsOneWidget);
     expect(
       find.descendant(of: infoPanelFinder, matching: find.text('Flipped Card')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: coverFinder,
+        matching: find.byIcon(LucideIcons.flame),
+      ),
       findsOneWidget,
     );
 

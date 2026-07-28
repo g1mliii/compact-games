@@ -342,8 +342,12 @@ class TrayService with TrayListener {
 
   Future<void> _showAndFocusWindow() async {
     try {
-      _onShowWindow?.call();
       await _windowPlatform.show();
+      // The hook remounts the Flutter UI after tray mode. Run it only after
+      // the native surface is visible; rendering the first restored frame
+      // while the HWND is still hidden can leave stale compositor geometry
+      // (a large black band and displaced/clipped UI) until process restart.
+      _onShowWindow?.call();
       await _windowPlatform.focus();
     } catch (_) {}
   }

@@ -141,6 +141,36 @@ final activeCompressionJobProvider = Provider<CompressionJobState?>((ref) {
   );
 });
 
+/// The active compression/decompression job for a game path, or null when the
+/// running job belongs to another game. Callers that only need "is this game
+/// busy" should prefer [gameCompressionBusyProvider], which does not rebuild on
+/// progress updates.
+final activeCompressionJobForGameProvider = Provider.autoDispose
+    .family<CompressionJobState?, String>((ref, gamePath) {
+      final job = ref.watch(activeCompressionJobProvider);
+      if (job == null || gamePathKey(job.gamePath) != gamePathKey(gamePath)) {
+        return null;
+      }
+      return job;
+    });
+
+/// Whether a game is actively being modified or waiting in the manual queue.
+final gameCompressionBusyProvider = Provider.autoDispose.family<bool, String>((
+  ref,
+  gamePath,
+) {
+  final key = gamePathKey(gamePath);
+  final activePathKey = ref.watch(
+    activeCompressionJobProvider.select(
+      (job) => job == null ? null : gamePathKey(job.gamePath),
+    ),
+  );
+  if (activePathKey == key) {
+    return true;
+  }
+  return ref.watch(compressionQueueEntryProvider(gamePath)) != null;
+});
+
 /// Stable identifier for the currently active manual job instance.
 final activeCompressionRunIdProvider = Provider<int?>((ref) {
   return ref.watch(activeCompressionJobProvider.select((job) => job?.runId));

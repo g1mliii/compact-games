@@ -1,4 +1,4 @@
-﻿part of '../tray_service_test.dart';
+part of '../tray_service_test.dart';
 
 void _defineTrayServiceStressTests() {
   test(
@@ -175,6 +175,9 @@ class _DelayedTrayPlatformAdapter extends _FakeTrayPlatformAdapter {
 }
 
 class _FakeWindowPlatformAdapter implements WindowPlatformAdapter {
+  _FakeWindowPlatformAdapter({this.events});
+
+  final List<String>? events;
   int showCalls = 0;
   int focusCalls = 0;
   int closeCalls = 0;
@@ -182,11 +185,13 @@ class _FakeWindowPlatformAdapter implements WindowPlatformAdapter {
   @override
   Future<void> show() async {
     showCalls += 1;
+    events?.add('show');
   }
 
   @override
   Future<void> focus() async {
     focusCalls += 1;
+    events?.add('focus');
   }
 
   @override

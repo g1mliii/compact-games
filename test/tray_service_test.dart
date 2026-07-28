@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:compact_games/services/tray_service.dart';
@@ -75,9 +75,10 @@ void main() {
     },
   );
 
-  test('show window command runs lifecycle hook before focus', () async {
+  test('show window command remounts UI after show and before focus', () async {
     final fakeTray = _FakeTrayPlatformAdapter();
-    final fakeWindow = _FakeWindowPlatformAdapter();
+    final events = <String>[];
+    final fakeWindow = _FakeWindowPlatformAdapter(events: events);
     final service = TrayService.instance;
     var showHookCalls = 0;
     service.configureForTest(
@@ -87,6 +88,7 @@ void main() {
       iconPathOverride: r'C:\test\compact_games_tray.ico',
       onShowWindow: () {
         showHookCalls += 1;
+        events.add('hook');
       },
     );
 
@@ -97,6 +99,7 @@ void main() {
     expect(showHookCalls, 1);
     expect(fakeWindow.showCalls, 1);
     expect(fakeWindow.focusCalls, 1);
+    expect(events, <String>['show', 'hook', 'focus']);
   });
 
   test('dispose cancels pending coalesced status update', () async {

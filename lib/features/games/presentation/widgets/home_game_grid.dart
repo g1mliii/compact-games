@@ -94,6 +94,7 @@ class _HomeGameGridState extends ConsumerState<HomeGameGrid> {
               width: bucketedViewportWidth,
               child: GridView.builder(
                 padding: _gridPadding,
+                addAutomaticKeepAlives: false,
                 gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: AppConstants.cardMaxWidth,
                   crossAxisSpacing: AppConstants.gridSpacing,

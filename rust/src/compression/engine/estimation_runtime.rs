@@ -53,6 +53,18 @@ impl CompressionEngine {
         self.estimate_folder_savings_with_factors(folder, factors, false)
     }
 
+    /// Runs the folder estimate with neutral adaptive factors for deterministic
+    /// base-estimation tests. Production estimates always use history-derived
+    /// factors through [Self::estimate_folder_savings].
+    #[cfg(test)]
+    pub(crate) fn estimate_folder_savings_without_adaptation_for_test(
+        &self,
+        folder: &Path,
+    ) -> Result<CompressionEstimate, CompressionError> {
+        self.validate_path(folder)?;
+        self.estimate_folder_savings_with_factors(folder, AdaptiveFactors::neutral(), false)
+    }
+
     pub fn estimate_folder_savings_with_context(
         &self,
         folder: &Path,
@@ -60,6 +72,32 @@ impl CompressionEngine {
     ) -> Result<CompressionEstimate, CompressionError> {
         self.validate_path(folder)?;
         let factors = self.compute_adaptive_factors(folder);
+        self.estimate_folder_savings_with_context_and_factors(folder, context, factors)
+    }
+
+    /// Runs the contextual estimate with neutral adaptive factors for
+    /// deterministic community-database tests. Production estimates always use
+    /// history-derived factors through [Self::estimate_folder_savings_with_context].
+    #[cfg(test)]
+    pub(crate) fn estimate_folder_savings_with_context_without_adaptation_for_test(
+        &self,
+        folder: &Path,
+        context: EstimateGameContext<'_>,
+    ) -> Result<CompressionEstimate, CompressionError> {
+        self.validate_path(folder)?;
+        self.estimate_folder_savings_with_context_and_factors(
+            folder,
+            context,
+            AdaptiveFactors::neutral(),
+        )
+    }
+
+    fn estimate_folder_savings_with_context_and_factors(
+        &self,
+        folder: &Path,
+        context: EstimateGameContext<'_>,
+        factors: AdaptiveFactors,
+    ) -> Result<CompressionEstimate, CompressionError> {
         let mut community_lookup_pending = false;
         if USE_ADAPTIVE_ESTIMATION {
             match self.community_estimate(context, context.known_size_bytes, folder, factors) {

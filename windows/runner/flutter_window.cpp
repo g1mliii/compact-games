@@ -4,6 +4,12 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+namespace {
+
+constexpr UINT kResyncFlutterViewMessage = WM_APP + 0x51;
+
+}  // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -45,6 +51,45 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (flutter_controller_ && message == kResyncFlutterViewMessage) {
+    if (IsIconic(hwnd)) {
+      was_minimized_ = true;
+      return 0;
+    }
+    const RECT frame = GetClientArea();
+    const int width = frame.right - frame.left;
+    const int height = frame.bottom - frame.top;
+    const HWND flutter_view =
+        flutter_controller_->view()->GetNativeWindow();
+    // A same-size MoveWindow can be optimized away and leave Flutter's view
+    // metrics stale. Nudge the child by one pixel, then restore the exact
+    // client size in the same message turn to force a real metrics update
+    // without changing the user's top-level window bounds.
+    MoveWindow(flutter_view, frame.left, frame.top, width + 1, height + 1,
+               FALSE);
+    MoveWindow(flutter_view, frame.left, frame.top, width, height, TRUE);
+    flutter_controller_->ForceRedraw();
+    return 0;
+  }
+
+  if (message == WM_SIZE) {
+    if (wparam == SIZE_MINIMIZED) {
+      was_minimized_ = true;
+    } else if (was_minimized_) {
+      was_minimized_ = false;
+      PostMessage(hwnd, kResyncFlutterViewMessage, 0, 0);
+    }
+  } else if (message == WM_SHOWWINDOW && wparam != FALSE) {
+    if (IsIconic(hwnd)) {
+      was_minimized_ = true;
+    } else {
+      // A never-shown or tray-hidden window can retain stale Flutter view
+      // geometry. Resync after WM_SHOWWINDOW finishes so the HWND has its
+      // final client bounds before Flutter renders the restored UI.
+      PostMessage(hwnd, kResyncFlutterViewMessage, 0, 0);
+    }
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

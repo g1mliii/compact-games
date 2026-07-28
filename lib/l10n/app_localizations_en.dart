@@ -737,6 +737,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gameMenuViewDetails => 'View Details';
 
   @override
+  String get gameMenuLaunch => 'Launch Game';
+
+  @override
+  String gameLaunchAttempting(String gameName) {
+    return 'Attempting to launch \"$gameName\"...';
+  }
+
+  @override
+  String gameLaunchTargetNotFound(String gameName) {
+    return 'No launchable executable was found for \"$gameName\".';
+  }
+
+  @override
+  String gameLaunchFailed(String gameName) {
+    return 'Could not launch \"$gameName\".';
+  }
+
+  @override
   String get gameMenuCompressNow => 'Compress Now';
 
   @override
@@ -770,17 +788,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String gameRemovalPersistFailed(String gameName) {
     return 'Failed to persist removal for \"$gameName\". Refreshing library.';
   }
-
-  @override
-  String get gameConfirmCompressionTitle => 'Confirm Compression';
-
-  @override
-  String gameConfirmCompressionMessage(String gameName) {
-    return 'Compress \"$gameName\"? This can affect disk usage and runtime performance.';
-  }
-
-  @override
-  String get gameConfirmCompressionAction => 'Compress';
 
   @override
   String get gameDetailsTitleFallback => 'Game Details';

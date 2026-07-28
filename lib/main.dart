@@ -33,7 +33,16 @@ final _windowCloseCoordinator = WindowCloseCoordinator(
   trimMemory: UiMemoryLifecycle.trim,
   cleanupLifecycleHooks: _cleanupLifecycleHooks,
   requestAppExit: _requestAppExit,
-  onHiddenToTray: appWindowVisibilityController.markHiddenToTray,
+  onHiddenToTray: () async {
+    appWindowVisibilityController.markHiddenToTray();
+    // The HWND is already hidden here, so the embedder may stop delivering
+    // vsync and never complete this future. Bound the wait so the tray-hide
+    // memory trim that follows always runs.
+    await WidgetsBinding.instance.endOfFrame.timeout(
+      const Duration(milliseconds: 500),
+      onTimeout: () {},
+    );
+  },
 );
 const _startupWindow = WindowManagerStartupAdapter();
 final _startupTray = TrayStartupAdapter(TrayService.instance);
@@ -147,6 +156,13 @@ Future<void> main(List<String> args) async {
   }
 
   runApp(const _RustBridgeReloadHost(child: CompactGamesApp()));
+  if (startHiddenInTray) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (appWindowVisibilityController.isHiddenToTray) {
+        UiMemoryLifecycle.trim(UiMemoryTrimLevel.trayHide);
+      }
+    });
+  }
 }
 
 const bool _enableShaderWarmUp = bool.fromEnvironment(

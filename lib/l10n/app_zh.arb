@@ -1011,6 +1011,37 @@
   "@gameMenuViewDetails": {
     "description": "Localized message for game menu view details."
   },
+  "gameMenuLaunch": "启动游戏",
+  "@gameMenuLaunch": {
+    "description": "Localized message for game menu launch."
+  },
+  "gameLaunchAttempting": "正在尝试启动“{gameName}”...",
+  "@gameLaunchAttempting": {
+    "description": "Localized message shown while handing a game launch request to Windows.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameLaunchTargetNotFound": "未找到可用于启动“{gameName}”的可执行文件。",
+  "@gameLaunchTargetNotFound": {
+    "description": "Localized message shown when no game executable can be resolved.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameLaunchFailed": "无法启动“{gameName}”。",
+  "@gameLaunchFailed": {
+    "description": "Localized message shown when Windows rejects a game launch request.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
   "gameMenuCompressNow": "立即压缩",
   "@gameMenuCompressNow": {
     "description": "Localized message for game menu compress now."
@@ -1060,23 +1091,6 @@
         "type": "String"
       }
     }
-  },
-  "gameConfirmCompressionTitle": "确认压缩",
-  "@gameConfirmCompressionTitle": {
-    "description": "Localized message for game confirm compression title."
-  },
-  "gameConfirmCompressionMessage": "要压缩“{gameName}”吗？这可能影响磁盘占用和运行时性能。",
-  "@gameConfirmCompressionMessage": {
-    "description": "Localized message for game confirm compression message.",
-    "placeholders": {
-      "gameName": {
-        "type": "String"
-      }
-    }
-  },
-  "gameConfirmCompressionAction": "压缩",
-  "@gameConfirmCompressionAction": {
-    "description": "Localized message for game confirm compression action."
   },
   "gameDetailsTitleFallback": "游戏详情",
   "@gameDetailsTitleFallback": {

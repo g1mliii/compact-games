@@ -4,6 +4,7 @@ import 'package:compact_games/models/compression_algorithm.dart';
 import 'package:compact_games/models/compression_progress.dart';
 import 'package:compact_games/models/managed_restore_plan.dart';
 import 'package:compact_games/providers/compression/compression_provider.dart';
+import 'package:compact_games/providers/compression/compression_progress_provider.dart';
 import 'package:compact_games/providers/compression/compression_state.dart';
 import 'package:compact_games/providers/games/game_list_provider.dart';
 import 'package:compact_games/providers/restore/restore_games_provider.dart';
@@ -39,6 +40,12 @@ void main() {
     expect(state.queue.first.algorithm, CompressionAlgorithm.lzx);
     expect(state.queue.first.allowDirectStorageOverride, isTrue);
     expect(bridge.startedPaths, <String>[r'C:\Games\A']);
+    expect(container.read(gameCompressionBusyProvider(r'c:/games/a/')), isTrue);
+    expect(container.read(gameCompressionBusyProvider(r'c:/games/b/')), isTrue);
+    expect(
+      container.read(gameCompressionBusyProvider(r'C:\Games\not_queued')),
+      isFalse,
+    );
 
     // Dedupe is path-based and case-insensitive.
     await notifier.startCompression(gamePath: 'c:/games/b/', gameName: 'B');

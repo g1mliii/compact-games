@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/localization/app_localization.dart';
 import '../../../../providers/system/platform_shell_provider.dart';
+import '../../../../services/platform_shell_service.dart';
 
 const ValueKey<String> homeAddGamePathFieldKey = ValueKey<String>(
   'addGamePathField',
@@ -173,6 +174,9 @@ class _HomeAddGameDialogState extends ConsumerState<HomeAddGameDialog> {
       _inputController.selection = TextSelection.collapsed(
         offset: normalized.length,
       );
+    } on PathPickerUnavailableException {
+      // The native dialog could not be shown; leave the field alone so the
+      // user can still type or paste a path.
     } finally {
       if (mounted) {
         setState(() {

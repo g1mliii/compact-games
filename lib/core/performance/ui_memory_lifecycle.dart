@@ -21,11 +21,6 @@ abstract final class UiMemoryLifecycle {
     imageCache.maximumSize = imageCacheMaxEntries;
   }
 
-  /// Current decoded image cache usage in bytes. Exposed for memory-aware
-  /// production logic (e.g. gating `wantKeepAlive` on scroll-heavy widgets).
-  static int get currentImageCacheBytes =>
-      PaintingBinding.instance.imageCache.currentSizeBytes;
-
   static void trim(UiMemoryTrimLevel level) {
     final imageCache = PaintingBinding.instance.imageCache;
 

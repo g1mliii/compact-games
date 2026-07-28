@@ -1,14 +1,15 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/localization/app_localization.dart';
-import '../../../../core/performance/ui_memory_lifecycle.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/cover_art_utils.dart';
 import '../../../../core/utils/date_time_format.dart';
+import '../../../../core/utils/game_path_key.dart';
 import '../../../../core/navigation/app_routes.dart';
 import '../../../../models/compression_algorithm.dart';
 import '../../../../models/compression_estimate.dart';
@@ -28,6 +29,7 @@ import 'game_card_adapter_intents.dart';
 
 typedef _EstimateCacheKey = ({
   CompressionAlgorithm algorithm,
+  String gamePath,
   String gameName,
   int sizeBytes,
   int? steamAppId,
@@ -36,24 +38,46 @@ typedef _EstimateCacheKey = ({
 class GameCardAdapter extends ConsumerStatefulWidget {
   const GameCardAdapter({super.key, required this.gamePath});
 
+  static const int _maxCompletedEstimateCacheEntries = 128;
+
+  /// Accessing an entry moves it to the end, so the first key is always the
+  /// least recently used completed estimate.
+  static final LinkedHashMap<_EstimateCacheKey, CompressionEstimate>
+  _completedEstimateCache =
+      LinkedHashMap<_EstimateCacheKey, CompressionEstimate>();
+
   final String gamePath;
+
+  static CompressionEstimate? _readCompletedEstimate(_EstimateCacheKey key) {
+    final estimate = _completedEstimateCache.remove(key);
+    if (estimate != null) {
+      _completedEstimateCache[key] = estimate;
+    }
+    return estimate;
+  }
+
+  static void _writeCompletedEstimate(
+    _EstimateCacheKey key,
+    CompressionEstimate estimate,
+  ) {
+    _completedEstimateCache
+      ..remove(key)
+      ..[key] = estimate;
+    if (_completedEstimateCache.length > _maxCompletedEstimateCacheEntries) {
+      _completedEstimateCache.remove(_completedEstimateCache.keys.first);
+    }
+  }
+
+  @visibleForTesting
+  static void clearCompletedEstimateCache() {
+    _completedEstimateCache.clear();
+  }
 
   @override
   ConsumerState<GameCardAdapter> createState() => _GameCardAdapterState();
 }
 
-class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
-    with AutomaticKeepAliveClientMixin {
-  /// Keep the card alive when it has completed hydration work (cover art or
-  /// estimate fetched), so scrolling back doesn't re-trigger async work.
-  /// Gated by image cache budget to avoid unbounded memory growth.
-  static const int _keepAliveCacheBudget = 150 * 1024 * 1024; // 150 MB
-
-  @override
-  bool get wantKeepAlive =>
-      (_cachedCoverUri != null || _cachedEstimate != null) &&
-      UiMemoryLifecycle.currentImageCacheBytes < _keepAliveCacheBudget;
-
+class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   static const double _contextMenuMinWidth = 184;
   static const double _contextMenuMaxWidth = 208;
   static const ValueKey<String> _dangerDividerKey = ValueKey<String>(
@@ -63,11 +87,15 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     'gameCardAdapterContent',
   );
   final FocusNode _focusNode = FocusNode();
+
+  /// Invariant for a given [GameCardAdapter.gamePath], but built three times
+  /// per build via [_estimateCacheKey], so cache it rather than re-normalizing
+  /// the path on every frame of a scroll.
+  late String _gamePathKey = gamePathKey(widget.gamePath);
   bool _hydrationRequested = false;
   bool _hydrationRequestScheduled = false;
   bool _estimateFetchScheduled = false;
   bool _estimateFetchInFlight = false;
-  bool _compressionConfirmOpen = false;
   DateTime _nextEstimateAttemptAt = DateTime.fromMillisecondsSinceEpoch(0);
   CompressionEstimate? _cachedEstimate;
   _EstimateCacheKey? _cachedEstimateKey;
@@ -83,6 +111,18 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
 
   static const _shortcuts = <ShortcutActivator, Intent>{
     SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+    SingleActivator(LogicalKeyboardKey.arrowUp): DirectionalFocusIntent(
+      TraversalDirection.up,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowDown): DirectionalFocusIntent(
+      TraversalDirection.down,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowLeft): DirectionalFocusIntent(
+      TraversalDirection.left,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowRight): DirectionalFocusIntent(
+      TraversalDirection.right,
+    ),
     SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true):
         CompressIntent(),
     SingleActivator(LogicalKeyboardKey.keyE, control: true, shift: true):
@@ -98,7 +138,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     ActivateIntent: CallbackAction<ActivateIntent>(
       onInvoke: (_) {
         final game = _readCurrentGame();
-        if (game != null) unawaited(_onGameTap(game));
+        if (game != null) {
+          unawaited(_showContextMenu(game: game));
+        }
         return null;
       },
     ),
@@ -154,6 +196,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
   void didUpdateWidget(covariant GameCardAdapter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.gamePath != widget.gamePath) {
+      _gamePathKey = gamePathKey(widget.gamePath);
       _hydrationRequested = false;
       _hydrationRequestScheduled = false;
       _estimateFetchScheduled = false;
@@ -172,7 +215,6 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // required by AutomaticKeepAliveClientMixin
     // Select only the fields actually rendered on the card so this widget does
     // not rebuild when unrelated GameInfo fields (e.g. excluded, lastPlayed)
     // change. A null selector result means the game was removed from the list.
@@ -368,35 +410,6 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     });
   }
 
-  Future<void> _onGameTap(GameInfo game) async {
-    final allowDirectStorageOverride =
-        ref
-            .read(settingsProvider)
-            .value
-            ?.settings
-            .directStorageOverrideEnabled ??
-        false;
-
-    if (game.isCompressed) {
-      await ref
-          .read(compressionProvider.notifier)
-          .startDecompression(gamePath: game.path, gameName: game.name);
-      return;
-    }
-    if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) return;
-
-    final shouldCompress = await _confirmCompression(gameName: game.name);
-    if (!mounted || !shouldCompress) return;
-
-    await ref
-        .read(compressionProvider.notifier)
-        .startCompression(
-          gamePath: game.path,
-          gameName: game.name,
-          allowDirectStorageOverride: allowDirectStorageOverride,
-        );
-  }
-
   Future<void> _startCompressionAction(GameInfo game) async {
     final allowDirectStorageOverride = _readDirectStorageOverride();
     if (_isDirectStorageBlocked(game, allowDirectStorageOverride)) {
@@ -467,6 +480,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     final allowDirectStorageOverride = _readDirectStorageOverride();
     final queuePosition = ref.read(compressionQueuePositionProvider(game.path));
     final queuedJob = ref.read(compressionQueueEntryProvider(game.path));
+    final matchingActiveJob = ref.read(
+      activeCompressionJobForGameProvider(game.path),
+    );
     final action = await showMenu<GameContextAction>(
       context: context,
       position: _menuPosition(tapDown),
@@ -481,40 +497,16 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
           child: _buildMenuLabel(l10n.gameMenuViewDetails, LucideIcons.info),
         ),
         PopupMenuItem(
-          value: GameContextAction.compress,
-          enabled:
-              !game.isCompressed &&
-              queuedJob == null &&
-              !_isDirectStorageBlocked(game, allowDirectStorageOverride),
-          child: _buildMenuLabel(
-            queuedJob?.type == CompressionJobType.compression
-                ? l10n.activityQueuePosition(queuePosition!)
-                : l10n.gameMenuCompressNow,
-            LucideIcons.archive,
-          ),
+          value: GameContextAction.launch,
+          enabled: !ref.read(gameCompressionBusyProvider(game.path)),
+          child: _buildMenuLabel(l10n.gameMenuLaunch, LucideIcons.play),
         ),
-        PopupMenuItem(
-          value: GameContextAction.recompress,
-          enabled:
-              game.isCompressed &&
-              queuedJob == null &&
-              !_isDirectStorageBlocked(game, allowDirectStorageOverride),
-          child: _buildMenuLabel(
-            queuedJob?.type == CompressionJobType.compression
-                ? l10n.activityQueuePosition(queuePosition!)
-                : l10n.gameMenuRecompress,
-            LucideIcons.archive,
-          ),
-        ),
-        PopupMenuItem(
-          value: GameContextAction.decompress,
-          enabled: game.isCompressed && queuedJob == null,
-          child: _buildMenuLabel(
-            queuedJob?.type == CompressionJobType.decompression
-                ? l10n.activityQueuePosition(queuePosition!)
-                : l10n.gameMenuDecompress,
-            LucideIcons.archiveRestore,
-          ),
+        ..._buildCompressionMenuItems(
+          game: game,
+          allowDirectStorageOverride: allowDirectStorageOverride,
+          activeJob: matchingActiveJob,
+          queuedJob: queuedJob,
+          queuePosition: queuePosition,
         ),
         PopupMenuItem(
           value: game.isUnsupported
@@ -570,6 +562,9 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
       case GameContextAction.viewDetails:
         _openDetails(game.path);
         break;
+      case GameContextAction.launch:
+        await launchGameFromUi(ref, context, game);
+        break;
       case GameContextAction.compress:
       case GameContextAction.recompress:
         await _startCompressionAction(game);
@@ -593,6 +588,70 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         await _removeFromLibrary(game);
         break;
     }
+  }
+
+  List<PopupMenuEntry<GameContextAction>> _buildCompressionMenuItems({
+    required GameInfo game,
+    required bool allowDirectStorageOverride,
+    required CompressionJobState? activeJob,
+    required CompressionJobState? queuedJob,
+    required int? queuePosition,
+  }) {
+    final l10n = context.l10n;
+    if (activeJob != null) {
+      return <PopupMenuEntry<GameContextAction>>[
+        PopupMenuItem<GameContextAction>(
+          enabled: false,
+          child: _buildMenuLabel(
+            activeJob.type == CompressionJobType.compression
+                ? l10n.gameDetailsActivityCompressingNow
+                : l10n.gameDetailsActivityDecompressingNow,
+            activeJob.type == CompressionJobType.compression
+                ? LucideIcons.archive
+                : LucideIcons.archiveRestore,
+          ),
+        ),
+      ];
+    }
+
+    if (queuedJob != null) {
+      return <PopupMenuEntry<GameContextAction>>[
+        PopupMenuItem<GameContextAction>(
+          enabled: false,
+          child: _buildMenuLabel(
+            l10n.activityQueuePosition(queuePosition ?? 1),
+            queuedJob.type == CompressionJobType.compression
+                ? LucideIcons.archive
+                : LucideIcons.archiveRestore,
+          ),
+        ),
+      ];
+    }
+
+    if (!game.isCompressed) {
+      return <PopupMenuEntry<GameContextAction>>[
+        PopupMenuItem<GameContextAction>(
+          value: GameContextAction.compress,
+          enabled: !_isDirectStorageBlocked(game, allowDirectStorageOverride),
+          child: _buildMenuLabel(l10n.gameMenuCompressNow, LucideIcons.archive),
+        ),
+      ];
+    }
+
+    return <PopupMenuEntry<GameContextAction>>[
+      PopupMenuItem<GameContextAction>(
+        value: GameContextAction.recompress,
+        enabled: !_isDirectStorageBlocked(game, allowDirectStorageOverride),
+        child: _buildMenuLabel(l10n.gameMenuRecompress, LucideIcons.archive),
+      ),
+      PopupMenuItem<GameContextAction>(
+        value: GameContextAction.decompress,
+        child: _buildMenuLabel(
+          l10n.gameMenuDecompress,
+          LucideIcons.archiveRestore,
+        ),
+      ),
+    ];
   }
 
   Future<void> _removeFromLibrary(GameInfo game) async {
@@ -686,35 +745,6 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     );
   }
 
-  Future<bool> _confirmCompression({required String gameName}) async {
-    if (_compressionConfirmOpen) return false;
-
-    _compressionConfirmOpen = true;
-    try {
-      final l10n = context.l10n;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(l10n.gameConfirmCompressionTitle),
-          content: Text(l10n.gameConfirmCompressionMessage(gameName)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.commonCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(l10n.gameConfirmCompressionAction),
-            ),
-          ],
-        ),
-      );
-      return confirmed ?? false;
-    } finally {
-      _compressionConfirmOpen = false;
-    }
-  }
-
   Future<CompressionEstimate?> _getCompressionEstimate({
     required GameInfo game,
     required CompressionAlgorithm algorithm,
@@ -723,21 +753,33 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
     if (_hasFinalEstimate(game, algorithm)) {
       return _cachedEstimate;
     }
+    final sharedEstimate = GameCardAdapter._readCompletedEstimate(cacheKey);
+    if (sharedEstimate != null) {
+      setState(() {
+        _cachedEstimate = sharedEstimate;
+        _cachedEstimateKey = cacheKey;
+      });
+      return sharedEstimate;
+    }
     if (_estimateFetchInFlight) {
       return null;
     }
 
     _estimateFetchInFlight = true;
     try {
-      final estimate = await ref
-          .read(rustBridgeServiceProvider)
-          .estimateCompressionSavings(
-            gamePath: game.path,
-            algorithm: algorithm,
-            gameName: game.name,
-            steamAppId: game.steamAppId,
-            knownSizeBytes: game.sizeBytes,
-          );
+      final bridge = ref.read(rustBridgeServiceProvider);
+      final coverArtService = ref.read(coverArtServiceProvider);
+      final estimate = await bridge.estimateCompressionSavings(
+        gamePath: game.path,
+        algorithm: algorithm,
+        gameName: game.name,
+        steamAppId: game.steamAppId,
+        knownSizeBytes: game.sizeBytes,
+      );
+      if (!estimate.shouldRetryCommunityLookup) {
+        GameCardAdapter._writeCompletedEstimate(cacheKey, estimate);
+      }
+      coverArtService.primeEstimateHints(game.path, estimate);
       if (!mounted) return estimate;
       if (estimate.shouldRetryCommunityLookup) {
         _pendingEstimateRetryReady = false;
@@ -747,7 +789,6 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
         _estimateRetryTimer = null;
         _pendingEstimateRetryReady = false;
       }
-      ref.read(coverArtServiceProvider).primeEstimateHints(game.path, estimate);
       ref.invalidate(coverArtProvider(game.path));
       setState(() {
         _cachedEstimate = estimate;
@@ -795,6 +836,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter>
   ) {
     return (
       algorithm: algorithm,
+      gamePath: _gamePathKey,
       gameName: game.name,
       sizeBytes: game.sizeBytes,
       steamAppId: game.steamAppId,

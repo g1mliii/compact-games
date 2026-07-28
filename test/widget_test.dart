@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:compact_games/app.dart';
@@ -12,8 +12,11 @@ import 'package:compact_games/core/widgets/status_badge.dart';
 import 'package:compact_games/features/games/presentation/home_screen.dart';
 import 'package:compact_games/features/games/presentation/widgets/compression_activity_overlay.dart';
 import 'package:compact_games/features/games/presentation/widgets/compression_progress_indicator.dart';
+import 'package:compact_games/features/games/presentation/widgets/game_actions.dart';
 import 'package:compact_games/features/games/presentation/widgets/game_card.dart';
+import 'package:compact_games/features/games/presentation/widgets/game_card_adapter_intents.dart';
 import 'package:compact_games/features/games/presentation/widgets/home_game_grid.dart';
+import 'package:compact_games/features/games/presentation/widgets/home_game_list_view.dart';
 import 'package:compact_games/features/games/presentation/widgets/home_compression_banner.dart';
 import 'package:compact_games/models/app_settings.dart';
 import 'package:compact_games/models/automation_state.dart';
@@ -697,13 +700,60 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Confirm Compression'), findsNothing);
+    expect(find.text('Launch Game'), findsOneWidget);
     expect(find.text('Compress Now'), findsOneWidget);
+    expect(find.text('Recompress'), findsNothing);
+    expect(find.text('Decompress'), findsNothing);
     expect(bridge.compressCalls, 0);
 
     await tester.tap(find.text('Compress Now'));
     await tester.pumpAndSettle();
 
     expect(bridge.compressCalls, 1);
+  });
+
+  testWidgets('Grid arrows move card focus and Enter opens the keyboard menu', (
+    WidgetTester tester,
+  ) async {
+    final bridge = _RecordingRustBridgeService(games: _sampleGames);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    bool cardHasFocus(String path) {
+      final detector = find.descendant(
+        of: find.byKey(ValueKey(path)),
+        matching: find.byType(FocusableActionDetector),
+      );
+      return tester
+          .widget<FocusableActionDetector>(detector)
+          .focusNode!
+          .hasFocus;
+    }
+
+    expect(cardHasFocus(_sampleGames[1].path), isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+
+    expect(cardHasFocus(_sampleGames[0].path), isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Launch Game'), findsOneWidget);
+    expect(find.text('Compress Now'), findsOneWidget);
+    expect(bridge.compressCalls, 0);
+    expect(bridge.decompressCalls, 0);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -733,6 +783,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Confirm Compression'), findsNothing);
+      expect(find.text('Launch Game'), findsOneWidget);
+      expect(find.text('Compress Now'), findsNothing);
       expect(find.text('Recompress'), findsOneWidget);
       expect(find.text('Decompress'), findsOneWidget);
       expect(bridge.compressCalls, 0);
@@ -745,6 +797,273 @@ void main() {
       expect(bridge.decompressCalls, 0);
     },
   );
+
+  testWidgets('Card menu launch action confirms the request', (
+    WidgetTester tester,
+  ) async {
+    final game = GameInfo(
+      name: 'Launchable Quest',
+      path: r'C:\Games\launchable_quest',
+      platform: Platform.steam,
+      sizeBytes: 58 * _oneGiB,
+      steamAppId: 12345,
+    );
+    final bridge = _RecordingRustBridgeService(games: <GameInfo>[game]);
+    final shell = _FakePlatformShellService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          platformShellServiceProvider.overrideWithValue(shell),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(GameCard).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Launch Game'));
+    await tester.pumpAndSettle();
+
+    expect(shell.launchGameCalls, 1);
+    expect(shell.lastLaunchedGame, game);
+    expect(
+      find.text('Attempting to launch "Launchable Quest"...'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Card launch failure offers the game folder fallback', (
+    WidgetTester tester,
+  ) async {
+    final game = GameInfo(
+      name: 'Missing Launcher',
+      path: r'C:\Games\missing_launcher',
+      platform: Platform.custom,
+      sizeBytes: 58 * _oneGiB,
+    );
+    final bridge = _RecordingRustBridgeService(games: <GameInfo>[game]);
+    final shell = _FakePlatformShellService(
+      launchResult: GameLaunchResult.targetNotFound,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          platformShellServiceProvider.overrideWithValue(shell),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(GameCard).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Launch Game'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No launchable executable was found for "Missing Launcher".'),
+      findsOneWidget,
+    );
+    expect(find.text('Open Folder'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('List view exposes and runs the launch action', (
+    WidgetTester tester,
+  ) async {
+    final bridge = _RecordingRustBridgeService(games: _sampleGames);
+    final shell = _FakePlatformShellService();
+    final persistence = _FixedSettingsPersistence(
+      const AppSettings(homeViewMode: HomeViewMode.list),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          platformShellServiceProvider.overrideWithValue(shell),
+          settingsPersistenceProvider.overrideWithValue(persistence),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HomeScreen())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pixel Raider'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Launch Game'), findsOneWidget);
+    await tester.tap(find.byTooltip('Launch Game'));
+    await tester.pumpAndSettle();
+
+    expect(shell.launchGameCalls, 1);
+    expect(shell.lastLaunchedGame?.name, 'Pixel Raider');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Active game menu replaces compression actions with status', (
+    WidgetTester tester,
+  ) async {
+    final game = GameInfo(
+      name: 'Active Compression',
+      path: r'C:\Games\active_compression',
+      platform: Platform.steam,
+      sizeBytes: 58 * _oneGiB,
+    );
+    final bridge = _DelayedActivityRustBridgeService(games: <GameInfo>[game]);
+    final shell = _FakePlatformShellService();
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(bridge),
+        platformShellServiceProvider.overrideWithValue(shell),
+      ],
+    );
+    addTearDown(() {
+      bridge.disposeStreams();
+      container.dispose();
+    });
+
+    await container
+        .read(compressionProvider.notifier)
+        .startCompression(gamePath: game.path, gameName: game.name);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: HomeGameGrid())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(GameCard).first);
+    await tester.pumpAndSettle();
+
+    final launchItem = tester.widget<PopupMenuItem<GameContextAction>>(
+      find.ancestor(
+        of: find.text('Launch Game'),
+        matching: find.byType(PopupMenuItem<GameContextAction>),
+      ),
+    );
+    expect(launchItem.enabled, isFalse);
+    expect(find.text('Compressing now'), findsOneWidget);
+    expect(find.text('Compress Now'), findsNothing);
+    expect(find.text('Recompress'), findsNothing);
+    expect(find.text('Decompress'), findsNothing);
+    expect(shell.launchGameCalls, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('List launch action is disabled while its game is active', (
+    WidgetTester tester,
+  ) async {
+    final game = GameInfo(
+      name: 'Active List Game',
+      path: r'C:\Games\active_list_game',
+      platform: Platform.epicGames,
+      sizeBytes: 58 * _oneGiB,
+    );
+    final bridge = _DelayedActivityRustBridgeService(games: <GameInfo>[game]);
+    final shell = _FakePlatformShellService();
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(bridge),
+        platformShellServiceProvider.overrideWithValue(shell),
+      ],
+    );
+    addTearDown(() {
+      bridge.disposeStreams();
+      container.dispose();
+    });
+
+    await container
+        .read(compressionProvider.notifier)
+        .startCompression(gamePath: game.path, gameName: game.name);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: HomeGameListView())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(game.name));
+    await tester.pumpAndSettle();
+
+    final launchButton = tester.widget<IconButton>(
+      find.descendant(
+        of: find.byTooltip('Launch Game'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(launchButton.onPressed, isNull);
+    expect(shell.launchGameCalls, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Shared launch helper rejects a queued game', (
+    WidgetTester tester,
+  ) async {
+    final activeGame = GameInfo(
+      name: 'Active Queue Game',
+      path: r'C:\Games\active_queue_game',
+      platform: Platform.custom,
+      sizeBytes: 1,
+    );
+    final queuedGame = GameInfo(
+      name: 'Queued Launch Game',
+      path: r'C:\Games\queued_launch_game',
+      platform: Platform.custom,
+      sizeBytes: 1,
+    );
+    final bridge = _DelayedActivityRustBridgeService(
+      games: <GameInfo>[activeGame, queuedGame],
+    );
+    final shell = _FakePlatformShellService();
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(bridge),
+        platformShellServiceProvider.overrideWithValue(shell),
+      ],
+    );
+    addTearDown(() {
+      bridge.disposeStreams();
+      container.dispose();
+    });
+
+    final notifier = container.read(compressionProvider.notifier);
+    await notifier.startCompression(
+      gamePath: activeGame.path,
+      gameName: activeGame.name,
+    );
+    await notifier.startCompression(
+      gamePath: queuedGame.path,
+      gameName: queuedGame.name,
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(
+            body: Consumer(
+              builder: (context, ref, _) => TextButton(
+                onPressed: () => launchGameFromUi(ref, context, queuedGame),
+                child: const Text('Launch queued game'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Launch queued game'));
+    await tester.pump();
+
+    expect(shell.launchGameCalls, 0);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'Compressed DirectStorage card menu disables recompress but still allows decompression',

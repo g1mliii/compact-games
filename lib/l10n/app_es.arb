@@ -1011,6 +1011,37 @@
   "@gameMenuViewDetails": {
     "description": "Localized message for game menu view details."
   },
+  "gameMenuLaunch": "Iniciar juego",
+  "@gameMenuLaunch": {
+    "description": "Localized message for game menu launch."
+  },
+  "gameLaunchAttempting": "Intentando iniciar \"{gameName}\"...",
+  "@gameLaunchAttempting": {
+    "description": "Localized message shown while handing a game launch request to Windows.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameLaunchTargetNotFound": "No se encontró un ejecutable para iniciar \"{gameName}\".",
+  "@gameLaunchTargetNotFound": {
+    "description": "Localized message shown when no game executable can be resolved.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
+  "gameLaunchFailed": "No se pudo iniciar \"{gameName}\".",
+  "@gameLaunchFailed": {
+    "description": "Localized message shown when Windows rejects a game launch request.",
+    "placeholders": {
+      "gameName": {
+        "type": "String"
+      }
+    }
+  },
   "gameMenuCompressNow": "Comprimir ahora",
   "@gameMenuCompressNow": {
     "description": "Localized message for game menu compress now."
@@ -1060,23 +1091,6 @@
         "type": "String"
       }
     }
-  },
-  "gameConfirmCompressionTitle": "Confirmar compresión",
-  "@gameConfirmCompressionTitle": {
-    "description": "Localized message for game confirm compression title."
-  },
-  "gameConfirmCompressionMessage": "¿Comprimir \"{gameName}\"? Esto puede afectar el uso del disco y el rendimiento en ejecución.",
-  "@gameConfirmCompressionMessage": {
-    "description": "Localized message for game confirm compression message.",
-    "placeholders": {
-      "gameName": {
-        "type": "String"
-      }
-    }
-  },
-  "gameConfirmCompressionAction": "Comprimir",
-  "@gameConfirmCompressionAction": {
-    "description": "Localized message for game confirm compression action."
   },
   "gameDetailsTitleFallback": "Detalles del juego",
   "@gameDetailsTitleFallback": {

@@ -710,6 +710,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameMenuViewDetails => '查看详情';
 
   @override
+  String get gameMenuLaunch => '启动游戏';
+
+  @override
+  String gameLaunchAttempting(String gameName) {
+    return '正在尝试启动“$gameName”...';
+  }
+
+  @override
+  String gameLaunchTargetNotFound(String gameName) {
+    return '未找到可用于启动“$gameName”的可执行文件。';
+  }
+
+  @override
+  String gameLaunchFailed(String gameName) {
+    return '无法启动“$gameName”。';
+  }
+
+  @override
   String get gameMenuCompressNow => '立即压缩';
 
   @override
@@ -742,17 +760,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String gameRemovalPersistFailed(String gameName) {
     return '无法保存“$gameName”的移除操作，正在刷新游戏库。';
   }
-
-  @override
-  String get gameConfirmCompressionTitle => '确认压缩';
-
-  @override
-  String gameConfirmCompressionMessage(String gameName) {
-    return '要压缩“$gameName”吗？这可能影响磁盘占用和运行时性能。';
-  }
-
-  @override
-  String get gameConfirmCompressionAction => '压缩';
 
   @override
   String get gameDetailsTitleFallback => '游戏详情';

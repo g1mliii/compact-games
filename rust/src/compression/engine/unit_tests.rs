@@ -62,7 +62,7 @@ fn estimate_savings_uses_extension_buckets() {
 
     let engine = CompressionEngine::new(CompressionAlgorithm::Xpress8K);
     let estimate = engine
-        .estimate_folder_savings(dir.path())
+        .estimate_folder_savings_without_adaptation_for_test(dir.path())
         .expect("estimate should succeed");
 
     assert_eq!(estimate.scanned_files, 2);
@@ -121,7 +121,7 @@ fn estimate_with_context_uses_community_db_before_file_walk() {
     });
 
     let estimate = CompressionEngine::new(CompressionAlgorithm::Xpress8K)
-        .estimate_folder_savings_with_context(
+        .estimate_folder_savings_with_context_without_adaptation_for_test(
             dir.path(),
             EstimateGameContext {
                 game_name: Some("Team Fortress 2"),

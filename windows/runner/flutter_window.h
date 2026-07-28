@@ -28,6 +28,8 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  bool was_minimized_ = false;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

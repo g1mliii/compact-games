@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import '../core/performance/ui_memory_lifecycle.dart';
 
 abstract interface class TrayLifecycleAdapter {
@@ -23,6 +21,7 @@ abstract interface class AppShutdownAdapter {
 typedef MemoryTrimHandler = void Function(UiMemoryTrimLevel level);
 typedef LifecycleHooksCleanup = void Function();
 typedef AppExitRequest = Future<void> Function();
+typedef HiddenToTrayHandler = Future<void> Function();
 
 /// Coordinates close/minimize behavior for desktop lifecycle events.
 class WindowCloseCoordinator {
@@ -33,7 +32,7 @@ class WindowCloseCoordinator {
     required MemoryTrimHandler trimMemory,
     required LifecycleHooksCleanup cleanupLifecycleHooks,
     required AppExitRequest requestAppExit,
-    required VoidCallback onHiddenToTray,
+    required HiddenToTrayHandler onHiddenToTray,
   }) : _tray = tray,
        _window = window,
        _appShutdown = appShutdown,
@@ -48,7 +47,7 @@ class WindowCloseCoordinator {
   final MemoryTrimHandler _trimMemory;
   final LifecycleHooksCleanup _cleanupLifecycleHooks;
   final AppExitRequest _requestAppExit;
-  final VoidCallback _onHiddenToTray;
+  final HiddenToTrayHandler _onHiddenToTray;
 
   bool _isClosing = false;
 
@@ -62,7 +61,7 @@ class WindowCloseCoordinator {
         hidden = true;
       } catch (_) {}
       if (hidden) {
-        _onHiddenToTray();
+        await _onHiddenToTray();
         _trimMemory(UiMemoryTrimLevel.trayHide);
         return;
       }

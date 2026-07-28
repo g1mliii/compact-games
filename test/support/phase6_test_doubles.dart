@@ -55,6 +55,8 @@ class _TestRustBridgeService implements RustBridgeService {
   int compressCalls = 0;
   int decompressCalls = 0;
   int estimateCompressionSavingsCalls = 0;
+  final Map<String, int> estimateCompressionSavingsCallsByPath =
+      <String, int>{};
   bool? lastAllowDirectStorageOverride;
   int reportUnsupportedGameCalls = 0;
   String? lastReportedUnsupportedGamePath;
@@ -114,6 +116,11 @@ class _TestRustBridgeService implements RustBridgeService {
     int? knownSizeBytes,
   }) async {
     estimateCompressionSavingsCalls += 1;
+    estimateCompressionSavingsCallsByPath.update(
+      gamePath,
+      (count) => count + 1,
+      ifAbsent: () => 1,
+    );
     final index = estimateCompressionSavingsCalls - 1;
     if (index < compressionEstimates.length) {
       return compressionEstimates[index];

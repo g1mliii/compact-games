@@ -1360,6 +1360,30 @@ abstract class AppLocalizations {
   /// **'View Details'**
   String get gameMenuViewDetails;
 
+  /// Localized message for game menu launch.
+  ///
+  /// In en, this message translates to:
+  /// **'Launch Game'**
+  String get gameMenuLaunch;
+
+  /// Localized message shown while handing a game launch request to Windows.
+  ///
+  /// In en, this message translates to:
+  /// **'Attempting to launch \"{gameName}\"...'**
+  String gameLaunchAttempting(String gameName);
+
+  /// Localized message shown when no game executable can be resolved.
+  ///
+  /// In en, this message translates to:
+  /// **'No launchable executable was found for \"{gameName}\".'**
+  String gameLaunchTargetNotFound(String gameName);
+
+  /// Localized message shown when Windows rejects a game launch request.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not launch \"{gameName}\".'**
+  String gameLaunchFailed(String gameName);
+
   /// Localized message for game menu compress now.
   ///
   /// In en, this message translates to:
@@ -1419,24 +1443,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to persist removal for \"{gameName}\". Refreshing library.'**
   String gameRemovalPersistFailed(String gameName);
-
-  /// Localized message for game confirm compression title.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm Compression'**
-  String get gameConfirmCompressionTitle;
-
-  /// Localized message for game confirm compression message.
-  ///
-  /// In en, this message translates to:
-  /// **'Compress \"{gameName}\"? This can affect disk usage and runtime performance.'**
-  String gameConfirmCompressionMessage(String gameName);
-
-  /// Localized message for game confirm compression action.
-  ///
-  /// In en, this message translates to:
-  /// **'Compress'**
-  String get gameConfirmCompressionAction;
 
   /// Localized message for game details title fallback.
   ///

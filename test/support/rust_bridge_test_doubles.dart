@@ -645,12 +645,26 @@ class _DelayedDecompressRustBridgeService extends _RecordingRustBridgeService {
 }
 
 class _FakePlatformShellService extends PlatformShellService {
-  _FakePlatformShellService({this.folderPath, this.executablePath});
+  _FakePlatformShellService({
+    this.folderPath,
+    this.executablePath,
+    this.launchResult = GameLaunchResult.requested,
+  });
 
   final String? folderPath;
   final String? executablePath;
+  final GameLaunchResult launchResult;
   int pickFolderCalls = 0;
   int pickExecutableCalls = 0;
+  int launchGameCalls = 0;
+  GameInfo? lastLaunchedGame;
+
+  @override
+  Future<GameLaunchResult> launchGame(GameInfo game) async {
+    launchGameCalls += 1;
+    lastLaunchedGame = game;
+    return launchResult;
+  }
 
   @override
   Future<String?> pickGameFolder() async {

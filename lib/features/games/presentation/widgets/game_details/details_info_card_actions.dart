@@ -5,6 +5,14 @@ class _StatusSectionHeader extends StatefulWidget {
 
   static const double _compactBreakpoint = 480;
 
+  /// Width kept for the status title and its warning note; the action buttons
+  /// may use everything else and wrap into extra runs once that is not enough.
+  static const double _minStatusTitleWidth = 150;
+
+  /// Gap between the title column and the action buttons. Shared by the layout
+  /// and the width budget below so the two cannot drift apart.
+  static const double _titleActionsGap = 10;
+
   final GameInfo game;
   final bool isExcluded;
 
@@ -53,7 +61,9 @@ class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
       builder: (context, constraints) {
         final compact =
             constraints.maxWidth < _StatusSectionHeader._compactBreakpoint;
-        return compact ? _buildCompact(context) : _buildWide(context);
+        return compact
+            ? _buildCompact(context)
+            : _buildWide(context, constraints.maxWidth);
       },
     );
   }
@@ -80,7 +90,7 @@ class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
     );
   }
 
-  Widget _buildWide(BuildContext context) {
+  Widget _buildWide(BuildContext context, double maxWidth) {
     final noteSection = _buildNoteSection(_statusNoteText(context));
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
@@ -93,11 +103,25 @@ class _StatusSectionHeaderState extends State<_StatusSectionHeader> {
               children: [_buildStatusTitle(context), ?noteSection],
             ),
           ),
-          const SizedBox(width: 10),
-          RepaintBoundary(
-            child: _StatusActionButtons(
-              game: widget.game,
-              isExcluded: widget.isExcluded,
+          const SizedBox(width: _StatusSectionHeader._titleActionsGap),
+          // A `Row` hands inflexible children unbounded width, so the action
+          // `Wrap` would never break into runs and would overflow instead.
+          // Cap it here rather than making it flexible: a flex factor reserves
+          // a fixed share of the row and starves the title/note column even
+          // when the buttons need far less. Staying inflexible also means the
+          // `Expanded` above receives the genuine remainder.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth:
+                  maxWidth -
+                  _StatusSectionHeader._minStatusTitleWidth -
+                  _StatusSectionHeader._titleActionsGap,
+            ),
+            child: RepaintBoundary(
+              child: _StatusActionButtons(
+                game: widget.game,
+                isExcluded: widget.isExcluded,
+              ),
             ),
           ),
         ],
@@ -161,6 +185,7 @@ class _StatusActionButtons extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final launchBlocked = ref.watch(gameCompressionBusyProvider(game.path));
     final allowDirectStorageOverride = ref.watch(
       settingsProvider.select(
         (async) => async.value?.settings.directStorageOverrideEnabled ?? false,
@@ -173,6 +198,18 @@ class _StatusActionButtons extends ConsumerWidget {
     );
     final secondaryAction = _buildDecompressionButton(context, ref);
     final actionIcons = <Widget>[
+      Tooltip(
+        message: l10n.gameMenuLaunch,
+        child: IconButton(
+          key: _detailsStatusLaunchActionKey,
+          tooltip: null,
+          style: _iconBtnStyle,
+          onPressed: launchBlocked
+              ? null
+              : () => unawaited(launchGameFromUi(ref, context, game)),
+          icon: const Icon(LucideIcons.play, size: 16),
+        ),
+      ),
       Tooltip(
         message: l10n.commonOpenFolder,
         child: IconButton(

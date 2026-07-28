@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:compact_games/core/performance/ui_memory_lifecycle.dart';
 import 'package:compact_games/services/window_close_coordinator.dart';
@@ -15,6 +17,7 @@ void main() {
     var cleanupCalls = 0;
     var appExitCalls = 0;
     var hiddenToTrayCalls = 0;
+    final hiddenUiUnmounted = Completer<void>();
 
     final coordinator = WindowCloseCoordinator(
       tray: tray,
@@ -27,18 +30,25 @@ void main() {
       requestAppExit: () async {
         appExitCalls += 1;
       },
-      onHiddenToTray: () {
+      onHiddenToTray: () async {
         hiddenToTrayCalls += 1;
+        await hiddenUiUnmounted.future;
       },
     );
 
-    await coordinator.onWindowClose();
+    final close = coordinator.onWindowClose();
+    await Future<void>.delayed(Duration.zero);
 
     expect(window.hideCalls, 1);
     expect(shutdown.shutdownCalls, 0);
     expect(tray.disposeCalls, 0);
-    expect(trims, <UiMemoryTrimLevel>[UiMemoryTrimLevel.trayHide]);
+    expect(trims, isEmpty);
     expect(hiddenToTrayCalls, 1);
+
+    hiddenUiUnmounted.complete();
+    await close;
+
+    expect(trims, <UiMemoryTrimLevel>[UiMemoryTrimLevel.trayHide]);
     expect(cleanupCalls, 0);
     expect(appExitCalls, 0);
   });
@@ -69,7 +79,7 @@ void main() {
         requestAppExit: () async {
           appExitCalls += 1;
         },
-        onHiddenToTray: () {
+        onHiddenToTray: () async {
           hiddenToTrayCalls += 1;
         },
       );
@@ -114,7 +124,7 @@ void main() {
       requestAppExit: () async {
         appExitCalls += 1;
       },
-      onHiddenToTray: () {
+      onHiddenToTray: () async {
         hiddenToTrayCalls += 1;
       },
     );
@@ -185,7 +195,7 @@ class _LoopRunContext {
       requestAppExit: () async {
         appExitCalls += 1;
       },
-      onHiddenToTray: () {
+      onHiddenToTray: () async {
         hiddenToTrayCalls += 1;
       },
     );

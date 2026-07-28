@@ -16,6 +16,7 @@ import '../../../../../models/compression_algorithm.dart';
 import '../../../../../models/compression_estimate.dart';
 import '../../../../../models/game_info.dart';
 import '../../../../../providers/compression/compression_provider.dart';
+import '../../../../../providers/compression/compression_progress_provider.dart';
 import '../../../../../providers/compression/compression_state.dart';
 import '../../../../../providers/games/game_list_provider.dart';
 import '../../../../../providers/games/selected_game_provider.dart';
@@ -37,6 +38,9 @@ const ValueKey<String> _detailsStatusPrimaryActionKey = ValueKey<String>(
 );
 const ValueKey<String> _detailsStatusDecompressActionKey = ValueKey<String>(
   'detailsStatusDecompressAction',
+);
+const ValueKey<String> _detailsStatusLaunchActionKey = ValueKey<String>(
+  'detailsStatusLaunchAction',
 );
 const ValueKey<String> _detailsStatusExcludeActionKey = ValueKey<String>(
   'detailsStatusExcludeAction',
