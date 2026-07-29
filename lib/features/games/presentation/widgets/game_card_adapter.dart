@@ -302,9 +302,10 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
         coverArtType: coverArtType,
         heroTag: null,
         focusNode: _focusNode,
-        onTap: () => unawaited(_showContextMenu(game: game)),
-        onSecondaryTapDown: (details) =>
-            unawaited(_showContextMenu(game: game, tapDown: details)),
+        onTap: () => unawaited(_showContextMenuFromPointer(game: game)),
+        onSecondaryTapDown: (details) => unawaited(
+          _showContextMenuFromPointer(game: game, tapDown: details),
+        ),
       ),
     );
   }
@@ -471,9 +472,21 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     );
   }
 
+  Future<void> _showContextMenuFromPointer({
+    required GameInfo game,
+    TapDownDetails? tapDown,
+  }) {
+    // Pointer activation must select this card before the menu appears. The
+    // menu itself should not take focus, so the visible focus ring follows the
+    // clicked card instead of staying on the last keyboard-selected one.
+    if (_focusNode.canRequestFocus) _focusNode.requestFocus();
+    return _showContextMenu(game: game, tapDown: tapDown, requestFocus: false);
+  }
+
   Future<void> _showContextMenu({
     required GameInfo game,
     TapDownDetails? tapDown,
+    bool requestFocus = true,
   }) async {
     final l10n = context.l10n;
     final isExcluded = _readIsExcluded(game.path);
@@ -486,6 +499,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     final action = await showMenu<GameContextAction>(
       context: context,
       position: _menuPosition(tapDown),
+      requestFocus: requestFocus,
       popUpAnimationStyle: AnimationStyle.noAnimation,
       constraints: const BoxConstraints(
         minWidth: _contextMenuMinWidth,

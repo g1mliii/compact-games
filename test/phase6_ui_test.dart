@@ -674,6 +674,62 @@ void main() {
     expect(menuItemRect.width, lessThanOrEqualTo(260));
   });
 
+  testWidgets(
+    'Pointer context menu transfers card focus from the last keyboard selection',
+    (WidgetTester tester) async {
+      final bridge = _TestRustBridgeService(games: _sampleGames);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameGrid()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final adapters = find.byType(GameCardAdapter);
+      final firstFocus = tester
+          .widget<FocusableActionDetector>(
+            find.descendant(
+              of: adapters.first,
+              matching: find.byType(FocusableActionDetector),
+            ),
+          )
+          .focusNode!;
+      final secondFocus = tester
+          .widget<FocusableActionDetector>(
+            find.descendant(
+              of: adapters.at(1),
+              matching: find.byType(FocusableActionDetector),
+            ),
+          )
+          .focusNode!;
+
+      firstFocus.requestFocus();
+      await tester.pump();
+      expect(firstFocus.hasFocus, isTrue);
+
+      final secondCard = find.byType(GameCard).at(1);
+      await tester.ensureVisible(secondCard);
+      await tester.tapAt(tester.getCenter(secondCard));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('gameCardDangerDivider')),
+        findsOneWidget,
+      );
+      expect(firstFocus.hasFocus, isFalse);
+      expect(secondFocus.hasFocus, isTrue);
+    },
+  );
+
   testWidgets('Game details status card hosts right-side action buttons', (
     WidgetTester tester,
   ) async {
