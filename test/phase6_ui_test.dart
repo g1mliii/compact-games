@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:compact_games/core/navigation/app_routes.dart';
 import 'package:compact_games/core/config/cover_art_proxy_config.dart';
 import 'package:compact_games/core/theme/app_colors.dart';
