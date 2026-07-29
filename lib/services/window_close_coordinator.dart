@@ -26,13 +26,13 @@ typedef HiddenToTrayHandler = Future<void> Function();
 /// Coordinates close/minimize behavior for desktop lifecycle events.
 class WindowCloseCoordinator {
   WindowCloseCoordinator({
-    required TrayLifecycleAdapter this._tray,
-    required WindowLifecycleAdapter this._window,
-    required AppShutdownAdapter this._appShutdown,
-    required MemoryTrimHandler this._trimMemory,
-    required LifecycleHooksCleanup this._cleanupLifecycleHooks,
-    required AppExitRequest this._requestAppExit,
-    required HiddenToTrayHandler this._onHiddenToTray,
+    required this._tray,
+    required this._window,
+    required this._appShutdown,
+    required this._trimMemory,
+    required this._cleanupLifecycleHooks,
+    required this._requestAppExit,
+    required this._onHiddenToTray,
   });
 
   final TrayLifecycleAdapter _tray;
