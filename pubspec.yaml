@@ -4,7 +4,8 @@ publish_to: 'none'
 version: 0.2.0+20
 
 environment:
-  sdk: ^3.10.8
+  # flutter_riverpod 3.4 requires Dart 3.12 or newer.
+  sdk: ^3.12.0
 
 dependencies:
   flutter:
