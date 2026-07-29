@@ -21,8 +21,9 @@ class PathPickerUnavailableException implements Exception {
 /// Minimal Windows shell integration for game-library UI actions.
 class PlatformShellService {
   const PlatformShellService({
-    GameLaunchTargetStore launchTargetStore = const GameLaunchTargetStore(),
-  }) : _launchTargetStore = launchTargetStore;
+    GameLaunchTargetStore this._launchTargetStore =
+        const GameLaunchTargetStore(),
+  });
 
   final GameLaunchTargetStore _launchTargetStore;
 
