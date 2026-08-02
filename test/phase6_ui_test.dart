@@ -675,7 +675,7 @@ void main() {
   });
 
   testWidgets(
-    'Pointer context menu transfers card focus from the last keyboard selection',
+    'Pointer context menu keeps popup focus while selecting the clicked card',
     (WidgetTester tester) async {
       final bridge = _TestRustBridgeService(games: _sampleGames);
       final container = ProviderContainer(
@@ -726,7 +726,18 @@ void main() {
         findsOneWidget,
       );
       expect(firstFocus.hasFocus, isFalse);
-      expect(secondFocus.hasFocus, isTrue);
+      expect(secondFocus.hasFocus, isFalse);
+      expect(tester.widget<GameCard>(secondCard).isFocused, isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+
+      expect(firstFocus.hasFocus, isFalse);
+      expect(secondFocus.hasFocus, isFalse);
+      expect(
+        find.byKey(const ValueKey<String>('gameCardDangerDivider')),
+        findsOneWidget,
+      );
     },
   );
 

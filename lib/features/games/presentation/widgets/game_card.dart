@@ -113,7 +113,7 @@ class GameCard extends StatelessWidget {
       child: body,
       builder: (context, child) => _FocusAwareCardShell(
         gameName: gameName,
-        isFocused: focusNode.hasFocus,
+        isFocused: isFocused || focusNode.hasFocus,
         child: child!,
       ),
     );
