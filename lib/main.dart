@@ -26,6 +26,7 @@ import 'src/rust/frb_generated.dart';
 
 final _windowListener = _CompactGamesWindowListener();
 final _memoryObserver = _CompactGamesMemoryObserver();
+Timer? _startupMemoryTrimTimer;
 final _windowCloseCoordinator = WindowCloseCoordinator(
   tray: _TrayLifecycleWindowAdapter(TrayService.instance),
   window: const _WindowLifecycleWindowManagerAdapter(),
@@ -162,7 +163,22 @@ Future<void> main(List<String> args) async {
         UiMemoryLifecycle.trim(UiMemoryTrimLevel.trayHide);
       }
     });
+  } else {
+    _scheduleStartupMemoryTrim();
   }
+}
+
+const Duration _startupMemoryTrimDelay = Duration(seconds: 30);
+
+void _scheduleStartupMemoryTrim() {
+  _startupMemoryTrimTimer?.cancel();
+  _startupMemoryTrimTimer = Timer(_startupMemoryTrimDelay, () {
+    _startupMemoryTrimTimer = null;
+    if (appWindowVisibilityController.isHiddenToTray) {
+      return;
+    }
+    UiMemoryLifecycle.trim(UiMemoryTrimLevel.startupSettled);
+  });
 }
 
 const bool _enableShaderWarmUp = bool.fromEnvironment(
@@ -324,6 +340,8 @@ class _CompactGamesMemoryObserver with WidgetsBindingObserver {
 }
 
 void _cleanupLifecycleHooks() {
+  _startupMemoryTrimTimer?.cancel();
+  _startupMemoryTrimTimer = null;
   windowManager.removeListener(_windowListener);
   WidgetsBinding.instance.removeObserver(_memoryObserver);
 }
