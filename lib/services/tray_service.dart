@@ -234,7 +234,11 @@ class TrayService with TrayListener {
 
   @override
   void onTrayIconRightMouseDown() {
-    unawaited(_trayPlatform.popUpContextMenu().catchError((Object _) {}));
+    unawaited(
+      _trayPlatform
+          .popUpContextMenu(bringAppToFront: true)
+          .catchError((Object _) {}),
+    );
   }
 
   @override

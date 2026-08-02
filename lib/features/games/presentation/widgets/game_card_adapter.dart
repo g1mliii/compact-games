@@ -4,7 +4,7 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/cover_art_utils.dart';
@@ -104,6 +104,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
   String? _cachedCoverUri;
   int _cachedCoverRevision = 0;
   ImageProvider<Object>? _cachedCoverImageProvider;
+  bool _isPointerMenuSelected = false;
 
   /// Read the current game fresh from the provider. Used by keyboard action
   /// callbacks so they never act on a stale cached reference.
@@ -302,9 +303,11 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
         coverArtType: coverArtType,
         heroTag: null,
         focusNode: _focusNode,
-        onTap: () => unawaited(_showContextMenu(game: game)),
-        onSecondaryTapDown: (details) =>
-            unawaited(_showContextMenu(game: game, tapDown: details)),
+        isFocused: _isPointerMenuSelected,
+        onTap: () => unawaited(_showContextMenuFromPointer(game: game)),
+        onSecondaryTapDown: (details) => unawaited(
+          _showContextMenuFromPointer(game: game, tapDown: details),
+        ),
       ),
     );
   }
@@ -471,6 +474,22 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     );
   }
 
+  Future<void> _showContextMenuFromPointer({
+    required GameInfo game,
+    TapDownDetails? tapDown,
+  }) async {
+    // A pointer-opened menu needs its own focus for arrow keys and Enter. Keep
+    // the clicked card visually selected separately until the menu closes.
+    setState(() => _isPointerMenuSelected = true);
+    try {
+      await _showContextMenu(game: game, tapDown: tapDown);
+    } finally {
+      if (mounted) {
+        setState(() => _isPointerMenuSelected = false);
+      }
+    }
+  }
+
   Future<void> _showContextMenu({
     required GameInfo game,
     TapDownDetails? tapDown,
@@ -486,6 +505,7 @@ class _GameCardAdapterState extends ConsumerState<GameCardAdapter> {
     final action = await showMenu<GameContextAction>(
       context: context,
       position: _menuPosition(tapDown),
+      requestFocus: true,
       popUpAnimationStyle: AnimationStyle.noAnimation,
       constraints: const BoxConstraints(
         minWidth: _contextMenuMinWidth,

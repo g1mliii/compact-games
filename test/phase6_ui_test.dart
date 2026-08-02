@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:compact_games/core/navigation/app_routes.dart';
 import 'package:compact_games/core/config/cover_art_proxy_config.dart';
 import 'package:compact_games/core/theme/app_colors.dart';
@@ -673,6 +673,73 @@ void main() {
     expect(menuItemRect.width, lessThan(cardRect.width - 24));
     expect(menuItemRect.width, lessThanOrEqualTo(260));
   });
+
+  testWidgets(
+    'Pointer context menu keeps popup focus while selecting the clicked card',
+    (WidgetTester tester) async {
+      final bridge = _TestRustBridgeService(games: _sampleGames);
+      final container = ProviderContainer(
+        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameGrid()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final adapters = find.byType(GameCardAdapter);
+      final firstFocus = tester
+          .widget<FocusableActionDetector>(
+            find.descendant(
+              of: adapters.first,
+              matching: find.byType(FocusableActionDetector),
+            ),
+          )
+          .focusNode!;
+      final secondFocus = tester
+          .widget<FocusableActionDetector>(
+            find.descendant(
+              of: adapters.at(1),
+              matching: find.byType(FocusableActionDetector),
+            ),
+          )
+          .focusNode!;
+
+      firstFocus.requestFocus();
+      await tester.pump();
+      expect(firstFocus.hasFocus, isTrue);
+
+      final secondCard = find.byType(GameCard).at(1);
+      await tester.ensureVisible(secondCard);
+      await tester.tapAt(tester.getCenter(secondCard));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('gameCardDangerDivider')),
+        findsOneWidget,
+      );
+      expect(firstFocus.hasFocus, isFalse);
+      expect(secondFocus.hasFocus, isFalse);
+      expect(tester.widget<GameCard>(secondCard).isFocused, isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+
+      expect(firstFocus.hasFocus, isFalse);
+      expect(secondFocus.hasFocus, isFalse);
+      expect(
+        find.byKey(const ValueKey<String>('gameCardDangerDivider')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('Game details status card hosts right-side action buttons', (
     WidgetTester tester,

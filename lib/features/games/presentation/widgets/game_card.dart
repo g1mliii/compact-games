@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/localization/app_localization.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/localization/presentation_labels.dart';
@@ -113,7 +113,7 @@ class GameCard extends StatelessWidget {
       child: body,
       builder: (context, child) => _FocusAwareCardShell(
         gameName: gameName,
-        isFocused: focusNode.hasFocus,
+        isFocused: isFocused || focusNode.hasFocus,
         child: child!,
       ),
     );
