@@ -124,7 +124,7 @@ class _FakeTrayPlatformAdapter implements TrayPlatformAdapter {
   }
 
   @override
-  Future<void> popUpContextMenu() async {}
+  Future<void> popUpContextMenu({required bool bringAppToFront}) async {}
 
   @override
   Future<void> destroy() async {}

@@ -75,6 +75,22 @@ void main() {
     },
   );
 
+  test('right click gives the tray menu foreground ownership', () async {
+    final fakeTray = _FakeTrayPlatformAdapter();
+    final service = TrayService.instance;
+    service.configureForTest(
+      trayPlatform: fakeTray,
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
+    );
+
+    await service.init();
+    service.onTrayIconRightMouseDown();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fakeTray.popUpContextMenuCalls, 1);
+    expect(fakeTray.lastBringAppToFront, isTrue);
+  });
+
   test('show window command remounts UI after show and before focus', () async {
     final fakeTray = _FakeTrayPlatformAdapter();
     final events = <String>[];

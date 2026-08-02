@@ -6,7 +6,7 @@ abstract interface class TrayPlatformAdapter {
   Future<void> setIcon(String iconPath);
   Future<void> setToolTip(String tooltip);
   Future<void> setContextMenu(Menu menu);
-  Future<void> popUpContextMenu();
+  Future<void> popUpContextMenu({required bool bringAppToFront});
   Future<void> destroy();
 }
 
@@ -30,7 +30,11 @@ class _DefaultTrayPlatformAdapter implements TrayPlatformAdapter {
   Future<void> setContextMenu(Menu menu) => trayManager.setContextMenu(menu);
 
   @override
-  Future<void> popUpContextMenu() => trayManager.popUpContextMenu();
+  Future<void> popUpContextMenu({required bool bringAppToFront}) =>
+      // Win32 popup menus must own the foreground window so Windows can
+      // dismiss them on click-away or focus loss.
+      // ignore: deprecated_member_use
+      trayManager.popUpContextMenu(bringAppToFront: bringAppToFront);
 
   @override
   Future<void> destroy() => trayManager.destroy();

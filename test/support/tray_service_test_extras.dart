@@ -88,6 +88,7 @@ class _FakeTrayPlatformAdapter implements TrayPlatformAdapter {
   int setToolTipCalls = 0;
   int setContextMenuCalls = 0;
   int popUpContextMenuCalls = 0;
+  bool? lastBringAppToFront;
   int destroyCalls = 0;
   String? lastTooltip;
   final List<String> tooltipHistory = <String>[];
@@ -125,8 +126,9 @@ class _FakeTrayPlatformAdapter implements TrayPlatformAdapter {
   }
 
   @override
-  Future<void> popUpContextMenu() async {
+  Future<void> popUpContextMenu({required bool bringAppToFront}) async {
     popUpContextMenuCalls += 1;
+    lastBringAppToFront = bringAppToFront;
   }
 
   @override
