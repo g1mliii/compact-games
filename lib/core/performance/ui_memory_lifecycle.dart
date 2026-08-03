@@ -4,7 +4,13 @@ import '../../services/cover_art_service.dart';
 import '../widgets/film_grain_overlay.dart';
 import 'windows_working_set.dart';
 
-enum UiMemoryTrimLevel { background, trayHide, pressure, shutdown }
+enum UiMemoryTrimLevel {
+  background,
+  startupSettled,
+  trayHide,
+  pressure,
+  shutdown,
+}
 
 /// Centralized memory trim hooks for desktop lifecycle events.
 abstract final class UiMemoryLifecycle {
@@ -28,6 +34,13 @@ abstract final class UiMemoryLifecycle {
       case UiMemoryTrimLevel.background:
         imageCache.clearLiveImages();
         trimCoverArtRuntimeCaches(aggressive: false);
+        break;
+      case UiMemoryTrimLevel.startupSettled:
+        // Cold Flutter/graphics initialization can leave a large set of
+        // one-time pages resident, especially when the first launch follows
+        // display-driver resume. Keep all logical caches intact and only ask
+        // Windows to evict pages that are no longer actively used.
+        WindowsWorkingSet.trimCurrentProcess();
         break;
       case UiMemoryTrimLevel.trayHide:
         // Window fully hidden — prefer low tray memory over instant restore.

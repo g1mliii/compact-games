@@ -59,6 +59,17 @@ void main() {
       expect(imageCache.liveImageCount, 0);
     });
 
+    test('startupSettled level preserves logical image cache', () async {
+      final imageCache = PaintingBinding.instance.imageCache;
+      await _populateImageCache(imageCache, count: 3);
+      final populated = imageCache.currentSize;
+      expect(populated, greaterThan(0));
+
+      UiMemoryLifecycle.trim(UiMemoryTrimLevel.startupSettled);
+
+      expect(imageCache.currentSize, populated);
+    });
+
     test('pressure level clears cache and live images', () async {
       final imageCache = PaintingBinding.instance.imageCache;
       await _populateImageCache(imageCache, count: 3);
