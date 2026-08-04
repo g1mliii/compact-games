@@ -44,6 +44,9 @@ PORTING_PLAN.md
 !IMPLEMENTATION_PLAN.md
 !LINUX_PORT_PLAN.md
 !SETUP.md
+!steam/README.md
+!steam/STORE_PAGE.md
+!steam/assets/ARTWORK_PROVENANCE.md
 
 # Logs
 *.log
@@ -63,6 +66,7 @@ cloudflare/**/.dev.vars.*
 *.dll
 *.so
 *.dylib
+/dist/steam/
 
 # Test coverage
 coverage/

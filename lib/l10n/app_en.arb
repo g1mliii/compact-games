@@ -426,6 +426,10 @@
   "@settingsAboutAutoCheckUpdatesLabel": {
     "description": "Localized message for the automatic update check toggle."
   },
+  "settingsAboutUpdatesManagedBySteam": "Updates are managed automatically by Steam.",
+  "@settingsAboutUpdatesManagedBySteam": {
+    "description": "Shown in Steam builds instead of the standalone updater controls."
+  },
   "settingsAboutCheckingForUpdatesStatus": "Checking for updates...",
   "@settingsAboutCheckingForUpdatesStatus": {
     "description": "Localized message shown while the app checks for updates."
@@ -503,6 +507,22 @@
   "settingsEnableDirectStorageOverrideMessage": "This allows compression on games flagged for DirectStorage. It can affect loading performance and stability.",
   "@settingsEnableDirectStorageOverrideMessage": {
     "description": "Localized message for settings enable direct storage override message."
+  },
+  "settingsShareUnsupportedReportsLabel": "Share unsupported-game reports",
+  "@settingsShareUnsupportedReportsLabel": {
+    "description": "Label for the opt-in unsupported-game report sharing setting."
+  },
+  "settingsShareUnsupportedReportsDescription": "Off by default. When enabled, stable reports may share a game folder name and pseudonymous diagnostic metadata; full paths and compression results are never sent.",
+  "@settingsShareUnsupportedReportsDescription": {
+    "description": "Privacy summary shown below unsupported-game report sharing."
+  },
+  "settingsShareUnsupportedReportsConfirmTitle": "Share unsupported-game reports?",
+  "@settingsShareUnsupportedReportsConfirmTitle": {
+    "description": "Title of the consent dialog for unsupported-game report sharing."
+  },
+  "settingsShareUnsupportedReportsConfirmMessage": "Reports that remain active for seven days may send the game folder name, a pseudonymous installation ID, app version, timestamps, and report counts to Compact Games through Cloudflare. Full paths and compression results are never sent. You can turn this off at any time to stop future submissions.",
+  "@settingsShareUnsupportedReportsConfirmMessage": {
+    "description": "Consent disclosure for unsupported-game report sharing."
   },
   "settingsWatcherStatusActive": "Watcher active",
   "@settingsWatcherStatusActive": {

@@ -147,6 +147,57 @@ jobs:
           Get-FileHash (Join-Path $bundle 'compact_games.exe') -Algorithm SHA256
           Get-FileHash (Join-Path $bundle 'compact_games_core.dll') -Algorithm SHA256
 
+      - name: Build and stage Steam distribution variant
+        shell: pwsh
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File scripts/build-steam-package.ps1
+          -AllowMissingCoverProxy
+
+      - name: Verify Steam depot package
+        shell: pwsh
+        run: |
+          $bundle = 'dist/steam/content'
+          $requiredFiles = @(
+            'compact_games.exe',
+            'compact_games_core.dll',
+            'flutter_windows.dll',
+            'vcruntime140.dll',
+            'vcruntime140_1.dll',
+            'msvcp140.dll',
+            'LICENSE.txt',
+            'THIRD_PARTY_NOTICES-RUST.txt',
+            'compact_games_build.json',
+            'data/app.so',
+            'data/flutter_assets/AssetManifest.bin',
+            'data/flutter_assets/NOTICES.Z'
+          )
+          foreach ($file in $requiredFiles) {
+            $path = Join-Path $bundle $file
+            if (-not (Test-Path $path) -or (Get-Item $path).Length -eq 0) {
+              throw "Steam release bundle is missing $file."
+            }
+          }
+          $metadata = Get-Content (Join-Path $bundle 'compact_games_build.json') -Raw | ConvertFrom-Json
+          if ($metadata.distributionChannel -ne 'steam') {
+            throw "Steam provenance marker has channel '$($metadata.distributionChannel)'."
+          }
+          if ($metadata.coverProxyConfigured) {
+            throw 'CI validation must prove that the explicit missing-proxy override is honored.'
+          }
+          $hashManifest = 'dist/steam/sha256sums.txt'
+          if (-not (Test-Path $hashManifest) -or (Get-Item $hashManifest).Length -eq 0) {
+            throw 'Steam SHA-256 manifest is missing.'
+          }
+          $vdfFiles = @(Get-ChildItem 'dist/steam/scripts' -Filter '*.vdf' -File)
+          if ($vdfFiles.Count -ne 2) {
+            throw "Expected two SteamPipe VDF files, found $($vdfFiles.Count)."
+          }
+          $vdfText = ($vdfFiles | Get-Content -Raw) -join "`n"
+          if ($vdfText -notmatch '__APP_ID__' -or $vdfText -notmatch '__DEPOT_ID__') {
+            throw 'Placeholder SteamPipe scripts are missing App or Depot IDs.'
+          }
+
   cloudflare-workers:
     name: Validate Cloudflare workers
     runs-on: ubuntu-latest

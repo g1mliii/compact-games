@@ -1747,7 +1747,14 @@ void main() {
     () async {
       final bridge = _QueuedSyncRustBridgeService();
       final container = ProviderContainer(
-        overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          settingsPersistenceProvider.overrideWithValue(
+            _FixedSettingsPersistence(
+              const AppSettings(shareUnsupportedReports: true),
+            ),
+          ),
+        ],
       );
       addTearDown(container.dispose);
       addTearDown(UnsupportedReportSyncService.instance.resetForTest);
@@ -1756,10 +1763,12 @@ void main() {
       service.resetForTest();
 
       final firstRun = service.sync(container);
+      await Future<void>.delayed(Duration.zero);
       expect(bridge.syncUnsupportedReportCollectionCalls, 1);
       expect(bridge.pendingSyncCount, 1);
 
       service.notePotentialChange(container);
+      await Future<void>.delayed(Duration.zero);
       expect(bridge.syncUnsupportedReportCollectionCalls, 1);
 
       bridge.completeNextSync();
@@ -1772,6 +1781,63 @@ void main() {
       bridge.completeNextSync();
       await Future<void>.delayed(Duration.zero);
 
+      expect(bridge.pendingSyncCount, 0);
+    },
+  );
+
+  test('Unsupported report sync stays off without explicit consent', () async {
+    final bridge = _QueuedSyncRustBridgeService();
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(bridge),
+        settingsPersistenceProvider.overrideWithValue(
+          _FixedSettingsPersistence(const AppSettings()),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(UnsupportedReportSyncService.instance.resetForTest);
+
+    await UnsupportedReportSyncService.instance.sync(container);
+
+    expect(bridge.syncUnsupportedReportCollectionCalls, 0);
+  });
+
+  test(
+    'Unsupported report sync drops queued work after consent is revoked',
+    () async {
+      final bridge = _QueuedSyncRustBridgeService();
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(bridge),
+          settingsPersistenceProvider.overrideWithValue(
+            _FixedSettingsPersistence(
+              const AppSettings(shareUnsupportedReports: true),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(UnsupportedReportSyncService.instance.resetForTest);
+
+      final service = UnsupportedReportSyncService.instance;
+      service.resetForTest();
+
+      final firstRun = service.sync(container);
+      await Future<void>.delayed(Duration.zero);
+      service.notePotentialChange(container);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bridge.syncUnsupportedReportCollectionCalls, 1);
+
+      container
+          .read(settingsProvider.notifier)
+          .setShareUnsupportedReports(false);
+      bridge.completeNextSync();
+      await firstRun;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bridge.syncUnsupportedReportCollectionCalls, 1);
       expect(bridge.pendingSyncCount, 0);
     },
   );

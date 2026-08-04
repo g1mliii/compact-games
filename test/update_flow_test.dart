@@ -10,6 +10,45 @@ import 'package:compact_games/providers/update/update_provider.dart';
 import 'package:compact_games/src/rust/api/update.dart' as rust_update;
 
 void main() {
+  testWidgets(
+    'Steam builds show Steam-managed updates without updater actions',
+    (WidgetTester tester) async {
+      final persistence = _MemorySettingsPersistence(
+        const AppSettings(autoCheckUpdates: true),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsPersistenceProvider.overrideWithValue(persistence),
+            selfUpdatesEnabledProvider.overrideWithValue(false),
+          ],
+          child: const MaterialApp(home: Scaffold(body: AboutSection())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Updates are managed automatically by Steam.'),
+        findsOneWidget,
+      );
+      expect(find.text('Check for updates'), findsNothing);
+      expect(find.text('Check for updates automatically'), findsNothing);
+    },
+  );
+
+  test('disabled self-updates make update checks a no-op', () async {
+    final container = ProviderContainer(
+      overrides: [selfUpdatesEnabledProvider.overrideWithValue(false)],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(updateProvider.future);
+    await container.read(updateProvider.notifier).checkForUpdate();
+
+    expect(container.read(updateProvider).value?.status, UpdateStatus.idle);
+  });
+
   testWidgets('About section keeps a retry check action after update errors', (
     WidgetTester tester,
   ) async {

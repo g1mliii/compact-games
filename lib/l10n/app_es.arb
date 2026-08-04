@@ -426,6 +426,10 @@
   "@settingsAboutAutoCheckUpdatesLabel": {
     "description": "Localized message for the automatic update check toggle."
   },
+  "settingsAboutUpdatesManagedBySteam": "Steam administra las actualizaciones automáticamente.",
+  "@settingsAboutUpdatesManagedBySteam": {
+    "description": "Shown in Steam builds instead of the standalone updater controls."
+  },
   "settingsAboutCheckingForUpdatesStatus": "Buscando actualizaciones...",
   "@settingsAboutCheckingForUpdatesStatus": {
     "description": "Localized message shown while the app checks for updates."
@@ -503,6 +507,22 @@
   "settingsEnableDirectStorageOverrideMessage": "Esto permite comprimir juegos marcados con DirectStorage. Puede afectar el rendimiento de carga y la estabilidad.",
   "@settingsEnableDirectStorageOverrideMessage": {
     "description": "Localized message for settings enable direct storage override message."
+  },
+  "settingsShareUnsupportedReportsLabel": "Compartir informes de juegos no compatibles",
+  "@settingsShareUnsupportedReportsLabel": {
+    "description": "Label for the opt-in unsupported-game report sharing setting."
+  },
+  "settingsShareUnsupportedReportsDescription": "Desactivado de forma predeterminada. Al activarlo, los informes estables pueden compartir el nombre de la carpeta del juego y metadatos de diagnóstico seudónimos; nunca se envían rutas completas ni resultados de compresión.",
+  "@settingsShareUnsupportedReportsDescription": {
+    "description": "Privacy summary shown below unsupported-game report sharing."
+  },
+  "settingsShareUnsupportedReportsConfirmTitle": "¿Compartir informes de juegos no compatibles?",
+  "@settingsShareUnsupportedReportsConfirmTitle": {
+    "description": "Title of the consent dialog for unsupported-game report sharing."
+  },
+  "settingsShareUnsupportedReportsConfirmMessage": "Los informes que permanezcan activos durante siete días pueden enviar a Compact Games, a través de Cloudflare, el nombre de la carpeta del juego, un identificador seudónimo de instalación, la versión de la aplicación, marcas de tiempo y recuentos de informes. Nunca se envían rutas completas ni resultados de compresión. Puedes desactivarlo en cualquier momento para detener futuros envíos.",
+  "@settingsShareUnsupportedReportsConfirmMessage": {
+    "description": "Consent disclosure for unsupported-game report sharing."
   },
   "settingsWatcherStatusActive": "Monitor activo",
   "@settingsWatcherStatusActive": {

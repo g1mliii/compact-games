@@ -11,7 +11,7 @@ enum CoverArtProviderMode { bundledProxy, userKey }
 /// Application settings with JSON persistence.
 @immutable
 class AppSettings {
-  static const int currentSchemaVersion = 6;
+  static const int currentSchemaVersion = 7;
 
   final int schemaVersion;
   final CompressionAlgorithm algorithm;
@@ -32,6 +32,7 @@ class AppSettings {
   final HomeViewMode homeViewMode;
   final String? localeTag;
   final bool autoCheckUpdates;
+  final bool shareUnsupportedReports;
 
   const AppSettings({
     this.schemaVersion = currentSchemaVersion,
@@ -53,6 +54,7 @@ class AppSettings {
     this.homeViewMode = HomeViewMode.grid,
     this.localeTag,
     this.autoCheckUpdates = true,
+    this.shareUnsupportedReports = false,
   });
 
   /// Clamp values to safe ranges.
@@ -77,6 +79,7 @@ class AppSettings {
       homeViewMode: homeViewMode,
       localeTag: _normalizedLocaleTag(localeTag),
       autoCheckUpdates: autoCheckUpdates,
+      shareUnsupportedReports: shareUnsupportedReports,
     );
   }
 
@@ -99,6 +102,7 @@ class AppSettings {
     HomeViewMode? homeViewMode,
     String? Function()? localeTag,
     bool? autoCheckUpdates,
+    bool? shareUnsupportedReports,
   }) {
     return AppSettings(
       schemaVersion: schemaVersion,
@@ -126,6 +130,8 @@ class AppSettings {
       homeViewMode: homeViewMode ?? this.homeViewMode,
       localeTag: localeTag != null ? localeTag() : this.localeTag,
       autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
+      shareUnsupportedReports:
+          shareUnsupportedReports ?? this.shareUnsupportedReports,
     );
   }
 
@@ -148,6 +154,7 @@ class AppSettings {
     'homeViewMode': homeViewMode.name,
     'localeTag': localeTag,
     'autoCheckUpdates': autoCheckUpdates,
+    'shareUnsupportedReports': shareUnsupportedReports,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -190,6 +197,8 @@ class AppSettings {
       ),
       localeTag: _normalizedLocaleTag(json['localeTag'] as String?),
       autoCheckUpdates: json['autoCheckUpdates'] as bool? ?? true,
+      shareUnsupportedReports:
+          json['shareUnsupportedReports'] as bool? ?? false,
     ).validated();
   }
 

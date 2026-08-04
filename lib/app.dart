@@ -228,9 +228,10 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
           // Best effort; cache/interval handled in Rust.
         }
 
-        // Auto-check for app updates after both complete.
+        // Auto-check for app updates after both complete. Steam depot builds
+        // deliberately leave file ownership to the Steam client.
         try {
-          if (autoCheckUpdates) {
+          if (autoCheckUpdates && ref.read(selfUpdatesEnabledProvider)) {
             await ref.read(updateProvider.notifier).checkForUpdate();
           }
         } catch (_) {

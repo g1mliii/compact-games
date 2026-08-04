@@ -62,6 +62,12 @@ final updateProvider = AsyncNotifierProvider<UpdateNotifier, UpdateState>(
   UpdateNotifier.new,
 );
 
+/// Kept injectable so distribution-specific behavior can be regression tested
+/// without requiring a separate compiler invocation.
+final selfUpdatesEnabledProvider = Provider<bool>((ref) {
+  return AppConstants.selfUpdatesEnabled;
+});
+
 typedef InstallerLauncher = Future<void> Function(String installerPath);
 typedef UpdateExitRequest = Future<void> Function();
 
@@ -84,6 +90,8 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
   }
 
   Future<void> checkForUpdate() async {
+    if (!ref.read(selfUpdatesEnabledProvider)) return;
+
     final current = state.value;
     if (current == null) return;
     if (current.status == UpdateStatus.checking ||
@@ -120,6 +128,8 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
   }
 
   Future<void> downloadUpdate() async {
+    if (!ref.read(selfUpdatesEnabledProvider)) return;
+
     final current = state.value;
     if (current == null || current.info == null) return;
     if (current.status == UpdateStatus.downloading) return;
@@ -161,6 +171,8 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
   }
 
   Future<void> launchInstaller() async {
+    if (!ref.read(selfUpdatesEnabledProvider)) return;
+
     final current = state.value;
     if (current == null || current.installerPath == null) return;
 

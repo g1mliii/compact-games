@@ -315,6 +315,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAboutAutoCheckUpdatesLabel => '自动检查更新';
 
   @override
+  String get settingsAboutUpdatesManagedBySteam => '更新由 Steam 自动管理。';
+
+  @override
   String get settingsAboutCheckingForUpdatesStatus => '正在检查更新...';
 
   @override
@@ -372,6 +375,20 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsEnableDirectStorageOverrideMessage =>
       '这会允许压缩被标记为 DirectStorage 的游戏，可能影响加载性能和稳定性。';
+
+  @override
+  String get settingsShareUnsupportedReportsLabel => '共享不受支持的游戏报告';
+
+  @override
+  String get settingsShareUnsupportedReportsDescription =>
+      '默认关闭。启用后，稳定的报告可能会共享游戏文件夹名称和匿名诊断元数据；绝不会发送完整路径或压缩结果。';
+
+  @override
+  String get settingsShareUnsupportedReportsConfirmTitle => '共享不受支持的游戏报告？';
+
+  @override
+  String get settingsShareUnsupportedReportsConfirmMessage =>
+      '持续启用七天的报告可能会通过 Cloudflare 向 Compact Games 发送游戏文件夹名称、匿名安装标识符、应用版本、时间戳和报告次数。绝不会发送完整路径或压缩结果。你可以随时关闭此功能以停止今后的提交。';
 
   @override
   String get settingsWatcherStatusActive => '监视器已启用';

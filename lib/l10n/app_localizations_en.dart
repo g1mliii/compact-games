@@ -328,6 +328,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Check for updates automatically';
 
   @override
+  String get settingsAboutUpdatesManagedBySteam =>
+      'Updates are managed automatically by Steam.';
+
+  @override
   String get settingsAboutCheckingForUpdatesStatus => 'Checking for updates...';
 
   @override
@@ -392,6 +396,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsEnableDirectStorageOverrideMessage =>
       'This allows compression on games flagged for DirectStorage. It can affect loading performance and stability.';
+
+  @override
+  String get settingsShareUnsupportedReportsLabel =>
+      'Share unsupported-game reports';
+
+  @override
+  String get settingsShareUnsupportedReportsDescription =>
+      'Off by default. When enabled, stable reports may share a game folder name and pseudonymous diagnostic metadata; full paths and compression results are never sent.';
+
+  @override
+  String get settingsShareUnsupportedReportsConfirmTitle =>
+      'Share unsupported-game reports?';
+
+  @override
+  String get settingsShareUnsupportedReportsConfirmMessage =>
+      'Reports that remain active for seven days may send the game folder name, a pseudonymous installation ID, app version, timestamps, and report counts to Compact Games through Cloudflare. Full paths and compression results are never sent. You can turn this off at any time to stop future submissions.';
 
   @override
   String get settingsWatcherStatusActive => 'Watcher active';

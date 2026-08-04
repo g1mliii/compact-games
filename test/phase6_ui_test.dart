@@ -1529,6 +1529,60 @@ void main() {
     expect(centerDelta, lessThanOrEqualTo(3));
   });
 
+  testWidgets('Unsupported report sharing requires explicit consent', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1100, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final persistence = _InMemorySettingsPersistence();
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+        settingsPersistenceProvider.overrideWithValue(persistence),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          initialRoute: AppRoutes.settings,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final toggleRow = find.byKey(
+      const ValueKey<String>('settingsUnsupportedReportSharingToggle'),
+    );
+    await tester.ensureVisible(toggleRow);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(of: toggleRow, matching: find.byType(Switch)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Share unsupported-game reports?'), findsOneWidget);
+    expect(
+      container.read(settingsProvider).value?.settings.shareUnsupportedReports,
+      isFalse,
+    );
+
+    await tester.tap(find.text('Enable'));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(settingsProvider).value?.settings.shareUnsupportedReports,
+      isTrue,
+    );
+  });
+
   testWidgets(
     'Settings I/O override selector is compact and updates provider',
     (WidgetTester tester) async {

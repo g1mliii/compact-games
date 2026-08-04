@@ -335,6 +335,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Buscar actualizaciones automáticamente';
 
   @override
+  String get settingsAboutUpdatesManagedBySteam =>
+      'Steam administra las actualizaciones automáticamente.';
+
+  @override
   String get settingsAboutCheckingForUpdatesStatus =>
       'Buscando actualizaciones...';
 
@@ -401,6 +405,22 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get settingsEnableDirectStorageOverrideMessage =>
       'Esto permite comprimir juegos marcados con DirectStorage. Puede afectar el rendimiento de carga y la estabilidad.';
+
+  @override
+  String get settingsShareUnsupportedReportsLabel =>
+      'Compartir informes de juegos no compatibles';
+
+  @override
+  String get settingsShareUnsupportedReportsDescription =>
+      'Desactivado de forma predeterminada. Al activarlo, los informes estables pueden compartir el nombre de la carpeta del juego y metadatos de diagnóstico seudónimos; nunca se envían rutas completas ni resultados de compresión.';
+
+  @override
+  String get settingsShareUnsupportedReportsConfirmTitle =>
+      '¿Compartir informes de juegos no compatibles?';
+
+  @override
+  String get settingsShareUnsupportedReportsConfirmMessage =>
+      'Los informes que permanezcan activos durante siete días pueden enviar a Compact Games, a través de Cloudflare, el nombre de la carpeta del juego, un identificador seudónimo de instalación, la versión de la aplicación, marcas de tiempo y recuentos de informes. Nunca se envían rutas completas ni resultados de compresión. Puedes desactivarlo en cualquier momento para detener futuros envíos.';
 
   @override
   String get settingsWatcherStatusActive => 'Monitor activo';

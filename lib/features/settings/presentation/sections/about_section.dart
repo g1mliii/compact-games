@@ -18,6 +18,7 @@ class AboutSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final selfUpdatesEnabled = ref.watch(selfUpdatesEnabledProvider);
     final autoCheck = ref.watch(
       settingsProvider.select((s) => s.value?.settings.autoCheckUpdates),
     );
@@ -70,22 +71,32 @@ class AboutSection extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          ScaledSwitchRow(
-            label: l10n.settingsAboutAutoCheckUpdatesLabel,
-            value: autoCheck,
-            onChanged: (v) =>
-                ref.read(settingsProvider.notifier).setAutoCheckUpdates(v),
-            enableLabelSurfaceHover: false,
-            showLabelSurfaceDecoration: false,
-          ),
-          const SizedBox(height: 12),
-          if (status == UpdateStatus.checking)
+          if (!selfUpdatesEnabled) ...[
+            _buildStatusRow(
+              LucideIcons.badgeCheck,
+              l10n.settingsAboutUpdatesManagedBySteam,
+              AppColors.success,
+            ),
+          ] else ...[
+            ScaledSwitchRow(
+              label: l10n.settingsAboutAutoCheckUpdatesLabel,
+              value: autoCheck,
+              onChanged: (v) =>
+                  ref.read(settingsProvider.notifier).setAutoCheckUpdates(v),
+              enableLabelSurfaceHover: false,
+              showLabelSurfaceDecoration: false,
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (selfUpdatesEnabled && status == UpdateStatus.checking)
             _SpinningStatusRow(
               label: l10n.settingsAboutCheckingForUpdatesStatus,
               color: AppColors.textSecondary,
             ),
 
-          if (status == UpdateStatus.error && error != null) ...[
+          if (selfUpdatesEnabled &&
+              status == UpdateStatus.error &&
+              error != null) ...[
             _buildStatusRow(
               LucideIcons.alertCircle,
               l10n.settingsAboutUpdateFailedTitle,
@@ -117,7 +128,7 @@ class AboutSection extends ConsumerWidget {
             ),
           ],
 
-          if (status == UpdateStatus.idle)
+          if (selfUpdatesEnabled && status == UpdateStatus.idle)
             FilledButton.icon(
               onPressed: () =>
                   ref.read(updateProvider.notifier).checkForUpdate(),
@@ -125,7 +136,9 @@ class AboutSection extends ConsumerWidget {
               label: Text(l10n.settingsAboutCheckForUpdatesAction),
             ),
 
-          if (status == UpdateStatus.available && info != null) ...[
+          if (selfUpdatesEnabled &&
+              status == UpdateStatus.available &&
+              info != null) ...[
             _buildStatusRow(
               LucideIcons.download,
               l10n.settingsAboutUpdateAvailableStatus(info.latestVersion),
@@ -168,7 +181,7 @@ class AboutSection extends ConsumerWidget {
             ),
           ],
 
-          if (status == UpdateStatus.downloading) ...[
+          if (selfUpdatesEnabled && status == UpdateStatus.downloading) ...[
             _SpinningStatusRow(
               label: l10n.settingsAboutDownloadingUpdateStatus,
               color: AppColors.richGold,
@@ -180,7 +193,7 @@ class AboutSection extends ConsumerWidget {
             ),
           ],
 
-          if (status == UpdateStatus.downloaded) ...[
+          if (selfUpdatesEnabled && status == UpdateStatus.downloaded) ...[
             _buildStatusRow(
               LucideIcons.checkCircle,
               l10n.settingsAboutUpdateReadyToInstallStatus,

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants/app_constants.dart';
 import '../providers/games/game_list_provider.dart';
+import '../providers/settings/settings_provider.dart';
 import 'rust_bridge_service.dart';
 
 /// Coalesces local unsupported-report payload preparation/submission so UI
@@ -14,21 +15,35 @@ class UnsupportedReportSyncService {
       UnsupportedReportSyncService._();
 
   Future<void>? _inFlight;
-  RustBridgeService? _pendingBridge;
+  ProviderContainer? _pendingContainer;
   bool _needsFollowUpSync = false;
 
   UnsupportedReportSyncService._();
 
-  Future<void> sync(ProviderContainer container) {
+  Future<void> sync(ProviderContainer container) async {
+    try {
+      final settings = await container.read(settingsProvider.future);
+      if (!settings.settings.shareUnsupportedReports) {
+        return;
+      }
+    } catch (_) {
+      // Reporting is opt-in and therefore fails closed if settings are not
+      // available. A later user action or app start can retry the sync.
+      return;
+    }
+
     final bridge = container.read(rustBridgeServiceProvider);
-    return _syncWithBridge(bridge);
+    await _syncWithBridge(bridge, container);
   }
 
-  Future<void> _syncWithBridge(RustBridgeService bridge) {
+  Future<void> _syncWithBridge(
+    RustBridgeService bridge,
+    ProviderContainer container,
+  ) {
     final existing = _inFlight;
     if (existing != null) {
       _needsFollowUpSync = true;
-      _pendingBridge = bridge;
+      _pendingContainer = container;
       return existing;
     }
 
@@ -52,11 +67,13 @@ class UnsupportedReportSyncService {
         _inFlight = null;
         if (_needsFollowUpSync) {
           _needsFollowUpSync = false;
-          final nextBridge = _pendingBridge ?? bridge;
-          _pendingBridge = null;
-          unawaited(_syncWithBridge(nextBridge));
+          final nextContainer = _pendingContainer ?? container;
+          _pendingContainer = null;
+          // Re-enter the public path so consent is checked again immediately
+          // before each coalesced follow-up can reach the native bridge.
+          unawaited(sync(nextContainer));
         } else {
-          _pendingBridge = null;
+          _pendingContainer = null;
         }
       }
     });
@@ -69,7 +86,7 @@ class UnsupportedReportSyncService {
   @visibleForTesting
   void resetForTest() {
     _inFlight = null;
-    _pendingBridge = null;
+    _pendingContainer = null;
     _needsFollowUpSync = false;
   }
 }

@@ -3,6 +3,19 @@ abstract final class AppConstants {
   static const String appName = 'Compact Games';
   static const String appVersion = '0.2.2';
 
+  /// Identifies who owns delivery of application updates for this build.
+  ///
+  /// Standalone releases use the signed installer published on GitHub. Steam
+  /// depot builds pass `--dart-define=COMPACT_GAMES_DISTRIBUTION=steam` so the
+  /// Steam client remains the only component that replaces installed files.
+  static const String distributionChannel = String.fromEnvironment(
+    'COMPACT_GAMES_DISTRIBUTION',
+    defaultValue: 'standalone',
+  );
+  // Unknown channels fail closed so a misspelled distribution value cannot
+  // accidentally make a managed build replace its own files.
+  static const bool selfUpdatesEnabled = distributionChannel == 'standalone';
+
   // Window
   static const double minWindowWidth = 900;
   static const double minWindowHeight = 600;

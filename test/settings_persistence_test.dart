@@ -68,7 +68,28 @@ void main() {
     const settings = AppSettings();
 
     expect(settings.coverArtProviderMode, CoverArtProviderMode.bundledProxy);
+    expect(settings.shareUnsupportedReports, isFalse);
     expect(settings.toJson(), isNot(contains('steamGridDbApiKey')));
+  });
+
+  test('unsupported-report sharing is explicit and persists', () async {
+    final persistence = _MemorySettingsPersistence();
+    final container = ProviderContainer(
+      overrides: [settingsPersistenceProvider.overrideWithValue(persistence)],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(settingsProvider.future);
+    container.read(settingsProvider.notifier).setShareUnsupportedReports(true);
+    await container.read(settingsProvider.notifier).flush();
+
+    expect(persistence.savedSettings?.shareUnsupportedReports, isTrue);
+    expect(
+      AppSettings.fromJson(
+        persistence.savedSettings!.toJson(),
+      ).shareUnsupportedReports,
+      isTrue,
+    );
   });
 
   test('AppSettings migrates legacy SteamGridDB keys to user-key mode', () {

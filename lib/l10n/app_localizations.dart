@@ -670,6 +670,12 @@ abstract class AppLocalizations {
   /// **'Check for updates automatically'**
   String get settingsAboutAutoCheckUpdatesLabel;
 
+  /// Shown in Steam builds instead of the standalone updater controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates are managed automatically by Steam.'**
+  String get settingsAboutUpdatesManagedBySteam;
+
   /// Localized message shown while the app checks for updates.
   ///
   /// In en, this message translates to:
@@ -777,6 +783,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This allows compression on games flagged for DirectStorage. It can affect loading performance and stability.'**
   String get settingsEnableDirectStorageOverrideMessage;
+
+  /// Label for the opt-in unsupported-game report sharing setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Share unsupported-game reports'**
+  String get settingsShareUnsupportedReportsLabel;
+
+  /// Privacy summary shown below unsupported-game report sharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. When enabled, stable reports may share a game folder name and pseudonymous diagnostic metadata; full paths and compression results are never sent.'**
+  String get settingsShareUnsupportedReportsDescription;
+
+  /// Title of the consent dialog for unsupported-game report sharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Share unsupported-game reports?'**
+  String get settingsShareUnsupportedReportsConfirmTitle;
+
+  /// Consent disclosure for unsupported-game report sharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports that remain active for seven days may send the game folder name, a pseudonymous installation ID, app version, timestamps, and report counts to Compact Games through Cloudflare. Full paths and compression results are never sent. You can turn this off at any time to stop future submissions.'**
+  String get settingsShareUnsupportedReportsConfirmMessage;
 
   /// Localized message for settings watcher status active.
   ///

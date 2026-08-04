@@ -62,14 +62,15 @@
             <h2>Data the Desktop App Collects</h2>
             <p>Compact Games does not require an account, login, or registration. The app:</p>
             <ul>
-              <li>Does not collect personal information, analytics, or telemetry.</li>
-              <li>Does not transmit your game library, file paths, or compression results to any server.</li>
+              <li>Does not require your name, email address, account, or login and does not use analytics or telemetry.</li>
+              <li>Does not transmit full file paths or compression results to any server.</li>
               <li>
                 Makes outbound network requests only for: checking for updates
                 via <code>latest.json</code> on GitHub Releases, fetching the
                 community unsupported-games list, and looking up cover art
                 through the built-in SteamGridDB cover proxy or your own
-                SteamGridDB API key if configured.
+                SteamGridDB API key if configured, and sharing unsupported-game
+                reports only when you explicitly enable that setting.
               </li>
               <li>
                 May refresh the community unsupported-games list from the latest
@@ -77,6 +78,16 @@
                 data sent.
               </li>
             </ul>
+            <p>
+              Unsupported-game report sharing is off by default. If you enable
+              it, reports that remain active for seven days may send the game's
+              folder name (not its full path), a pseudonymous installation ID,
+              the Compact Games version, report timestamps, and report counts to
+              the Compact Games service hosted on Cloudflare. This information is
+              used only to review candidates for the community compatibility
+              list. Turning the setting off stops future submissions; reports
+              remain available locally so the safety feature still works.
+            </p>
             <p>
               When the built-in cover proxy is used, it receives the Steam AppID
               or lookup name needed to find cover art. Cloudflare request

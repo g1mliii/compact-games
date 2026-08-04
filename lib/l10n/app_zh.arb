@@ -426,6 +426,10 @@
   "@settingsAboutAutoCheckUpdatesLabel": {
     "description": "Localized message for the automatic update check toggle."
   },
+  "settingsAboutUpdatesManagedBySteam": "更新由 Steam 自动管理。",
+  "@settingsAboutUpdatesManagedBySteam": {
+    "description": "Shown in Steam builds instead of the standalone updater controls."
+  },
   "settingsAboutCheckingForUpdatesStatus": "正在检查更新...",
   "@settingsAboutCheckingForUpdatesStatus": {
     "description": "Localized message shown while the app checks for updates."
@@ -503,6 +507,22 @@
   "settingsEnableDirectStorageOverrideMessage": "这会允许压缩被标记为 DirectStorage 的游戏，可能影响加载性能和稳定性。",
   "@settingsEnableDirectStorageOverrideMessage": {
     "description": "Localized message for settings enable direct storage override message."
+  },
+  "settingsShareUnsupportedReportsLabel": "共享不受支持的游戏报告",
+  "@settingsShareUnsupportedReportsLabel": {
+    "description": "Label for the opt-in unsupported-game report sharing setting."
+  },
+  "settingsShareUnsupportedReportsDescription": "默认关闭。启用后，稳定的报告可能会共享游戏文件夹名称和匿名诊断元数据；绝不会发送完整路径或压缩结果。",
+  "@settingsShareUnsupportedReportsDescription": {
+    "description": "Privacy summary shown below unsupported-game report sharing."
+  },
+  "settingsShareUnsupportedReportsConfirmTitle": "共享不受支持的游戏报告？",
+  "@settingsShareUnsupportedReportsConfirmTitle": {
+    "description": "Title of the consent dialog for unsupported-game report sharing."
+  },
+  "settingsShareUnsupportedReportsConfirmMessage": "持续启用七天的报告可能会通过 Cloudflare 向 Compact Games 发送游戏文件夹名称、匿名安装标识符、应用版本、时间戳和报告次数。绝不会发送完整路径或压缩结果。你可以随时关闭此功能以停止今后的提交。",
+  "@settingsShareUnsupportedReportsConfirmMessage": {
+    "description": "Consent disclosure for unsupported-game report sharing."
   },
   "settingsWatcherStatusActive": "监视器已启用",
   "@settingsWatcherStatusActive": {

@@ -152,6 +152,10 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     _updateSetting((s) => s.copyWith(autoCheckUpdates: enabled));
   }
 
+  void setShareUnsupportedReports(bool enabled) {
+    _updateSetting((s) => s.copyWith(shareUnsupportedReports: enabled));
+  }
+
   Future<void> flush() async {
     _debounceTimer?.cancel();
     _debounceTimer = null;
@@ -213,5 +217,6 @@ bool _settingsEqual(AppSettings a, AppSettings b) {
       a.minimizeToTray == b.minimizeToTray &&
       a.homeViewMode == b.homeViewMode &&
       a.localeTag == b.localeTag &&
-      a.autoCheckUpdates == b.autoCheckUpdates;
+      a.autoCheckUpdates == b.autoCheckUpdates &&
+      a.shareUnsupportedReports == b.shareUnsupportedReports;
 }
