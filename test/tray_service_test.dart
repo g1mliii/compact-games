@@ -91,6 +91,105 @@ void main() {
     expect(fakeTray.lastBringAppToFront, isTrue);
   });
 
+  test(
+    'right-click menu schedules one delayed hidden working-set trim',
+    () async {
+      final fakeTray = _FakeTrayPlatformAdapter();
+      final service = TrayService.instance;
+      var trimCalls = 0;
+      service.configureForTest(
+        trayPlatform: fakeTray,
+        iconPathOverride: r'C:\test\compact_games_tray.ico',
+        postMenuTrimDelay: const Duration(milliseconds: 15),
+        isWindowHidden: () => true,
+        trimWorkingSet: () => trimCalls += 1,
+      );
+
+      await service.init();
+      service.onTrayIconRightMouseDown();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(trimCalls, 1);
+    },
+  );
+
+  test('repeated tray-menu opens debounce the delayed trim', () async {
+    final fakeTray = _FakeTrayPlatformAdapter();
+    final service = TrayService.instance;
+    var trimCalls = 0;
+    service.configureForTest(
+      trayPlatform: fakeTray,
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
+      postMenuTrimDelay: const Duration(milliseconds: 30),
+      isWindowHidden: () => true,
+      trimWorkingSet: () => trimCalls += 1,
+    );
+
+    await service.init();
+    service.onTrayIconRightMouseDown();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    service.onTrayIconRightMouseDown();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(trimCalls, 0);
+
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(trimCalls, 1);
+  });
+
+  test('showing the window cancels a pending tray-menu trim', () async {
+    final fakeTray = _FakeTrayPlatformAdapter();
+    final fakeWindow = _FakeWindowPlatformAdapter();
+    final service = TrayService.instance;
+    var trimCalls = 0;
+    service.configureForTest(
+      trayPlatform: fakeTray,
+      windowPlatform: fakeWindow,
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
+      postMenuTrimDelay: const Duration(milliseconds: 15),
+      isWindowHidden: () => true,
+      trimWorkingSet: () => trimCalls += 1,
+    );
+
+    await service.init();
+    service.onTrayIconRightMouseDown();
+    await Future<void>.delayed(Duration.zero);
+    await service.showAndFocusWindow();
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+
+    expect(trimCalls, 0);
+  });
+
+  test('tray-menu trim waits until active compression finishes', () async {
+    final fakeTray = _FakeTrayPlatformAdapter();
+    final service = TrayService.instance;
+    var trimCalls = 0;
+    service.configureForTest(
+      trayPlatform: fakeTray,
+      debounceDuration: const Duration(milliseconds: 1),
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
+      postMenuTrimDelay: const Duration(milliseconds: 15),
+      isWindowHidden: () => true,
+      trimWorkingSet: () => trimCalls += 1,
+    );
+
+    await service.init();
+    service.update(
+      const TrayStatus(
+        mode: TrayStatusMode.compressing,
+        activeGameName: 'Active Game',
+      ),
+    );
+    await service.flushPendingUpdateForTest();
+    service.onTrayIconRightMouseDown();
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    expect(trimCalls, 0);
+
+    service.update(const TrayStatus(mode: TrayStatusMode.idle));
+    await service.flushPendingUpdateForTest();
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    expect(trimCalls, 1);
+  });
+
   test('show window command remounts UI after show and before focus', () async {
     final fakeTray = _FakeTrayPlatformAdapter();
     final events = <String>[];

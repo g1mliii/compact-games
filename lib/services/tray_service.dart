@@ -6,6 +6,9 @@ import 'package:path/path.dart' as p;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../core/lifecycle/app_window_visibility.dart';
+import '../core/performance/windows_working_set.dart';
+
 part 'tray_service_icon_cache.dart';
 part 'tray_service_models.dart';
 part 'tray_service_platform.dart';
@@ -30,6 +33,12 @@ class TrayService with TrayListener {
 
   Duration _debounceDuration = const Duration(milliseconds: 400);
   Timer? _debounceTimer;
+  Duration _postMenuTrimDelay = const Duration(minutes: 1);
+  Timer? _postMenuTrimTimer;
+  int _postMenuTrimGeneration = 0;
+  bool Function() _isWindowHidden = () =>
+      appWindowVisibilityController.isHiddenToTray;
+  VoidCallback _trimWorkingSet = WindowsWorkingSet.trimCurrentProcess;
   TrayStatus _lastStatus = const TrayStatus(mode: TrayStatusMode.idle);
   TrayStatus? _pendingStatus;
   Future<void> _lifecycleQueue = Future<void>.value();
@@ -81,6 +90,7 @@ class TrayService with TrayListener {
     return _enqueueLifecycle(() async {
       if (!_initialized || _disposed) return;
       _cancelPendingUpdate();
+      _cancelPostMenuTrim();
       _lastMenuSignature = '';
       _lastTooltip = '';
       _quitRequested = false;
@@ -115,6 +125,7 @@ class TrayService with TrayListener {
   @visibleForTesting
   void resetForTest() {
     _cancelPendingUpdate();
+    _cancelPostMenuTrim();
     _lastMenuSignature = '';
     _lastTooltip = '';
     _quitRequested = false;
@@ -126,6 +137,9 @@ class TrayService with TrayListener {
     _trayPlatform = const _DefaultTrayPlatformAdapter();
     _windowPlatform = const _DefaultWindowPlatformAdapter();
     _debounceDuration = const Duration(milliseconds: 400);
+    _postMenuTrimDelay = const Duration(minutes: 1);
+    _isWindowHidden = () => appWindowVisibilityController.isHiddenToTray;
+    _trimWorkingSet = WindowsWorkingSet.trimCurrentProcess;
     _lifecycleQueue = Future<void>.value();
     _updateQueue = Future<void>.value();
     _setAutoCompressionEnabled = null;
@@ -142,6 +156,9 @@ class TrayService with TrayListener {
     String? iconPathOverride,
     Future<void> Function(bool enabled)? setAutoCompressionEnabled,
     VoidCallback? onShowWindow,
+    Duration? postMenuTrimDelay,
+    bool Function()? isWindowHidden,
+    VoidCallback? trimWorkingSet,
   }) {
     _trayPlatform = trayPlatform ?? _trayPlatform;
     _windowPlatform = windowPlatform ?? _windowPlatform;
@@ -150,6 +167,9 @@ class TrayService with TrayListener {
     _setAutoCompressionEnabled =
         setAutoCompressionEnabled ?? _setAutoCompressionEnabled;
     _onShowWindow = onShowWindow ?? _onShowWindow;
+    _postMenuTrimDelay = postMenuTrimDelay ?? _postMenuTrimDelay;
+    _isWindowHidden = isWindowHidden ?? _isWindowHidden;
+    _trimWorkingSet = trimWorkingSet ?? _trimWorkingSet;
     if (setAutoCompressionEnabled != null) {
       _autoCompressionToggleOwner = null;
     }
@@ -218,6 +238,7 @@ class TrayService with TrayListener {
   /// Explicit quit request from tray menu — bypasses minimize-to-tray.
   Future<void> requestQuit() async {
     _quitRequested = true;
+    _cancelPostMenuTrim();
     try {
       await _windowPlatform.close();
     } catch (e) {
@@ -234,11 +255,7 @@ class TrayService with TrayListener {
 
   @override
   void onTrayIconRightMouseDown() {
-    unawaited(
-      _trayPlatform
-          .popUpContextMenu(bringAppToFront: true)
-          .catchError((Object _) {}),
-    );
+    unawaited(_showContextMenuAndScheduleTrim());
   }
 
   @override
@@ -345,6 +362,7 @@ class TrayService with TrayListener {
   }
 
   Future<void> _showAndFocusWindow() async {
+    _cancelPostMenuTrim();
     try {
       await _windowPlatform.show();
       // The hook remounts the Flutter UI after tray mode. Run it only after
@@ -354,6 +372,46 @@ class TrayService with TrayListener {
       _onShowWindow?.call();
       await _windowPlatform.focus();
     } catch (_) {}
+  }
+
+  Future<void> _showContextMenuAndScheduleTrim() async {
+    _cancelPostMenuTrim();
+    final generation = _postMenuTrimGeneration;
+    try {
+      await _trayPlatform.popUpContextMenu(bringAppToFront: true);
+    } catch (_) {
+      return;
+    }
+    if (generation != _postMenuTrimGeneration || !_initialized || _disposed) {
+      return;
+    }
+    _schedulePostMenuTrim(generation);
+  }
+
+  void _schedulePostMenuTrim(int generation) {
+    _postMenuTrimTimer?.cancel();
+    _postMenuTrimTimer = Timer(_postMenuTrimDelay, () {
+      _postMenuTrimTimer = null;
+      if (generation != _postMenuTrimGeneration ||
+          !_initialized ||
+          _disposed ||
+          !_isWindowHidden()) {
+        return;
+      }
+
+      final latestStatus = _pendingStatus ?? _lastStatus;
+      if (latestStatus.mode == TrayStatusMode.compressing) {
+        _schedulePostMenuTrim(generation);
+        return;
+      }
+      _trimWorkingSet();
+    });
+  }
+
+  void _cancelPostMenuTrim() {
+    _postMenuTrimGeneration += 1;
+    _postMenuTrimTimer?.cancel();
+    _postMenuTrimTimer = null;
   }
 
   Future<void> _toggleAutoCompression() async {
