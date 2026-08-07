@@ -126,27 +126,10 @@ jobs:
       - name: Run Rust tests
         run: cargo test --manifest-path rust/Cargo.toml --all-targets --all-features
 
-      - name: Build Windows release bundle
-        run: flutter build windows --release
-
-      - name: Verify Windows release bundle
-        shell: pwsh
-        run: |
-          $bundle = 'build/windows/x64/runner/Release'
-          Copy-Item 'rust/target/release/compact_games_core.dll' $bundle -Force
-          $requiredFiles = @(
-            'compact_games.exe',
-            'compact_games_core.dll'
-          )
-          foreach ($file in $requiredFiles) {
-            $path = Join-Path $bundle $file
-            if (-not (Test-Path $path) -or (Get-Item $path).Length -eq 0) {
-              throw "Release bundle is missing $file."
-            }
-          }
-          Get-FileHash (Join-Path $bundle 'compact_games.exe') -Algorithm SHA256
-          Get-FileHash (Join-Path $bundle 'compact_games_core.dll') -Algorithm SHA256
-
+      # The Steam variant is built first because it compiles into the same
+      # build/windows/x64/runner/Release directory as the standalone bundle.
+      # Building it last would overwrite the standalone artifacts whose hashes
+      # the verify step just printed.
       - name: Build and stage Steam distribution variant
         shell: pwsh
         run: >-
@@ -178,6 +161,9 @@ jobs:
               throw "Steam release bundle is missing $file."
             }
           }
+          # build-steam-package.ps1 derives this value from the dart-define it
+          # actually passed to flutter, so a dropped or misspelled define fails
+          # the check rather than being restated as a literal.
           $metadata = Get-Content (Join-Path $bundle 'compact_games_build.json') -Raw | ConvertFrom-Json
           if ($metadata.distributionChannel -ne 'steam') {
             throw "Steam provenance marker has channel '$($metadata.distributionChannel)'."
@@ -197,6 +183,39 @@ jobs:
           if ($vdfText -notmatch '__APP_ID__' -or $vdfText -notmatch '__DEPOT_ID__') {
             throw 'Placeholder SteamPipe scripts are missing App or Depot IDs.'
           }
+
+      # The depot content is staged, so the steam-channel binaries and the
+      # provenance marker left in the shared output directory must go before
+      # the standalone bundle is built there.
+      - name: Reset Windows release output
+        shell: pwsh
+        run: Remove-Item 'build/windows/x64/runner/Release' -Recurse -Force -ErrorAction SilentlyContinue
+
+      - name: Build Windows release bundle
+        run: flutter build windows --release
+
+      - name: Verify Windows release bundle
+        shell: pwsh
+        run: |
+          $bundle = 'build/windows/x64/runner/Release'
+          Copy-Item 'rust/target/release/compact_games_core.dll' $bundle -Force
+          $requiredFiles = @(
+            'compact_games.exe',
+            'compact_games_core.dll'
+          )
+          foreach ($file in $requiredFiles) {
+            $path = Join-Path $bundle $file
+            if (-not (Test-Path $path) -or (Get-Item $path).Length -eq 0) {
+              throw "Release bundle is missing $file."
+            }
+          }
+          $marker = Join-Path $bundle 'compact_games_build.json'
+          if (Test-Path $marker) {
+            $channel = (Get-Content $marker -Raw | ConvertFrom-Json).distributionChannel
+            throw "Standalone bundle carries a '$channel'-channel provenance marker."
+          }
+          Get-FileHash (Join-Path $bundle 'compact_games.exe') -Algorithm SHA256
+          Get-FileHash (Join-Path $bundle 'compact_games_core.dll') -Algorithm SHA256
 
   cloudflare-workers:
     name: Validate Cloudflare workers

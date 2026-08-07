@@ -131,8 +131,14 @@ class _SafetySectionState extends ConsumerState<SafetySection> {
   }
 
   Future<void> _onShareUnsupportedReportsChanged(bool enabled) async {
+    // Consent changes are persisted immediately rather than through the 500 ms
+    // debounce: nothing flushes settings on quit, so a revocation made just
+    // before closing the app would otherwise be lost and sharing would resume
+    // on the next launch.
     if (!enabled) {
-      ref.read(settingsProvider.notifier).setShareUnsupportedReports(false);
+      final notifier = ref.read(settingsProvider.notifier);
+      notifier.setShareUnsupportedReports(false);
+      await notifier.flush();
       return;
     }
 
@@ -157,10 +163,12 @@ class _SafetySectionState extends ConsumerState<SafetySection> {
     );
 
     if (shouldEnable == true && mounted) {
-      ref.read(settingsProvider.notifier).setShareUnsupportedReports(true);
+      final notifier = ref.read(settingsProvider.notifier);
+      notifier.setShareUnsupportedReports(true);
       UnsupportedReportSyncService.instance.notePotentialChange(
         ProviderScope.containerOf(context, listen: false),
       );
+      await notifier.flush();
     }
   }
 }

@@ -21,18 +21,21 @@ class UnsupportedReportSyncService {
   UnsupportedReportSyncService._();
 
   Future<void> sync(ProviderContainer container) async {
+    final RustBridgeService bridge;
     try {
       final settings = await container.read(settingsProvider.future);
       if (!settings.settings.shareUnsupportedReports) {
         return;
       }
+      // Read the bridge inside the guard: callers fire this without awaiting,
+      // so the container can be disposed while the settings read is pending.
+      bridge = container.read(rustBridgeServiceProvider);
     } catch (_) {
       // Reporting is opt-in and therefore fails closed if settings are not
       // available. A later user action or app start can retry the sync.
       return;
     }
 
-    final bridge = container.read(rustBridgeServiceProvider);
     await _syncWithBridge(bridge, container);
   }
 

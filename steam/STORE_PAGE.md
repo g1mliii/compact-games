@@ -47,7 +47,7 @@ Start with one game, test it, and keep backups of important data. Compact Games 
 
 The Steam edition uses Steam for installation and updates. Compact Games is open-source software, and the same core features are also available in the independently distributed edition. Purchasing it on Steam supports continued development and provides the convenience of Steam-managed delivery.
 
-No account, name, or email address is required inside Compact Games, and the app does not use analytics or telemetry. Optional network requests provide cover art and community compatibility data. Sharing unsupported-game reports is off by default and requires explicit consent in Settings; the privacy policy describes the limited pseudonymous data sent when enabled.
+No account, name, or email address is required inside Compact Games, and the app does not use advertising or third-party analytics. Optional network requests provide cover art and community compatibility data. Sharing unsupported-game reports is off by default and requires explicit consent in Settings; the privacy policy describes the limited pseudonymous data sent when enabled.
 
 ## System requirements
 

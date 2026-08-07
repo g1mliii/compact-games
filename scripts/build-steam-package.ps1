@@ -32,6 +32,10 @@ if (-not $contentDirFull.StartsWith($repoRootFull, [System.StringComparison]::Or
 }
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $requiredFlutterVersion = '3.44.8'
+# Single source of truth for the channel: the dart-define below and the
+# provenance marker are both derived from it, so the marker cannot claim a
+# channel the compiler was never told about.
+$distributionChannel = 'steam'
 
 function Get-Sha256Lower([string]$Path) {
   return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -48,7 +52,7 @@ function Assert-SteamBuildMetadata {
     throw "Cannot skip compilation because compact_games_build.json is invalid: $($_.Exception.Message)"
   }
 
-  if ($metadata.distributionChannel -ne 'steam') {
+  if ($metadata.distributionChannel -ne $distributionChannel) {
     throw "Cannot stage a '$($metadata.distributionChannel)' bundle as Steam content."
   }
   if ($metadata.version -ne $version) {
@@ -125,7 +129,7 @@ try {
 
     $flutterArgs = @(
       'build', 'windows', '--release',
-      '--dart-define=COMPACT_GAMES_DISTRIBUTION=steam'
+      "--dart-define=COMPACT_GAMES_DISTRIBUTION=$distributionChannel"
     )
     if ($coverProxyConfigured) {
       $flutterArgs += "--dart-define=COMPACT_GAMES_SGDB_PROXY_URL=$proxyUrl"
@@ -153,9 +157,25 @@ try {
     'C:\Program Files (x86)\Microsoft Visual Studio'
   )
   $runtimeFiles = @('vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll')
-  $runtimeDir = Get-ChildItem -LiteralPath $runtimeRoots -Directory -Recurse -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -match 'Microsoft\.VC.*\.CRT' -and $_.FullName -match '\\x64($|\\)' } |
+  # Target the redist layout directly instead of recursing the whole Visual
+  # Studio tree, and pin the highest redist version so two machines with the
+  # same VS install always ship the same CRT and the same sha256sums.txt.
+  # The '\x64\' segment is literal so the onecore\x64 variant is never picked;
+  # the edition lives one or two levels down depending on the VS generation
+  # (2022\Community\... and 18\Community\... are both in the wild).
+  $runtimeGlobs = foreach ($runtimeRoot in $runtimeRoots) {
+    Join-Path $runtimeRoot '*\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT'
+    Join-Path $runtimeRoot '*\*\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT'
+  }
+  $runtimeDir = Get-ChildItem -Path $runtimeGlobs -Directory -ErrorAction SilentlyContinue |
     Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'vcruntime140.dll') } |
+    Sort-Object -Property @{
+      Expression = {
+        $redistVersion = $_.FullName -replace '.*\\VC\\Redist\\MSVC\\([^\\]+)\\.*', '$1'
+        $parsed = [version]'0.0'
+        if ([version]::TryParse($redistVersion, [ref]$parsed)) { $parsed } else { [version]'0.0' }
+      }
+    }, FullName -Descending |
     Select-Object -First 1
   if ($runtimeDir) {
     foreach ($runtimeFile in $runtimeFiles) {
@@ -184,15 +204,33 @@ try {
         -not (Test-Path -LiteralPath $appSoPath -PathType Leaf)) {
       throw 'Cannot record Steam build provenance because the compiled Dart artifacts are missing.'
     }
-    $gitCommit = (& git.exe rev-parse HEAD).Trim()
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitCommit)) {
+    $gitCommitRaw = & git.exe rev-parse HEAD
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitCommitRaw)) {
       throw 'Could not determine the Git commit for Steam build provenance.'
     }
+    $gitCommit = "$gitCommitRaw".Trim()
     $sourceTreeDirty = [bool](& git.exe status --porcelain)
     if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the Git worktree for Steam build provenance.' }
+    # Read the channel back out of the arguments that were actually passed to
+    # flutter rather than restating the literal, so a dropped or misspelled
+    # dart-define fails here instead of shipping a self-updating binary behind
+    # a marker that still says 'steam'.
+    $distributionDefines = @(
+      $flutterArgs | Where-Object { $_ -like '--dart-define=COMPACT_GAMES_DISTRIBUTION=*' }
+    )
+    if ($distributionDefines.Count -ne 1) {
+      throw "Expected exactly one COMPACT_GAMES_DISTRIBUTION dart-define in the Flutter build arguments, found $($distributionDefines.Count)."
+    }
+    $builtChannel = $distributionDefines[0].Substring(
+      '--dart-define=COMPACT_GAMES_DISTRIBUTION='.Length
+    )
+    if ($builtChannel -ne $distributionChannel) {
+      throw "Flutter was built for channel '$builtChannel' but this script packages '$distributionChannel'."
+    }
+
     $metadata = [ordered]@{
       schemaVersion = 1
-      distributionChannel = 'steam'
+      distributionChannel = $builtChannel
       version = $version
       gitCommit = $gitCommit
       sourceTreeDirty = $sourceTreeDirty
@@ -210,7 +248,13 @@ try {
   }
 
   New-Item -ItemType Directory -Path $contentDir, $scriptsDir, $outputDir -Force | Out-Null
-  Get-ChildItem -LiteralPath $contentDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+  # VDF file names embed the App/Depot IDs, so a placeholder run followed by a
+  # real-ID run would leave four scripts behind rather than overwriting two.
+  # Purge every staging directory, not just the content one.
+  foreach ($staleDir in @($contentDir, $scriptsDir, $outputDir)) {
+    Get-ChildItem -LiteralPath $staleDir -Force -ErrorAction SilentlyContinue |
+      Remove-Item -Recurse -Force
+  }
   Copy-Item -Path (Join-Path $releaseDir '*') -Destination $contentDir -Recurse -Force
 
   $requiredFiles = @(
@@ -292,6 +336,11 @@ try {
 
   Write-Host "Steam depot content prepared: $contentDir"
   Write-Host "SteamPipe scripts prepared: $scriptsDir"
+  if (-not $SkipCompile) {
+    Write-Warning ("$releaseDir now holds a '$distributionChannel'-channel build " +
+      '(self-updates disabled). Delete it before packaging the standalone ' +
+      'installer, or that installer will ship a Steam binary.')
+  }
   if (-not $AppId) {
     Write-Host 'Re-run with -AppId and -DepotId after Steamworks assigns them.'
   }

@@ -7,7 +7,15 @@ import subprocess
 from pathlib import Path
 
 
-NOTICE_FILE = re.compile(r"^(license|copying|notice)(?:$|[._-])", re.IGNORECASE)
+# Crates spell their license text a dozen ways: LICENSE/LICENCE, UNLICENSE,
+# COPYING, COPYRIGHT, NOTICE, and any of those with a suffix (LICENSE-MIT,
+# LICENSE.md). Missing a spelling makes generate() raise and fails packaging,
+# so match the known variants rather than only the three most common ones.
+NOTICE_FILE = re.compile(
+    r"^(un)?(licen[cs]e|copying|copyright|notice)(?:$|[._-])",
+    re.IGNORECASE,
+)
+NOTICE_DIRS = ("licenses", "licences")
 PACKAGE_LINE = re.compile(r"^(?P<name>\S+) v(?P<version>\S+)")
 LICENSE_OVERRIDES = {
     ("dart-sys", "4.1.5"): "dart-sys-4.1.5-LICENSE-MIT.txt",
@@ -65,6 +73,12 @@ def notice_paths(package: dict[str, object]) -> list[Path]:
         for path in crate_dir.iterdir()
         if path.is_file() and NOTICE_FILE.match(path.name)
     }
+    # Some crates keep only a LICENSES/ directory (one file per SPDX id).
+    for entry in crate_dir.iterdir():
+        if entry.is_dir() and entry.name.lower() in NOTICE_DIRS:
+            candidates.update(
+                path.resolve() for path in entry.iterdir() if path.is_file()
+            )
     license_file = package.get("license_file")
     if license_file:
         path = Path(str(license_file))

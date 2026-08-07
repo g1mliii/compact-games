@@ -192,14 +192,26 @@ jobs:
       - name: Bundle VC++ runtime DLLs
         shell: pwsh
         run: |
-          $vcrtDir = Get-ChildItem 'C:\Program Files\Microsoft Visual Studio' -Recurse -Directory -Filter 'Microsoft.VC*.CRT' |
-            Where-Object { $_.FullName -match 'x64' -and (Test-Path (Join-Path $_.FullName 'vcruntime140.dll')) } |
-            Select-Object -First 1
-          if (-not $vcrtDir) {
-            $vcrtDir = Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio' -Recurse -Directory -Filter 'Microsoft.VC*.CRT' |
-              Where-Object { $_.FullName -match 'x64' -and (Test-Path (Join-Path $_.FullName 'vcruntime140.dll')) } |
-              Select-Object -First 1
+          # Select the desktop x64 redist directly. A recursive x64 match can
+          # select onecore\x64 first, which contains different DLLs.
+          $runtimeRoots = @(
+            'C:\Program Files\Microsoft Visual Studio',
+            'C:\Program Files (x86)\Microsoft Visual Studio'
+          )
+          $runtimeGlobs = foreach ($runtimeRoot in $runtimeRoots) {
+            Join-Path $runtimeRoot '*\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT'
+            Join-Path $runtimeRoot '*\*\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT'
           }
+          $vcrtDir = Get-ChildItem -Path $runtimeGlobs -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'vcruntime140.dll') } |
+            Sort-Object -Property @{
+              Expression = {
+                $redistVersion = $_.FullName -replace '.*\\VC\\Redist\\MSVC\\([^\\]+)\\.*', '$1'
+                $parsed = [version]'0.0'
+                if ([version]::TryParse($redistVersion, [ref]$parsed)) { $parsed } else { [version]'0.0' }
+              }
+            }, FullName -Descending |
+            Select-Object -First 1
           if (-not $vcrtDir) { throw 'VC++ runtime DLLs not found.' }
           $destination = 'build/windows/x64/runner/Release'
           Copy-Item (Join-Path $vcrtDir.FullName 'vcruntime140.dll') $destination -Force
@@ -222,6 +234,14 @@ jobs:
             if (-not (Test-Path $path) -or (Get-Item $path).Length -eq 0) {
               throw "Release bundle is missing $file."
             }
+          }
+          # scripts/build-steam-package.ps1 compiles the steam-channel variant
+          # into this same directory and stamps it. If that marker is present,
+          # the bundle may carry a Steam binary with self-updates disabled.
+          $marker = Join-Path $bundle 'compact_games_build.json'
+          if (Test-Path $marker) {
+            $channel = (Get-Content $marker -Raw | ConvertFrom-Json).distributionChannel
+            throw "Release bundle carries a '$channel'-channel provenance marker. Clean $bundle and rebuild."
           }
           Get-FileHash (Join-Path $bundle 'compact_games.exe') -Algorithm SHA256
           Get-FileHash (Join-Path $bundle 'compact_games_core.dll') -Algorithm SHA256
