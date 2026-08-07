@@ -1,7 +1,7 @@
 /// Application-wide constants.
 abstract final class AppConstants {
   static const String appName = 'Compact Games';
-  static const String appVersion = '0.2.2';
+  static const String appVersion = '0.2.3';
 
   /// Identifies who owns delivery of application updates for this build.
   ///
