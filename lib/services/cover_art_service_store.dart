@@ -108,7 +108,12 @@ extension _CoverArtServiceStore on CoverArtService {
         _writeApiLru(_steamStoreAppIdCache, foldedName, id);
         return id;
       }
-      if (queryWordCount < 2 || !foldedCandidate.contains(foldedName)) {
+      final isSafeSingleWordPrefix =
+          queryWordCount == 1 &&
+          foldedName.length >= 7 &&
+          foldedCandidate.startsWith('$foldedName ');
+      if (!isSafeSingleWordPrefix &&
+          (queryWordCount < 2 || !foldedCandidate.contains(foldedName))) {
         continue;
       }
       final extraLength = foldedCandidate.length - foldedName.length;

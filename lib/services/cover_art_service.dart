@@ -265,8 +265,16 @@ class CoverArtService {
             executableLookup.status == _CoverArtProviderLookupStatus.notFound;
       }
 
-      if (coverArtProviderMode == CoverArtProviderMode.userKey &&
-          game.platform != Platform.steam) {
+      // The bundled provider can legitimately have a temporary catalog gap for
+      // a just-released game. When the user has not supplied a key, fall back
+      // to Steam's public catalog rather than permanently showing the EXE icon.
+      // Keep an explicit user key on the provider path: it has richer
+      // SteamGridDB results and its own fallback behaviour.
+      final hasUserSteamGridDbKey =
+          steamGridDbApiKey?.trim().isNotEmpty ?? false;
+      if (game.platform != Platform.steam &&
+          (coverArtProviderMode == CoverArtProviderMode.userKey ||
+              !hasUserSteamGridDbKey)) {
         final steamStoreCover = await _resolveSteamStoreCover(
           game,
           cacheKey: cacheKey,

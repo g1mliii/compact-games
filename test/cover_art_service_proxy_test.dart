@@ -584,6 +584,82 @@ void main() {
   });
 
   test(
+    'bundled proxy miss falls back to an official Steam portrait for a safe title prefix',
+    () async {
+      final requests = <Uri>[];
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          requests.add(request.url);
+          if (request.url.host == 'proxy.example.test') {
+            expect(request.url.path, '/sgdb/by-name');
+            expect(request.url.queryParameters['name'], 'Restory');
+            return _jsonResponse({'error': 'Not found'}, 404);
+          }
+          if (request.url.host == 'store.steampowered.com') {
+            expect(request.url.path, '/api/storesearch/');
+            expect(request.url.queryParameters['term'], 'Restory');
+            return _jsonResponse({
+              'items': [
+                {'id': 3812600, 'name': 'ReStory: Chill Electronics Repairs'},
+              ],
+            });
+          }
+          if (request.url.host == 'api.steampowered.com') {
+            return _jsonResponse({
+              'response': {
+                'store_items': [
+                  {
+                    'appid': 3812600,
+                    'assets': {
+                      'asset_url_format':
+                          r'steam/apps/3812600/${FILENAME}?t=123',
+                      'library_capsule_2x': 'portrait/library_capsule_2x.jpg',
+                    },
+                  },
+                ],
+              },
+            });
+          }
+          if (request.url.host == 'shared.akamai.steamstatic.com') {
+            return http.Response.bytes(
+              <int>[51, 52, 53, 54],
+              200,
+              headers: const <String, String>{'content-type': 'image/jpeg'},
+            );
+          }
+          throw StateError('Unexpected request to ${request.url}');
+        }),
+      );
+
+      final result = await const CoverArtService().resolveCover(
+        GameInfo(
+          name: 'Restory',
+          path: r'C:\Games\Restory',
+          platform: Platform.custom,
+          sizeBytes: 1,
+        ),
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: const CoverArtProxyConfig(
+          url: 'https://proxy.example.test',
+          token: 'proxy-token',
+        ),
+      );
+
+      expect(result.source, CoverArtSource.steamStoreApi);
+      expect(result.uri, startsWith('file:'));
+      expect(
+        requests.map((uri) => uri.host),
+        containsAll(<String>[
+          'proxy.example.test',
+          'store.steampowered.com',
+          'api.steampowered.com',
+          'shared.akamai.steamstatic.com',
+        ]),
+      );
+    },
+  );
+
+  test(
     'Steam store fallback accepts the closest multiword catalog title',
     () async {
       final storeTerms = <String>[];
