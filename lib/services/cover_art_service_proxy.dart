@@ -18,6 +18,25 @@ class _CoverProxyLookupResult {
     : this._(_CoverProxyLookupStatus.unavailable, null);
 }
 
+/// Outcome of one SteamGridDB source within a provider lookup.
+///
+/// [ran] separates "this source is not configured" from "this source answered
+/// nothing", so an unconfigured source never counts towards a confirmed miss.
+class _ProviderAttempt {
+  const _ProviderAttempt._(this.cover, this.ran, this.confirmedNoMatch);
+
+  final CoverArtResult? cover;
+  final bool ran;
+  final bool confirmedNoMatch;
+
+  const _ProviderAttempt.skipped() : this._(null, false, false);
+
+  _ProviderAttempt.found(CoverArtResult cover) : this._(cover, true, false);
+
+  const _ProviderAttempt.missed({required bool confirmedNoMatch})
+    : this._(null, true, confirmedNoMatch);
+}
+
 enum _CoverArtProviderLookupStatus { found, notFound, unavailable }
 
 class _CoverArtProviderLookup {
@@ -107,9 +126,12 @@ extension _CoverArtServiceProxy on CoverArtService {
       }
       return _CoverProxyLookupResult.found(path);
     } catch (e) {
+      // IOException covers SocketException/HttpException plus the TLS failures
+      // (HandshakeException, CertificateException) that are neither. Letting
+      // one of those escape aborts the whole resolution, so the game shows no
+      // cover at all instead of falling through to the remaining sources.
       if (e is TimeoutException ||
-          e is SocketException ||
-          e is HttpException ||
+          e is IOException ||
           e is http.ClientException ||
           e is _RetryableApiException) {
         return const _CoverProxyLookupResult.unavailable();

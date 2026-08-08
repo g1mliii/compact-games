@@ -845,13 +845,19 @@ void main() {
     ]);
   });
 
-  test('proxy 404 is treated as no result without user-key fallback', () async {
+  test('proxy 404 still tries the user key and the Steam store', () async {
     final requests = <Uri>[];
     debugSetCoverArtApiHttpClientForTesting(
       MockClient((request) async {
         requests.add(request.url);
         if (request.url.host == 'proxy.example.test') {
           return _jsonResponse({'error': 'Not found'}, 404);
+        }
+        if (request.url.host == 'www.steamgriddb.com') {
+          return _jsonResponse({'data': <Object>[]});
+        }
+        if (request.url.host == 'store.steampowered.com') {
+          return _jsonResponse({'items': <Object>[]});
         }
         throw StateError('Unexpected fallback request to ${request.url}');
       }),
@@ -873,7 +879,347 @@ void main() {
     );
 
     expect(result.source, CoverArtSource.none);
-    expect(requests.single.host, 'proxy.example.test');
+    expect(requests.map((uri) => uri.host), <String>[
+      'proxy.example.test',
+      'www.steamgriddb.com',
+      'store.steampowered.com',
+    ]);
+  });
+
+  test(
+    'a user key does not suppress the Steam store fallback in bundled mode',
+    () async {
+      final requests = <Uri>[];
+      debugSetCoverArtApiHttpClientForTesting(
+        MockClient((request) async {
+          requests.add(request.url);
+          if (request.url.host == 'proxy.example.test') {
+            expect(request.url.queryParameters['name'], 'Starbreed');
+            return _jsonResponse({'error': 'Not found'}, 404);
+          }
+          if (request.url.host == 'www.steamgriddb.com') {
+            return _jsonResponse({'data': <Object>[]});
+          }
+          if (request.url.host == 'store.steampowered.com') {
+            expect(request.url.queryParameters['term'], 'Starbreed');
+            return _jsonResponse({
+              'items': [
+                {'id': 2694020, 'name': 'Starbreed'},
+                {'id': 4932900, 'name': 'Starbreed Artbook'},
+              ],
+            });
+          }
+          if (request.url.host == 'api.steampowered.com') {
+            return _jsonResponse({
+              'response': {
+                'store_items': [
+                  {
+                    'appid': 2694020,
+                    'assets': {
+                      'asset_url_format':
+                          r'steam/apps/2694020/${FILENAME}?t=123',
+                      'library_capsule_2x': 'portrait/library_capsule_2x.jpg',
+                    },
+                  },
+                ],
+              },
+            });
+          }
+          if (request.url.host == 'shared.akamai.steamstatic.com') {
+            return http.Response.bytes(
+              <int>[61, 62, 63, 64],
+              200,
+              headers: const <String, String>{'content-type': 'image/jpeg'},
+            );
+          }
+          throw StateError('Unexpected request to ${request.url}');
+        }),
+      );
+
+      final result = await const CoverArtService().resolveCover(
+        GameInfo(
+          name: 'Starbreed',
+          path: r'C:\Games\Starbreed\Starbreed - SteamGG.NET',
+          platform: Platform.custom,
+          sizeBytes: 1,
+        ),
+        steamGridDbApiKey: 'user-key',
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: const CoverArtProxyConfig(
+          url: 'https://proxy.example.test',
+          token: 'proxy-token',
+        ),
+      );
+
+      expect(result.source, CoverArtSource.steamStoreApi);
+      expect(
+        requests.map((uri) => uri.host),
+        containsAll(<String>[
+          'proxy.example.test',
+          'www.steamgriddb.com',
+          'store.steampowered.com',
+          'shared.akamai.steamstatic.com',
+        ]),
+      );
+    },
+  );
+
+  test('a failing user key still falls through to the bundled proxy', () async {
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'www.steamgriddb.com') {
+          return _jsonResponse({'error': 'Unauthorized'}, 401);
+        }
+        if (request.url.host == 'proxy.example.test') {
+          return _jsonResponse({
+            'url': 'https://cdn2.steamgriddb.com/grid/rescued.jpg',
+            'source': 'steamgriddb',
+          });
+        }
+        if (request.url.host == 'cdn2.steamgriddb.com') {
+          return http.Response.bytes(
+            <int>[91, 92, 93, 94],
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Expired Key Game',
+        path: r'C:\Games\expired_user_key',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      ),
+      steamGridDbApiKey: 'revoked-key',
+      coverArtProviderMode: CoverArtProviderMode.userKey,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
+
+    expect(result.source, CoverArtSource.steamGridDbApi);
+    final hosts = requests.map((uri) => uri.host).toList();
+    expect(hosts.first, 'www.steamgriddb.com');
+    expect(hosts, contains('proxy.example.test'));
+  });
+
+  test('user-key mode with a blank key still uses the bundled proxy', () async {
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'proxy.example.test') {
+          return _jsonResponse({
+            'url': 'https://cdn2.steamgriddb.com/grid/blank-key.jpg',
+            'source': 'steamgriddb',
+          });
+        }
+        if (request.url.host == 'cdn2.steamgriddb.com') {
+          return http.Response.bytes(
+            <int>[95, 96, 97, 98],
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Blank Key Game',
+        path: r'C:\Games\blank_user_key',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      ),
+      steamGridDbApiKey: '   ',
+      coverArtProviderMode: CoverArtProviderMode.userKey,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
+
+    expect(result.source, CoverArtSource.steamGridDbApi);
+    expect(requests.map((uri) => uri.host), contains('proxy.example.test'));
+  });
+
+  test('a Steam game with no local art reaches the Steam store', () async {
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        if (request.url.host == 'proxy.example.test') {
+          return _jsonResponse({'error': 'Not found'}, 404);
+        }
+        if (request.url.host == 'api.steampowered.com') {
+          return _jsonResponse({
+            'response': {
+              'store_items': [
+                {
+                  'appid': 2694020,
+                  'assets': {
+                    'asset_url_format': r'steam/apps/2694020/${FILENAME}?t=123',
+                    'library_capsule_2x': 'portrait/library_capsule_2x.jpg',
+                  },
+                },
+              ],
+            },
+          });
+        }
+        if (request.url.host == 'shared.akamai.steamstatic.com') {
+          return http.Response.bytes(
+            <int>[11, 12, 13, 14],
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Starbreed',
+        path: r'C:\Steam\steamapps\common\Starbreed',
+        platform: Platform.steam,
+        sizeBytes: 1,
+        steamAppId: 2694020,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
+
+    expect(result.source, CoverArtSource.steamStoreApi);
+  });
+
+  test('an unconfigured provider still reaches the Steam store', () async {
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'store.steampowered.com') {
+          return _jsonResponse({
+            'items': [
+              {'id': 3812600, 'name': 'ReStory: Chill Electronics Repairs'},
+            ],
+          });
+        }
+        if (request.url.host == 'api.steampowered.com') {
+          return _jsonResponse({
+            'response': {
+              'store_items': [
+                {
+                  'appid': 3812600,
+                  'assets': {
+                    'asset_url_format': r'steam/apps/3812600/${FILENAME}?t=123',
+                    'library_capsule_2x': 'portrait/library_capsule_2x.jpg',
+                  },
+                },
+              ],
+            },
+          });
+        }
+        if (request.url.host == 'shared.akamai.steamstatic.com') {
+          return http.Response.bytes(
+            <int>[71, 72, 73, 74],
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Restory',
+        path: r'C:\Games\Restory',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(),
+    );
+
+    expect(result.source, CoverArtSource.steamStoreApi);
+    expect(
+      requests.map((uri) => uri.host),
+      isNot(contains('proxy.example.test')),
+    );
+  });
+
+  test('a stale EXE-icon cache is replaced once the store answers', () async {
+    final game = GameInfo(
+      name: 'Restory',
+      path: r'C:\Games\Restory',
+      platform: Platform.custom,
+      sizeBytes: 1,
+    );
+    final cacheFile = await _writeCachedCover(
+      tempDir,
+      game.path,
+      _fakePngHeader(width: 128, height: 128),
+    );
+    await _writeCachedCoverSource(tempDir, game.path, CoverArtSource.exeIcon);
+    const capsuleBytes = <int>[81, 82, 83, 84];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        if (request.url.host == 'proxy.example.test') {
+          return _jsonResponse({'error': 'Not found'}, 404);
+        }
+        if (request.url.host == 'store.steampowered.com') {
+          return _jsonResponse({
+            'items': [
+              {'id': 3812600, 'name': 'ReStory: Chill Electronics Repairs'},
+            ],
+          });
+        }
+        if (request.url.host == 'api.steampowered.com') {
+          return _jsonResponse({
+            'response': {
+              'store_items': [
+                {
+                  'appid': 3812600,
+                  'assets': {
+                    'asset_url_format': r'steam/apps/3812600/${FILENAME}?t=123',
+                    'library_capsule_2x': 'portrait/library_capsule_2x.jpg',
+                  },
+                },
+              ],
+            },
+          });
+        }
+        if (request.url.host == 'shared.akamai.steamstatic.com') {
+          return http.Response.bytes(
+            capsuleBytes,
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
+
+    final result = await const CoverArtService().resolveCover(
+      game,
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
+
+    expect(result.source, CoverArtSource.steamStoreApi);
+    expect(await cacheFile.readAsBytes(), capsuleBytes);
   });
 
   test('exe discovery failures resolve to placeholder cover', () async {

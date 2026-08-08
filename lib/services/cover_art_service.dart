@@ -136,11 +136,7 @@ class CoverArtService {
       coverArtProxyConfig: coverArtProxyConfig,
     );
     final refreshProviderCover =
-        _isApiEnabled(
-          steamGridDbApiKey,
-          providerMode: coverArtProviderMode,
-          proxyConfig: coverArtProxyConfig,
-        ) &&
+        _isApiEnabled(steamGridDbApiKey, proxyConfig: coverArtProxyConfig) &&
         _consumeProviderRefresh(cacheKey);
     final memory = refreshProviderCover
         ? null
@@ -219,16 +215,20 @@ class CoverArtService {
 
     final apiEnabled = _isApiEnabled(
       steamGridDbApiKey,
-      providerMode: coverArtProviderMode,
       proxyConfig: coverArtProxyConfig,
     );
     var cached = await _readCachedCover(cacheKey);
-    if (apiEnabled &&
-        !refreshProviderCover &&
+    // A cover that already came from a catalog provider is authoritative for
+    // every provider configuration, so it is reused without revalidation until
+    // the game is explicitly invalidated.
+    if (!refreshProviderCover &&
         (cached?.source == CoverArtSource.steamGridDbApi ||
             cached?.source == CoverArtSource.steamStoreApi)) {
       return store(cached!);
     }
+
+    String? executableLookupName;
+    var providerConfirmedNoMatch = false;
     if (apiEnabled) {
       final primaryLookup = await _resolveApiCover(
         game,
@@ -242,11 +242,11 @@ class CoverArtService {
         return store(primaryLookup.cover!);
       }
 
-      final executableLookupName = _executableLookupName(
+      executableLookupName = _executableLookupName(
         await resolvePrimaryExe(),
         currentName: game.name,
       );
-      var providerConfirmedNoMatch =
+      providerConfirmedNoMatch =
           primaryLookup.status == _CoverArtProviderLookupStatus.notFound;
       if (executableLookupName != null) {
         final executableLookup = await _resolveApiCover(
@@ -264,34 +264,46 @@ class CoverArtService {
             providerConfirmedNoMatch &&
             executableLookup.status == _CoverArtProviderLookupStatus.notFound;
       }
+    }
 
-      // The bundled provider can legitimately have a temporary catalog gap for
-      // a just-released game. When the user has not supplied a key, fall back
-      // to Steam's public catalog rather than permanently showing the EXE icon.
-      // Keep an explicit user key on the provider path: it has richer
-      // SteamGridDB results and its own fallback behaviour.
-      final hasUserSteamGridDbKey =
-          steamGridDbApiKey?.trim().isNotEmpty ?? false;
-      if (game.platform != Platform.steam &&
-          (coverArtProviderMode == CoverArtProviderMode.userKey ||
-              !hasUserSteamGridDbKey)) {
-        final steamStoreCover = await _resolveSteamStoreCover(
-          game,
-          cacheKey: cacheKey,
-          alternateLookupName: executableLookupName,
-          rustBridge: rustBridge,
-        );
-        if (steamStoreCover != null) {
-          return store(steamStoreCover);
-        }
+    // Steam's public catalog needs neither a SteamGridDB key nor the bundled
+    // proxy, so it is the fallback for every game the provider could not
+    // cover: a just-released title the provider has no art for yet, a proxy
+    // that is unreachable or rate limited, and a build with no provider
+    // configured at all. Gating this on the provider being usable is what left
+    // freshly installed games permanently showing their EXE icon.
+    var steamStoreAttempted = false;
+    Future<CoverArtResult?> resolveStoreCover() async {
+      if (steamStoreAttempted) {
+        return null;
       }
+      steamStoreAttempted = true;
+      executableLookupName ??= _executableLookupName(
+        await resolvePrimaryExe(),
+        currentName: game.name,
+      );
+      return _resolveSteamStoreCover(
+        game,
+        cacheKey: cacheKey,
+        alternateLookupName: executableLookupName,
+        rustBridge: rustBridge,
+      );
+    }
 
-      if (providerConfirmedNoMatch &&
-          game.platform == Platform.custom &&
-          cached?.source == CoverArtSource.cache) {
-        await _deleteCachedCover(cacheKey);
-        cached = null;
+    // For a non-Steam game the public catalog outranks whatever local cache
+    // entry is left over, so it runs before the fallbacks below.
+    if (game.platform != Platform.steam) {
+      final steamStoreCover = await resolveStoreCover();
+      if (steamStoreCover != null) {
+        return store(steamStoreCover);
       }
+    }
+
+    if (providerConfirmedNoMatch &&
+        game.platform == Platform.custom &&
+        cached?.source == CoverArtSource.cache) {
+      await _deleteCachedCover(cacheKey);
+      cached = null;
     }
 
     if (cached != null && await _isPreferredCachedCover(cached)) {
@@ -319,6 +331,13 @@ class CoverArtService {
       if (steamCache != null) {
         return store(steamCache);
       }
+    }
+
+    // A Steam install prefers its own library cache, but when that has nothing
+    // card-suitable the public catalog still beats dropping to the EXE icon.
+    final steamStoreCover = await resolveStoreCover();
+    if (steamStoreCover != null) {
+      return store(steamStoreCover);
     }
 
     if (cached != null) {
@@ -495,14 +514,24 @@ class CoverArtService {
     required CoverArtProxyConfig proxyConfig,
     required RustBridgeService? rustBridge,
   }) async {
-    if (providerMode == CoverArtProviderMode.bundledProxy) {
+    // The settings toggle chooses which SteamGridDB source is tried first; it
+    // never switches the other one off. Every source that is actually
+    // configured gets a turn, so a bundled-proxy miss still reaches the user's
+    // own key and a failing user key still reaches the bundled proxy.
+    final normalizedApiKey = apiKey?.trim();
+    final hasUserKey = normalizedApiKey != null && normalizedApiKey.isNotEmpty;
+
+    Future<_ProviderAttempt> attemptBundledProxy() async {
+      if (!proxyConfig.isConfigured) {
+        return const _ProviderAttempt.skipped();
+      }
       final proxyLookup = await _resolveSteamGridDbCoverViaProxy(
         game,
         cacheKey: cacheKey,
         proxyConfig: proxyConfig,
       );
       if (proxyLookup.status == _CoverProxyLookupStatus.found) {
-        return _CoverArtProviderLookup.found(
+        return _ProviderAttempt.found(
           CoverArtResult(
             uri: File(proxyLookup.path!).uri.toString(),
             source: CoverArtSource.steamGridDbApi,
@@ -510,30 +539,71 @@ class CoverArtService {
           ),
         );
       }
-      if (proxyLookup.status == _CoverProxyLookupStatus.notFound) {
-        return const _CoverArtProviderLookup.notFound();
-      }
+      // The proxy distinguishes a catalog miss (404) from being unreachable,
+      // and it caches its misses — so a 404 can outlive SteamGridDB gaining
+      // art. A user key queries SteamGridDB directly, past that cache.
+      return _ProviderAttempt.missed(
+        confirmedNoMatch:
+            proxyLookup.status == _CoverProxyLookupStatus.notFound,
+      );
     }
 
-    final normalizedApiKey = apiKey?.trim();
-    if (normalizedApiKey == null || normalizedApiKey.isEmpty) {
-      return const _CoverArtProviderLookup.unavailable();
+    Future<_ProviderAttempt> attemptUserKey() async {
+      if (!hasUserKey) {
+        return const _ProviderAttempt.skipped();
+      }
+      final apiPath = await _resolveSteamGridDbCover(
+        game,
+        cacheKey: cacheKey,
+        apiKey: normalizedApiKey,
+        rustBridge: rustBridge,
+      );
+      if (apiPath == null) {
+        // The direct API path collapses a catalog miss and a transport failure
+        // into the same null, so it can never confirm a no-match on its own.
+        return const _ProviderAttempt.missed(confirmedNoMatch: false);
+      }
+      return _ProviderAttempt.found(
+        CoverArtResult(
+          uri: File(apiPath).uri.toString(),
+          source: CoverArtSource.steamGridDbApi,
+          revision: _bumpCoverRevision(cacheKey),
+        ),
+      );
     }
-    final apiPath = await _resolveSteamGridDbCover(
-      game,
-      cacheKey: cacheKey,
-      apiKey: normalizedApiKey,
-      rustBridge: rustBridge,
-    );
-    return apiPath == null
-        ? const _CoverArtProviderLookup.unavailable()
-        : _CoverArtProviderLookup.found(
-            CoverArtResult(
-              uri: File(apiPath).uri.toString(),
-              source: CoverArtSource.steamGridDbApi,
-              revision: _bumpCoverRevision(cacheKey),
-            ),
-          );
+
+    final ordered = providerMode == CoverArtProviderMode.userKey
+        ? <Future<_ProviderAttempt> Function()>[
+            attemptUserKey,
+            attemptBundledProxy,
+          ]
+        : <Future<_ProviderAttempt> Function()>[
+            attemptBundledProxy,
+            attemptUserKey,
+          ];
+
+    var ranAnySource = false;
+    var everySourceConfirmedNoMatch = true;
+    for (final attempt in ordered) {
+      final result = await attempt();
+      final cover = result.cover;
+      if (cover != null) {
+        return _CoverArtProviderLookup.found(cover);
+      }
+      if (!result.ran) {
+        continue;
+      }
+      ranAnySource = true;
+      everySourceConfirmedNoMatch =
+          everySourceConfirmedNoMatch && result.confirmedNoMatch;
+    }
+
+    // "Not found" must mean every source agreed the catalog has nothing; one
+    // unreachable source makes the whole answer inconclusive, so a legacy
+    // cached cover is never discarded on the strength of a transport failure.
+    return ranAnySource && everySourceConfirmedNoMatch
+        ? const _CoverArtProviderLookup.notFound()
+        : const _CoverArtProviderLookup.unavailable();
   }
 
   Future<String> _copyIntoCache(

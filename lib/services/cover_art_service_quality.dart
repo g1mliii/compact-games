@@ -35,15 +35,16 @@ extension _CoverArtServiceQuality on CoverArtService {
     }
   }
 
+  /// Whether any SteamGridDB source is usable at all.
+  ///
+  /// The provider mode only orders the sources, so it deliberately plays no
+  /// part here: picking "use my own key" and leaving the field blank must
+  /// still fall through to the bundled proxy rather than disabling lookups.
   bool _isApiEnabled(
     String? apiKey, {
-    required CoverArtProviderMode providerMode,
     required CoverArtProxyConfig proxyConfig,
   }) {
     final normalized = apiKey?.trim();
-    if (providerMode == CoverArtProviderMode.userKey) {
-      return normalized != null && normalized.isNotEmpty;
-    }
     return proxyConfig.isConfigured ||
         (normalized != null && normalized.isNotEmpty);
   }
