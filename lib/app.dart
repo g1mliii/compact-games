@@ -19,9 +19,8 @@ import 'providers/games/game_list_provider.dart';
 import 'providers/localization/locale_provider.dart';
 import 'providers/shell/shell_action_provider.dart';
 import 'providers/system/route_state_provider.dart';
-import 'providers/settings/settings_provider.dart';
 import 'providers/system/tray_status_sync_provider.dart';
-import 'providers/update/update_provider.dart';
+import 'providers/update/update_check_coordinator.dart';
 import 'services/shell_action_dispatcher.dart';
 import 'services/prepare_uninstall_dispatcher.dart';
 import 'services/shell_launch_args.dart';
@@ -84,6 +83,9 @@ class _CompactGamesRootState extends ConsumerState<_CompactGamesRoot> {
     setState(() {
       _isHiddenToTray = isHidden;
     });
+    if (!isHidden) {
+      ref.read(updateCheckCoordinatorProvider).onWindowVisible();
+    }
   }
 
   @override
@@ -207,35 +209,20 @@ class _EffectProviderHostState extends ConsumerState<_EffectProviderHost> {
       }
       final container = ProviderScope.containerOf(context, listen: false);
       UnsupportedReportSyncService.instance.notePotentialChange(container);
+      // Instantiating the process-wide update coordinator arms its interval and
+      // runs the first check. Deliberately after the first frame, so neither the
+      // network call nor its disk follow-up competes with startup rendering.
+      ref.read(updateCheckCoordinatorProvider);
       unawaited(() async {
         // Community-list fetch and settings load run in parallel.
         final communityFuture = ref
             .read(rustBridgeServiceProvider)
             .fetchCommunityUnsupportedList();
 
-        // Await settings so autoCheckUpdates is always respected, even on
-        // first launch when settings haven't resolved before this callback.
-        var autoCheckUpdates = true;
-        try {
-          autoCheckUpdates = (await ref.read(
-            settingsProvider.future,
-          )).settings.autoCheckUpdates;
-        } catch (_) {}
-
         try {
           await communityFuture;
         } catch (_) {
           // Best effort; cache/interval handled in Rust.
-        }
-
-        // Auto-check for app updates after both complete. Steam depot builds
-        // deliberately leave file ownership to the Steam client.
-        try {
-          if (autoCheckUpdates && ref.read(selfUpdatesEnabledProvider)) {
-            await ref.read(updateProvider.notifier).checkForUpdate();
-          }
-        } catch (_) {
-          // Best effort; rate-limited in Rust.
         }
       }());
     });

@@ -33,3 +33,20 @@ class AppWindowVisibilityController extends ChangeNotifier {
 
 final AppWindowVisibilityController appWindowVisibilityController =
     AppWindowVisibilityController();
+
+/// Restores visible-only UI resources after a genuine foreground resume.
+///
+/// Windows briefly reports the Flutter app as resumed when the native tray
+/// context menu takes foreground ownership, even though the app window remains
+/// hidden. Treat the explicit window visibility state as authoritative so that
+/// opening the tray menu cannot remount the hidden UI or suppress its delayed
+/// working-set trim.
+void handleAppLifecycleResumed({
+  required AppWindowVisibilityController visibilityController,
+  required VoidCallback configureVisibleUi,
+}) {
+  if (visibilityController.isHiddenToTray) {
+    return;
+  }
+  configureVisibleUi();
+}

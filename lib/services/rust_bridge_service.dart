@@ -277,6 +277,12 @@ class RustBridgeService {
     return rust_unsupported.fetchCommunityUnsupportedList();
   }
 
+  /// The update-check rate limit Rust enforces. The automatic-check scheduler
+  /// reads it from here so the two cannot drift: a shorter Dart period would
+  /// spend its wakeups on cached no-ops, a longer one would halve the cadence.
+  Duration get updateCheckInterval =>
+      Duration(milliseconds: rust_update.updateCheckIntervalMs());
+
   Future<rust_update.UpdateCheckResult> checkForUpdate({
     required String currentVersion,
   }) {

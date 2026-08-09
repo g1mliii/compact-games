@@ -49,6 +49,71 @@ void main() {
     expect(container.read(updateProvider).value?.status, UpdateStatus.idle);
   });
 
+  test('only in-flight work blocks a new update check', () {
+    final info = rust_update.UpdateCheckResult(
+      updateAvailable: true,
+      latestVersion: '0.2.5',
+      downloadUrl: 'https://example.invalid/CompactGames-Setup-0.2.5.exe',
+      releaseNotes: '',
+      checksumSha256: '',
+      publishedAt: '',
+    );
+
+    // A re-published or superseded release must stay reachable, so every
+    // settled state can start another check.
+    for (final state in <UpdateState>[
+      const UpdateState(),
+      const UpdateState(status: UpdateStatus.error, error: 'offline'),
+      UpdateState(status: UpdateStatus.available, info: info),
+      UpdateState(status: UpdateStatus.downloaded, info: info),
+      UpdateState(status: UpdateStatus.error, info: info, error: 'download'),
+    ]) {
+      expect(canStartUpdateCheck(state), isTrue, reason: '${state.status}');
+    }
+
+    for (final state in <UpdateState>[
+      UpdateState(status: UpdateStatus.checking, info: info),
+      UpdateState(status: UpdateStatus.downloading, info: info),
+    ]) {
+      expect(canStartUpdateCheck(state), isFalse, reason: '${state.status}');
+    }
+  });
+
+  test('automatic checks additionally leave a ready installer alone', () {
+    final info = rust_update.UpdateCheckResult(
+      updateAvailable: true,
+      latestVersion: '0.2.5',
+      downloadUrl: 'https://example.invalid/CompactGames-Setup-0.2.5.exe',
+      releaseNotes: '',
+      checksumSha256: '',
+      publishedAt: '',
+    );
+
+    expect(canStartAutomaticUpdateCheck(const UpdateState()), isTrue);
+    expect(
+      canStartAutomaticUpdateCheck(
+        UpdateState(status: UpdateStatus.available, info: info),
+      ),
+      isTrue,
+    );
+    expect(
+      canStartAutomaticUpdateCheck(
+        UpdateState(status: UpdateStatus.error, info: info, error: 'download'),
+      ),
+      isTrue,
+    );
+    expect(
+      canStartAutomaticUpdateCheck(
+        UpdateState(
+          status: UpdateStatus.downloaded,
+          info: info,
+          installerPath: r'C:\updates\CompactGames-Setup-0.2.5.exe',
+        ),
+      ),
+      isFalse,
+    );
+  });
+
   testWidgets('About section keeps a retry check action after update errors', (
     WidgetTester tester,
   ) async {
@@ -212,7 +277,7 @@ class _TestUpdateNotifier extends UpdateNotifier {
   }
 
   @override
-  Future<void> checkForUpdate() async {
+  Future<void> checkForUpdate({bool automatic = false}) async {
     await onCheck?.call();
   }
 

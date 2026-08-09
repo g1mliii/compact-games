@@ -3,16 +3,35 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../services/tray_service.dart';
+import '../../services/update_installer_cache.dart';
 import '../../src/rust/api/update.dart' as rust_update;
 import '../compression/compression_provider.dart';
 import '../games/game_list_provider.dart';
 import '../settings/settings_provider.dart';
 
 enum UpdateStatus { idle, checking, available, downloading, downloaded, error }
+
+/// True when a new update check may start.
+///
+/// Only an in-flight check or download blocks one. `available`, `downloaded`
+/// and `error` must stay re-checkable: a release can be pulled and re-published
+/// with corrected metadata, and this app is expected to sit in the tray for
+/// days without a restart.
+bool canStartUpdateCheck(UpdateState state) {
+  return state.status != UpdateStatus.checking &&
+      state.status != UpdateStatus.downloading;
+}
+
+/// True when the automatic interval check may run.
+///
+/// One restriction on top of [canStartUpdateCheck]: a verified installer that
+/// is only waiting to be launched is never disturbed by a background check.
+bool canStartAutomaticUpdateCheck(UpdateState state) {
+  return canStartUpdateCheck(state) && state.status != UpdateStatus.downloaded;
+}
 
 @immutable
 class UpdateState {
@@ -83,19 +102,27 @@ final updateExitRequestProvider = Provider<UpdateExitRequest>((ref) {
   return TrayService.instance.requestQuit;
 });
 
+final updateInstallerCacheProvider = Provider<UpdateInstallerCache>((ref) {
+  return UpdateInstallerCache();
+});
+
 class UpdateNotifier extends AsyncNotifier<UpdateState> {
   @override
   Future<UpdateState> build() async {
     return const UpdateState();
   }
 
-  Future<void> checkForUpdate() async {
+  /// Set [automatic] for interval/background checks, which additionally leave a
+  /// downloaded installer alone — see [canStartAutomaticUpdateCheck].
+  Future<void> checkForUpdate({bool automatic = false}) async {
     if (!ref.read(selfUpdatesEnabledProvider)) return;
 
     final current = state.value;
     if (current == null) return;
-    if (current.status == UpdateStatus.checking ||
-        current.status == UpdateStatus.downloading) {
+    final admitted = automatic
+        ? canStartAutomaticUpdateCheck(current)
+        : canStartUpdateCheck(current);
+    if (!admitted) {
       return;
     }
 
@@ -111,12 +138,30 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
       // Re-read state after the await to avoid clobbering concurrent changes.
       final post = state.value ?? current;
       if (result.updateAvailable) {
+        // A checksum-verified installer for the version that is still current
+        // is adopted instead of being re-downloaded — the state itself does not
+        // survive a restart, but the file does.
+        final cached = await _findVerifiedInstaller(result.latestVersion);
         state = AsyncValue.data(
-          post.copyWith(status: UpdateStatus.available, info: () => result),
+          post.copyWith(
+            status: cached == null
+                ? UpdateStatus.available
+                : UpdateStatus.downloaded,
+            info: () => result,
+            installerPath: () => cached,
+          ),
         );
       } else {
-        state = AsyncValue.data(post.copyWith(status: UpdateStatus.idle));
+        state = AsyncValue.data(
+          post.copyWith(status: UpdateStatus.idle, installerPath: () => null),
+        );
       }
+
+      // Deliberately after the result: only now is it known which version is
+      // current, and the installer for that version must survive the sweep.
+      await _deleteStaleInstallers(
+        keepVersion: result.updateAvailable ? result.latestVersion : null,
+      );
     } catch (e) {
       state = AsyncValue.data(
         (state.value ?? current).copyWith(
@@ -140,10 +185,9 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
     );
 
     try {
-      final appData = await getApplicationSupportDirectory();
-      final updateDir = Directory('${appData.path}/updates');
-      final fileName = 'CompactGames-Setup-${info.latestVersion}.exe';
-      final destPath = '${updateDir.path}/$fileName';
+      final destPath = await ref
+          .read(updateInstallerCacheProvider)
+          .installerPathFor(info.latestVersion);
 
       final resultPath = await ref
           .read(rustBridgeServiceProvider)
@@ -153,6 +197,8 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
             expectedSha256: info.checksumSha256,
           );
 
+      // The installer is verified on disk here, so it becomes available before
+      // the best-effort sweep — a slow directory must never pin `downloading`.
       // Re-read state after the await to avoid clobbering concurrent changes.
       state = AsyncValue.data(
         (state.value ?? current).copyWith(
@@ -160,6 +206,8 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
           installerPath: () => resultPath,
         ),
       );
+
+      await _deleteStaleInstallers(keepVersion: info.latestVersion);
     } catch (e) {
       state = AsyncValue.data(
         (state.value ?? current).copyWith(
@@ -184,5 +232,28 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
     await ref.read(installerLauncherProvider)(installerPath);
     await ref.read(settingsProvider.notifier).flush();
     await ref.read(updateExitRequestProvider)();
+  }
+
+  Future<String?> _findVerifiedInstaller(String version) async {
+    try {
+      return await ref
+          .read(updateInstallerCacheProvider)
+          .findVerifiedInstaller(version);
+    } catch (error) {
+      debugPrint('[update] Installer cache lookup failed: $error');
+      return null;
+    }
+  }
+
+  Future<void> _deleteStaleInstallers({String? keepVersion}) async {
+    try {
+      await ref
+          .read(updateInstallerCacheProvider)
+          .deleteStaleInstallers(keepVersion: keepVersion);
+    } catch (error) {
+      // Cache cleanup is best effort and must never block update checks or a
+      // successfully verified installer from becoming available.
+      debugPrint('[update] Installer cache cleanup failed: $error');
+    }
   }
 }

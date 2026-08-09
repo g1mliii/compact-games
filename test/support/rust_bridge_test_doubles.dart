@@ -9,6 +9,9 @@ const CompressionEstimate _emptyEstimate = CompressionEstimate(
 );
 
 class _BaseRustBridgeService implements RustBridgeService {
+  @override
+  Duration get updateCheckInterval => const Duration(hours: 6);
+
   const _BaseRustBridgeService();
 
   @override

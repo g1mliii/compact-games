@@ -233,6 +233,9 @@ void main() {
 }
 
 class _MinimalBridgeService implements RustBridgeService {
+  @override
+  Duration get updateCheckInterval => const Duration(hours: 6);
+
   _MinimalBridgeService({required this.games});
   final List<GameInfo> games;
 

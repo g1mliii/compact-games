@@ -12,6 +12,7 @@ import 'widgets/home_game_grid.dart';
 import 'widgets/home_game_list_view.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_overview_panel.dart';
+import 'widgets/home_update_banner.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -29,6 +30,7 @@ class HomeScreen extends StatelessWidget {
                 child: HomeHeader(),
               ),
               const HomeCompressionBanner(),
+              const HomeUpdateBanner(),
               const HomeOverviewPanel(),
               const _HomeCoverArtNudgeSlot(),
               const Expanded(child: _HomeContentSwitcher()),

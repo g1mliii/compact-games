@@ -40,6 +40,9 @@ class _DeferredSettingsPersistence implements SettingsPersistence {
 }
 
 class _TestRustBridgeService implements RustBridgeService {
+  @override
+  Duration get updateCheckInterval => const Duration(hours: 6);
+
   _TestRustBridgeService({
     required this.games,
     this.autoCompressionRunning = false,

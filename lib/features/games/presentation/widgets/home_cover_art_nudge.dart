@@ -10,6 +10,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../models/app_settings.dart';
 import '../../../../providers/settings/settings_provider.dart';
+import 'home_update_banner.dart';
 
 /// Tracks whether the user has dismissed the nudge this session.
 /// Resets on app restart — intentional, since they may forget between sessions.
@@ -25,6 +26,9 @@ class HomeCoverArtNudge extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dismissed = ref.watch(_nudgeDismissedProvider);
     if (dismissed) return const SizedBox.shrink();
+    if (ref.watch(homeUpdateBannerModelProvider) != null) {
+      return const SizedBox.shrink();
+    }
 
     final coverSettings = ref.watch(
       settingsProvider.select((s) {

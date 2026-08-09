@@ -321,8 +321,10 @@ class _CompactGamesMemoryObserver with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         _trimmedForBackground = false;
-        UiMemoryLifecycle.configureImageCache();
-        appWindowVisibilityController.markVisible();
+        handleAppLifecycleResumed(
+          visibilityController: appWindowVisibilityController,
+          configureVisibleUi: UiMemoryLifecycle.configureImageCache,
+        );
         break;
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:

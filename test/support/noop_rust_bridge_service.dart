@@ -110,6 +110,9 @@ class NoOpRustBridgeService implements RustBridgeService {
   String normalizeGameName(String name) => name.trim();
 
   @override
+  Duration get updateCheckInterval => const Duration(hours: 6);
+
+  @override
   Future<rust_update.UpdateCheckResult> checkForUpdate({
     required String currentVersion,
   }) async => const rust_update.UpdateCheckResult(

@@ -13,6 +13,21 @@ use crate::net::{fetch_text, is_allowed_release_url, DEFAULT_HTTP_MAX_REDIRECTS}
 /// Minimum interval between update checks (6 hours).
 const UPDATE_CHECK_INTERVAL_MS: u64 = 6 * 60 * 60 * 1000;
 
+/// The update-check rate limit, in milliseconds.
+///
+/// Dart's automatic-check timer derives its period from this instead of
+/// restating it, so the scheduler cannot drift out of step with the cache
+/// window it schedules into — a shorter Dart period would spend its wakeups on
+/// cached no-ops, and a longer one would silently halve the real cadence.
+/// Returned as `u32` so Dart receives a plain `int`; `u64` would cross the
+/// bridge as `BigInt`. Any interval under ~49 days fits.
+const _: () = assert!(UPDATE_CHECK_INTERVAL_MS <= u32::MAX as u64);
+
+#[frb(sync)]
+pub fn update_check_interval_ms() -> u32 {
+    UPDATE_CHECK_INTERVAL_MS as u32
+}
+
 const LATEST_JSON_URL: &str =
     "https://github.com/g1mliii/compact-games/releases/latest/download/latest.json";
 
@@ -49,8 +64,8 @@ struct LatestManifest {
 
 /// Check GitHub Releases for a newer app version.
 ///
-/// Rate-limited to one check per 6 hours. If called within the window,
-/// returns the cached result without hitting the network.
+/// Rate-limited to one check per [`update_check_interval_ms`]. If called within
+/// the window, returns the cached result without hitting the network.
 pub fn check_for_update(current_version: String) -> Result<UpdateCheckResult, String> {
     let now_ms = now_millis();
 

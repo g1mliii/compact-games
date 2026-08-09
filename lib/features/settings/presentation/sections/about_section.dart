@@ -9,6 +9,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/compression/compression_provider.dart';
 import '../../../../providers/settings/settings_provider.dart';
 import '../../../../providers/update/update_provider.dart';
+import '../../../../providers/update/update_status_presentation.dart';
 import '../widgets/scaled_switch_row.dart';
 import '../widgets/settings_section_card.dart';
 
@@ -29,10 +30,16 @@ class AboutSection extends ConsumerWidget {
 
     if (autoCheck == null) return const SizedBox.shrink();
 
-    final status = updateState?.status ?? UpdateStatus.idle;
-    final info = updateState?.info;
-    final error = updateState?.error;
-    final canRetryDownload = info != null;
+    final update = updateState ?? const UpdateState();
+    final status = update.status;
+    final info = update.info;
+    final error = update.error;
+    final presentation = describeUpdateStatus(
+      update,
+      l10n,
+      installBlocked: hasActiveCompression,
+    );
+    final action = presentation.action;
 
     return SettingsSectionCard(
       icon: LucideIcons.info,
@@ -90,17 +97,17 @@ class AboutSection extends ConsumerWidget {
           ],
           if (selfUpdatesEnabled && status == UpdateStatus.checking)
             _SpinningStatusRow(
-              label: l10n.settingsAboutCheckingForUpdatesStatus,
-              color: AppColors.textSecondary,
+              label: presentation.message,
+              color: presentation.color,
             ),
 
           if (selfUpdatesEnabled &&
               status == UpdateStatus.error &&
               error != null) ...[
             _buildStatusRow(
-              LucideIcons.alertCircle,
-              l10n.settingsAboutUpdateFailedTitle,
-              AppColors.error,
+              presentation.icon,
+              presentation.message,
+              presentation.color,
             ),
             const SizedBox(height: 8),
             Text(
@@ -112,37 +119,19 @@ class AboutSection extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: () => canRetryDownload
-                  ? ref.read(updateProvider.notifier).downloadUpdate()
-                  : ref.read(updateProvider.notifier).checkForUpdate(),
-              icon: Icon(
-                canRetryDownload ? LucideIcons.download : LucideIcons.refreshCw,
-                size: 16,
-              ),
-              label: Text(
-                canRetryDownload
-                    ? l10n.settingsAboutRetryDownloadAction
-                    : l10n.settingsAboutRetryCheckAction,
-              ),
-            ),
+            UpdateActionButton(action: action!),
           ],
 
           if (selfUpdatesEnabled && status == UpdateStatus.idle)
-            FilledButton.icon(
-              onPressed: () =>
-                  ref.read(updateProvider.notifier).checkForUpdate(),
-              icon: const Icon(LucideIcons.refreshCw, size: 16),
-              label: Text(l10n.settingsAboutCheckForUpdatesAction),
-            ),
+            UpdateActionButton(action: action!),
 
           if (selfUpdatesEnabled &&
               status == UpdateStatus.available &&
               info != null) ...[
             _buildStatusRow(
-              LucideIcons.download,
-              l10n.settingsAboutUpdateAvailableStatus(info.latestVersion),
-              AppColors.success,
+              presentation.icon,
+              presentation.message,
+              presentation.color,
             ),
             if (info.publishedAt.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -173,18 +162,13 @@ class AboutSection extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: () =>
-                  ref.read(updateProvider.notifier).downloadUpdate(),
-              icon: const Icon(LucideIcons.download, size: 16),
-              label: Text(l10n.settingsAboutDownloadUpdateAction),
-            ),
+            UpdateActionButton(action: action!),
           ],
 
           if (selfUpdatesEnabled && status == UpdateStatus.downloading) ...[
             _SpinningStatusRow(
-              label: l10n.settingsAboutDownloadingUpdateStatus,
-              color: AppColors.richGold,
+              label: presentation.message,
+              color: presentation.color,
             ),
             const SizedBox(height: 8),
             const LinearProgressIndicator(
@@ -195,22 +179,12 @@ class AboutSection extends ConsumerWidget {
 
           if (selfUpdatesEnabled && status == UpdateStatus.downloaded) ...[
             _buildStatusRow(
-              LucideIcons.checkCircle,
-              l10n.settingsAboutUpdateReadyToInstallStatus,
-              AppColors.success,
+              presentation.icon,
+              presentation.message,
+              presentation.color,
             ),
             const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: hasActiveCompression
-                  ? null
-                  : () => ref.read(updateProvider.notifier).launchInstaller(),
-              icon: const Icon(LucideIcons.rocket, size: 16),
-              label: Text(
-                hasActiveCompression
-                    ? l10n.settingsAboutWaitingForCompressionStatus
-                    : l10n.settingsAboutInstallUpdateAndRestartAction,
-              ),
-            ),
+            UpdateActionButton(action: action!),
           ],
         ],
       ),

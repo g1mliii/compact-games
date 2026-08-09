@@ -21,6 +21,30 @@ void main() {
     appWindowVisibilityController.markVisible();
   });
 
+  test('tray-menu resume does not mark a hidden window visible', () {
+    var configureCalls = 0;
+    appWindowVisibilityController.markHiddenToTray();
+
+    handleAppLifecycleResumed(
+      visibilityController: appWindowVisibilityController,
+      configureVisibleUi: () => configureCalls += 1,
+    );
+
+    expect(appWindowVisibilityController.isHiddenToTray, isTrue);
+    expect(configureCalls, 0);
+  });
+
+  test('visible lifecycle resume restores visible UI resources', () {
+    var configureCalls = 0;
+
+    handleAppLifecycleResumed(
+      visibilityController: appWindowVisibilityController,
+      configureVisibleUi: () => configureCalls += 1,
+    );
+
+    expect(configureCalls, 1);
+  });
+
   testWidgets('tray-hidden state preserves navigator route stack on restore', (
     tester,
   ) async {
