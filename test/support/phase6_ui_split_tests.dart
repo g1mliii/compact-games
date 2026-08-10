@@ -491,6 +491,251 @@ void runPhase6OversizeSplitTests() {
     },
   );
 
+  testWidgets(
+    'Home list details expand cover and card within tall wide bounds',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1500, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameListView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pixel Raider'));
+      await tester.pumpAndSettle();
+
+      final coverRect = tester.getRect(find.byType(GameDetailsCover));
+      final infoCardRect = tester.getRect(
+        find.byKey(const ValueKey<String>('detailsInfoCard')),
+      );
+
+      expect(coverRect.width, closeTo(380, 0.01));
+      expect(coverRect.height, closeTo(570, 0.01));
+      expect(infoCardRect.width, greaterThanOrEqualTo(560));
+      expect(infoCardRect.height, greaterThanOrEqualTo(coverRect.height));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Home list details preserve base cover size when the panel is short',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1500, 620));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameListView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pixel Raider'));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(GameDetailsCover)).width, 300);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Standalone details retain the existing cover size in a tall viewport',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1500, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final game = _sampleGames.first;
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: GameDetailsScreen(gamePath: game.path),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(GameDetailsCover)).width, 300);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Home list details switch expansion only at the wide breakpoint',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1300, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameListView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pixel Raider'));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(GameDetailsCover)).width, 120);
+
+      await tester.binding.setSurfaceSize(const Size(1301, 900));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(GameDetailsCover)).width, 352);
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey<String>('detailsInfoCard')))
+            .width,
+        greaterThanOrEqualTo(560),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Home list details reuse a height bucket and rebuild at its boundary',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1500, 700));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer(
+        overrides: [
+          rustBridgeServiceProvider.overrideWithValue(
+            _TestRustBridgeService(games: _sampleGames),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(),
+            home: const Scaffold(body: HomeGameListView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pixel Raider'));
+      await tester.pumpAndSettle();
+
+      final initialCover = tester.widget<GameDetailsCover>(
+        find.byType(GameDetailsCover),
+      );
+
+      await tester.binding.setSurfaceSize(const Size(1500, 711));
+      await tester.pumpAndSettle();
+      final withinBucketCover = tester.widget<GameDetailsCover>(
+        find.byType(GameDetailsCover),
+      );
+      expect(identical(withinBucketCover, initialCover), isTrue);
+
+      await tester.binding.setSurfaceSize(const Size(1500, 712));
+      await tester.pumpAndSettle();
+      final nextBucketCover = tester.widget<GameDetailsCover>(
+        find.byType(GameDetailsCover),
+      );
+      expect(identical(nextBucketCover, withinBucketCover), isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Expanded list details scroll long content without overflowing', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1500, 650));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final game = GameInfo(
+      name: 'A deliberately long localized-style game title that wraps safely',
+      path:
+          r'C:\Games\A deliberately long install path used to verify that expanded details remain scrollable\Content\Game',
+      platform: Platform.epicGames,
+      sizeBytes: 96 * _oneGiB,
+      compressedSize: 72 * _oneGiB,
+      isCompressed: true,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: <GameInfo>[game]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeGameListView()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(game.name));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Home list rows support keyboard activation', (
     WidgetTester tester,
   ) async {

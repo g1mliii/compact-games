@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/constants/app_constants.dart';
 import '../../../../../core/localization/app_localization.dart';
 import '../../../../../core/utils/cover_art_utils.dart';
 import '../../../../../core/utils/date_time_format.dart';
@@ -26,11 +27,13 @@ class GameDetailsBody extends ConsumerStatefulWidget {
   const GameDetailsBody({
     required this.gamePath,
     this.hideCoverStatusOverlay = false,
+    this.expandToAvailableHeight = false,
     super.key,
   });
 
   static const double maxContentWidth = 1120;
   static const double _contentWidthBucket = 32;
+  static const double _contentPadding = 20;
 
   /// Cover left + info right with full-size cover art.
   static const double _wideLayoutBreakpoint = 980;
@@ -39,6 +42,12 @@ class GameDetailsBody extends ConsumerStatefulWidget {
   static const double _compactRowBreakpoint = 380;
   static const double _coverColumnWidth = 300;
   static const double _compactCoverWidth = 120;
+  static const double _expandedCoverMaxWidth = 380;
+  static const double _expandedMinDetailsWidth = 560;
+  static const double _expandedMinViewportHeight = 640;
+  static const double _expandedMaxHeightBucket = 768;
+  static const double _expandedHeightBucket = 32;
+  static const double _wideLayoutGap = 16;
 
   final String gamePath;
 
@@ -46,6 +55,11 @@ class GameDetailsBody extends ConsumerStatefulWidget {
   /// split-view list on the home screen already shows a status pill next to
   /// each game, so the overlay just duplicates that signal there.
   final bool hideCoverStatusOverlay;
+
+  /// Allows the embedded list-view details panel to use otherwise empty
+  /// vertical space. Standalone and compact details retain their existing
+  /// dimensions unless this is explicitly enabled.
+  final bool expandToAvailableHeight;
 
   @override
   ConsumerState<GameDetailsBody> createState() => _GameDetailsBodyState();
@@ -75,31 +89,54 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final contentWidth = _bucketContentWidth(constraints.maxWidth);
-        final wide = contentWidth >= GameDetailsBody._wideLayoutBreakpoint;
+        final contentWidthLimit = widget.expandToAvailableHeight
+            ? _widthInsideContentPadding(constraints.maxWidth)
+            : constraints.maxWidth;
+        final contentWidth = _bucketContentWidth(contentWidthLimit);
+        final wideBreakpointWidth = widget.expandToAvailableHeight
+            ? constraints.maxWidth
+            : contentWidth;
+        final wide =
+            wideBreakpointWidth >= GameDetailsBody._wideLayoutBreakpoint;
         final compactRow =
             contentWidth >= GameDetailsBody._compactRowBreakpoint;
+        final expandedHeightBucket = widget.expandToAvailableHeight && wide
+            ? _bucketExpandedHeight(constraints.maxHeight)
+            : null;
+        final wideCoverWidth = _wideCoverWidth(
+          contentWidth: contentWidth,
+          expandedHeightBucket: expandedHeightBucket,
+        );
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(GameDetailsBody._contentPadding),
           child: Builder(
             builder: (scrollContext) {
               final deferred = Scrollable.recommendDeferredLoadingForContext(
                 scrollContext,
               );
+              final coverDecodeMax = !wide
+                  ? 320.0
+                  : expandedHeightBucket == null
+                  ? 512.0
+                  : 640.0;
               final coverDecodeWidth = _decodeWidth(
                 dpr: dpr,
                 logicalWidth: wide
-                    ? GameDetailsBody._coverColumnWidth
+                    ? wideCoverWidth
                     : GameDetailsBody._compactCoverWidth,
                 min: wide ? 224 : 128,
-                max: wide ? 512 : 320,
+                max: coverDecodeMax,
               );
               final nextSignature = <Object?>[
                 widget.gamePath,
+                widget.hideCoverStatusOverlay,
+                widget.expandToAvailableHeight,
                 contentWidth,
                 wide,
                 compactRow,
+                expandedHeightBucket,
+                wideCoverWidth,
                 coverDecodeWidth,
                 deferred,
               ];
@@ -114,6 +151,8 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
                 contentWidth: contentWidth,
                 wide: wide,
                 compactRow: compactRow,
+                wideCoverWidth: wideCoverWidth,
+                expandedHeightBucket: expandedHeightBucket,
                 coverDecodeWidth: coverDecodeWidth,
                 deferred: deferred,
               );
@@ -132,6 +171,8 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
     required double contentWidth,
     required bool wide,
     required bool compactRow,
+    required double wideCoverWidth,
+    required double? expandedHeightBucket,
     required int coverDecodeWidth,
     required bool deferred,
   }) {
@@ -150,7 +191,14 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (wide)
-              _buildWideLayout(cover: cover, rightColumn: rightColumn)
+              _buildWideLayout(
+                cover: cover,
+                rightColumn: rightColumn,
+                coverWidth: wideCoverWidth,
+                minimumDetailsHeight: expandedHeightBucket == null
+                    ? null
+                    : wideCoverWidth / AppConstants.coverAspectRatio,
+              )
             else if (compactRow)
               _buildCompactRowLayout(cover: cover, rightColumn: rightColumn)
             else
@@ -164,13 +212,21 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
   Widget _buildWideLayout({
     required Widget cover,
     required Widget rightColumn,
+    required double coverWidth,
+    required double? minimumDetailsHeight,
   }) {
+    final details = minimumDetailsHeight == null
+        ? rightColumn
+        : ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minimumDetailsHeight),
+            child: rightColumn,
+          );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: GameDetailsBody._coverColumnWidth, child: cover),
-        const SizedBox(width: 16),
-        Expanded(child: rightColumn),
+        SizedBox(width: coverWidth, child: cover),
+        const SizedBox(width: GameDetailsBody._wideLayoutGap),
+        Expanded(child: details),
       ],
     );
   }
@@ -246,6 +302,59 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
         (clamped / GameDetailsBody._contentWidthBucket).floor() *
         GameDetailsBody._contentWidthBucket;
     return bucketed.clamp(0.0, clamped).toDouble();
+  }
+
+  static double _widthInsideContentPadding(double maxWidth) {
+    if (!maxWidth.isFinite) {
+      return maxWidth;
+    }
+
+    return (maxWidth - GameDetailsBody._contentPadding * 2)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+  }
+
+  static double? _bucketExpandedHeight(double maxHeight) {
+    if (!maxHeight.isFinite ||
+        maxHeight < GameDetailsBody._expandedMinViewportHeight) {
+      return null;
+    }
+
+    final bucketed =
+        (maxHeight / GameDetailsBody._expandedHeightBucket).floor() *
+        GameDetailsBody._expandedHeightBucket;
+    return bucketed
+        .clamp(
+          GameDetailsBody._expandedMinViewportHeight,
+          GameDetailsBody._expandedMaxHeightBucket,
+        )
+        .toDouble();
+  }
+
+  static double _wideCoverWidth({
+    required double contentWidth,
+    required double? expandedHeightBucket,
+  }) {
+    if (expandedHeightBucket == null) {
+      return GameDetailsBody._coverColumnWidth;
+    }
+
+    final widthLimit =
+        (contentWidth -
+                GameDetailsBody._wideLayoutGap -
+                GameDetailsBody._expandedMinDetailsWidth)
+            .clamp(
+              GameDetailsBody._coverColumnWidth,
+              GameDetailsBody._expandedCoverMaxWidth,
+            )
+            .toDouble();
+    final heightDrivenWidth =
+        GameDetailsBody._coverColumnWidth +
+        (expandedHeightBucket - GameDetailsBody._expandedMinViewportHeight) *
+            AppConstants.coverAspectRatio;
+    return heightDrivenWidth
+        .clamp(GameDetailsBody._coverColumnWidth, widthLimit)
+        .toDouble();
   }
 }
 

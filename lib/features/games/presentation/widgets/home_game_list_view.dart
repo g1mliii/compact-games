@@ -495,6 +495,7 @@ class _DetailPanel extends ConsumerWidget {
       // The list on the left already shows a status pill per game, so
       // suppress the cover overlay to avoid showing the same chip twice.
       hideCoverStatusOverlay: true,
+      expandToAvailableHeight: true,
     );
   }
 }
