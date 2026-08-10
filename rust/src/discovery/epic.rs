@@ -133,7 +133,12 @@ fn parse_epic_manifest_item(content: &str, mode: DiscoveryScanMode) -> Option<Ga
         return None;
     }
 
-    utils::build_game_info_with_mode(name, game_path, Platform::EpicGames, mode)
+    utils::build_game_info_with_mode_from_launcher_metadata(
+        name,
+        game_path,
+        Platform::EpicGames,
+        mode,
+    )
 }
 
 fn is_epic_system_folder(name: &str) -> bool {
@@ -264,5 +269,28 @@ mod tests {
         assert_eq!(games.len(), 1);
         assert_eq!(games[0].name, "Rocket League");
         assert_eq!(games[0].path, game_dir);
+    }
+
+    #[test]
+    fn manifest_backed_small_install_is_discovered_without_executable_probe() {
+        let _guard = lock_discovery_test();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let game_dir = temp.path().join("AShortHike");
+        fs::create_dir_all(&game_dir).unwrap();
+        fs::write(game_dir.join("payload.bin"), vec![0_u8; 1024]).unwrap();
+        let manifest = serde_json::json!({
+            "DisplayName": "A Short Hike",
+            "InstallLocation": game_dir.display().to_string(),
+            "InstallSize": 1024,
+        })
+        .to_string();
+
+        let game = parse_epic_manifest_item(&manifest, DiscoveryScanMode::Full)
+            .expect("launcher manifest should be authoritative install evidence");
+
+        assert_eq!(game.name, "A Short Hike");
+        assert_eq!(game.path, game_dir);
+        assert_eq!(game.platform, Platform::EpicGames);
     }
 }

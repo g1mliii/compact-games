@@ -65,6 +65,9 @@ class NoOpRustBridgeService implements RustBridgeService {
   Future<List<GameInfo>> getAllGamesQuick() async => const <GameInfo>[];
 
   @override
+  Future<List<GameInfo>> refreshAllGames() async => const <GameInfo>[];
+
+  @override
   Future<GameInfo?> hydrateGame({
     required String gamePath,
     required String gameName,

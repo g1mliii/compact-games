@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/app_localization.dart';
 import '../cover_art/cover_art_provider.dart';
 import 'game_list_provider.dart';
 
@@ -26,4 +28,51 @@ Future<bool> refreshGamesAndInvalidateCovers(WidgetRef ref) async {
     ref.invalidate(coverArtProvider(path));
   }
   return refreshed;
+}
+
+/// Run a library refresh with immediate and terminal user feedback.
+///
+/// A full metadata scan can take time on large compressed libraries. Keep one
+/// persistent progress message visible until it finishes, then replace it with
+/// the actual outcome so the refresh action never appears inert.
+Future<void> refreshGamesWithFeedback(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final l10n = context.l10n;
+  final messenger = ScaffoldMessenger.of(context);
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        duration: const Duration(days: 1),
+        content: Row(
+          children: [
+            const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Text(l10n.activityScanningFiles),
+          ],
+        ),
+      ),
+    );
+
+  final refreshed = await refreshGamesAndInvalidateCovers(ref);
+  if (messenger.mounted) {
+    messenger.hideCurrentSnackBar();
+  }
+  if (!context.mounted) return;
+
+  final listState = ref.read(gameListProvider);
+  final failed = listState.hasError || listState.value?.error != null;
+  final message = !refreshed
+      ? l10n.inventoryRescanAlreadyRunning
+      : failed
+      ? l10n.inventoryRescanFailed
+      : l10n.inventoryRescanCompleted;
+  messenger.showSnackBar(
+    SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+  );
 }

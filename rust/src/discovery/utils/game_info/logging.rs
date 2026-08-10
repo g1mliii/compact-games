@@ -24,5 +24,6 @@ fn mode_label(mode: DiscoveryScanMode) -> &'static str {
     match mode {
         DiscoveryScanMode::Quick => "quick",
         DiscoveryScanMode::Full => "full",
+        DiscoveryScanMode::Refresh => "refresh",
     }
 }

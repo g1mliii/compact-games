@@ -61,41 +61,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   /// reports its outcome rather than leaving the user guessing whether the
   /// button did anything.
   Future<void> _runRefresh() async {
-    final l10n = context.l10n;
-    final messenger = ScaffoldMessenger.of(context);
-    final refreshed = await refreshGamesAndInvalidateCovers(ref);
-    if (!mounted) return;
-
-    final listState = ref.read(gameListProvider);
-    // Discovery captures its failures into the state rather than throwing, so
-    // a failure can arrive on either channel: an AsyncError, or a data value
-    // carrying `error`. Missing the first would report it as a success.
-    final failed = listState.hasError || listState.value?.error != null;
-
-    final String message;
-    if (!refreshed) {
-      // A concurrent refresh (watcher, home header) owned the reload, so this
-      // press changed nothing — say that rather than claiming a rescan or, as
-      // before, saying nothing at all and reviving the "did it work?" doubt.
-      message = l10n.inventoryRescanAlreadyRunning;
-    } else {
-      // Deliberately no count: the table below is filtered by the search query
-      // and excluded paths, so any total would contradict the visible rows.
-      message = failed
-          ? l10n.inventoryRescanFailed
-          : l10n.inventoryRescanCompleted;
-    }
-
-    messenger.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
+    await refreshGamesWithFeedback(context, ref);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final games = ref.watch(gameListProvider.select((s) => s.value?.games));
-    final isLoading = ref.watch(gameListProvider.select((s) => s.isLoading));
+    final isLoading = ref.watch(
+      gameListProvider.select(
+        (s) => s.isLoading || (s.value?.isRefreshing ?? false),
+      ),
+    );
     final hasError = ref.watch(gameListProvider.select((s) => s.hasError));
     final errorValue = ref.watch(
       gameListProvider.select((s) => s.hasError ? s.error : null),
@@ -134,7 +111,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           IconButton(
             key: InventoryScreen.refreshButtonKey,
             tooltip: l10n.inventoryRefreshTooltip,
-            icon: const Icon(LucideIcons.refreshCw),
+            icon: isLoading
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(LucideIcons.refreshCw),
             onPressed: refreshAllowed ? () => unawaited(_runRefresh()) : null,
           ),
         ],

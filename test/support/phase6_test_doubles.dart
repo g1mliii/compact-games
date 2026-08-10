@@ -148,6 +148,9 @@ class _TestRustBridgeService implements RustBridgeService {
   }
 
   @override
+  Future<List<GameInfo>> refreshAllGames() async => getAllGames();
+
+  @override
   CompressionProgress? getCompressionProgress() {
     return null;
   }

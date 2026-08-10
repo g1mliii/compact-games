@@ -47,12 +47,39 @@ impl AutoScheduler {
 
     /// Restore from journal or create a fresh scheduler.
     pub fn restore_or_new(config: SchedulerConfig, journal: JournalWriter) -> Self {
+        Self::restore_or_new_with_completion_check(config, journal, |entry| {
+            let queued_at_ms = entry
+                .queued_at
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            let completed_at_ms =
+                crate::compression::history::latest_compression_timestamp_ms(&entry.game_path);
+            compression_completed_after_job_was_queued(queued_at_ms, completed_at_ms)
+        })
+    }
+
+    fn restore_or_new_with_completion_check(
+        config: SchedulerConfig,
+        journal: JournalWriter,
+        is_already_completed: impl Fn(&JournalEntry) -> bool,
+    ) -> Self {
         let mut scheduler = Self::new(config, journal);
         if let Ok(count) = scheduler.journal.load() {
             if count > 0 {
                 log::info!("Restored {count} pending jobs from journal");
                 let entries = scheduler.journal.snapshot();
+                let mut completed_entries = 0_usize;
                 for entry in entries {
+                    // Compression records are written before the worker reports
+                    // success and removes its journal entry. An updater, crash,
+                    // or forced close in that narrow window can therefore leave
+                    // a completed job on disk. Do not replay it after restart.
+                    if is_already_completed(&entry) {
+                        scheduler.journal.remove(&entry.idempotency_key);
+                        completed_entries = completed_entries.saturating_add(1);
+                        continue;
+                    }
                     let job = AutomationJob {
                         game_path: entry.game_path,
                         game_name: entry.game_name,
@@ -68,6 +95,14 @@ impl AutoScheduler {
                         error: None,
                     };
                     scheduler.enqueue_job(job);
+                }
+                if completed_entries > 0 {
+                    log::info!(
+                        "Discarded {completed_entries} journal job(s) already proven complete by compression history"
+                    );
+                    if let Err(error) = scheduler.journal.flush() {
+                        log::warn!("Failed to persist completed journal cleanup: {error}");
+                    }
                 }
                 if !scheduler.queue.is_empty() {
                     scheduler.state = SchedulerState::WaitingForIdle;
@@ -507,4 +542,11 @@ impl AutoScheduler {
             }
         });
     }
+}
+
+fn compression_completed_after_job_was_queued(
+    queued_at_ms: u64,
+    completed_at_ms: Option<u64>,
+) -> bool {
+    completed_at_ms.is_some_and(|completed_at_ms| completed_at_ms >= queued_at_ms)
 }

@@ -370,21 +370,24 @@ void main() {
   );
 
   test(
-    'launchInstaller flushes settings and exits through injected close path',
+    'launchInstaller flushes settings before starting installer and exits',
     () async {
       final persistence = _MemorySettingsPersistence(
         const AppSettings(autoCheckUpdates: true),
       );
       var launchedInstallerPath = '';
       var exitCalls = 0;
+      final lifecycle = <String>[];
 
       final container = ProviderContainer(
         overrides: [
           settingsPersistenceProvider.overrideWithValue(persistence),
           installerLauncherProvider.overrideWithValue((installerPath) async {
+            lifecycle.add('installer');
             launchedInstallerPath = installerPath;
           }),
           updateExitRequestProvider.overrideWithValue(() async {
+            lifecycle.add('exit');
             exitCalls += 1;
           }),
           updateProvider.overrideWith(
@@ -403,11 +406,14 @@ void main() {
       await container.read(updateProvider.future);
       container.read(settingsProvider.notifier).setAutoCheckUpdates(false);
 
+      persistence.onSave = () => lifecycle.add('settings');
+
       await container.read(updateProvider.notifier).launchInstaller();
 
       expect(launchedInstallerPath, r'C:\updates\CompactGames-Setup-0.2.0.exe');
       expect(exitCalls, 1);
       expect(persistence.savedSettings?.autoCheckUpdates, isFalse);
+      expect(lifecycle, <String>['settings', 'installer', 'exit']);
     },
   );
 }
@@ -488,6 +494,7 @@ class _MemorySettingsPersistence implements SettingsPersistence {
 
   AppSettings _current;
   AppSettings? savedSettings;
+  void Function()? onSave;
 
   @override
   Future<AppSettings> load() async {
@@ -498,6 +505,7 @@ class _MemorySettingsPersistence implements SettingsPersistence {
   Future<void> save(AppSettings settings) async {
     _current = settings;
     savedSettings = settings;
+    onSave?.call();
   }
 }
 

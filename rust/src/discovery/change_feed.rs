@@ -129,7 +129,7 @@ pub fn plan_subdir_scan(
     let root_key = normalize_path_key(scan_root);
     let snapshot_entries = build_snapshot_entries(candidates);
 
-    if mode != DiscoveryScanMode::Full {
+    if mode == DiscoveryScanMode::Quick {
         return CandidatePlan {
             changed: candidates.to_vec(),
             unchanged: Vec::new(),
@@ -147,6 +147,24 @@ pub fn plan_subdir_scan(
             .map(|root| root.entries.clone())
             .unwrap_or_default()
     });
+
+    if mode == DiscoveryScanMode::Refresh {
+        let current_keys = snapshot_entries.keys().cloned().collect::<HashSet<_>>();
+        let deleted = previous_entries
+            .values()
+            .filter(|entry| !current_keys.contains(&normalize_path_key(Path::new(&entry.path))))
+            .map(|entry| PathBuf::from(&entry.path))
+            .collect();
+        return CandidatePlan {
+            changed: candidates.to_vec(),
+            unchanged: Vec::new(),
+            deleted,
+            scan_path: ScanPath::FullRebuild,
+            reason: "user-refresh",
+            root_key,
+            snapshot_entries,
+        };
+    }
 
     if FORCE_FULL_REBUILD.load(Ordering::Relaxed) {
         return CandidatePlan {
@@ -531,6 +549,35 @@ mod tests {
         let next = vec![("GameA".to_owned(), game_a)];
         let second = plan_subdir_scan(root.path(), &next, DiscoveryScanMode::Full);
         assert_eq!(second.deleted.len(), 1);
+
+        clear_all();
+    }
+
+    #[test]
+    fn refresh_plan_rebuilds_unchanged_candidates_and_keeps_deleted_detection() {
+        let _guard = lock_discovery_test();
+        clear_all();
+
+        let root = tempfile::TempDir::new().unwrap();
+        let game_a = root.path().join("GameA");
+        let game_b = root.path().join("GameB");
+        fs::create_dir_all(&game_a).unwrap();
+        fs::create_dir_all(&game_b).unwrap();
+        let baseline = vec![
+            ("GameA".to_owned(), game_a.clone()),
+            ("GameB".to_owned(), game_b.clone()),
+        ];
+        plan_subdir_scan(root.path(), &baseline, DiscoveryScanMode::Full).commit();
+
+        fs::remove_dir_all(&game_b).unwrap();
+        let current = vec![("GameA".to_owned(), game_a.clone())];
+        let refresh = plan_subdir_scan(root.path(), &current, DiscoveryScanMode::Refresh);
+
+        assert_eq!(refresh.scan_path, ScanPath::FullRebuild);
+        assert_eq!(refresh.reason, "user-refresh");
+        assert_eq!(refresh.changed, current);
+        assert!(refresh.unchanged.is_empty());
+        assert_eq!(refresh.deleted, vec![game_b]);
 
         clear_all();
     }

@@ -59,6 +59,52 @@ pub fn build_game_info_with_mode_and_stats_path(
     platform: Platform,
     mode: DiscoveryScanMode,
 ) -> Option<GameInfo> {
+    build_game_info_with_mode_and_stats_path_evidence(
+        name, game_path, stats_path, platform, mode, false,
+    )
+}
+
+/// Build metadata for an install whose launcher metadata is authoritative.
+///
+/// Exact manifests, registry records, and launcher install databases are
+/// stronger install evidence than the generic size and executable probe. Small
+/// games and apps can legitimately have no executable in the first bounded
+/// probe window, but they must still be discoverable when their launcher says
+/// the install is present at this exact path.
+pub fn build_game_info_with_mode_from_launcher_metadata(
+    name: String,
+    game_path: PathBuf,
+    platform: Platform,
+    mode: DiscoveryScanMode,
+) -> Option<GameInfo> {
+    let stats_path = game_path.clone();
+    build_game_info_with_mode_and_stats_path_evidence(
+        name, game_path, stats_path, platform, mode, true,
+    )
+}
+
+/// Launcher-metadata variant for platforms whose public install root differs
+/// from the directory that contains the game payload (notably Xbox Content).
+pub fn build_game_info_with_mode_and_stats_path_from_launcher_metadata(
+    name: String,
+    game_path: PathBuf,
+    stats_path: PathBuf,
+    platform: Platform,
+    mode: DiscoveryScanMode,
+) -> Option<GameInfo> {
+    build_game_info_with_mode_and_stats_path_evidence(
+        name, game_path, stats_path, platform, mode, true,
+    )
+}
+
+fn build_game_info_with_mode_and_stats_path_evidence(
+    name: String,
+    game_path: PathBuf,
+    stats_path: PathBuf,
+    platform: Platform,
+    mode: DiscoveryScanMode,
+    launcher_metadata_verified: bool,
+) -> Option<GameInfo> {
     if !stats_path.exists() {
         evict_candidate(&stats_path);
         log_candidate_decision(
@@ -91,7 +137,12 @@ pub fn build_game_info_with_mode_and_stats_path(
 
     if mode == DiscoveryScanMode::Quick {
         if let Some(cached) = cache::lookup(&stats_path, &token) {
-            if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
+            if !is_admitted_install(
+                &stats_path,
+                cached.logical_size,
+                platform,
+                launcher_metadata_verified,
+            ) {
                 evict_candidate(&stats_path);
                 log_candidate_decision(
                     "skip",
@@ -133,11 +184,13 @@ pub fn build_game_info_with_mode_and_stats_path(
                 return None;
             }
 
-            if !is_plausible_current_install_for_stale_cache(
-                &stats_path,
-                current_sample_logical_size,
-                platform,
-            ) {
+            if !launcher_metadata_verified
+                && !is_plausible_current_install_for_stale_cache(
+                    &stats_path,
+                    current_sample_logical_size,
+                    platform,
+                )
+            {
                 evict_candidate(&stats_path);
                 log_candidate_decision(
                     "skip",
@@ -150,7 +203,9 @@ pub fn build_game_info_with_mode_and_stats_path(
                 return None;
             }
 
-            if is_probable_uninstall_remnant(&stats_path, current_sample_logical_size) {
+            if !launcher_metadata_verified
+                && is_probable_uninstall_remnant(&stats_path, current_sample_logical_size)
+            {
                 evict_candidate(&stats_path);
                 log_candidate_decision(
                     "skip",
@@ -188,7 +243,12 @@ pub fn build_game_info_with_mode_and_stats_path(
             return None;
         }
 
-        if !is_likely_installed_game(&stats_path, stats.logical_size, platform) {
+        if !is_admitted_install(
+            &stats_path,
+            stats.logical_size,
+            platform,
+            launcher_metadata_verified,
+        ) {
             evict_candidate(&stats_path);
             log_candidate_decision(
                 "skip",
@@ -221,8 +281,18 @@ pub fn build_game_info_with_mode_and_stats_path(
         ));
     }
 
-    if let Some(mut indexed_game) = index::lookup(&stats_path, &token) {
-        if !is_likely_installed_game(&stats_path, indexed_game.size_bytes, platform) {
+    let indexed_game = if mode == DiscoveryScanMode::Full {
+        index::lookup(&stats_path, &token)
+    } else {
+        None
+    };
+    if let Some(mut indexed_game) = indexed_game {
+        if !is_admitted_install(
+            &stats_path,
+            indexed_game.size_bytes,
+            platform,
+            launcher_metadata_verified,
+        ) {
             evict_candidate(&stats_path);
             log_candidate_decision(
                 "skip",
@@ -254,8 +324,18 @@ pub fn build_game_info_with_mode_and_stats_path(
 
     // Full scan uses TTL-aware lookup: entries older than 10 minutes are
     // re-verified even when the change token still matches.
-    if let Some(cached) = cache::lookup_fresh(&stats_path, &token) {
-        if !is_likely_installed_game(&stats_path, cached.logical_size, platform) {
+    let cached_stats = if mode == DiscoveryScanMode::Full {
+        cache::lookup_fresh(&stats_path, &token)
+    } else {
+        None
+    };
+    if let Some(cached) = cached_stats {
+        if !is_admitted_install(
+            &stats_path,
+            cached.logical_size,
+            platform,
+            launcher_metadata_verified,
+        ) {
             evict_candidate(&stats_path);
             log_candidate_decision(
                 "skip",
@@ -309,7 +389,12 @@ pub fn build_game_info_with_mode_and_stats_path(
         return None;
     }
 
-    if !is_likely_installed_game(&stats_path, stats.logical_size, platform) {
+    if !is_admitted_install(
+        &stats_path,
+        stats.logical_size,
+        platform,
+        launcher_metadata_verified,
+    ) {
         evict_candidate(&stats_path);
         log_candidate_decision(
             "skip",
@@ -322,7 +407,8 @@ pub fn build_game_info_with_mode_and_stats_path(
         return None;
     }
 
-    if is_probable_uninstall_remnant(&stats_path, stats.logical_size) {
+    if !launcher_metadata_verified && is_probable_uninstall_remnant(&stats_path, stats.logical_size)
+    {
         evict_candidate(&stats_path);
         log_candidate_decision(
             "skip",
@@ -466,6 +552,16 @@ fn is_likely_installed_game(path: &Path, logical_size: u64, platform: Platform) 
     }
 
     has_game_executable(path)
+}
+
+fn is_admitted_install(
+    path: &Path,
+    logical_size: u64,
+    platform: Platform,
+    launcher_metadata_verified: bool,
+) -> bool {
+    (launcher_metadata_verified && logical_size > 0)
+        || is_likely_installed_game(path, logical_size, platform)
 }
 
 /// Validates stale-cache fallback against the *current* filesystem view.

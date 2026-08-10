@@ -28,10 +28,18 @@ class HomeHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final isRefreshing = ref.watch(
+      gameListProvider.select(
+        (state) => state.isLoading || (state.value?.isRefreshing ?? false),
+      ),
+    );
     final refreshButton = _HeaderActionIconButton(
       icon: LucideIcons.refreshCw,
       tooltip: l10n.homeRefreshGamesTooltip,
-      onPressed: () => unawaited(refreshGamesAndInvalidateCovers(ref)),
+      loading: isRefreshing,
+      onPressed: isRefreshing
+          ? null
+          : () => unawaited(refreshGamesWithFeedback(context, ref)),
     );
     const viewToggleGroup = _HeaderViewToggleGroup();
     final inventoryButton = _HeaderActionIconButton(
@@ -286,11 +294,13 @@ class _HeaderActionIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
+    this.loading = false,
   });
 
   final IconData icon;
   final String tooltip;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final bool loading;
 
   static const _borderRadius = BorderRadius.all(Radius.circular(12));
 
@@ -308,7 +318,12 @@ class _HeaderActionIconButton extends StatelessWidget {
           height: appDesktopFrequentActionMin,
         ),
         padding: const EdgeInsets.all(12),
-        icon: Icon(icon, size: 18),
+        icon: loading
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(icon, size: 18),
         color: AppColors.textSecondary,
         onPressed: onPressed,
         tooltip: tooltip,

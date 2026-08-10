@@ -306,8 +306,12 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
     if (compressionState.hasActiveJob) return;
 
     final installerPath = current.installerPath!;
-    await ref.read(installerLauncherProvider)(installerPath);
+    // The silent installer is allowed to close this process. Finish app-owned
+    // persistence before it starts so forced-close timing cannot race pending
+    // settings writes (native compression/discovery state is persisted at the
+    // operation boundary in Rust).
     await ref.read(settingsProvider.notifier).flush();
+    await ref.read(installerLauncherProvider)(installerPath);
     await ref.read(updateExitRequestProvider)();
   }
 

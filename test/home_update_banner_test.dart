@@ -3,10 +3,12 @@ import 'package:compact_games/features/games/presentation/widgets/home_update_ba
 import 'package:compact_games/providers/compression/compression_progress_provider.dart';
 import 'package:compact_games/providers/compression/compression_state.dart';
 import 'package:compact_games/providers/update/update_provider.dart';
+import 'package:compact_games/providers/update/update_status_presentation.dart';
 import 'package:compact_games/src/rust/api/update.dart' as rust_update;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 void main() {
   testWidgets('available update downloads inline and can be dismissed', (
@@ -88,7 +90,22 @@ void main() {
     );
 
     expect(find.text('Update downloaded and ready to install'), findsOneWidget);
-    await tester.tap(find.byKey(homeUpdateActionKey));
+    final installAction = find.byKey(homeUpdateActionKey);
+    expect(
+      find.descendant(
+        of: installAction,
+        matching: find.byIcon(updateInstallRestartIcon),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: installAction,
+        matching: find.byIcon(LucideIcons.rocket),
+      ),
+      findsNothing,
+    );
+    await tester.tap(installAction);
     await tester.pump();
     expect(installCalls, 1);
 

@@ -26,7 +26,21 @@ pub fn get_all_games_quick() -> Result<Vec<FrbGameInfo>, FrbDiscoveryError> {
     Ok(frb_games)
 }
 
-/// Clear persisted and in-memory discovery cache.
+/// Re-scan all platforms for an explicit user refresh.
+///
+/// This bypasses the incremental index and stats-cache reuse while preserving
+/// hidden paths and install history. Fresh entries replace prior metadata only
+/// after their authoritative filesystem scan succeeds.
+pub fn refresh_all_games() -> Result<Vec<FrbGameInfo>, FrbDiscoveryError> {
+    let all_games = utils::scan_all_platforms_with_mode(DiscoveryScanMode::Refresh);
+    let frb_games: Vec<FrbGameInfo> = all_games.into_iter().map(FrbGameInfo::from).collect();
+    Ok(frb_games)
+}
+
+/// Destructively reset all persisted and in-memory discovery metadata.
+///
+/// This includes hidden-path tombstones and install-size history. User-facing
+/// refreshes must call [`refresh_all_games`] instead.
 #[frb(sync)]
 pub fn clear_discovery_cache() {
     crate::discovery::cache::clear_all();

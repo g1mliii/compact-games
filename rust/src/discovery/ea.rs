@@ -70,7 +70,7 @@ fn scan_ea_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
                     return None;
                 }
 
-                utils::build_game_info_with_mode(key_name, game_path, Platform::EaApp, mode)
+                build_ea_registered_game(key_name, game_path, mode)
             })
             .collect();
 
@@ -78,6 +78,14 @@ fn scan_ea_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     }
 
     games
+}
+
+fn build_ea_registered_game(
+    name: String,
+    game_path: PathBuf,
+    mode: DiscoveryScanMode,
+) -> Option<GameInfo> {
+    utils::build_game_info_with_mode_from_launcher_metadata(name, game_path, Platform::EaApp, mode)
 }
 
 #[cfg(not(windows))]
@@ -129,7 +137,7 @@ fn parse_ea_install_json(content: &str, mode: DiscoveryScanMode) -> Option<GameI
         return None;
     }
 
-    utils::build_game_info_with_mode(name, game_path, Platform::EaApp, mode)
+    build_ea_registered_game(name, game_path, mode)
 }
 
 #[cfg(test)]
@@ -168,5 +176,23 @@ mod tests {
             DiscoveryScanMode::Full,
         );
         assert!(games.is_empty());
+    }
+
+    #[test]
+    fn install_json_backed_small_install_is_discovered() {
+        let _guard = crate::discovery::test_sync::lock_discovery_test();
+        let temp = tempfile::TempDir::new().unwrap();
+        std::fs::write(temp.path().join("payload.bin"), vec![0_u8; 1024]).unwrap();
+        let json = serde_json::json!({
+            "displayName": "Small EA Game",
+            "installLocation": temp.path().display().to_string(),
+        })
+        .to_string();
+
+        let game = parse_ea_install_json(&json, DiscoveryScanMode::Full)
+            .expect("EA install metadata is authoritative install evidence");
+
+        assert_eq!(game.name, "Small EA Game");
+        assert_eq!(game.platform, Platform::EaApp);
     }
 }

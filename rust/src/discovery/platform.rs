@@ -21,12 +21,15 @@ pub enum Platform {
 /// Discovery scan strategy.
 ///
 /// `Quick` prioritizes responsiveness and may use cached or sampled metadata.
-/// `Full` computes authoritative metadata and refreshes persistent cache entries.
+/// `Full` performs an incremental, TTL-aware scan suitable for startup.
+/// `Refresh` bypasses reusable metadata so an explicit user refresh recomputes
+/// authoritative filesystem statistics without deleting behavioral state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DiscoveryScanMode {
     Quick,
     #[default]
     Full,
+    Refresh,
 }
 
 impl std::fmt::Display for Platform {

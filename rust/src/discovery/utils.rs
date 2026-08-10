@@ -7,11 +7,13 @@ pub use dedupe::merge_games;
 pub(crate) use game_info::is_non_game_exe;
 pub use game_info::{
     build_game_info, build_game_info_with_mode, build_game_info_with_mode_and_stats_path,
+    build_game_info_with_mode_and_stats_path_from_launcher_metadata,
+    build_game_info_with_mode_from_launcher_metadata,
 };
 pub use scanning::{
-    build_games_from_candidates, evict_discovery_entry, scan_all_platforms,
-    scan_all_platforms_with_mode, scan_custom_paths, scan_custom_paths_with_mode,
-    scan_game_subdirs,
+    build_games_from_candidates, build_games_from_launcher_metadata_candidates,
+    evict_discovery_entry, scan_all_platforms, scan_all_platforms_with_mode, scan_custom_paths,
+    scan_custom_paths_with_mode, scan_game_subdirs,
 };
 pub use stats::{
     dir_has_wof_compressed_file, dir_stats, dir_stats_authoritative, dir_stats_quick, DirStats,

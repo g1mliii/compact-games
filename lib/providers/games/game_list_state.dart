@@ -40,6 +40,7 @@ class GameListState {
   final SortDirection sortDirection;
   final DateTime? lastRefreshed;
   final String? error;
+  final bool isRefreshing;
 
   const GameListState({
     this.games = const [],
@@ -50,6 +51,7 @@ class GameListState {
     this.sortDirection = SortDirection.ascending,
     this.lastRefreshed,
     this.error,
+    this.isRefreshing = false,
   });
 
   int get totalSizeBytes {
@@ -82,6 +84,7 @@ class GameListState {
     SortDirection? sortDirection,
     DateTime? Function()? lastRefreshed,
     String? Function()? error,
+    bool? isRefreshing,
   }) {
     return GameListState(
       games: games ?? this.games,
@@ -94,6 +97,7 @@ class GameListState {
           ? lastRefreshed()
           : this.lastRefreshed,
       error: error != null ? error() : this.error,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
     );
   }
 }

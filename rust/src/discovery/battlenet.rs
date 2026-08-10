@@ -136,7 +136,7 @@ fn parse_product_install(content: &str, mode: DiscoveryScanMode) -> Vec<GameInfo
             }
 
             let display_name = resolve_battlenet_name(&folder_name);
-            utils::build_game_info_with_mode(display_name, game_path, Platform::BattleNet, mode)
+            build_battlenet_registered_game(display_name, game_path, mode)
         })
         .collect()
 }
@@ -216,14 +216,25 @@ fn scan_battlenet_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
             continue;
         }
 
-        if let Some(game) =
-            utils::build_game_info_with_mode(name, game_path, Platform::BattleNet, mode)
-        {
+        if let Some(game) = build_battlenet_registered_game(name, game_path, mode) {
             games.push(game);
         }
     }
 
     games
+}
+
+fn build_battlenet_registered_game(
+    name: String,
+    game_path: PathBuf,
+    mode: DiscoveryScanMode,
+) -> Option<GameInfo> {
+    utils::build_game_info_with_mode_from_launcher_metadata(
+        name,
+        game_path,
+        Platform::BattleNet,
+        mode,
+    )
 }
 
 #[cfg(not(windows))]
@@ -308,6 +319,23 @@ mod tests {
     #[test]
     fn resolve_battlenet_name_unknown() {
         assert_eq!(resolve_battlenet_name("SomeGame"), "SomeGame");
+    }
+
+    #[test]
+    fn launcher_record_backed_small_install_is_discovered() {
+        let _guard = crate::discovery::test_sync::lock_discovery_test();
+        let temp = tempfile::TempDir::new().unwrap();
+        std::fs::write(temp.path().join("payload.bin"), vec![0_u8; 1024]).unwrap();
+
+        let game = build_battlenet_registered_game(
+            "Small Battle.net Game".to_owned(),
+            temp.path().to_path_buf(),
+            DiscoveryScanMode::Full,
+        )
+        .expect("Battle.net install record is authoritative install evidence");
+
+        assert_eq!(game.name, "Small Battle.net Game");
+        assert_eq!(game.platform, Platform::BattleNet);
     }
 
     #[test]

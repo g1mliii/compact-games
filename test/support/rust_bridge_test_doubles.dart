@@ -75,6 +75,11 @@ class _BaseRustBridgeService implements RustBridgeService {
   }
 
   @override
+  Future<List<GameInfo>> refreshAllGames() async {
+    return getAllGames();
+  }
+
+  @override
   Future<GameInfo?> hydrateGame({
     required String gamePath,
     required String gameName,
@@ -276,6 +281,7 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   int clearDiscoveryCacheEntryCalls = 0;
   int getAllGamesCalls = 0;
   int getAllGamesQuickCalls = 0;
+  int refreshAllGamesCalls = 0;
   int scanCustomFolderCalls = 0;
   int startAutoCompressionCalls = 0;
   int updateAutomationConfigCalls = 0;
@@ -334,6 +340,12 @@ class _RecordingRustBridgeService extends _StaticRustBridgeService {
   Future<List<GameInfo>> getAllGamesQuick() async {
     getAllGamesQuickCalls += 1;
     return super.getAllGamesQuick();
+  }
+
+  @override
+  Future<List<GameInfo>> refreshAllGames() async {
+    refreshAllGamesCalls += 1;
+    return games;
   }
 
   @override
@@ -404,6 +416,7 @@ class _QuickThenFullRustBridgeService extends _BaseRustBridgeService {
   int clearDiscoveryCacheCalls = 0;
   int getAllGamesCalls = 0;
   int getAllGamesQuickCalls = 0;
+  int refreshAllGamesCalls = 0;
 
   @override
   void clearDiscoveryCache() {
@@ -421,6 +434,13 @@ class _QuickThenFullRustBridgeService extends _BaseRustBridgeService {
   Future<List<GameInfo>> getAllGamesQuick() async {
     getAllGamesQuickCalls += 1;
     return quickGames;
+  }
+
+  @override
+  Future<List<GameInfo>> refreshAllGames() async {
+    refreshAllGamesCalls += 1;
+    await _fullLoadCompleter.future;
+    return fullGames;
   }
 
   void releaseFullLoad() {

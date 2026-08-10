@@ -246,6 +246,9 @@ class _MinimalBridgeService implements RustBridgeService {
   Future<List<GameInfo>> getAllGames() async => games;
   @override
   Future<List<GameInfo>> getAllGamesQuick() async => games;
+
+  @override
+  Future<List<GameInfo>> refreshAllGames() async => games;
   @override
   String initApp() => 'ok';
   @override

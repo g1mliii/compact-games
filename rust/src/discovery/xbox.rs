@@ -66,21 +66,33 @@ fn scan_xbox_dir(xbox_path: &std::path::Path, mode: DiscoveryScanMode) -> Vec<Ga
             let folder_name = e.file_name().to_string_lossy().into_owned();
 
             // Xbox games have a "Content" subfolder typically - use it for size calc
-            let size_path = if game_path.join("Content").is_dir() {
-                game_path.join("Content")
+            let content_path = game_path.join("Content");
+            let has_launcher_content = content_path.is_dir();
+            let size_path = if has_launcher_content {
+                content_path
             } else {
                 game_path.clone()
             };
 
             let name = clean_xbox_name(&folder_name);
 
-            utils::build_game_info_with_mode_and_stats_path(
-                name,
-                game_path,
-                size_path,
-                Platform::XboxGamePass,
-                mode,
-            )
+            if has_launcher_content {
+                utils::build_game_info_with_mode_and_stats_path_from_launcher_metadata(
+                    name,
+                    game_path,
+                    size_path,
+                    Platform::XboxGamePass,
+                    mode,
+                )
+            } else {
+                utils::build_game_info_with_mode_and_stats_path(
+                    name,
+                    game_path,
+                    size_path,
+                    Platform::XboxGamePass,
+                    mode,
+                )
+            }
         })
         .collect()
 }
@@ -118,7 +130,12 @@ fn scan_xbox_registry(mode: DiscoveryScanMode) -> Vec<GameInfo> {
                     .unwrap_or_else(|| key_name.clone()),
             );
 
-            utils::build_game_info_with_mode(name, game_path, Platform::XboxGamePass, mode)
+            utils::build_game_info_with_mode_from_launcher_metadata(
+                name,
+                game_path,
+                Platform::XboxGamePass,
+                mode,
+            )
         })
         .collect()
 }
@@ -218,5 +235,22 @@ mod tests {
         let scanner = XboxScanner::with_path(PathBuf::from(r"C:\NonExistent\XboxGames"));
         let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn content_backed_small_install_is_discovered() {
+        let _guard = crate::discovery::test_sync::lock_discovery_test();
+        let temp = tempfile::TempDir::new().unwrap();
+        let game_root = temp.path().join("Studio.SmallXboxGame");
+        let content = game_root.join("Content");
+        std::fs::create_dir_all(&content).unwrap();
+        std::fs::write(content.join("payload.bin"), vec![0_u8; 1024]).unwrap();
+
+        let games = scan_xbox_dir(temp.path(), DiscoveryScanMode::Full);
+
+        assert_eq!(games.len(), 1);
+        assert_eq!(games[0].name, "Small Xbox Game");
+        assert_eq!(games[0].path, game_root);
+        assert_eq!(games[0].platform, Platform::XboxGamePass);
     }
 }

@@ -124,29 +124,44 @@ fn scan_library(
 
     let manifests = parse_app_manifests(steamapps_path);
 
-    let candidates: Vec<(String, PathBuf)> = std::fs::read_dir(&common_path)?
-        .filter_map(|entry| entry.ok())
-        .filter(|entry| entry.path().is_dir())
-        .filter_map(|entry| {
-            let game_path = entry.path();
-            let folder_name = entry.file_name().to_string_lossy().into_owned();
+    let mut manifest_candidates = Vec::new();
+    let mut heuristic_candidates = Vec::new();
+    for entry in std::fs::read_dir(&common_path)?.filter_map(|entry| entry.ok()) {
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let game_path = entry.path();
+        let folder_name = entry.file_name().to_string_lossy().into_owned();
+        if is_steam_tool(&folder_name) {
+            continue;
+        }
 
-            if is_steam_tool(&folder_name) {
-                return None;
-            }
+        let folder_key = folder_name.to_ascii_lowercase();
+        if let Some(manifest) = manifests
+            .get(&folder_key)
+            .filter(|manifest| manifest.is_fully_installed())
+        {
+            manifest_candidates.push((manifest.name.clone(), game_path));
+        } else {
+            heuristic_candidates.push((folder_name, game_path));
+        }
+    }
 
-            let folder_key = folder_name.to_ascii_lowercase();
-            let name = manifests
-                .get(&folder_key)
-                .map(|manifest| manifest.name.clone())
-                .unwrap_or(folder_name);
-
-            Some((name, game_path))
-        })
-        .collect();
-
-    let mut games =
-        utils::build_games_from_candidates(&common_path, candidates, Platform::Steam, mode);
+    let mut games = utils::build_games_from_launcher_metadata_candidates(
+        &common_path,
+        manifest_candidates,
+        Platform::Steam,
+        mode,
+    );
+    utils::merge_games(
+        &mut games,
+        utils::build_games_from_candidates(
+            &common_path,
+            heuristic_candidates,
+            Platform::Steam,
+            mode,
+        ),
+    );
     for game in &mut games {
         let Some(folder_key) = game
             .path
@@ -167,6 +182,16 @@ struct AppManifest {
     app_id: u32,
     name: String,
     install_dir: String,
+    state_flags: Option<u32>,
+}
+
+const STEAM_STATE_FULLY_INSTALLED: u32 = 4;
+
+impl AppManifest {
+    fn is_fully_installed(&self) -> bool {
+        self.state_flags
+            .is_some_and(|flags| flags & STEAM_STATE_FULLY_INSTALLED != 0)
+    }
 }
 
 fn parse_app_manifests(steamapps_path: &Path) -> HashMap<String, AppManifest> {
@@ -234,6 +259,7 @@ fn parse_app_id_from_manifest_filename(name: &str) -> Option<u32> {
 fn parse_acf_manifest(content: &str) -> Option<AppManifest> {
     let mut name = None;
     let mut install_dir = None;
+    let mut state_flags = None;
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -245,6 +271,8 @@ fn parse_acf_manifest(content: &str) -> Option<AppManifest> {
             if let Some(val) = extract_quoted_value(rest) {
                 install_dir = Some(val.to_owned());
             }
+        } else if let Some(rest) = trimmed.strip_prefix("\"StateFlags\"") {
+            state_flags = extract_quoted_value(rest).and_then(|value| value.parse().ok());
         }
     }
 
@@ -252,6 +280,7 @@ fn parse_acf_manifest(content: &str) -> Option<AppManifest> {
         app_id: 0,
         name: name?,
         install_dir: install_dir?,
+        state_flags,
     })
 }
 
@@ -333,6 +362,21 @@ mod tests {
         let manifest = parse_acf_manifest(acf).unwrap();
         assert_eq!(manifest.name, "Portal");
         assert_eq!(manifest.install_dir, "Portal");
+        assert!(manifest.is_fully_installed());
+    }
+
+    #[test]
+    fn parse_acf_manifest_without_fully_installed_flag_is_not_authoritative() {
+        let acf = r#"
+"AppState"
+{
+    "name"		"Partial Game"
+    "StateFlags"		"2"
+    "installdir"		"PartialGame"
+}
+"#;
+        let manifest = parse_acf_manifest(acf).unwrap();
+        assert!(!manifest.is_fully_installed());
     }
 
     #[test]
@@ -398,5 +442,64 @@ mod tests {
         let scanner = SteamScanner::with_path(PathBuf::from(r"C:\NonExistent\Steam"));
         let result = scanner.scan(DiscoveryScanMode::Full).unwrap();
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn manifest_backed_small_install_is_discovered_without_executable_probe() {
+        let _guard = crate::discovery::test_sync::lock_discovery_test();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let steamapps = temp.path().join("steamapps");
+        let game_dir = steamapps.join("common").join("wallpaper_engine");
+        std::fs::create_dir_all(&game_dir).unwrap();
+        std::fs::write(game_dir.join("payload.bin"), vec![0_u8; 1024]).unwrap();
+        std::fs::write(
+            steamapps.join("appmanifest_431960.acf"),
+            r#""AppState"
+{
+    "appid" "431960"
+    "name" "Wallpaper Engine"
+    "StateFlags" "4"
+    "installdir" "wallpaper_engine"
+}"#,
+        )
+        .unwrap();
+
+        let games = SteamScanner::with_path(temp.path().to_path_buf())
+            .scan(DiscoveryScanMode::Full)
+            .unwrap();
+
+        assert_eq!(games.len(), 1);
+        assert_eq!(games[0].name, "Wallpaper Engine");
+        assert_eq!(games[0].steam_app_id, Some(431_960));
+        assert_eq!(games[0].path, game_dir);
+    }
+
+    #[test]
+    fn incomplete_manifest_does_not_authorize_partial_install() {
+        let _guard = crate::discovery::test_sync::lock_discovery_test();
+
+        let temp = tempfile::TempDir::new().unwrap();
+        let steamapps = temp.path().join("steamapps");
+        let game_dir = steamapps.join("common").join("partial_game");
+        std::fs::create_dir_all(&game_dir).unwrap();
+        std::fs::write(game_dir.join("partial.bin"), vec![0_u8; 1024]).unwrap();
+        std::fs::write(
+            steamapps.join("appmanifest_123.acf"),
+            r#""AppState"
+{
+    "appid" "123"
+    "name" "Partial Game"
+    "StateFlags" "2"
+    "installdir" "partial_game"
+}"#,
+        )
+        .unwrap();
+
+        let games = SteamScanner::with_path(temp.path().to_path_buf())
+            .scan(DiscoveryScanMode::Full)
+            .unwrap();
+
+        assert!(games.is_empty());
     }
 }

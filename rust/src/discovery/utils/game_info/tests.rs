@@ -6,13 +6,109 @@ use crate::compression::algorithm::CompressionAlgorithm;
 use crate::compression::history::{
     record_compression, ActualStats, CompressionHistoryEntry, EstimateSnapshot,
 };
-use crate::discovery::cache;
+use crate::discovery::cache::{self, CachedGameStats};
 use crate::discovery::hidden_paths;
 use crate::discovery::install_history;
 use crate::discovery::platform::{DiscoveryScanMode, GameInfo, Platform};
 use crate::discovery::test_sync::lock_discovery_test;
 
-use super::{build_game_info_with_mode_and_stats_path, compression_timestamp_for_game_path};
+use super::{
+    build_game_info_with_mode_and_stats_path,
+    build_game_info_with_mode_and_stats_path_from_launcher_metadata,
+    compression_timestamp_for_game_path,
+};
+
+#[test]
+fn refresh_scan_bypasses_recent_metadata_without_resetting_behavioral_state() {
+    let _guard = lock_discovery_test();
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("AuthoritativeRefreshGame");
+    fs::create_dir_all(&game_dir).unwrap();
+    File::create(game_dir.join("game.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
+    File::create(game_dir.join("content.bin"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
+
+    let initial = build_game_info_with_mode_and_stats_path(
+        "Authoritative Refresh Game".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    )
+    .expect("initial full scan should populate discovery metadata");
+    let actual_size = 703 * 1024 * 1024;
+    assert_eq!(initial.size_bytes, actual_size);
+
+    let poisoned_size = 800 * 1024 * 1024;
+    let token = cache::compute_change_token(&game_dir, true);
+    cache::upsert(
+        &game_dir,
+        token.clone(),
+        CachedGameStats::from_parts(poisoned_size, poisoned_size, false, false),
+    );
+    let mut poisoned_game = initial;
+    poisoned_game.size_bytes = poisoned_size;
+    crate::discovery::index::upsert(&game_dir, token, &poisoned_game);
+    install_history::record_authoritative_size(&game_dir, 6 * 1024 * 1024 * 1024);
+
+    let cached_full = build_game_info_with_mode_and_stats_path(
+        "Authoritative Refresh Game".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    )
+    .expect("incremental full scan should reuse recent metadata");
+    assert_eq!(cached_full.size_bytes, poisoned_size);
+
+    let refreshed = build_game_info_with_mode_and_stats_path_from_launcher_metadata(
+        "Authoritative Refresh Game".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Refresh,
+    )
+    .expect("manual refresh should recompute filesystem metadata");
+    assert_eq!(refreshed.size_bytes, actual_size);
+    assert_eq!(
+        install_history::max_observed_size(&game_dir),
+        Some(6 * 1024 * 1024 * 1024),
+        "refresh must preserve prior install-size history",
+    );
+
+    cache::remove(&game_dir);
+    crate::discovery::index::remove(&game_dir);
+    install_history::remove(&game_dir);
+}
+
+#[test]
+fn refresh_scan_respects_hidden_path_tombstone() {
+    let _guard = lock_discovery_test();
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("HiddenRefreshGame");
+    fs::create_dir_all(&game_dir).unwrap();
+    fs::write(game_dir.join("game.exe"), vec![0_u8; 4096]).unwrap();
+    hidden_paths::hide_path(&game_dir);
+
+    let refreshed = build_game_info_with_mode_and_stats_path(
+        "Hidden Refresh Game".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Refresh,
+    );
+
+    assert!(refreshed.is_none());
+    let token = cache::compute_change_token(&game_dir, false);
+    assert!(hidden_paths::should_hide(&game_dir, &token));
+
+    hidden_paths::remove(&game_dir);
+}
 
 #[test]
 fn quick_scan_ignores_stale_cache_for_deleted_path() {

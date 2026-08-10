@@ -275,6 +275,62 @@ fn crash_recovery_replays_pending_jobs() {
 }
 
 #[test]
+fn crash_recovery_discards_jobs_that_completed_before_forced_update_close() {
+    let _g = TEST_MUTEX.lock().unwrap();
+    let dir = TempDir::new().unwrap();
+    let journal_path = dir.path().join("test.json");
+
+    {
+        let journal = JournalWriter::new(journal_path.clone());
+        journal.insert(JournalEntry::with_idempotency_key(
+            PathBuf::from(r"C:\Games\CompletedBeforeUpdate"),
+            Some("Completed Before Update".to_owned()),
+            JournalEventKind::Reconcile,
+            "completed-before-update".to_owned(),
+        ));
+        journal.insert(JournalEntry::with_idempotency_key(
+            PathBuf::from(r"C:\Games\StillPending"),
+            Some("Still Pending".to_owned()),
+            JournalEventKind::Reconcile,
+            "still-pending".to_owned(),
+        ));
+        journal.flush().unwrap();
+    }
+
+    let journal = JournalWriter::new(journal_path.clone());
+    let scheduler = AutoScheduler::restore_or_new_with_completion_check(
+        SchedulerConfig::default(),
+        journal,
+        |entry| entry.idempotency_key == "completed-before-update",
+    );
+
+    let restored = scheduler.queue_snapshot();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].idempotency_key, "still-pending");
+
+    let persisted = JournalWriter::load_from_path(&journal_path).unwrap();
+    assert_eq!(persisted.len(), 1);
+    assert_eq!(persisted[0].idempotency_key, "still-pending");
+}
+
+#[test]
+fn completed_history_must_be_at_least_as_new_as_the_queued_job() {
+    assert!(!compression_completed_after_job_was_queued(2_000, None));
+    assert!(!compression_completed_after_job_was_queued(
+        2_000,
+        Some(1_999)
+    ));
+    assert!(compression_completed_after_job_was_queued(
+        2_000,
+        Some(2_000)
+    ));
+    assert!(compression_completed_after_job_was_queued(
+        2_000,
+        Some(2_001)
+    ));
+}
+
+#[test]
 fn game_modified_creates_reconcile_job() {
     let _g = TEST_MUTEX.lock().unwrap();
     let (mut scheduler, _dir) = test_scheduler();

@@ -1,5 +1,5 @@
 use crate::discovery::cache::{normalize_path_key, ChangeToken};
-use crate::discovery::platform::GameInfo;
+use crate::discovery::platform::{GameInfo, Platform};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -79,6 +79,33 @@ pub fn lookup_recent(path: &Path) -> Option<GameInfo> {
             return None;
         }
         Some(entry.game.clone())
+    })
+}
+
+/// Resolve the directory whose filesystem statistics back a discovered game.
+///
+/// Most games use their public root. Xbox installs are the exception: their
+/// card keeps the public root for actions, while discovery measures the nested
+/// `Content` payload. Compression completion calls this before history evicts
+/// the index so it can reseed the same cache key without guessing from folder
+/// names alone.
+pub fn stats_path_for_game_path(game_path: &Path) -> Option<PathBuf> {
+    let target = normalize_path_key(game_path);
+    with_index_read(|index| {
+        index
+            .entries
+            .values()
+            .filter(|entry| normalize_path_key(&entry.game.path) == target)
+            .max_by_key(|entry| entry.updated_at_ms)
+            .map(|entry| {
+                if entry.game.platform == Platform::XboxGamePass {
+                    let content_path = entry.game.path.join("Content");
+                    if content_path.is_dir() {
+                        return content_path;
+                    }
+                }
+                entry.game.path.clone()
+            })
     })
 }
 
@@ -247,6 +274,22 @@ mod tests {
     use crate::discovery::platform::Platform;
     use std::path::Path;
 
+    fn game_for_path(path: &Path, platform: Platform) -> GameInfo {
+        GameInfo {
+            name: "Indexed Game".to_owned(),
+            path: path.to_path_buf(),
+            platform,
+            size_bytes: 1024,
+            compressed_size: None,
+            is_compressed: false,
+            is_directstorage: false,
+            is_unsupported: false,
+            excluded: false,
+            steam_app_id: None,
+            last_played: None,
+        }
+    }
+
     fn history_entry(path: &Path, timestamp_ms: u64) -> CompressionHistoryEntry {
         CompressionHistoryEntry {
             game_path: path.to_string_lossy().into_owned(),
@@ -295,6 +338,44 @@ mod tests {
     #[test]
     fn index_file_default_uses_current_schema() {
         assert_eq!(IndexFile::default().schema_version, INDEX_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn stats_path_uses_root_for_non_xbox_game_with_content_folder() {
+        let _guard = crate::discovery::test_sync::lock_discovery_test();
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(dir.path().join("Content")).unwrap();
+        let token = compute_change_token(dir.path(), false);
+        upsert(
+            dir.path(),
+            token,
+            &game_for_path(dir.path(), Platform::Steam),
+        );
+
+        assert_eq!(
+            stats_path_for_game_path(dir.path()),
+            Some(dir.path().to_path_buf())
+        );
+
+        remove(dir.path());
+    }
+
+    #[test]
+    fn stats_path_uses_content_for_indexed_xbox_game() {
+        let _guard = crate::discovery::test_sync::lock_discovery_test();
+        let dir = tempfile::TempDir::new().unwrap();
+        let content = dir.path().join("Content");
+        std::fs::create_dir(&content).unwrap();
+        let token = compute_change_token(&content, false);
+        upsert(
+            &content,
+            token,
+            &game_for_path(dir.path(), Platform::XboxGamePass),
+        );
+
+        assert_eq!(stats_path_for_game_path(dir.path()), Some(content.clone()));
+
+        remove(&content);
     }
 
     #[test]

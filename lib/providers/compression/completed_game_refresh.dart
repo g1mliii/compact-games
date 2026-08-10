@@ -46,10 +46,17 @@ Future<void> refreshCompletedGameAfterJob({
     }
   }
 
-  try {
-    bridge.clearDiscoveryCacheEntry(gamePath);
-  } catch (_) {
-    // Best-effort cache eviction; hydration/refresh fallback still applies.
+  // Native successful compression now replaces and persists the invalidated
+  // discovery entry before its result reaches Dart. Keep that authoritative
+  // entry intact so an updater restart cannot land between eviction and
+  // hydration. Decompression still needs explicit eviction because its result
+  // does not seed compressed-size metadata.
+  if (jobType != CompressionJobType.compression) {
+    try {
+      bridge.clearDiscoveryCacheEntry(gamePath);
+    } catch (_) {
+      // Best-effort cache eviction; hydration/refresh fallback still applies.
+    }
   }
 
   final gameListState = read(gameListProvider).value;

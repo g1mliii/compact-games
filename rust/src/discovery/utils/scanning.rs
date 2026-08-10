@@ -14,7 +14,10 @@ use crate::discovery::storage::{
 };
 
 use super::dedupe::merge_games;
-use super::game_info::{build_game_info_with_mode, refresh_dynamic_game_metadata};
+use super::game_info::{
+    build_game_info_with_mode, build_game_info_with_mode_from_launcher_metadata,
+    refresh_dynamic_game_metadata,
+};
 
 const PARALLEL_MIN_CANDIDATES: usize = 3;
 const PARALLEL_UNKNOWN_MIN_CANDIDATES: usize = 8;
@@ -54,7 +57,7 @@ pub fn scan_game_subdirs(
         .map(|e| (e.file_name().to_string_lossy().into_owned(), e.path()))
         .collect();
 
-    if mode != DiscoveryScanMode::Full {
+    if mode == DiscoveryScanMode::Quick {
         return build_games_from_candidates(games_path, candidates, platform, mode);
     }
 
@@ -129,6 +132,32 @@ pub fn build_games_from_candidates(
     platform: Platform,
     mode: DiscoveryScanMode,
 ) -> Vec<GameInfo> {
+    build_games_from_candidates_with(scan_root, candidates, mode, |name, path| {
+        build_game_info_with_mode(name, path, platform, mode)
+    })
+}
+
+/// Build candidates backed by authoritative launcher install metadata.
+pub fn build_games_from_launcher_metadata_candidates(
+    scan_root: &Path,
+    candidates: Vec<(String, PathBuf)>,
+    platform: Platform,
+    mode: DiscoveryScanMode,
+) -> Vec<GameInfo> {
+    build_games_from_candidates_with(scan_root, candidates, mode, |name, path| {
+        build_game_info_with_mode_from_launcher_metadata(name, path, platform, mode)
+    })
+}
+
+fn build_games_from_candidates_with<F>(
+    scan_root: &Path,
+    candidates: Vec<(String, PathBuf)>,
+    mode: DiscoveryScanMode,
+    build: F,
+) -> Vec<GameInfo>
+where
+    F: Fn(String, PathBuf) -> Option<GameInfo> + Sync,
+{
     if candidates.is_empty() {
         return Vec::new();
     }
@@ -141,13 +170,13 @@ pub fn build_games_from_candidates(
         );
         return candidates
             .into_par_iter()
-            .filter_map(|(name, path)| build_game_info_with_mode(name, path, platform, mode))
+            .filter_map(|(name, path)| build(name, path))
             .collect();
     }
 
     candidates
         .into_iter()
-        .filter_map(|(name, path)| build_game_info_with_mode(name, path, platform, mode))
+        .filter_map(|(name, path)| build(name, path))
         .collect()
 }
 
@@ -156,7 +185,7 @@ fn should_parallelize_subdir_scan(
     mode: DiscoveryScanMode,
     candidate_count: usize,
 ) -> bool {
-    if mode != DiscoveryScanMode::Full || candidate_count < PARALLEL_MIN_CANDIDATES {
+    if mode == DiscoveryScanMode::Quick || candidate_count < PARALLEL_MIN_CANDIDATES {
         return false;
     }
 
@@ -200,7 +229,7 @@ pub fn scan_all_platforms_with_mode(mode: DiscoveryScanMode) -> Vec<GameInfo> {
     cache::persist_if_dirty();
     hidden_paths::persist_if_dirty();
     install_history::persist_if_dirty();
-    if mode == DiscoveryScanMode::Full {
+    if mode != DiscoveryScanMode::Quick {
         index::mark_full_scan_success();
         change_feed::mark_full_scan_success();
     }
@@ -407,7 +436,7 @@ pub fn scan_custom_paths_with_mode(
     cache::persist_if_dirty();
     hidden_paths::persist_if_dirty();
     install_history::persist_if_dirty();
-    if mode == DiscoveryScanMode::Full {
+    if mode != DiscoveryScanMode::Quick {
         index::mark_full_scan_success();
         change_feed::mark_full_scan_success();
     }

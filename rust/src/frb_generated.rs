@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -639687585;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1963370196;
 
 // Section: executor
 
@@ -1023,6 +1023,39 @@ fn wire__crate__api__compression__persist_compression_history_impl(
                 })?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__discovery__refresh_all_games_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "refresh_all_games",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::FrbDiscoveryError>((move || {
+                    let output_ok = crate::api::discovery::refresh_all_games()?;
+                    Ok(output_ok)
+                })(
+                ))
+            }
         },
     )
 }
@@ -2447,61 +2480,64 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         23 => wire__crate__api__discovery__hydrate_game_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__discovery__remove_game_from_discovery_impl(
+        30 => {
+            wire__crate__api__discovery__refresh_all_games_impl(port, ptr, rust_vec_len, data_len)
+        }
+        31 => wire__crate__api__discovery__remove_game_from_discovery_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        32 => {
+        33 => {
             wire__crate__api__shell__resolve_shortcut_target_impl(port, ptr, rust_vec_len, data_len)
         }
-        33 => {
+        34 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        34 => wire__crate__api__automation__shared_auto_state_default_impl(
+        35 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__automation__start_auto_compression_impl(
+        36 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
+        38 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__automation__update_automation_config_impl(
+        40 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        42 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__automation__watch_automation_queue_impl(
+        43 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__automation__watch_scheduler_state_impl(
+        44 => wire__crate__api__automation__watch_scheduler_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__automation__watch_watcher_events_impl(
+        45 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2551,16 +2587,16 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        31 => {
+        32 => {
             wire__crate__api__unsupported__report_unsupported_game_impl(ptr, rust_vec_len, data_len)
         }
-        36 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
+        37 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__update__update_check_interval_ms_impl(ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__update__update_check_interval_ms_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

@@ -53,9 +53,22 @@ fn scan_gog_registry_games(mode: DiscoveryScanMode) -> Vec<GameInfo> {
                 return None;
             }
 
-            utils::build_game_info_with_mode(name, game_path, Platform::GogGalaxy, mode)
+            build_gog_registered_game(name, game_path, mode)
         })
         .collect()
+}
+
+fn build_gog_registered_game(
+    name: String,
+    game_path: PathBuf,
+    mode: DiscoveryScanMode,
+) -> Option<GameInfo> {
+    utils::build_game_info_with_mode_from_launcher_metadata(
+        name,
+        game_path,
+        Platform::GogGalaxy,
+        mode,
+    )
 }
 
 #[cfg(not(windows))]
@@ -109,5 +122,22 @@ mod tests {
             DiscoveryScanMode::Full,
         );
         assert!(games.is_empty());
+    }
+
+    #[test]
+    fn registry_backed_small_install_is_discovered() {
+        let _guard = crate::discovery::test_sync::lock_discovery_test();
+        let temp = tempfile::TempDir::new().unwrap();
+        std::fs::write(temp.path().join("payload.bin"), vec![0_u8; 1024]).unwrap();
+
+        let game = build_gog_registered_game(
+            "Small GOG Game".to_owned(),
+            temp.path().to_path_buf(),
+            DiscoveryScanMode::Full,
+        )
+        .expect("GOG registry record is authoritative install evidence");
+
+        assert_eq!(game.name, "Small GOG Game");
+        assert_eq!(game.platform, Platform::GogGalaxy);
     }
 }

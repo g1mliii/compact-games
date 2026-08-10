@@ -443,7 +443,7 @@ void main() {
   });
 
   testWidgets(
-    'Refresh button clears cache and requests another full discovery',
+    'Refresh button requests authoritative discovery without clearing state',
     (WidgetTester tester) async {
       final bridge = _RecordingRustBridgeService(games: _sampleGames);
 
@@ -457,12 +457,56 @@ void main() {
       await tester.pumpAndSettle();
       expect(bridge.clearDiscoveryCacheCalls, 0);
       expect(bridge.getAllGamesCalls, 1);
+      expect(bridge.refreshAllGamesCalls, 0);
 
       await tester.tap(find.byTooltip('Refresh games'));
       await tester.pumpAndSettle();
 
-      expect(bridge.clearDiscoveryCacheCalls, 1);
-      expect(bridge.getAllGamesCalls, 2);
+      expect(bridge.clearDiscoveryCacheCalls, 0);
+      expect(bridge.getAllGamesCalls, 1);
+      expect(bridge.refreshAllGamesCalls, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Refresh keeps the library visible and shows progress until discovery completes',
+    (WidgetTester tester) async {
+      final fullGame = GameInfo(
+        name: 'Newly Installed Game',
+        path: r'C:\Games\newly_installed_game',
+        platform: Platform.steam,
+        sizeBytes: 4 * _oneGiB,
+      );
+      final bridge = _QuickThenFullRustBridgeService(
+        quickGames: <GameInfo>[_sampleGames.first],
+        fullGames: <GameInfo>[_sampleGames.first, fullGame],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [rustBridgeServiceProvider.overrideWithValue(bridge)],
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.text('Pixel Raider'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Refresh games'));
+      await tester.pump();
+
+      expect(find.text('Pixel Raider'), findsOneWidget);
+      expect(find.text('Scanning files...'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      expect(bridge.clearDiscoveryCacheCalls, 0);
+      expect(bridge.refreshAllGamesCalls, 1);
+
+      bridge.releaseFullLoad();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Newly Installed Game'), findsOneWidget);
+      expect(find.text('Inventory rescanned'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

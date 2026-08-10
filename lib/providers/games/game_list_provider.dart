@@ -86,6 +86,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       final fetchedGames = switch (mode) {
         _DiscoveryLoadMode.quick => await bridge.getAllGamesQuick(),
         _DiscoveryLoadMode.full => await bridge.getAllGames(),
+        _DiscoveryLoadMode.refresh => await bridge.refreshAllGames(),
       };
       final games = dedupeDiscoveredGames(fetchedGames);
       _logDiscoveryBatch(fetchedGames, games, mode);
@@ -95,11 +96,11 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
 
       _queueResetForNewGameSet(
         games,
-        markAsFullyHydrated: mode == _DiscoveryLoadMode.full,
+        markAsFullyHydrated: mode != _DiscoveryLoadMode.quick,
       );
       return _buildLoadedState(games: games);
     } catch (e) {
-      final modeLabel = mode == _DiscoveryLoadMode.quick ? 'quick' : 'full';
+      final modeLabel = mode.name;
       debugPrint('[discovery][$modeLabel] load failed: $e');
       if (_isStaleRequest(requestId)) {
         return state.value ?? const GameListState();
@@ -147,6 +148,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       sortDirection: previous?.sortDirection ?? SortDirection.ascending,
       lastRefreshed: DateTime.now(),
       error: error,
+      isRefreshing: false,
     );
   }
 
@@ -156,19 +158,18 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
   /// means another refresh owned the work, so callers must not report a rescan
   /// they did not perform.
   Future<bool> refresh() async {
-    if (state.isLoading) return false;
+    final previous = state.value;
+    if (state.isLoading || previous == null || previous.isRefreshing) {
+      return false;
+    }
     final requestId = ++_requestGeneration;
     debugPrint('[discovery][refresh] start request=$requestId');
-    state = const AsyncValue<GameListState>.loading();
-    final bridge = ref.read(rustBridgeServiceProvider);
-    try {
-      bridge.clearDiscoveryCache();
-      debugPrint('[discovery][refresh] cache cleared');
-    } catch (e) {
-      debugPrint('[discovery][refresh] cache clear failed: $e');
-    }
+    // Keep the current library visible while the authoritative scan runs.
+    // Native refresh bypasses reusable stats/index entries but preserves them
+    // until replacements succeed, along with hidden paths and install history.
+    state = AsyncValue.data(previous.copyWith(isRefreshing: true));
 
-    final next = await _loadGames(requestId, mode: _DiscoveryLoadMode.full);
+    final next = await _loadGames(requestId, mode: _DiscoveryLoadMode.refresh);
     if (_isStaleRequest(requestId)) {
       return false;
     }
@@ -556,7 +557,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       return;
     }
 
-    final modeLabel = mode == _DiscoveryLoadMode.quick ? 'quick' : 'full';
+    final modeLabel = mode.name;
     final staleFiltered = fetchedGames.length - dedupedGames.length;
     debugPrint(
       '[discovery][$modeLabel] fetched=${fetchedGames.length} visible=${dedupedGames.length} filtered=$staleFiltered',
@@ -570,7 +571,7 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
   }
 }
 
-enum _DiscoveryLoadMode { quick, full }
+enum _DiscoveryLoadMode { quick, full, refresh }
 
 Set<String> _pathSetFromGames(Iterable<GameInfo> games) {
   final paths = <String>{};

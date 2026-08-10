@@ -8,6 +8,12 @@ import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import 'update_provider.dart';
 
+/// Shared install-and-restart glyph for every update surface.
+///
+/// Keep this named rather than selecting an icon at each call site: the home
+/// banner and Settings must never drift back to the old rocket glyph.
+const IconData updateInstallRestartIcon = LucideIcons.rotateCw;
+
 @immutable
 class UpdateAction {
   const UpdateAction({
@@ -139,8 +145,7 @@ UpdateStatusPresentation describeUpdateStatus(
           label: installBlocked
               ? l10n.settingsAboutWaitingForCompressionStatus
               : l10n.settingsAboutInstallUpdateAndRestartAction,
-          // Restart glyph, not a rocket: the action relaunches the app.
-          icon: LucideIcons.rotateCw,
+          icon: updateInstallRestartIcon,
           enabled: !installBlocked,
         ),
       );

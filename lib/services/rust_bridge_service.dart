@@ -72,7 +72,12 @@ class RustBridgeService {
     return frbGames.map(_mapFrbGameInfo).toList();
   }
 
-  /// Clear discovery cache (memory + persisted file) before hard refresh.
+  Future<List<GameInfo>> refreshAllGames() async {
+    final frbGames = await rust_discovery.refreshAllGames();
+    return frbGames.map(_mapFrbGameInfo).toList();
+  }
+
+  /// Destructively reset discovery metadata, including hidden/install history.
   void clearDiscoveryCache() {
     rust_discovery.clearDiscoveryCache();
   }

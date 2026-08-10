@@ -80,6 +80,25 @@ fn stats_savings_ratio_calculated_correctly() {
 }
 
 #[test]
+fn completed_compression_reseeds_discovery_cache_before_restart() {
+    let _guard = crate::discovery::test_sync::lock_discovery_test();
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("payload.bin"), vec![0_u8; 4096]).unwrap();
+    fs::write(dir.path().join("small-skipped.bin"), vec![0_u8; 100]).unwrap();
+
+    super::refresh_discovery_cache_after_compression(dir.path());
+
+    let token = crate::discovery::cache::compute_change_token(dir.path(), true);
+    let cached = crate::discovery::cache::lookup(dir.path(), &token)
+        .expect("successful compression metadata should survive quick discovery");
+    assert_eq!(cached.logical_size, 4196);
+    assert!(cached.physical_size > 0);
+
+    crate::discovery::cache::remove(dir.path());
+    crate::discovery::cache::persist_if_dirty();
+}
+
+#[test]
 fn cancellation_token_works() {
     let token = CancellationToken::new();
     assert!(!token.is_cancelled());
