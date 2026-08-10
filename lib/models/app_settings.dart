@@ -27,7 +27,6 @@ class AppSettings {
   final int? ioParallelismOverride;
   final String? steamGridDbApiKey;
   final CoverArtProviderMode coverArtProviderMode;
-  final bool inventoryAdvancedScanEnabled;
   final bool minimizeToTray;
   final HomeViewMode homeViewMode;
   final String? localeTag;
@@ -49,7 +48,6 @@ class AppSettings {
     this.ioParallelismOverride,
     this.steamGridDbApiKey,
     this.coverArtProviderMode = CoverArtProviderMode.bundledProxy,
-    this.inventoryAdvancedScanEnabled = false,
     this.minimizeToTray = true,
     this.homeViewMode = HomeViewMode.grid,
     this.localeTag,
@@ -74,7 +72,6 @@ class AppSettings {
       ioParallelismOverride: _validatedIoOverride(ioParallelismOverride),
       steamGridDbApiKey: _normalizedApiKey(steamGridDbApiKey),
       coverArtProviderMode: coverArtProviderMode,
-      inventoryAdvancedScanEnabled: inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray,
       homeViewMode: homeViewMode,
       localeTag: _normalizedLocaleTag(localeTag),
@@ -97,7 +94,6 @@ class AppSettings {
     int? Function()? ioParallelismOverride,
     String? Function()? steamGridDbApiKey,
     CoverArtProviderMode? coverArtProviderMode,
-    bool? inventoryAdvancedScanEnabled,
     bool? minimizeToTray,
     HomeViewMode? homeViewMode,
     String? Function()? localeTag,
@@ -124,8 +120,6 @@ class AppSettings {
           ? steamGridDbApiKey()
           : this.steamGridDbApiKey,
       coverArtProviderMode: coverArtProviderMode ?? this.coverArtProviderMode,
-      inventoryAdvancedScanEnabled:
-          inventoryAdvancedScanEnabled ?? this.inventoryAdvancedScanEnabled,
       minimizeToTray: minimizeToTray ?? this.minimizeToTray,
       homeViewMode: homeViewMode ?? this.homeViewMode,
       localeTag: localeTag != null ? localeTag() : this.localeTag,
@@ -149,7 +143,6 @@ class AppSettings {
     'directStorageOverrideEnabled': directStorageOverrideEnabled,
     'ioParallelismOverride': ioParallelismOverride,
     'coverArtProviderMode': coverArtProviderMode.name,
-    'inventoryAdvancedScanEnabled': inventoryAdvancedScanEnabled,
     'minimizeToTray': minimizeToTray,
     'homeViewMode': homeViewMode.name,
     'localeTag': localeTag,
@@ -188,8 +181,6 @@ class AppSettings {
         json['coverArtProviderMode'],
         legacyApiKey: steamGridDbApiKey,
       ),
-      inventoryAdvancedScanEnabled:
-          json['inventoryAdvancedScanEnabled'] as bool? ?? false,
       minimizeToTray: json['minimizeToTray'] as bool? ?? true,
       homeViewMode: HomeViewMode.values.firstWhere(
         (v) => v.name == json['homeViewMode'],

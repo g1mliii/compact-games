@@ -57,6 +57,7 @@ void main() {
         status: UpdateStatus.error,
         info: _updateInfo(),
         error: 'checksum mismatch',
+        errorFromDownload: true,
       ),
       onDownload: () async {
         downloadCalls += 1;
@@ -125,6 +126,7 @@ void main() {
         status: UpdateStatus.error,
         info: _updateInfo(),
         error: 'checksum mismatch',
+        errorFromDownload: true,
       ),
     );
     await tester.pump();
@@ -226,6 +228,7 @@ Future<void> _pumpBanner(
 rust_update.UpdateCheckResult _updateInfo() {
   return rust_update.UpdateCheckResult(
     updateAvailable: true,
+    manifestAvailable: true,
     latestVersion: '0.2.5',
     downloadUrl: 'https://example.invalid/CompactGames-Setup-0.2.5.exe',
     releaseNotes: 'Small fixes',

@@ -454,18 +454,6 @@ abstract class AppLocalizations {
   /// **'Automation is currently paused for the compression inventory.'**
   String get settingsWatcherAutomationDisabled;
 
-  /// Localized message for settings enable full metadata inventory scan.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable full metadata inventory scan'**
-  String get settingsEnableFullMetadataInventoryScan;
-
-  /// Localized message for settings inventory advanced description.
-  ///
-  /// In en, this message translates to:
-  /// **'Collect richer metadata for the inventory table. This may take longer during scans.'**
-  String get settingsInventoryAdvancedDescription;
-
   /// Localized message for settings steam grid db managed once.
   ///
   /// In en, this message translates to:
@@ -681,6 +669,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checking for updates...'**
   String get settingsAboutCheckingForUpdatesStatus;
+
+  /// Localized message confirming a completed check found no newer version.
+  ///
+  /// In en, this message translates to:
+  /// **'You are on the latest version'**
+  String get settingsAboutUpToDateStatus;
+
+  /// Localized button label to run another update check after one found nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get settingsAboutCheckAgainAction;
+
+  /// Localized title shown when the update check itself could not complete.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check for updates'**
+  String get settingsAboutUpdateCheckFailedTitle;
 
   /// Localized title shown when update checking fails.
   ///
@@ -1203,30 +1209,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resume watcher'**
   String get inventoryResumeWatcher;
-
-  /// Localized message for inventory advanced metadata scan on.
-  ///
-  /// In en, this message translates to:
-  /// **'Advanced metadata scan: on'**
-  String get inventoryAdvancedMetadataScanOn;
-
-  /// Localized message for inventory advanced metadata scan off.
-  ///
-  /// In en, this message translates to:
-  /// **'Advanced metadata scan: off'**
-  String get inventoryAdvancedMetadataScanOff;
-
-  /// Localized message for inventory run full rescan.
-  ///
-  /// In en, this message translates to:
-  /// **'Run full inventory rescan'**
-  String get inventoryRunFullRescan;
-
-  /// Localized message for inventory rescan unavailable while loading.
-  ///
-  /// In en, this message translates to:
-  /// **'Rescan unavailable while loading'**
-  String get inventoryRescanUnavailableWhileLoading;
 
   /// Localized message for inventory watcher summary.
   ///
@@ -1879,6 +1861,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not check managed games: {error}'**
   String settingsRestoreLoadFailed(String error);
+
+  /// Localized confirmation shown after a manual inventory rescan completes.
+  ///
+  /// In en, this message translates to:
+  /// **'Inventory rescanned'**
+  String get inventoryRescanCompleted;
+
+  /// Localized message shown when a manual inventory rescan fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t rescan the inventory'**
+  String get inventoryRescanFailed;
+
+  /// Localized message shown when a rescan was requested while another was already in progress.
+  ///
+  /// In en, this message translates to:
+  /// **'A rescan is already running'**
+  String get inventoryRescanAlreadyRunning;
 }
 
 class _AppLocalizationsDelegate

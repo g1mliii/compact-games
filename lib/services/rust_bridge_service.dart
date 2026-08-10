@@ -285,8 +285,12 @@ class RustBridgeService {
 
   Future<rust_update.UpdateCheckResult> checkForUpdate({
     required String currentVersion,
+    bool forceRefresh = false,
   }) {
-    return rust_update.checkForUpdate(currentVersion: currentVersion);
+    return rust_update.checkForUpdate(
+      currentVersion: currentVersion,
+      forceRefresh: forceRefresh,
+    );
   }
 
   Future<String> downloadUpdate({

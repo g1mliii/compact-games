@@ -40,6 +40,10 @@ class AboutSection extends ConsumerWidget {
       installBlocked: hasActiveCompression,
     );
     final action = presentation.action;
+    // The statuses that are waiting on something animate their icon rather
+    // than showing it at rest.
+    final inProgress =
+        status == UpdateStatus.checking || status == UpdateStatus.downloading;
 
     return SettingsSectionCard(
       icon: LucideIcons.info,
@@ -95,96 +99,82 @@ class AboutSection extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
-          if (selfUpdatesEnabled && status == UpdateStatus.checking)
-            _SpinningStatusRow(
-              label: presentation.message,
-              color: presentation.color,
-            ),
-
-          if (selfUpdatesEnabled &&
-              status == UpdateStatus.error &&
-              error != null) ...[
-            _buildStatusRow(
-              presentation.icon,
-              presentation.message,
-              presentation.color,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error,
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondary,
+          // Every status renders the same three parts, in this order: what is
+          // going on, whatever detail that particular status carries, and the
+          // one action that follows from it. Only the middle part is
+          // status-specific, so a new status shows up here correctly without
+          // touching this widget — `describeUpdateStatus` decides everything
+          // else, and an empty message or a null action simply renders nothing.
+          if (selfUpdatesEnabled) ...[
+            if (inProgress)
+              _SpinningStatusRow(
+                label: presentation.message,
+                color: presentation.color,
+              )
+            else if (presentation.message.isNotEmpty)
+              _buildStatusRow(
+                presentation.icon,
+                presentation.message,
+                presentation.color,
               ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            UpdateActionButton(action: action!),
-          ],
 
-          if (selfUpdatesEnabled && status == UpdateStatus.idle)
-            UpdateActionButton(action: action!),
-
-          if (selfUpdatesEnabled &&
-              status == UpdateStatus.available &&
-              info != null) ...[
-            _buildStatusRow(
-              presentation.icon,
-              presentation.message,
-              presentation.color,
-            ),
-            if (info.publishedAt.isNotEmpty) ...[
-              const SizedBox(height: 4),
+            if (status == UpdateStatus.error && error != null) ...[
+              const SizedBox(height: 8),
               Text(
-                l10n.settingsAboutReleasedLabel(info.publishedAt),
+                error,
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondary,
                 ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
-            if (info.releaseNotes.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  info.releaseNotes,
+
+            if (status == UpdateStatus.available && info != null) ...[
+              if (info.publishedAt.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  l10n.settingsAboutReleasedLabel(info.publishedAt),
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
-                  maxLines: 6,
-                  overflow: TextOverflow.ellipsis,
                 ),
+              ],
+              if (info.releaseNotes.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    info.releaseNotes,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 6,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
+
+            if (status == UpdateStatus.downloading) ...[
+              const SizedBox(height: 8),
+              const LinearProgressIndicator(
+                backgroundColor: AppColors.surfaceVariant,
+                color: AppColors.richGold,
               ),
             ],
-            const SizedBox(height: 12),
-            UpdateActionButton(action: action!),
-          ],
 
-          if (selfUpdatesEnabled && status == UpdateStatus.downloading) ...[
-            _SpinningStatusRow(
-              label: presentation.message,
-              color: presentation.color,
-            ),
-            const SizedBox(height: 8),
-            const LinearProgressIndicator(
-              backgroundColor: AppColors.surfaceVariant,
-              color: AppColors.richGold,
-            ),
-          ],
-
-          if (selfUpdatesEnabled && status == UpdateStatus.downloaded) ...[
-            _buildStatusRow(
-              presentation.icon,
-              presentation.message,
-              presentation.color,
-            ),
-            const SizedBox(height: 12),
-            UpdateActionButton(action: action!),
+            if (action != null) ...[
+              // `idle` is the one status with no message, so its button is
+              // already flush against the switch above it.
+              if (presentation.message.isNotEmpty) const SizedBox(height: 12),
+              UpdateActionButton(action: action),
+            ],
           ],
         ],
       ),

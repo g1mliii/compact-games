@@ -151,8 +151,12 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
   }
 
   /// Full reload from Rust backend.
-  Future<void> refresh() async {
-    if (state.isLoading) return;
+  ///
+  /// Returns whether this call actually reloaded and published a result.  False
+  /// means another refresh owned the work, so callers must not report a rescan
+  /// they did not perform.
+  Future<bool> refresh() async {
+    if (state.isLoading) return false;
     final requestId = ++_requestGeneration;
     debugPrint('[discovery][refresh] start request=$requestId');
     state = const AsyncValue<GameListState>.loading();
@@ -166,12 +170,13 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
 
     final next = await _loadGames(requestId, mode: _DiscoveryLoadMode.full);
     if (_isStaleRequest(requestId)) {
-      return;
+      return false;
     }
     state = AsyncValue.data(next);
     debugPrint(
       '[discovery][refresh] done request=$requestId visible=${next.games.length} error=${next.error ?? 'none'}',
     );
+    return true;
   }
 
   void _scheduleStartupFullRefresh({required int baseRequestId}) {

@@ -282,14 +282,6 @@
   "@settingsWatcherAutomationDisabled": {
     "description": "Localized message for settings watcher automation disabled."
   },
-  "settingsEnableFullMetadataInventoryScan": "启用完整元数据清单扫描",
-  "@settingsEnableFullMetadataInventoryScan": {
-    "description": "Localized message for settings enable full metadata inventory scan."
-  },
-  "settingsInventoryAdvancedDescription": "为清单表收集更丰富的元数据。扫描时可能会更慢。",
-  "@settingsInventoryAdvancedDescription": {
-    "description": "Localized message for settings inventory advanced description."
-  },
   "settingsSteamGridDbManagedOnce": "SteamGridDB 封面每个游戏只会获取一次，除非你手动刷新。",
   "@settingsSteamGridDbManagedOnce": {
     "description": "Localized message for settings steam grid db managed once."
@@ -433,6 +425,18 @@
   "settingsAboutCheckingForUpdatesStatus": "正在检查更新...",
   "@settingsAboutCheckingForUpdatesStatus": {
     "description": "Localized message shown while the app checks for updates."
+  },
+  "settingsAboutUpToDateStatus": "您使用的已是最新版本",
+  "@settingsAboutUpToDateStatus": {
+    "description": "Localized message confirming a completed check found no newer version."
+  },
+  "settingsAboutCheckAgainAction": "重新检查",
+  "@settingsAboutCheckAgainAction": {
+    "description": "Localized button label to run another update check after one found nothing."
+  },
+  "settingsAboutUpdateCheckFailedTitle": "无法检查更新",
+  "@settingsAboutUpdateCheckFailedTitle": {
+    "description": "Localized title shown when the update check itself could not complete."
   },
   "settingsAboutUpdateFailedTitle": "更新失败",
   "@settingsAboutUpdateFailedTitle": {
@@ -822,22 +826,6 @@
   "inventoryResumeWatcher": "恢复监视器",
   "@inventoryResumeWatcher": {
     "description": "Localized message for inventory resume watcher."
-  },
-  "inventoryAdvancedMetadataScanOn": "高级元数据扫描：开启",
-  "@inventoryAdvancedMetadataScanOn": {
-    "description": "Localized message for inventory advanced metadata scan on."
-  },
-  "inventoryAdvancedMetadataScanOff": "高级元数据扫描：关闭",
-  "@inventoryAdvancedMetadataScanOff": {
-    "description": "Localized message for inventory advanced metadata scan off."
-  },
-  "inventoryRunFullRescan": "执行完整清单重扫",
-  "@inventoryRunFullRescan": {
-    "description": "Localized message for inventory run full rescan."
-  },
-  "inventoryRescanUnavailableWhileLoading": "加载期间无法重新扫描",
-  "@inventoryRescanUnavailableWhileLoading": {
-    "description": "Localized message for inventory rescan unavailable while loading."
   },
   "inventoryWatcherSummary": "{status}。",
   "@inventoryWatcherSummary": {
@@ -1314,5 +1302,17 @@
   "settingsRestoreUninstallAction": "卸载 Compact Games",
   "settingsRestoreUninstallNotFound": "找不到 Compact Games 卸载程序。",
   "settingsRestoreRefresh": "重新检查",
-  "settingsRestoreLoadFailed": "无法检查托管游戏：{error}"
+  "settingsRestoreLoadFailed": "无法检查托管游戏：{error}",
+  "inventoryRescanCompleted": "库存已重新扫描",
+  "@inventoryRescanCompleted": {
+    "description": "Localized confirmation shown after a manual inventory rescan completes."
+  },
+  "inventoryRescanFailed": "无法重新扫描库存",
+  "@inventoryRescanFailed": {
+    "description": "Localized message shown when a manual inventory rescan fails."
+  },
+  "inventoryRescanAlreadyRunning": "已有扫描正在进行",
+  "@inventoryRescanAlreadyRunning": {
+    "description": "Localized message shown when a rescan was requested while another was already in progress."
+  }
 }

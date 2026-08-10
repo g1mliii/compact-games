@@ -222,64 +222,59 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Inventory status row uses explicit action buttons and aligned full-rescan action',
-    (WidgetTester tester) async {
-      bool? watcherToggleValue;
-      bool? advancedToggleValue;
-      var fullRescanPressed = false;
+  testWidgets('Inventory status row uses explicit action buttons', (
+    WidgetTester tester,
+  ) async {
+    bool? watcherToggleValue;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Padding(
-              padding: const EdgeInsets.all(12),
-              child: InventoryStatusRow(
-                algorithmLabel: 'XPRESS 8K (Balanced)',
-                watcherActive: false,
-                watcherEnabled: false,
-                advancedEnabled: true,
-                onWatcherEnabledChanged: (value) => watcherToggleValue = value,
-                onAdvancedChanged: (value) => advancedToggleValue = value,
-                onRunFullRescan: () => fullRescanPressed = true,
-                canRunFullRescan: true,
-              ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: InventoryStatusRow(
+              algorithmLabel: 'XPRESS 8K (Balanced)',
+              watcherActive: false,
+              watcherEnabled: false,
+              onWatcherEnabledChanged: (value) => watcherToggleValue = value,
             ),
           ),
         ),
-      );
+      ),
+    );
 
-      expect(find.text('Algorithm: XPRESS 8K (Balanced)'), findsOneWidget);
-      expect(
-        find.ancestor(
-          of: find.text('Algorithm: XPRESS 8K (Balanced)'),
-          matching: find.byType(ButtonStyleButton),
-        ),
-        findsNothing,
-      );
-      final algorithmBadge = tester.widget<StatusBadge>(
-        find.byKey(const ValueKey<String>('inventoryAlgorithmBadge')),
-      );
-      expect(algorithmBadge.label, contains('Algorithm'));
-      expect(algorithmBadge.color, AppColors.info);
+    expect(find.text('Algorithm: XPRESS 8K (Balanced)'), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.text('Algorithm: XPRESS 8K (Balanced)'),
+        matching: find.byType(ButtonStyleButton),
+      ),
+      findsNothing,
+    );
+    final algorithmBadge = tester.widget<StatusBadge>(
+      find.byKey(const ValueKey<String>('inventoryAlgorithmBadge')),
+    );
+    expect(algorithmBadge.label, contains('Algorithm'));
+    expect(algorithmBadge.color, AppColors.info);
 
-      await tester.tap(
-        find.byKey(const ValueKey<String>('inventoryWatcherToggleButton')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey<String>('inventoryAdvancedScanToggleButton')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey<String>('inventoryFullRescanButton')),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('inventoryWatcherToggleButton')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(watcherToggleValue, isTrue);
-      expect(advancedToggleValue, isFalse);
-      expect(fullRescanPressed, isTrue);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(watcherToggleValue, isTrue);
+    // The rescan lives on the app bar refresh action; the status row must not
+    // grow a second path to it.
+    expect(
+      find.byKey(const ValueKey<String>('inventoryFullRescanButton')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('inventoryAdvancedScanToggleButton')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'Inventory status row renders active watcher as status tokens plus emphasized action',
@@ -293,10 +288,7 @@ void main() {
                 algorithmLabel: 'XPRESS 8K (Balanced)',
                 watcherActive: true,
                 watcherEnabled: true,
-                advancedEnabled: false,
                 onWatcherEnabledChanged: (_) {},
-                onAdvancedChanged: (_) {},
-                onRunFullRescan: () {},
               ),
             ),
           ),

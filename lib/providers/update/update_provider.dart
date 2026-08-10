@@ -12,7 +12,19 @@ import '../compression/compression_provider.dart';
 import '../games/game_list_provider.dart';
 import '../settings/settings_provider.dart';
 
-enum UpdateStatus { idle, checking, available, downloading, downloaded, error }
+/// [idle] means "not checked yet this session"; [upToDate] means "checked, and
+/// this is the latest version". Keeping them apart is what lets the About
+/// section confirm a check that found nothing instead of silently returning to
+/// its starting state.
+enum UpdateStatus {
+  idle,
+  checking,
+  upToDate,
+  available,
+  downloading,
+  downloaded,
+  error,
+}
 
 /// True when a new update check may start.
 ///
@@ -40,11 +52,18 @@ class UpdateState {
   final String? error;
   final String? installerPath;
 
+  /// Which operation produced [error]. Recorded explicitly because [info]
+  /// cannot stand in for it: a release found by an earlier check stays in
+  /// state, so a later failed *check* would otherwise look like a failed
+  /// download and be offered a retry-download button.
+  final bool errorFromDownload;
+
   const UpdateState({
     this.status = UpdateStatus.idle,
     this.info,
     this.error,
     this.installerPath,
+    this.errorFromDownload = false,
   });
 
   UpdateState copyWith({
@@ -52,6 +71,7 @@ class UpdateState {
     rust_update.UpdateCheckResult? Function()? info,
     String? Function()? error,
     String? Function()? installerPath,
+    bool? errorFromDownload,
   }) {
     return UpdateState(
       status: status ?? this.status,
@@ -60,6 +80,7 @@ class UpdateState {
       installerPath: installerPath != null
           ? installerPath()
           : this.installerPath,
+      errorFromDownload: errorFromDownload ?? this.errorFromDownload,
     );
   }
 
@@ -70,11 +91,13 @@ class UpdateState {
     return status == other.status &&
         info == other.info &&
         error == other.error &&
-        installerPath == other.installerPath;
+        installerPath == other.installerPath &&
+        errorFromDownload == other.errorFromDownload;
   }
 
   @override
-  int get hashCode => Object.hash(status, info, error, installerPath);
+  int get hashCode =>
+      Object.hash(status, info, error, installerPath, errorFromDownload);
 }
 
 final updateProvider = AsyncNotifierProvider<UpdateNotifier, UpdateState>(
@@ -107,6 +130,10 @@ final updateInstallerCacheProvider = Provider<UpdateInstallerCache>((ref) {
 });
 
 class UpdateNotifier extends AsyncNotifier<UpdateState> {
+  /// A fast update check can resolve inside a single frame. Without a floor the
+  /// spinner would never become visible and the button would look inert.
+  static const Duration _minimumVisibleCheck = Duration(milliseconds: 600);
+
   @override
   Future<UpdateState> build() async {
     return const UpdateState();
@@ -130,45 +157,94 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
       current.copyWith(status: UpdateStatus.checking, error: () => null),
     );
 
-    try {
-      final result = await ref
-          .read(rustBridgeServiceProvider)
-          .checkForUpdate(currentVersion: AppConstants.appVersion);
+    // Monotonic on purpose: a wall clock can step backwards mid-check (DST,
+    // NTP correction) and would turn the floor below into an unbounded sleep
+    // that pins `checking` and locks out every later check.
+    final elapsed = Stopwatch()..start();
 
-      // Re-read state after the await to avoid clobbering concurrent changes.
-      final post = state.value ?? current;
-      if (result.updateAvailable) {
+    rust_update.UpdateCheckResult? result;
+    String? failure;
+    String? cachedInstaller;
+    try {
+      result = await ref
+          .read(rustBridgeServiceProvider)
+          .checkForUpdate(
+            currentVersion: AppConstants.appVersion,
+            // An explicit user action must be able to observe a release (or a
+            // just-uploaded latest.json) that appeared inside Rust's six-hour
+            // automatic-check cache window.
+            forceRefresh: !automatic,
+          );
+
+      if (!result.manifestAvailable) {
+        // Rust reports a missing latest.json as "not available" rather than
+        // "up to date"; turning that into a positive claim would tell the user
+        // they are current at the exact moment we could not find out.
+        failure = 'Update manifest is unavailable';
+        result = null;
+      } else if (result.updateAvailable) {
         // A checksum-verified installer for the version that is still current
         // is adopted instead of being re-downloaded — the state itself does not
         // survive a restart, but the file does.
-        final cached = await _findVerifiedInstaller(result.latestVersion);
-        state = AsyncValue.data(
-          post.copyWith(
-            status: cached == null
-                ? UpdateStatus.available
-                : UpdateStatus.downloaded,
-            info: () => result,
-            installerPath: () => cached,
-          ),
-        );
-      } else {
-        state = AsyncValue.data(
-          post.copyWith(status: UpdateStatus.idle, installerPath: () => null),
-        );
+        cachedInstaller = await _findVerifiedInstaller(result.latestVersion);
       }
-
-      // Deliberately after the result: only now is it known which version is
-      // current, and the installer for that version must survive the sweep.
-      await _deleteStaleInstallers(
-        keepVersion: result.updateAvailable ? result.latestVersion : null,
-      );
     } catch (e) {
+      failure = e.toString();
+    }
+
+    // One floor for one terminal write, measured across every await above so a
+    // slow path pays nothing extra. Only a person watching the spinner needs
+    // it; a background check must not hold `checking` against a manual press.
+    if (!automatic) {
+      await _holdForMinimumVisibleCheck(elapsed);
+    }
+
+    // Re-read state after every await to avoid clobbering concurrent changes.
+    final post = state.value ?? current;
+    if (failure != null) {
       state = AsyncValue.data(
-        (state.value ?? current).copyWith(
+        post.copyWith(
           status: UpdateStatus.error,
-          error: () => e.toString(),
+          error: () => failure,
+          errorFromDownload: false,
         ),
       );
+      return;
+    }
+
+    final checkResult = result!;
+    state = AsyncValue.data(
+      checkResult.updateAvailable
+          ? post.copyWith(
+              status: cachedInstaller == null
+                  ? UpdateStatus.available
+                  : UpdateStatus.downloaded,
+              info: () => checkResult,
+              installerPath: () => cachedInstaller,
+            )
+          // `info` is cleared alongside the installer: keeping a release that is
+          // no longer offered would later be mistaken for a downloadable one.
+          : post.copyWith(
+              status: UpdateStatus.upToDate,
+              info: () => null,
+              installerPath: () => null,
+            ),
+    );
+
+    // Deliberately after the result: only now is it known which version is
+    // current, and the installer for that version must survive the sweep.
+    await _deleteStaleInstallers(
+      keepVersion: checkResult.updateAvailable
+          ? checkResult.latestVersion
+          : null,
+    );
+  }
+
+  /// Keeps `checking` on screen long enough to read. See [_minimumVisibleCheck].
+  Future<void> _holdForMinimumVisibleCheck(Stopwatch elapsed) async {
+    final remaining = _minimumVisibleCheck - elapsed.elapsed;
+    if (remaining > Duration.zero) {
+      await Future<void>.delayed(remaining);
     }
   }
 
@@ -211,6 +287,7 @@ class UpdateNotifier extends AsyncNotifier<UpdateState> {
     } catch (e) {
       state = AsyncValue.data(
         (state.value ?? current).copyWith(
+          errorFromDownload: true,
           status: UpdateStatus.error,
           error: () => e.toString(),
         ),

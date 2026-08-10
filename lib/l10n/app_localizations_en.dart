@@ -207,14 +207,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Automation is currently paused for the compression inventory.';
 
   @override
-  String get settingsEnableFullMetadataInventoryScan =>
-      'Enable full metadata inventory scan';
-
-  @override
-  String get settingsInventoryAdvancedDescription =>
-      'Collect richer metadata for the inventory table. This may take longer during scans.';
-
-  @override
   String get settingsSteamGridDbManagedOnce =>
       'SteamGridDB artwork is only fetched once per game unless you refresh it.';
 
@@ -333,6 +325,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAboutCheckingForUpdatesStatus => 'Checking for updates...';
+
+  @override
+  String get settingsAboutUpToDateStatus => 'You are on the latest version';
+
+  @override
+  String get settingsAboutCheckAgainAction => 'Check again';
+
+  @override
+  String get settingsAboutUpdateCheckFailedTitle =>
+      'Couldn\'t check for updates';
 
   @override
   String get settingsAboutUpdateFailedTitle => 'Update failed';
@@ -630,19 +632,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inventoryResumeWatcher => 'Resume watcher';
-
-  @override
-  String get inventoryAdvancedMetadataScanOn => 'Advanced metadata scan: on';
-
-  @override
-  String get inventoryAdvancedMetadataScanOff => 'Advanced metadata scan: off';
-
-  @override
-  String get inventoryRunFullRescan => 'Run full inventory rescan';
-
-  @override
-  String get inventoryRescanUnavailableWhileLoading =>
-      'Rescan unavailable while loading';
 
   @override
   String inventoryWatcherSummary(String status) {
@@ -1054,4 +1043,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String settingsRestoreLoadFailed(String error) {
     return 'Could not check managed games: $error';
   }
+
+  @override
+  String get inventoryRescanCompleted => 'Inventory rescanned';
+
+  @override
+  String get inventoryRescanFailed => 'Couldn\'t rescan the inventory';
+
+  @override
+  String get inventoryRescanAlreadyRunning => 'A rescan is already running';
 }

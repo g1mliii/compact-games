@@ -131,10 +131,6 @@ class SettingsNotifier extends AsyncNotifier<SettingsState> {
     _updateSetting((s) => s.copyWith(coverArtProviderMode: mode));
   }
 
-  void setInventoryAdvancedScanEnabled(bool enabled) {
-    _updateSetting((s) => s.copyWith(inventoryAdvancedScanEnabled: enabled));
-  }
-
   void setMinimizeToTray(bool enabled) {
     _updateSetting((s) => s.copyWith(minimizeToTray: enabled));
   }
@@ -213,7 +209,6 @@ bool _settingsEqual(AppSettings a, AppSettings b) {
       a.ioParallelismOverride == b.ioParallelismOverride &&
       a.steamGridDbApiKey == b.steamGridDbApiKey &&
       a.coverArtProviderMode == b.coverArtProviderMode &&
-      a.inventoryAdvancedScanEnabled == b.inventoryAdvancedScanEnabled &&
       a.minimizeToTray == b.minimizeToTray &&
       a.homeViewMode == b.homeViewMode &&
       a.localeTag == b.localeTag &&

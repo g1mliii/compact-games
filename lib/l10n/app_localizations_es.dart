@@ -211,14 +211,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'La automatización está pausada para el inventario de compresión.';
 
   @override
-  String get settingsEnableFullMetadataInventoryScan =>
-      'Activar escaneo completo de metadatos';
-
-  @override
-  String get settingsInventoryAdvancedDescription =>
-      'Recopila metadatos más ricos para la tabla del inventario. Puede tardar más durante los escaneos.';
-
-  @override
   String get settingsSteamGridDbManagedOnce =>
       'Las portadas de SteamGridDB solo se obtienen una vez por juego, salvo que las actualices.';
 
@@ -341,6 +333,16 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get settingsAboutCheckingForUpdatesStatus =>
       'Buscando actualizaciones...';
+
+  @override
+  String get settingsAboutUpToDateStatus => 'Tienes la versión más reciente';
+
+  @override
+  String get settingsAboutCheckAgainAction => 'Comprobar de nuevo';
+
+  @override
+  String get settingsAboutUpdateCheckFailedTitle =>
+      'No se pudo comprobar si hay actualizaciones';
 
   @override
   String get settingsAboutUpdateFailedTitle => 'La actualización falló';
@@ -642,22 +644,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get inventoryResumeWatcher => 'Reanudar monitor';
-
-  @override
-  String get inventoryAdvancedMetadataScanOn =>
-      'Escaneo avanzado de metadatos: activado';
-
-  @override
-  String get inventoryAdvancedMetadataScanOff =>
-      'Escaneo avanzado de metadatos: desactivado';
-
-  @override
-  String get inventoryRunFullRescan =>
-      'Ejecutar reescaneo completo del inventario';
-
-  @override
-  String get inventoryRescanUnavailableWhileLoading =>
-      'Reescaneo no disponible mientras carga';
 
   @override
   String inventoryWatcherSummary(String status) {
@@ -1072,4 +1058,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String settingsRestoreLoadFailed(String error) {
     return 'No se pudieron comprobar los juegos administrados: $error';
   }
+
+  @override
+  String get inventoryRescanCompleted => 'Inventario recalculado';
+
+  @override
+  String get inventoryRescanFailed => 'No se pudo recalcular el inventario';
+
+  @override
+  String get inventoryRescanAlreadyRunning => 'Ya hay un recálculo en curso';
 }

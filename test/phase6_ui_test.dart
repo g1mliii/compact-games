@@ -129,6 +129,38 @@ void main() {
     expect(find.byIcon(LucideIcons.arrowLeft), findsOneWidget);
   });
 
+  testWidgets('Inventory rescan reports its outcome', (
+    WidgetTester tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          initialRoute: AppRoutes.inventory,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // A rescan can leave the table looking identical, so silence would be
+    // indistinguishable from the button not working.
+    await tester.tap(find.byKey(InventoryScreen.refreshButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Inventory rescanned'), findsOneWidget);
+  });
+
   testWidgets('Header route button navigates to settings', (
     WidgetTester tester,
   ) async {

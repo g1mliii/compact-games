@@ -136,10 +136,14 @@ fn wire__crate__api__update__check_for_update_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_current_version = <String>::sse_decode(&mut deserializer);
+            let api_force_refresh = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::update::check_for_update(api_current_version)?;
+                    let output_ok = crate::api::update::check_for_update(
+                        api_current_version,
+                        api_force_refresh,
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -2369,6 +2373,7 @@ impl SseDecode for crate::api::update::UpdateCheckResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_updateAvailable = <bool>::sse_decode(deserializer);
+        let mut var_manifestAvailable = <bool>::sse_decode(deserializer);
         let mut var_latestVersion = <String>::sse_decode(deserializer);
         let mut var_downloadUrl = <String>::sse_decode(deserializer);
         let mut var_releaseNotes = <String>::sse_decode(deserializer);
@@ -2376,6 +2381,7 @@ impl SseDecode for crate::api::update::UpdateCheckResult {
         let mut var_publishedAt = <String>::sse_decode(deserializer);
         return crate::api::update::UpdateCheckResult {
             update_available: var_updateAvailable,
+            manifest_available: var_manifestAvailable,
             latest_version: var_latestVersion,
             download_url: var_downloadUrl,
             release_notes: var_releaseNotes,
@@ -3197,6 +3203,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::update::UpdateCheckResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.update_available.into_into_dart().into_dart(),
+            self.manifest_available.into_into_dart().into_dart(),
             self.latest_version.into_into_dart().into_dart(),
             self.download_url.into_into_dart().into_dart(),
             self.release_notes.into_into_dart().into_dart(),
@@ -3889,6 +3896,7 @@ impl SseEncode for crate::api::update::UpdateCheckResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.update_available, serializer);
+        <bool>::sse_encode(self.manifest_available, serializer);
         <String>::sse_encode(self.latest_version, serializer);
         <String>::sse_encode(self.download_url, serializer);
         <String>::sse_encode(self.release_notes, serializer);

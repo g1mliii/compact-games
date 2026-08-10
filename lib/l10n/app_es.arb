@@ -282,14 +282,6 @@
   "@settingsWatcherAutomationDisabled": {
     "description": "Localized message for settings watcher automation disabled."
   },
-  "settingsEnableFullMetadataInventoryScan": "Activar escaneo completo de metadatos",
-  "@settingsEnableFullMetadataInventoryScan": {
-    "description": "Localized message for settings enable full metadata inventory scan."
-  },
-  "settingsInventoryAdvancedDescription": "Recopila metadatos más ricos para la tabla del inventario. Puede tardar más durante los escaneos.",
-  "@settingsInventoryAdvancedDescription": {
-    "description": "Localized message for settings inventory advanced description."
-  },
   "settingsSteamGridDbManagedOnce": "Las portadas de SteamGridDB solo se obtienen una vez por juego, salvo que las actualices.",
   "@settingsSteamGridDbManagedOnce": {
     "description": "Localized message for settings steam grid db managed once."
@@ -433,6 +425,18 @@
   "settingsAboutCheckingForUpdatesStatus": "Buscando actualizaciones...",
   "@settingsAboutCheckingForUpdatesStatus": {
     "description": "Localized message shown while the app checks for updates."
+  },
+  "settingsAboutUpToDateStatus": "Tienes la versión más reciente",
+  "@settingsAboutUpToDateStatus": {
+    "description": "Localized message confirming a completed check found no newer version."
+  },
+  "settingsAboutCheckAgainAction": "Comprobar de nuevo",
+  "@settingsAboutCheckAgainAction": {
+    "description": "Localized button label to run another update check after one found nothing."
+  },
+  "settingsAboutUpdateCheckFailedTitle": "No se pudo comprobar si hay actualizaciones",
+  "@settingsAboutUpdateCheckFailedTitle": {
+    "description": "Localized title shown when the update check itself could not complete."
   },
   "settingsAboutUpdateFailedTitle": "La actualización falló",
   "@settingsAboutUpdateFailedTitle": {
@@ -822,22 +826,6 @@
   "inventoryResumeWatcher": "Reanudar monitor",
   "@inventoryResumeWatcher": {
     "description": "Localized message for inventory resume watcher."
-  },
-  "inventoryAdvancedMetadataScanOn": "Escaneo avanzado de metadatos: activado",
-  "@inventoryAdvancedMetadataScanOn": {
-    "description": "Localized message for inventory advanced metadata scan on."
-  },
-  "inventoryAdvancedMetadataScanOff": "Escaneo avanzado de metadatos: desactivado",
-  "@inventoryAdvancedMetadataScanOff": {
-    "description": "Localized message for inventory advanced metadata scan off."
-  },
-  "inventoryRunFullRescan": "Ejecutar reescaneo completo del inventario",
-  "@inventoryRunFullRescan": {
-    "description": "Localized message for inventory run full rescan."
-  },
-  "inventoryRescanUnavailableWhileLoading": "Reescaneo no disponible mientras carga",
-  "@inventoryRescanUnavailableWhileLoading": {
-    "description": "Localized message for inventory rescan unavailable while loading."
   },
   "inventoryWatcherSummary": "{status}.",
   "@inventoryWatcherSummary": {
@@ -1314,5 +1302,17 @@
   "settingsRestoreUninstallAction": "Desinstalar Compact Games",
   "settingsRestoreUninstallNotFound": "No se encontró el desinstalador de Compact Games.",
   "settingsRestoreRefresh": "Volver a comprobar",
-  "settingsRestoreLoadFailed": "No se pudieron comprobar los juegos administrados: {error}"
+  "settingsRestoreLoadFailed": "No se pudieron comprobar los juegos administrados: {error}",
+  "inventoryRescanCompleted": "Inventario recalculado",
+  "@inventoryRescanCompleted": {
+    "description": "Localized confirmation shown after a manual inventory rescan completes."
+  },
+  "inventoryRescanFailed": "No se pudo recalcular el inventario",
+  "@inventoryRescanFailed": {
+    "description": "Localized message shown when a manual inventory rescan fails."
+  },
+  "inventoryRescanAlreadyRunning": "Ya hay un recálculo en curso",
+  "@inventoryRescanAlreadyRunning": {
+    "description": "Localized message shown when a rescan was requested while another was already in progress."
+  }
 }

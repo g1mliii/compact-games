@@ -5,18 +5,11 @@ import '../../../../core/localization/app_localization.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/status_badge.dart';
 
-const double _statusActionHeight = 40;
 const ValueKey<String> _inventoryStatusPanelKey = ValueKey<String>(
   'inventoryStatusPanel',
 );
 const ValueKey<String> _inventoryWatcherToggleButtonKey = ValueKey<String>(
   'inventoryWatcherToggleButton',
-);
-const ValueKey<String> _inventoryAdvancedScanToggleButtonKey = ValueKey<String>(
-  'inventoryAdvancedScanToggleButton',
-);
-const ValueKey<String> _inventoryFullRescanButtonKey = ValueKey<String>(
-  'inventoryFullRescanButton',
 );
 const ValueKey<String> _inventoryAlgorithmBadgeKey = ValueKey<String>(
   'inventoryAlgorithmBadge',
@@ -31,21 +24,13 @@ class InventoryStatusRow extends StatelessWidget {
     required this.algorithmLabel,
     required this.watcherActive,
     required this.watcherEnabled,
-    required this.advancedEnabled,
     required this.onWatcherEnabledChanged,
-    required this.onAdvancedChanged,
-    required this.onRunFullRescan,
-    this.canRunFullRescan = true,
   });
 
   final String algorithmLabel;
   final bool watcherActive;
   final bool watcherEnabled;
-  final bool advancedEnabled;
   final ValueChanged<bool> onWatcherEnabledChanged;
-  final ValueChanged<bool> onAdvancedChanged;
-  final VoidCallback onRunFullRescan;
-  final bool canRunFullRescan;
 
   static final _panelDecoration = BoxDecoration(
     color: AppColors.surface.withValues(alpha: 0.58),
@@ -89,57 +74,25 @@ class InventoryStatusRow extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  key: _inventoryWatcherToggleButtonKey,
-                  style: _watcherActionStyle(context, watcherActive),
-                  onPressed: () => onWatcherEnabledChanged(!watcherEnabled),
-                  icon: Icon(
-                    watcherEnabled ? LucideIcons.pause : LucideIcons.play,
-                    size: 16,
-                  ),
-                  label: Text(
-                    watcherEnabled
-                        ? l10n.inventoryPauseWatcher
-                        : l10n.inventoryResumeWatcher,
-                  ),
+            // The Column stretches, so the lone button needs an alignment of
+            // its own to stay sized to its label.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: _inventoryWatcherToggleButtonKey,
+                style: _watcherActionStyle(context, watcherActive),
+                onPressed: () => onWatcherEnabledChanged(!watcherEnabled),
+                icon: Icon(
+                  watcherEnabled ? LucideIcons.pause : LucideIcons.play,
+                  size: 16,
                 ),
-                OutlinedButton.icon(
-                  key: _inventoryAdvancedScanToggleButtonKey,
-                  onPressed: () => onAdvancedChanged(!advancedEnabled),
-                  icon: Icon(
-                    advancedEnabled
-                        ? LucideIcons.toggleRight
-                        : LucideIcons.scan,
-                    size: 16,
-                  ),
-                  label: Text(
-                    advancedEnabled
-                        ? l10n.inventoryAdvancedMetadataScanOn
-                        : l10n.inventoryAdvancedMetadataScanOff,
-                  ),
-                ),
-              ],
-            ),
-            if (advancedEnabled) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                height: _statusActionHeight,
-                child: FilledButton.icon(
-                  key: _inventoryFullRescanButtonKey,
-                  onPressed: canRunFullRescan ? onRunFullRescan : null,
-                  icon: const Icon(LucideIcons.scan, size: 16),
-                  label: Text(
-                    canRunFullRescan
-                        ? l10n.inventoryRunFullRescan
-                        : l10n.inventoryRescanUnavailableWhileLoading,
-                  ),
+                label: Text(
+                  watcherEnabled
+                      ? l10n.inventoryPauseWatcher
+                      : l10n.inventoryResumeWatcher,
                 ),
               ),
-            ],
+            ),
           ],
         ),
       ),

@@ -42,6 +42,11 @@ static LAST_RESULT: RwLock<Option<UpdateCheckResult>> = RwLock::new(None);
 #[frb(dart_metadata=("freezed"))]
 pub struct UpdateCheckResult {
     pub update_available: bool,
+    /// False when `latest.json` could not be fetched at all, so
+    /// `update_available: false` means "we could not find out" rather than
+    /// "you are on the latest version". Without this the two are
+    /// indistinguishable and the UI would state the stronger claim.
+    pub manifest_available: bool,
     pub latest_version: String,
     pub download_url: String,
     pub release_notes: String,
@@ -64,21 +69,28 @@ struct LatestManifest {
 
 /// Check GitHub Releases for a newer app version.
 ///
-/// Rate-limited to one check per [`update_check_interval_ms`]. If called within
-/// the window, returns the cached result without hitting the network.
-pub fn check_for_update(current_version: String) -> Result<UpdateCheckResult, String> {
+/// Automatic checks are rate-limited to one request per
+/// [`update_check_interval_ms`]. Manual checks set `force_refresh` so explicit
+/// Check again / Retry actions can observe a newly published manifest instead
+/// of replaying a stale result for six hours.
+pub fn check_for_update(
+    current_version: String,
+    force_refresh: bool,
+) -> Result<UpdateCheckResult, String> {
     let now_ms = now_millis();
 
-    if let Some(result) = cached_result_within_interval(now_ms) {
+    if let Some(result) = cached_result_for_request(now_ms, force_refresh) {
         return Ok(result);
     }
 
     let Some(body) = fetch_text(LATEST_JSON_URL, USER_AGENT, MAX_BODY_BYTES)? else {
         // No latest.json available (release just cut and assets still uploading,
-        // or no public release exists yet). Treat as "you're up to date" so the
-        // user sees the same outcome as a normal no-update result, not an error.
+        // or no public release exists yet). Report it as "could not determine"
+        // rather than "up to date" — the caller must not turn a missing manifest
+        // into a positive claim about the user's version.
         let result = UpdateCheckResult {
             update_available: false,
+            manifest_available: false,
             latest_version: current_version.clone(),
             download_url: String::new(),
             release_notes: String::new(),
@@ -105,6 +117,7 @@ pub fn check_for_update(current_version: String) -> Result<UpdateCheckResult, St
 
     let result = UpdateCheckResult {
         update_available: is_newer(&manifest.version, &current_version),
+        manifest_available: true,
         latest_version: manifest.version,
         download_url: manifest.download_url,
         release_notes: manifest.release_notes,
@@ -120,6 +133,13 @@ pub fn check_for_update(current_version: String) -> Result<UpdateCheckResult, St
     }
 
     Ok(result)
+}
+
+fn cached_result_for_request(now_ms: u64, force_refresh: bool) -> Option<UpdateCheckResult> {
+    if force_refresh {
+        return None;
+    }
+    cached_result_within_interval(now_ms)
 }
 
 fn cached_result_within_interval(now_ms: u64) -> Option<UpdateCheckResult> {
@@ -301,6 +321,7 @@ mod tests {
     fn test_cached_result_is_reused_while_rate_limited() {
         let cached = UpdateCheckResult {
             update_available: true,
+            manifest_available: true,
             latest_version: "0.2.0".to_string(),
             download_url: "https://example.invalid/download".to_string(),
             release_notes: "Bug fixes".to_string(),
@@ -317,6 +338,7 @@ mod tests {
         assert_eq!(reused.latest_version, "0.2.0");
         assert!(reused.update_available);
         assert_eq!(reused.checksum_sha256, "abc123");
+        assert!(cached_result_for_request(UPDATE_CHECK_INTERVAL_MS + 1, true).is_none());
 
         *LAST_CHECK_MS.write().unwrap() = 0;
         *LAST_RESULT.write().unwrap() = None;

@@ -97,6 +97,18 @@ UpdateStatusPresentation describeUpdateStatus(
         icon: LucideIcons.loader2,
         color: AppColors.textSecondary,
       );
+    case UpdateStatus.upToDate:
+      return UpdateStatusPresentation(
+        message: l10n.settingsAboutUpToDateStatus,
+        icon: LucideIcons.checkCircle,
+        color: AppColors.success,
+        // Still offered: a release can be cut minutes after a check.
+        action: UpdateAction(
+          invoke: (notifier) => notifier.checkForUpdate(),
+          label: l10n.settingsAboutCheckAgainAction,
+          icon: LucideIcons.refreshCw,
+        ),
+      );
     case UpdateStatus.available:
       return UpdateStatusPresentation(
         message: l10n.settingsAboutUpdateAvailableStatus(
@@ -127,16 +139,22 @@ UpdateStatusPresentation describeUpdateStatus(
           label: installBlocked
               ? l10n.settingsAboutWaitingForCompressionStatus
               : l10n.settingsAboutInstallUpdateAndRestartAction,
-          icon: LucideIcons.rocket,
+          // Restart glyph, not a rocket: the action relaunches the app.
+          icon: LucideIcons.rotateCw,
           enabled: !installBlocked,
         ),
       );
     case UpdateStatus.error:
-      // Without release metadata there is nothing to retry downloading, so the
-      // only way forward is a fresh check.
-      final canRetryDownload = state.info != null;
+      // Which operation failed is recorded on the state rather than inferred
+      // from `info`: a release found by an earlier check stays in state, so
+      // `info != null` would report a failed check as a failed download and
+      // offer to re-download something nobody asked for. Metadata is still
+      // required — there is nothing to retry downloading without it.
+      final canRetryDownload = state.errorFromDownload && state.info != null;
       return UpdateStatusPresentation(
-        message: l10n.settingsAboutUpdateFailedTitle,
+        message: canRetryDownload
+            ? l10n.settingsAboutUpdateFailedTitle
+            : l10n.settingsAboutUpdateCheckFailedTitle,
         icon: LucideIcons.alertCircle,
         color: AppColors.error,
         action: UpdateAction(

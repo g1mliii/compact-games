@@ -282,14 +282,6 @@
   "@settingsWatcherAutomationDisabled": {
     "description": "Localized message for settings watcher automation disabled."
   },
-  "settingsEnableFullMetadataInventoryScan": "Enable full metadata inventory scan",
-  "@settingsEnableFullMetadataInventoryScan": {
-    "description": "Localized message for settings enable full metadata inventory scan."
-  },
-  "settingsInventoryAdvancedDescription": "Collect richer metadata for the inventory table. This may take longer during scans.",
-  "@settingsInventoryAdvancedDescription": {
-    "description": "Localized message for settings inventory advanced description."
-  },
   "settingsSteamGridDbManagedOnce": "SteamGridDB artwork is only fetched once per game unless you refresh it.",
   "@settingsSteamGridDbManagedOnce": {
     "description": "Localized message for settings steam grid db managed once."
@@ -433,6 +425,18 @@
   "settingsAboutCheckingForUpdatesStatus": "Checking for updates...",
   "@settingsAboutCheckingForUpdatesStatus": {
     "description": "Localized message shown while the app checks for updates."
+  },
+  "settingsAboutUpToDateStatus": "You are on the latest version",
+  "@settingsAboutUpToDateStatus": {
+    "description": "Localized message confirming a completed check found no newer version."
+  },
+  "settingsAboutCheckAgainAction": "Check again",
+  "@settingsAboutCheckAgainAction": {
+    "description": "Localized button label to run another update check after one found nothing."
+  },
+  "settingsAboutUpdateCheckFailedTitle": "Couldn't check for updates",
+  "@settingsAboutUpdateCheckFailedTitle": {
+    "description": "Localized title shown when the update check itself could not complete."
   },
   "settingsAboutUpdateFailedTitle": "Update failed",
   "@settingsAboutUpdateFailedTitle": {
@@ -822,22 +826,6 @@
   "inventoryResumeWatcher": "Resume watcher",
   "@inventoryResumeWatcher": {
     "description": "Localized message for inventory resume watcher."
-  },
-  "inventoryAdvancedMetadataScanOn": "Advanced metadata scan: on",
-  "@inventoryAdvancedMetadataScanOn": {
-    "description": "Localized message for inventory advanced metadata scan on."
-  },
-  "inventoryAdvancedMetadataScanOff": "Advanced metadata scan: off",
-  "@inventoryAdvancedMetadataScanOff": {
-    "description": "Localized message for inventory advanced metadata scan off."
-  },
-  "inventoryRunFullRescan": "Run full inventory rescan",
-  "@inventoryRunFullRescan": {
-    "description": "Localized message for inventory run full rescan."
-  },
-  "inventoryRescanUnavailableWhileLoading": "Rescan unavailable while loading",
-  "@inventoryRescanUnavailableWhileLoading": {
-    "description": "Localized message for inventory rescan unavailable while loading."
   },
   "inventoryWatcherSummary": "{status}.",
   "@inventoryWatcherSummary": {
@@ -1439,5 +1427,17 @@
         "type": "String"
       }
     }
+  },
+  "inventoryRescanCompleted": "Inventory rescanned",
+  "@inventoryRescanCompleted": {
+    "description": "Localized confirmation shown after a manual inventory rescan completes."
+  },
+  "inventoryRescanFailed": "Couldn't rescan the inventory",
+  "@inventoryRescanFailed": {
+    "description": "Localized message shown when a manual inventory rescan fails."
+  },
+  "inventoryRescanAlreadyRunning": "A rescan is already running",
+  "@inventoryRescanAlreadyRunning": {
+    "description": "Localized message shown when a rescan was requested while another was already in progress."
   }
 }

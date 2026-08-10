@@ -285,8 +285,10 @@ class _TestRustBridgeService implements RustBridgeService {
   @override
   Future<rust_update.UpdateCheckResult> checkForUpdate({
     required String currentVersion,
+    bool forceRefresh = false,
   }) async => const rust_update.UpdateCheckResult(
     updateAvailable: false,
+    manifestAvailable: true,
     latestVersion: '0.1.0',
     downloadUrl: '',
     releaseNotes: '',

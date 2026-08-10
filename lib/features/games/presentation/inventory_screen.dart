@@ -22,6 +22,10 @@ class InventoryScreen extends ConsumerStatefulWidget {
     'inventoryBackButton',
   );
 
+  static const ValueKey<String> refreshButtonKey = ValueKey<String>(
+    'inventoryRefreshButton',
+  );
+
   @override
   ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
 }
@@ -53,6 +57,40 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     super.dispose();
   }
 
+  /// A rescan can legitimately change nothing visible in the table, so it
+  /// reports its outcome rather than leaving the user guessing whether the
+  /// button did anything.
+  Future<void> _runRefresh() async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final refreshed = await refreshGamesAndInvalidateCovers(ref);
+    if (!mounted) return;
+
+    final listState = ref.read(gameListProvider);
+    // Discovery captures its failures into the state rather than throwing, so
+    // a failure can arrive on either channel: an AsyncError, or a data value
+    // carrying `error`. Missing the first would report it as a success.
+    final failed = listState.hasError || listState.value?.error != null;
+
+    final String message;
+    if (!refreshed) {
+      // A concurrent refresh (watcher, home header) owned the reload, so this
+      // press changed nothing — say that rather than claiming a rescan or, as
+      // before, saying nothing at all and reviving the "did it work?" doubt.
+      message = l10n.inventoryRescanAlreadyRunning;
+    } else {
+      // Deliberately no count: the table below is filtered by the search query
+      // and excluded paths, so any total would contradict the visible rows.
+      message = failed
+          ? l10n.inventoryRescanFailed
+          : l10n.inventoryRescanCompleted;
+    }
+
+    messenger.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -69,11 +107,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ),
     );
     final algorithmLabel = algorithm.localizedLabel(l10n);
-    final advancedEnabled = ref.watch(
-      settingsProvider.select(
-        (value) => value.value?.settings.inventoryAdvancedScanEnabled ?? false,
-      ),
-    );
     final watcherEnabled = ref.watch(
       settingsProvider.select(
         (value) => value.value?.settings.autoCompress ?? false,
@@ -99,11 +132,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         backButtonKey: InventoryScreen.backButtonKey,
         actions: [
           IconButton(
+            key: InventoryScreen.refreshButtonKey,
             tooltip: l10n.inventoryRefreshTooltip,
             icon: const Icon(LucideIcons.refreshCw),
-            onPressed: refreshAllowed
-                ? () => unawaited(refreshGamesAndInvalidateCovers(ref))
-                : null,
+            onPressed: refreshAllowed ? () => unawaited(_runRefresh()) : null,
           ),
         ],
       ),
@@ -143,16 +175,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 algorithmLabel: algorithmLabel,
                 watcherActive: watcherActive,
                 watcherEnabled: watcherEnabled,
-                advancedEnabled: advancedEnabled,
                 onWatcherEnabledChanged: (enabled) => ref
                     .read(settingsProvider.notifier)
                     .setAutoCompress(enabled),
-                onAdvancedChanged: (enabled) => ref
-                    .read(settingsProvider.notifier)
-                    .setInventoryAdvancedScanEnabled(enabled),
-                onRunFullRescan: () =>
-                    unawaited(refreshGamesAndInvalidateCovers(ref)),
-                canRunFullRescan: refreshAllowed,
               ),
             ),
             const SizedBox(height: 10),

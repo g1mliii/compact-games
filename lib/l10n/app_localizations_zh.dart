@@ -202,12 +202,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsWatcherAutomationDisabled => '自动化当前已暂停，不会监视压缩清单。';
 
   @override
-  String get settingsEnableFullMetadataInventoryScan => '启用完整元数据清单扫描';
-
-  @override
-  String get settingsInventoryAdvancedDescription => '为清单表收集更丰富的元数据。扫描时可能会更慢。';
-
-  @override
   String get settingsSteamGridDbManagedOnce =>
       'SteamGridDB 封面每个游戏只会获取一次，除非你手动刷新。';
 
@@ -319,6 +313,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsAboutCheckingForUpdatesStatus => '正在检查更新...';
+
+  @override
+  String get settingsAboutUpToDateStatus => '您使用的已是最新版本';
+
+  @override
+  String get settingsAboutCheckAgainAction => '重新检查';
+
+  @override
+  String get settingsAboutUpdateCheckFailedTitle => '无法检查更新';
 
   @override
   String get settingsAboutUpdateFailedTitle => '更新失败';
@@ -602,18 +605,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get inventoryResumeWatcher => '恢复监视器';
-
-  @override
-  String get inventoryAdvancedMetadataScanOn => '高级元数据扫描：开启';
-
-  @override
-  String get inventoryAdvancedMetadataScanOff => '高级元数据扫描：关闭';
-
-  @override
-  String get inventoryRunFullRescan => '执行完整清单重扫';
-
-  @override
-  String get inventoryRescanUnavailableWhileLoading => '加载期间无法重新扫描';
 
   @override
   String inventoryWatcherSummary(String status) {
@@ -1015,4 +1006,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String settingsRestoreLoadFailed(String error) {
     return '无法检查托管游戏：$error';
   }
+
+  @override
+  String get inventoryRescanCompleted => '库存已重新扫描';
+
+  @override
+  String get inventoryRescanFailed => '无法重新扫描库存';
+
+  @override
+  String get inventoryRescanAlreadyRunning => '已有扫描正在进行';
 }
