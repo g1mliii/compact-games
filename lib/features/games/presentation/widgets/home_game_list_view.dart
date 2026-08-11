@@ -15,6 +15,7 @@ import '../../../../providers/games/filtered_games_provider.dart';
 import '../../../../providers/games/selected_game_provider.dart';
 import '../../../../providers/games/single_game_provider.dart';
 import '../widgets/game_details/game_details_body.dart';
+import '../widgets/library_home/library_home_surface.dart';
 
 /// Split view: vertical game list on the left, details panel on the right.
 ///
@@ -109,6 +110,10 @@ double bucketHomeGameListPanelHeight(double maxHeight) {
       .toDouble();
 }
 
+/// Identifies the scrollable game list, so callers (and tests) can tell a row
+/// apart from the same game surfaced elsewhere in the split view.
+const Key homeGameListPanelListKey = ValueKey<String>('homeGameListPanelList');
+
 /// Moves the list selection by [delta] rows.
 class _MoveListSelectionIntent extends Intent {
   const _MoveListSelectionIntent(this.delta);
@@ -146,22 +151,28 @@ class _GameListPanelState extends ConsumerState<_GameListPanel> {
     super.dispose();
   }
 
-  void _selectRow(String gamePath) {
+  /// Selects [gamePath], or Library Home when it is null.
+  ///
+  /// Library Home is not a separate selection state: it *is* the null
+  /// selection, so nothing downstream has to learn about a second mode.
+  void _selectRow(String? gamePath) {
     _listFocusNode.requestFocus();
     ref.read(selectedGameProvider.notifier).state = gamePath;
   }
 
+  /// Moves the selection over the virtual row index, where 0 is the persistent
+  /// Library Home row and *i* is `gamePaths[i - 1]`.
   void _moveSelection(int delta, List<String> gamePaths) {
-    if (gamePaths.isEmpty) return;
-
     final selected = ref.read(selectedGameProvider);
-    final currentIndex = selected == null ? -1 : gamePaths.indexOf(selected);
-    final nextIndex = currentIndex < 0
-        ? (delta > 0 ? 0 : gamePaths.length - 1)
-        : (currentIndex + delta).clamp(0, gamePaths.length - 1);
+    // A selection that is no longer in the filtered list resolves to 0, which
+    // is Library Home — the same place the null selection lives.
+    final currentIndex = selected == null ? 0 : gamePaths.indexOf(selected) + 1;
+    final nextIndex = (currentIndex + delta).clamp(0, gamePaths.length);
     if (nextIndex == currentIndex) return;
 
-    ref.read(selectedGameProvider.notifier).state = gamePaths[nextIndex];
+    ref.read(selectedGameProvider.notifier).state = nextIndex == 0
+        ? null
+        : gamePaths[nextIndex - 1];
     _revealRow(nextIndex);
   }
 
@@ -193,36 +204,49 @@ class _GameListPanelState extends ConsumerState<_GameListPanel> {
     final l10n = context.l10n;
 
     if (gamePaths.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                LucideIcons.searchX,
-                size: 22,
-                color: AppColors.textMuted,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                l10n.homeListEmptyTitle,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                l10n.homeListEmptyMessage,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+      // Library Home stays reachable even when the filters hide every game, so
+      // the pane is never a dead end.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: _rowExtent,
+            child: _LibraryHomeRow(onSelect: _selectRow),
           ),
-        ),
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      LucideIcons.searchX,
+                      size: 22,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      l10n.homeListEmptyTitle,
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      l10n.homeListEmptyMessage,
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     }
 
@@ -240,13 +264,20 @@ class _GameListPanelState extends ConsumerState<_GameListPanel> {
         child: Focus(
           focusNode: _listFocusNode,
           child: ListView.builder(
+            key: homeGameListPanelListKey,
             controller: _scrollController,
-            itemCount: gamePaths.length,
+            // Row 0 is the persistent Library Home entry. Keeping it inside the
+            // same builder at the same extent means `_revealRow`'s
+            // `index * _rowExtent` scroll math needs no special case.
+            itemCount: gamePaths.length + 1,
             itemExtent: _rowExtent,
             addRepaintBoundaries: true,
             addAutomaticKeepAlives: false,
             itemBuilder: (context, index) {
-              final gamePath = gamePaths[index];
+              if (index == 0) {
+                return _LibraryHomeRow(onSelect: _selectRow);
+              }
+              final gamePath = gamePaths[index - 1];
               return _GameListRow(
                 key: ValueKey(gamePath),
                 gamePath: gamePath,
@@ -262,6 +293,129 @@ class _GameListPanelState extends ConsumerState<_GameListPanel> {
 
 const double _rowExtent = 72;
 
+// Shared by both row kinds so the Library Home entry is visually identical to a
+// game row when selected.
+final _selectedRowDecoration = BoxDecoration(
+  gradient: LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [
+      AppColors.selectionSurface.withValues(alpha: 0.9),
+      AppColors.focusFill.withValues(alpha: 0.14),
+    ],
+  ),
+  border: Border(
+    left: BorderSide(color: AppColors.richGold, width: 3),
+    top: BorderSide(color: AppColors.selectionBorder),
+    bottom: BorderSide(color: AppColors.selectionBorder),
+  ),
+);
+const _defaultRowDecoration = BoxDecoration(
+  border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+);
+final _selectedRowTextStyle = AppTypography.bodySmall.copyWith(
+  color: AppColors.textPrimary,
+  fontWeight: FontWeight.w600,
+);
+final _defaultRowTextStyle = AppTypography.bodySmall.copyWith(
+  color: AppColors.textSecondary,
+  fontWeight: FontWeight.w400,
+);
+final _subtitleSelectedStyle = AppTypography.label.copyWith(
+  color: AppColors.textPrimary.withValues(alpha: 0.82),
+  fontWeight: FontWeight.w600,
+);
+final _subtitleDefaultStyle = AppTypography.label.copyWith(
+  color: AppColors.textMuted,
+  fontWeight: FontWeight.w600,
+);
+
+/// Wraps row content in the shared selectable chrome.
+Widget _buildSelectableRow({
+  required bool isSelected,
+  required VoidCallback onTap,
+  required Widget child,
+}) {
+  return Material(
+    color: Colors.transparent,
+    child: Ink(
+      decoration: isSelected ? _selectedRowDecoration : _defaultRowDecoration,
+      child: InkWell(
+        onTap: onTap,
+        // Keyboard navigation is owned by the panel's single focus node, so
+        // rows stay out of the traversal order.
+        canRequestFocus: false,
+        mouseCursor: SystemMouseCursors.click,
+        overlayColor: appInteractionOverlay,
+        hoverColor: isSelected ? Colors.transparent : AppColors.hoverSurface,
+        focusColor: AppColors.hoverSurface,
+        highlightColor: Colors.transparent,
+        splashFactory: NoSplash.splashFactory,
+        child: child,
+      ),
+    ),
+  );
+}
+
+/// The persistent first row. Selecting it clears the game selection, which is
+/// what makes the details pane show [LibraryHomeSurface].
+class _LibraryHomeRow extends ConsumerWidget {
+  const _LibraryHomeRow({required this.onSelect});
+
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final isSelected = ref.watch(
+      selectedGameProvider.select((selected) => selected == null),
+    );
+
+    return _buildSelectableRow(
+      isSelected: isSelected,
+      onTap: () => onSelect(null),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              LucideIcons.libraryBig,
+              size: 18,
+              color: isSelected ? AppColors.richGold : AppColors.textMuted,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.libraryHomeRowTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: isSelected
+                        ? _selectedRowTextStyle
+                        : _defaultRowTextStyle,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    l10n.libraryHomeRowSubtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: isSelected
+                        ? _subtitleSelectedStyle
+                        : _subtitleDefaultStyle,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _GameListRow extends ConsumerWidget {
   const _GameListRow({
     required this.gamePath,
@@ -271,41 +425,6 @@ class _GameListRow extends ConsumerWidget {
 
   final String gamePath;
   final ValueChanged<String> onSelect;
-
-  static final _selectedDecoration = BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [
-        AppColors.selectionSurface.withValues(alpha: 0.9),
-        AppColors.focusFill.withValues(alpha: 0.14),
-      ],
-    ),
-    border: Border(
-      left: BorderSide(color: AppColors.richGold, width: 3),
-      top: BorderSide(color: AppColors.selectionBorder),
-      bottom: BorderSide(color: AppColors.selectionBorder),
-    ),
-  );
-  static const _defaultDecoration = BoxDecoration(
-    border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
-  );
-  static final _selectedTextStyle = AppTypography.bodySmall.copyWith(
-    color: AppColors.textPrimary,
-    fontWeight: FontWeight.w600,
-  );
-  static final _defaultTextStyle = AppTypography.bodySmall.copyWith(
-    color: AppColors.textSecondary,
-    fontWeight: FontWeight.w400,
-  );
-  static final _platformSelectedStyle = AppTypography.label.copyWith(
-    color: AppColors.textPrimary.withValues(alpha: 0.82),
-    fontWeight: FontWeight.w600,
-  );
-  static final _platformDefaultStyle = AppTypography.label.copyWith(
-    color: AppColors.textMuted,
-    fontWeight: FontWeight.w600,
-  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -345,7 +464,9 @@ class _GameListRow extends ConsumerWidget {
                   gameData.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: isSelected ? _selectedTextStyle : _defaultTextStyle,
+                  style: isSelected
+                      ? _selectedRowTextStyle
+                      : _defaultRowTextStyle,
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -353,8 +474,8 @@ class _GameListRow extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: isSelected
-                      ? _platformSelectedStyle
-                      : _platformDefaultStyle,
+                      ? _subtitleSelectedStyle
+                      : _subtitleDefaultStyle,
                 ),
               ],
             ),
@@ -378,24 +499,10 @@ class _GameListRow extends ConsumerWidget {
       ),
     );
 
-    return Material(
-      color: Colors.transparent,
-      child: Ink(
-        decoration: isSelected ? _selectedDecoration : _defaultDecoration,
-        child: InkWell(
-          onTap: () => onSelect(gamePath),
-          // Keyboard navigation is owned by the panel's single focus node, so
-          // rows stay out of the traversal order.
-          canRequestFocus: false,
-          mouseCursor: SystemMouseCursors.click,
-          overlayColor: appInteractionOverlay,
-          hoverColor: isSelected ? Colors.transparent : AppColors.hoverSurface,
-          focusColor: AppColors.hoverSurface,
-          highlightColor: Colors.transparent,
-          splashFactory: NoSplash.splashFactory,
-          child: content,
-        ),
-      ),
+    return _buildSelectableRow(
+      isSelected: isSelected,
+      onTap: () => onSelect(gamePath),
+      child: content,
     );
   }
 }
@@ -455,38 +562,9 @@ class _DetailPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedPath = ref.watch(selectedGameProvider);
 
+    // No game selected means the Library Home row is the active row.
     if (selectedPath == null) {
-      final l10n = context.l10n;
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                LucideIcons.mousePointerClick,
-                size: 36,
-                color: AppColors.textMuted,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                l10n.homeSelectGameTitle,
-                style: AppTypography.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                l10n.homeSelectGameMessage,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return const LibraryHomeSurface();
     }
 
     return GameDetailsBody(

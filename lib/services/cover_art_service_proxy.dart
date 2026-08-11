@@ -59,6 +59,7 @@ extension _CoverArtServiceProxy on CoverArtService {
     GameInfo game, {
     required String cacheKey,
     required CoverArtProxyConfig proxyConfig,
+    required RustBridgeService? rustBridge,
   }) async {
     if (!proxyConfig.isConfigured) {
       return const _CoverProxyLookupResult.unavailable();
@@ -69,7 +70,7 @@ extension _CoverArtServiceProxy on CoverArtService {
       if (game.platform == Platform.steam) {
         final steamAppId =
             game.steamAppId?.toString() ??
-            await _resolveSteamAppIdFromGamePath(game.path);
+            _resolveSteamAppIdFromGamePath(game.path, rustBridge);
         if (steamAppId != null && steamAppId.isNotEmpty) {
           uri = _proxyUri(proxyConfig, '/sgdb/grid', <String, String>{
             'steam_app_id': steamAppId,

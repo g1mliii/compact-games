@@ -1,5 +1,15 @@
 part of '../phase6_ui_test.dart';
 
+/// Finds [text] inside the game list panel specifically.
+///
+/// With nothing selected the split view shows Library Home beside the list,
+/// and its highlight cards name the same games, so an unscoped `find.text`
+/// matches twice.
+Finder _listRowText(String text) => find.descendant(
+  of: find.byKey(homeGameListPanelListKey),
+  matching: find.text(text),
+);
+
 void runPhase6OversizeSplitTests() {
   testWidgets('Home header reflows actions below search at very narrow width', (
     WidgetTester tester,
@@ -437,11 +447,11 @@ void runPhase6OversizeSplitTests() {
 
     expect(tester.takeException(), isNull);
 
-    final listRowRect = tester.getRect(find.text('Pixel Raider'));
-    final detailHintRect = tester.getRect(find.text('Choose a game'));
+    final listRowRect = tester.getRect(_listRowText('Pixel Raider'));
+    final detailHintRect = tester.getRect(find.text('Library highlights'));
     expect(detailHintRect.top, greaterThan(listRowRect.bottom));
 
-    await tester.tap(find.text('Pixel Raider'));
+    await tester.tap(_listRowText('Pixel Raider'));
     await tester.pumpAndSettle();
 
     expect(find.text('Status'), findsOneWidget);
@@ -480,7 +490,7 @@ void runPhase6OversizeSplitTests() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Pixel Raider'));
+      await tester.tap(_listRowText('Pixel Raider'));
       await tester.pumpAndSettle();
 
       final coverRect = tester.getRect(find.byType(GameDetailsCover));
@@ -516,7 +526,7 @@ void runPhase6OversizeSplitTests() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Pixel Raider'));
+      await tester.tap(_listRowText('Pixel Raider'));
       await tester.pumpAndSettle();
 
       final coverRect = tester.getRect(find.byType(GameDetailsCover));
@@ -557,7 +567,7 @@ void runPhase6OversizeSplitTests() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Pixel Raider'));
+      await tester.tap(_listRowText('Pixel Raider'));
       await tester.pumpAndSettle();
 
       expect(tester.getSize(find.byType(GameDetailsCover)).width, 300);
@@ -622,7 +632,7 @@ void runPhase6OversizeSplitTests() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Pixel Raider'));
+      await tester.tap(_listRowText('Pixel Raider'));
       await tester.pumpAndSettle();
 
       expect(tester.getSize(find.byType(GameDetailsCover)).width, 120);
@@ -666,7 +676,7 @@ void runPhase6OversizeSplitTests() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Pixel Raider'));
+      await tester.tap(_listRowText('Pixel Raider'));
       await tester.pumpAndSettle();
 
       final initialCover = tester.widget<GameDetailsCover>(
@@ -724,7 +734,7 @@ void runPhase6OversizeSplitTests() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text(game.name));
+    await tester.tap(_listRowText(game.name));
     await tester.pumpAndSettle();
 
     expect(find.byType(SingleChildScrollView), findsOneWidget);
@@ -816,7 +826,7 @@ void runPhase6OversizeSplitTests() {
     await tester.pumpAndSettle();
 
     final firstRow = find.ancestor(
-      of: find.text('Pixel Raider'),
+      of: _listRowText('Pixel Raider'),
       matching: find.byType(InkWell),
     );
     final chip = tester.widget<PlatformChip>(
@@ -855,7 +865,7 @@ void runPhase6OversizeSplitTests() {
       await tester.pumpAndSettle();
 
       final rowFinder = find.ancestor(
-        of: find.text('Pixel Raider'),
+        of: _listRowText('Pixel Raider'),
         matching: find.byType(InkWell),
       );
       expect(rowFinder, findsOneWidget);
@@ -872,12 +882,12 @@ void runPhase6OversizeSplitTests() {
       );
       expect(tester.getSize(rowFinder).height, greaterThanOrEqualTo(55));
 
-      await tester.tap(find.text('Pixel Raider'));
+      await tester.tap(_listRowText('Pixel Raider'));
       await tester.pumpAndSettle();
 
       final selectedSurface = tester.widget<Ink>(
         find.ancestor(
-          of: find.text('Pixel Raider'),
+          of: _listRowText('Pixel Raider'),
           matching: find.byType(Ink),
         ),
       );
@@ -1136,7 +1146,7 @@ void runPhase6OversizeSplitTests() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Resident Evil Requiem'));
+      await tester.tap(_listRowText('Resident Evil Requiem'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Remove from Library'));
@@ -1146,7 +1156,10 @@ void runPhase6OversizeSplitTests() {
       expect(bridge.lastRemovedGamePath, game.path);
       expect(container.read(selectedGameProvider), isNull);
       expect(container.read(gameListProvider).value?.games, isEmpty);
-      expect(find.text('Choose a game'), findsOneWidget);
+      // An emptied library falls back to Library Home's own empty state, and
+      // the list keeps the Library Home row above its filter message.
+      expect(find.text('No games discovered yet'), findsOneWidget);
+      expect(find.text('Library Home'), findsOneWidget);
       expect(find.text('Nothing matches this view'), findsOneWidget);
 
       bridge.completeRemoval();
@@ -1185,7 +1198,7 @@ void runPhase6OversizeSplitTests() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Compressed Tool Folder'));
+      await tester.tap(_listRowText('Compressed Tool Folder'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Remove from Library'));
@@ -1302,11 +1315,21 @@ void runPhase6OversizeSplitTests() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Go to Settings'), findsNothing);
-    expect(find.text('Choose a game'), findsOneWidget);
+    expect(find.text('Library highlights'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Pixel Raider'));
+    // The persistent Library Home row pushes the last game past the short
+    // panel's cache extent at this width, so scroll it in rather than assuming
+    // it is already built.
+    await tester.scrollUntilVisible(
+      _listRowText('Pixel Raider'),
+      72,
+      scrollable: find.descendant(
+        of: find.byKey(homeGameListPanelListKey),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Pixel Raider'));
+    await tester.tap(_listRowText('Pixel Raider'));
     await tester.pumpAndSettle();
 
     expect(find.text('Status'), findsOneWidget);
@@ -1377,7 +1400,7 @@ void runPhase6OversizeSplitTests() {
         find.byKey(const ValueKey<String>('homeOverviewPanelShell')),
       );
       final firstRowFinder = find.ancestor(
-        of: find.text('Pixel Raider'),
+        of: _listRowText('Pixel Raider'),
         matching: find.byType(InkWell),
       );
       final firstRowRect = tester.getRect(firstRowFinder.first);

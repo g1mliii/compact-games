@@ -1,14 +1,22 @@
 part of 'cover_art_service.dart';
 
 extension _CoverArtServiceSteam on CoverArtService {
-  Future<String?> _resolveSteamLibraryCover(String gamePath) async {
+  Future<String?> _resolveSteamLibraryCover(
+    String gamePath, {
+    required int? knownSteamAppId,
+    required RustBridgeService? rustBridge,
+  }) async {
     final steamAppsPath = _steamAppsPathFromGamePath(gamePath);
     if (steamAppsPath == null) {
       return null;
     }
 
     final steamRootPath = p.dirname(steamAppsPath);
-    final appId = await _resolveSteamAppIdFromGamePath(gamePath);
+    // Discovery normally already knows the id; the manifest lookup is only a
+    // backfill for a game that arrived without one.
+    final appId =
+        knownSteamAppId?.toString() ??
+        _resolveSteamAppIdFromGamePath(gamePath, rustBridge);
     if (appId == null) {
       return null;
     }
@@ -111,101 +119,13 @@ extension _CoverArtServiceSteam on CoverArtService {
     return bestPath;
   }
 
-  Future<String?> _resolveSteamAppIdFromGamePath(String gamePath) {
-    final steamAppsPath = _steamAppsPathFromGamePath(gamePath);
-    if (steamAppsPath == null) {
-      return Future<String?>.value(null);
-    }
-    final gameFolderName = p.basename(gamePath).toLowerCase();
-    return _resolveSteamAppId(steamAppsPath, gameFolderName);
-  }
-
-  Future<String?> _resolveSteamAppId(
-    String steamAppsPath,
-    String gameFolderName,
-  ) async {
-    final now = DateTime.now();
-    final cacheKey = steamAppsPath.toLowerCase();
-    final cached = CoverArtService._steamManifestCache.remove(cacheKey);
-    if (cached != null &&
-        now.difference(cached.loadedAt) <=
-            CoverArtService._steamManifestCacheTtl) {
-      CoverArtService._steamManifestCache[cacheKey] = cached;
-      return cached.appIdByInstallDir[gameFolderName];
-    }
-
-    final loaded = await _loadSteamManifestIndex(steamAppsPath);
-    if (loaded == null) {
-      return null;
-    }
-
-    CoverArtService._steamManifestCache[cacheKey] = loaded;
-    CoverArtService._trimLru(
-      CoverArtService._steamManifestCache,
-      CoverArtService._maxSteamManifestCacheEntries,
-    );
-    return loaded.appIdByInstallDir[gameFolderName];
-  }
-
-  Future<_SteamManifestIndex?> _loadSteamManifestIndex(
-    String steamAppsPath,
-  ) async {
-    final steamAppsDir = Directory(steamAppsPath);
-    if (!await steamAppsDir.exists()) {
-      return null;
-    }
-
-    final entries = await steamAppsDir
-        .list(followLinks: false)
-        .where((e) => e is File)
-        .cast<File>()
-        .toList();
-    final appIdPattern = RegExp(
-      r'appmanifest_(\d+)\.acf$',
-      caseSensitive: false,
-    );
-    final installDirPattern = RegExp(
-      r'"installdir"\s*"([^"]+)"',
-      caseSensitive: false,
-    );
-    final appIdByInstallDir = <String, String>{};
-    for (final file in entries) {
-      final name = p.basename(file.path);
-      final match = appIdPattern.firstMatch(name);
-      if (match == null) {
-        continue;
-      }
-
-      String content;
-      try {
-        content = await file.readAsString();
-      } catch (_) {
-        content = '';
-      }
-      if (content.isEmpty) {
-        continue;
-      }
-
-      final installMatch = installDirPattern.firstMatch(content);
-      if (installMatch == null) {
-        continue;
-      }
-
-      final installDir = installMatch.group(1)?.toLowerCase();
-      final appId = match.group(1);
-      if (installDir == null ||
-          installDir.isEmpty ||
-          appId == null ||
-          appId.isEmpty) {
-        continue;
-      }
-      appIdByInstallDir[installDir] = appId;
-    }
-
-    return _SteamManifestIndex(
-      loadedAt: DateTime.now(),
-      appIdByInstallDir: appIdByInstallDir,
-    );
+  /// Delegates to Rust's ACF parser rather than reading manifests here, so
+  /// cover art and discovery can never disagree about which app owns a folder.
+  String? _resolveSteamAppIdFromGamePath(
+    String gamePath,
+    RustBridgeService? rustBridge,
+  ) {
+    return SteamAppIdLookup.resolveAppId(gamePath, rustBridge)?.toString();
   }
 
   Future<String?> _resolveSteamLibraryCoverByScan(
@@ -259,22 +179,6 @@ extension _CoverArtServiceSteam on CoverArtService {
   }
 
   String? _steamAppsPathFromGamePath(String gamePath) {
-    const marker = r'\steamapps\common\';
-    final lower = gamePath.toLowerCase();
-    final markerIndex = lower.lastIndexOf(marker);
-    if (markerIndex < 0) {
-      return null;
-    }
-    return gamePath.substring(0, markerIndex + r'\steamapps'.length);
+    return SteamAppIdLookup.steamAppsPathFromGamePath(gamePath);
   }
-}
-
-class _SteamManifestIndex {
-  const _SteamManifestIndex({
-    required this.loadedAt,
-    required this.appIdByInstallDir,
-  });
-
-  final DateTime loadedAt;
-  final Map<String, String> appIdByInstallDir;
 }

@@ -67,7 +67,7 @@ extension _CoverArtServiceApi on CoverArtService {
       if (game.platform == Platform.steam) {
         final steamAppId =
             game.steamAppId?.toString() ??
-            await _resolveSteamAppIdFromGamePath(game.path);
+            _resolveSteamAppIdFromGamePath(game.path, rustBridge);
         if (steamAppId != null) {
           imageUrl = await _findSteamGridDbGridUrlBySteamAppId(
             steamAppId: steamAppId,

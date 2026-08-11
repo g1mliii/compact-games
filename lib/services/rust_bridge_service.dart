@@ -274,6 +274,19 @@ class RustBridgeService {
   ///
   /// Shares the discovery normalizer, so a cover-art query is built from the
   /// same rules that produced the title shown on the card.
+  /// Steam app id for an installed game folder, or null when the path is not a
+  /// conventional Steam install.
+  ///
+  /// Backfill only: discovery normally puts the id on [GameInfo.steamAppId]
+  /// already. Reading it through here keeps ACF parsing in the one place that
+  /// understands the format, including the fully-installed state flag.
+  int? lookupSteamAppId(String gamePath) {
+    if (gamePath.trim().isEmpty) {
+      return null;
+    }
+    return rust_discovery.lookupSteamAppId(gamePath: gamePath);
+  }
+
   String normalizeGameName(String name) {
     return rust_discovery.normalizeGameName(name: name);
   }

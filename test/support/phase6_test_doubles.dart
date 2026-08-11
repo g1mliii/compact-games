@@ -54,6 +54,9 @@ class _TestRustBridgeService implements RustBridgeService {
   final List<CompressionEstimate> compressionEstimates;
 
   @override
+  int? lookupSteamAppId(String gamePath) => null;
+
+  @override
   String normalizeGameName(String name) => name.trim();
   int compressCalls = 0;
   int decompressCalls = 0;

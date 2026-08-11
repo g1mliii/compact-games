@@ -228,6 +228,9 @@ void main() {
           path: fixture.gamePath,
           platform: Platform.steam,
           sizeBytes: 1,
+          // Discovery fills this in from the manifest before the UI ever asks
+          // for a cover, so the fixture carries it too.
+          steamAppId: fixture.steamAppId,
         ),
         coverArtProviderMode: CoverArtProviderMode.userKey,
       );
@@ -268,6 +271,7 @@ void main() {
         path: fixture.gamePath,
         platform: Platform.steam,
         sizeBytes: 1,
+        steamAppId: fixture.steamAppId,
       ),
       coverArtProviderMode: CoverArtProviderMode.bundledProxy,
       coverArtProxyConfig: const CoverArtProxyConfig(
@@ -785,6 +789,9 @@ void main() {
           path: fixture.gamePath,
           platform: Platform.steam,
           sizeBytes: 1,
+          // Discovery fills this in from the manifest before the UI ever asks
+          // for a cover, so the fixture carries it too.
+          steamAppId: fixture.steamAppId,
         ),
         coverArtProviderMode: CoverArtProviderMode.bundledProxy,
         coverArtProxyConfig: const CoverArtProxyConfig(
@@ -1637,10 +1644,12 @@ class _SteamLibraryFixture {
   const _SteamLibraryFixture({
     required this.gamePath,
     required this.preferredBytes,
+    required this.steamAppId,
   });
 
   final String gamePath;
   final List<int> preferredBytes;
+  final int steamAppId;
 }
 
 Future<_SteamLibraryFixture> _writeSteamLibraryFixture(
@@ -1679,6 +1688,7 @@ Future<_SteamLibraryFixture> _writeSteamLibraryFixture(
   return _SteamLibraryFixture(
     gamePath: gameDir.path,
     preferredBytes: preferredBytes,
+    steamAppId: 2807960,
   );
 }
 

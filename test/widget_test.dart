@@ -42,6 +42,17 @@ part 'support/rust_bridge_test_doubles.dart';
 part 'support/widget_progress_indicator_tests.dart';
 
 const int _oneGiB = 1024 * 1024 * 1024;
+
+/// Finds [text] inside the game list panel specifically.
+///
+/// With nothing selected the split view shows Library Home beside the list,
+/// and its highlight cards name the same games, so an unscoped `find.text`
+/// matches twice.
+Finder _listRowText(String text) => find.descendant(
+  of: find.byKey(homeGameListPanelListKey),
+  matching: find.text(text),
+);
+
 final List<GameInfo> _sampleGames = <GameInfo>[
   GameInfo(
     name: 'Pixel Raider',
@@ -939,7 +950,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Pixel Raider'));
+    await tester.tap(_listRowText('Pixel Raider'));
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Launch Game'), findsOneWidget);
@@ -1034,7 +1045,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text(game.name));
+    await tester.tap(_listRowText(game.name));
     await tester.pumpAndSettle();
 
     final launchButton = tester.widget<IconButton>(

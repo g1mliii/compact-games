@@ -240,6 +240,9 @@ class _MinimalBridgeService implements RustBridgeService {
   final List<GameInfo> games;
 
   @override
+  int? lookupSteamAppId(String gamePath) => null;
+
+  @override
   String normalizeGameName(String name) => name.trim();
 
   @override

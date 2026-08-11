@@ -234,7 +234,7 @@ fn parse_app_manifests(steamapps_path: &Path) -> HashMap<String, AppManifest> {
 /// path up to the surrounding `steamapps/` directory and matching the folder
 /// name against any `appmanifest_*.acf` `installdir`. Returns `None` if the
 /// path isn't a conventional Steam install or no manifest matches.
-pub(crate) fn lookup_steam_app_id_for_path(game_path: &Path) -> Option<u32> {
+pub fn lookup_steam_app_id_for_path(game_path: &Path) -> Option<u32> {
     let folder_name = game_path.file_name()?.to_str()?.to_ascii_lowercase();
     let common = game_path.parent()?;
     let steamapps = common.parent()?;

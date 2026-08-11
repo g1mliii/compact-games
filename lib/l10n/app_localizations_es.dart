@@ -1067,4 +1067,54 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get inventoryRescanAlreadyRunning => 'Ya hay un recálculo en curso';
+
+  @override
+  String get libraryHomeRowTitle => 'Inicio de la biblioteca';
+
+  @override
+  String get libraryHomeRowSubtitle => 'Resumen';
+
+  @override
+  String get libraryHomeHighlightsHeading => 'Destacados de la biblioteca';
+
+  @override
+  String get libraryHomeTotalGamesLabel => 'Juegos';
+
+  @override
+  String get libraryHomeCompressedLabel => 'Comprimidos';
+
+  @override
+  String get libraryHomeSpaceSavedLabel => 'Espacio ahorrado';
+
+  @override
+  String get libraryHomeLargestInstallLabel => 'Instalación más grande';
+
+  @override
+  String get libraryHomeBiggestSaverLabel => 'Mayor ahorro';
+
+  @override
+  String get libraryHomeRecentlyCompressedLabel => 'Comprimido recientemente';
+
+  @override
+  String get libraryHomeHighlightEmpty => 'Nada todavía';
+
+  @override
+  String get libraryHomeEmptyTitle => 'Aún no se han detectado juegos';
+
+  @override
+  String get libraryHomeEmptyMessage =>
+      'Añade una carpeta de juegos o vuelve a escanear para crear tu biblioteca.';
+
+  @override
+  String get libraryHomeNewsHeading => 'Novedades';
+
+  @override
+  String get libraryHomeNewsSourceSteam => 'Comunidad de Steam';
+
+  @override
+  String get libraryHomeNewsStale => 'Mostrando elementos guardados';
+
+  @override
+  String get libraryHomeNewsEmpty =>
+      'No hay novedades recientes para tus juegos.';
 }

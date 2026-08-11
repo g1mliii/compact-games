@@ -1052,4 +1052,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inventoryRescanAlreadyRunning => 'A rescan is already running';
+
+  @override
+  String get libraryHomeRowTitle => 'Library Home';
+
+  @override
+  String get libraryHomeRowSubtitle => 'Overview';
+
+  @override
+  String get libraryHomeHighlightsHeading => 'Library highlights';
+
+  @override
+  String get libraryHomeTotalGamesLabel => 'Games';
+
+  @override
+  String get libraryHomeCompressedLabel => 'Compressed';
+
+  @override
+  String get libraryHomeSpaceSavedLabel => 'Space saved';
+
+  @override
+  String get libraryHomeLargestInstallLabel => 'Largest install';
+
+  @override
+  String get libraryHomeBiggestSaverLabel => 'Biggest saver';
+
+  @override
+  String get libraryHomeRecentlyCompressedLabel => 'Recently compressed';
+
+  @override
+  String get libraryHomeHighlightEmpty => 'Nothing yet';
+
+  @override
+  String get libraryHomeEmptyTitle => 'No games discovered yet';
+
+  @override
+  String get libraryHomeEmptyMessage =>
+      'Add a game folder or run a rescan to build your library.';
+
+  @override
+  String get libraryHomeNewsHeading => 'What\'s new';
+
+  @override
+  String get libraryHomeNewsSourceSteam => 'Steam Community';
+
+  @override
+  String get libraryHomeNewsStale => 'Showing saved items';
+
+  @override
+  String get libraryHomeNewsEmpty => 'No recent updates for your games.';
 }

@@ -110,6 +110,9 @@ class NoOpRustBridgeService implements RustBridgeService {
   Future<String?> discoverPrimaryExe(String folder) async => null;
 
   @override
+  int? lookupSteamAppId(String gamePath) => null;
+
+  @override
   String normalizeGameName(String name) => name.trim();
 
   @override

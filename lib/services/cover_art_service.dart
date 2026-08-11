@@ -14,6 +14,7 @@ import '../core/constants/app_constants.dart';
 import '../models/app_settings.dart';
 import '../models/compression_estimate.dart';
 import '../models/game_info.dart';
+import 'game_catalog_identity_service.dart';
 import 'rust_bridge_service.dart';
 
 part 'cover_art_service_steam.dart';
@@ -60,9 +61,7 @@ class CoverArtService {
   static const int _maxCacheFiles = 600;
   static const int _maxMemoryCacheEntries = 350;
   static const int _maxEstimateHintEntries = 700;
-  static const int _maxSteamManifestCacheEntries = 8;
   static const int _maxCoverQualityCacheEntries = 1200;
-  static const Duration _steamManifestCacheTtl = Duration(minutes: 15);
   static final LinkedHashMap<String, CoverArtResult> _memoryCache =
       LinkedHashMap<String, CoverArtResult>();
   static final LinkedHashMap<String, bool> _forcedProviderRefreshCacheKeys =
@@ -77,8 +76,6 @@ class CoverArtService {
       LinkedHashMap<String, String>();
   static final LinkedHashMap<String, bool> _coverQualityPathCache =
       LinkedHashMap<String, bool>();
-  static final LinkedHashMap<String, _SteamManifestIndex> _steamManifestCache =
-      LinkedHashMap<String, _SteamManifestIndex>();
 
   void primeEstimateHints(String gamePath, CompressionEstimate estimate) {
     final exePath = estimate.executableCandidatePath;
@@ -111,7 +108,6 @@ class CoverArtService {
   }
 
   void clearLookupCaches() {
-    _steamManifestCache.clear();
     _coverQualityPathCache.clear();
     _clearCoverArtApiLookupCaches();
   }
@@ -314,6 +310,7 @@ class CoverArtService {
       final steamCache = await _resolveSteamLibraryCoverResult(
         game,
         cacheKey: cacheKey,
+        rustBridge: rustBridge,
       );
       if (steamCache != null) {
         return store(steamCache);
@@ -327,6 +324,7 @@ class CoverArtService {
         game,
         cacheKey: cacheKey,
         requirePreferred: true,
+        rustBridge: rustBridge,
       );
       if (steamCache != null) {
         return store(steamCache);
@@ -359,12 +357,17 @@ class CoverArtService {
   Future<CoverArtResult?> _resolveSteamLibraryCoverResult(
     GameInfo game, {
     required String cacheKey,
+    required RustBridgeService? rustBridge,
     bool requirePreferred = false,
   }) async {
     if (game.platform != Platform.steam) {
       return null;
     }
-    final steamCover = await _resolveSteamLibraryCover(game.path);
+    final steamCover = await _resolveSteamLibraryCover(
+      game.path,
+      knownSteamAppId: game.steamAppId,
+      rustBridge: rustBridge,
+    );
     if (steamCover == null) {
       return null;
     }
@@ -529,6 +532,7 @@ class CoverArtService {
         game,
         cacheKey: cacheKey,
         proxyConfig: proxyConfig,
+        rustBridge: rustBridge,
       );
       if (proxyLookup.status == _CoverProxyLookupStatus.found) {
         return _ProviderAttempt.found(
