@@ -42,10 +42,11 @@ class GameDetailsBody extends ConsumerStatefulWidget {
   static const double _compactRowBreakpoint = 380;
   static const double _coverColumnWidth = 300;
   static const double _compactCoverWidth = 120;
-  static const double _expandedCoverMaxWidth = 380;
   static const double _expandedMinDetailsWidth = 560;
-  static const double _expandedMinViewportHeight = 640;
-  static const double _expandedMaxHeightBucket = 768;
+  static const double _expandedVerticalPadding = 8;
+  static const double _expandedMinViewportHeight =
+      _coverColumnWidth / AppConstants.coverAspectRatio +
+      _expandedVerticalPadding * 2;
   static const double _expandedHeightBucket = 32;
   static const double _wideLayoutGap = 16;
 
@@ -109,7 +110,12 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
         );
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(GameDetailsBody._contentPadding),
+          padding: EdgeInsets.symmetric(
+            horizontal: GameDetailsBody._contentPadding,
+            vertical: widget.expandToAvailableHeight
+                ? GameDetailsBody._expandedVerticalPadding
+                : GameDetailsBody._contentPadding,
+          ),
           child: Builder(
             builder: (scrollContext) {
               final deferred = Scrollable.recommendDeferredLoadingForContext(
@@ -135,7 +141,6 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
                 contentWidth,
                 wide,
                 compactRow,
-                expandedHeightBucket,
                 wideCoverWidth,
                 coverDecodeWidth,
                 deferred,
@@ -152,7 +157,6 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
                 wide: wide,
                 compactRow: compactRow,
                 wideCoverWidth: wideCoverWidth,
-                expandedHeightBucket: expandedHeightBucket,
                 coverDecodeWidth: coverDecodeWidth,
                 deferred: deferred,
               );
@@ -172,7 +176,6 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
     required bool wide,
     required bool compactRow,
     required double wideCoverWidth,
-    required double? expandedHeightBucket,
     required int coverDecodeWidth,
     required bool deferred,
   }) {
@@ -195,9 +198,6 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
                 cover: cover,
                 rightColumn: rightColumn,
                 coverWidth: wideCoverWidth,
-                minimumDetailsHeight: expandedHeightBucket == null
-                    ? null
-                    : wideCoverWidth / AppConstants.coverAspectRatio,
               )
             else if (compactRow)
               _buildCompactRowLayout(cover: cover, rightColumn: rightColumn)
@@ -213,20 +213,15 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
     required Widget cover,
     required Widget rightColumn,
     required double coverWidth,
-    required double? minimumDetailsHeight,
   }) {
-    final details = minimumDetailsHeight == null
-        ? rightColumn
-        : ConstrainedBox(
-            constraints: BoxConstraints(minHeight: minimumDetailsHeight),
-            child: rightColumn,
-          );
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: widget.expandToAvailableHeight
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
         SizedBox(width: coverWidth, child: cover),
         const SizedBox(width: GameDetailsBody._wideLayoutGap),
-        Expanded(child: details),
+        Expanded(child: rightColumn),
       ],
     );
   }
@@ -324,10 +319,7 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
         (maxHeight / GameDetailsBody._expandedHeightBucket).floor() *
         GameDetailsBody._expandedHeightBucket;
     return bucketed
-        .clamp(
-          GameDetailsBody._expandedMinViewportHeight,
-          GameDetailsBody._expandedMaxHeightBucket,
-        )
+        .clamp(GameDetailsBody._expandedMinViewportHeight, double.infinity)
         .toDouble();
   }
 
@@ -343,15 +335,11 @@ class _GameDetailsBodyState extends ConsumerState<GameDetailsBody> {
         (contentWidth -
                 GameDetailsBody._wideLayoutGap -
                 GameDetailsBody._expandedMinDetailsWidth)
-            .clamp(
-              GameDetailsBody._coverColumnWidth,
-              GameDetailsBody._expandedCoverMaxWidth,
-            )
+            .clamp(GameDetailsBody._coverColumnWidth, double.infinity)
             .toDouble();
     final heightDrivenWidth =
-        GameDetailsBody._coverColumnWidth +
-        (expandedHeightBucket - GameDetailsBody._expandedMinViewportHeight) *
-            AppConstants.coverAspectRatio;
+        (expandedHeightBucket - GameDetailsBody._expandedVerticalPadding * 2) *
+        AppConstants.coverAspectRatio;
     return heightDrivenWidth
         .clamp(GameDetailsBody._coverColumnWidth, widthLimit)
         .toDouble();
