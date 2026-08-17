@@ -928,18 +928,6 @@ abstract class AppLocalizations {
   /// **'Clear the current search or filters, or add a game folder manually.'**
   String get homeListEmptyMessage;
 
-  /// Localized message for home select game title.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose a game'**
-  String get homeSelectGameTitle;
-
-  /// Localized message for home select game message.
-  ///
-  /// In en, this message translates to:
-  /// **'Select a title to inspect its size, compression history, and next actions.'**
-  String get homeSelectGameMessage;
-
   /// Localized message for home ready status.
   ///
   /// In en, this message translates to:
@@ -1879,6 +1867,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A rescan is already running'**
   String get inventoryRescanAlreadyRunning;
+
+  /// Title of the persistent Library Home row above the game list.
+  ///
+  /// In en, this message translates to:
+  /// **'Library Home'**
+  String get libraryHomeRowTitle;
+
+  /// Secondary line of the persistent Library Home row.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get libraryHomeRowSubtitle;
+
+  /// Heading above the Library Home highlight cards.
+  ///
+  /// In en, this message translates to:
+  /// **'Library highlights'**
+  String get libraryHomeHighlightsHeading;
+
+  /// Label for the total number of discovered games.
+  ///
+  /// In en, this message translates to:
+  /// **'Games'**
+  String get libraryHomeTotalGamesLabel;
+
+  /// Label for the number of compressed games.
+  ///
+  /// In en, this message translates to:
+  /// **'Compressed'**
+  String get libraryHomeCompressedLabel;
+
+  /// Label for the measured amount of disk space reclaimed.
+  ///
+  /// In en, this message translates to:
+  /// **'Space saved'**
+  String get libraryHomeSpaceSavedLabel;
+
+  /// Label for the largest installed game.
+  ///
+  /// In en, this message translates to:
+  /// **'Largest install'**
+  String get libraryHomeLargestInstallLabel;
+
+  /// Label for the game that reclaimed the most space.
+  ///
+  /// In en, this message translates to:
+  /// **'Biggest saver'**
+  String get libraryHomeBiggestSaverLabel;
+
+  /// Label for the most recently compressed game.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently compressed'**
+  String get libraryHomeRecentlyCompressedLabel;
+
+  /// Shown in a Library Home highlight card when no game qualifies.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet'**
+  String get libraryHomeHighlightEmpty;
+
+  /// Library Home title shown when the library is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No games discovered yet'**
+  String get libraryHomeEmptyTitle;
+
+  /// Library Home message shown when the library is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a game folder or run a rescan to build your library.'**
+  String get libraryHomeEmptyMessage;
+
+  /// Heading above the Library Home What's New shelf.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new'**
+  String get libraryHomeNewsHeading;
+
+  /// Source label shown on every news card.
+  ///
+  /// In en, this message translates to:
+  /// **'Steam Community'**
+  String get libraryHomeNewsSourceSteam;
+
+  /// Shown when a refresh failed and cached news is displayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing saved items'**
+  String get libraryHomeNewsStale;
+
+  /// Button that opens the Compact Games website.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get settingsAboutWebsiteAction;
+
+  /// Button that opens the Compact Games privacy policy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get settingsAboutPrivacyPolicyAction;
 }
 
 class _AppLocalizationsDelegate

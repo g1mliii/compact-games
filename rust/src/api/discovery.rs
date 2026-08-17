@@ -243,6 +243,32 @@ pub fn normalize_game_name(name: String) -> String {
     crate::discovery::game_name::normalize_game_name(&name)
 }
 
+/// Look up the Steam app id for an installed game folder.
+///
+/// Exposed so Dart never reimplements ACF parsing: discovery already reads
+/// `installdir` and the fully-installed state flag out of `appmanifest_*.acf`,
+/// and a second parser would drift from it. Callers should prefer the
+/// `steam_app_id` discovery already put on the game and use this only to
+/// backfill a game that arrived without one.
+///
+/// Returns `None` when the path is not a conventional `steamapps/common`
+/// install or no manifest claims the folder.
+///
+/// Deliberately async: a cold lookup enumerates and parses every manifest in the
+/// library, which must not run on the Dart UI isolate. Every caller is already
+/// inside an async path.
+pub fn lookup_steam_app_id(game_path: String) -> Option<u32> {
+    crate::discovery::steam::lookup_steam_app_id_for_path(Path::new(&game_path))
+}
+
+/// Drops the cached Steam manifest index.
+///
+/// Exposed so the Dart-side memory trim can reclaim it alongside the cover art
+/// runtime caches when the window is hidden to the tray.
+pub fn clear_steam_app_id_cache() {
+    crate::discovery::steam::invalidate_app_id_index_cache();
+}
+
 fn discovery_stats_path(game_path: &Path, platform: Platform) -> PathBuf {
     if platform == Platform::XboxGamePass && game_path.join("Content").is_dir() {
         game_path.join("Content")

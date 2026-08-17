@@ -13,7 +13,8 @@
 #define AppName "Compact Games"
 #define AppPublisher "Compact Games"
 #define AppExeName "compact_games.exe"
-#define AppUrl "https://github.com/g1mliii/compact-games"
+#define AppUrl "https://compactgames.app"
+#define AppSupportUrl "https://github.com/g1mliii/compact-games/issues"
 
 [Setup]
 AppId={{E8F2B4A1-7D3C-4E5F-9A1B-2C3D4E5F6A7B}
@@ -22,7 +23,7 @@ AppVersion={#AppVersion}
 AppVerName={#AppName}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppUrl}
-AppSupportURL={#AppUrl}/issues
+AppSupportURL={#AppSupportUrl}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes

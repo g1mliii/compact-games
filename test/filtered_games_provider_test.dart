@@ -240,6 +240,12 @@ class _MinimalBridgeService implements RustBridgeService {
   final List<GameInfo> games;
 
   @override
+  Future<int?> lookupSteamAppId(String gamePath) async => null;
+
+  @override
+  Future<void> clearSteamAppIdCache() async {}
+
+  @override
   String normalizeGameName(String name) => name.trim();
 
   @override

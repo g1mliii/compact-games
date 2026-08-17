@@ -67,7 +67,7 @@ extension _CoverArtServiceApi on CoverArtService {
       if (game.platform == Platform.steam) {
         final steamAppId =
             game.steamAppId?.toString() ??
-            await _resolveSteamAppIdFromGamePath(game.path);
+            await _resolveSteamAppIdFromGamePath(game.path, rustBridge);
         if (steamAppId != null) {
           imageUrl = await _findSteamGridDbGridUrlBySteamAppId(
             steamAppId: steamAppId,
@@ -301,7 +301,7 @@ extension _CoverArtServiceApi on CoverArtService {
         headers: <String, String>{
           'Authorization': authorization,
           'Accept': 'application/json',
-          'User-Agent': 'CompactGames/0.1',
+          'User-Agent': AppConstants.userAgent,
         },
       );
       if (response == null) {
@@ -341,7 +341,7 @@ extension _CoverArtServiceApi on CoverArtService {
     final response = await _sendStrictImageGetWithRetries(
       uri: uri,
       timeout: _apiImageRequestTimeout,
-      headers: const <String, String>{'User-Agent': 'CompactGames/0.1'},
+      headers: const <String, String>{'User-Agent': AppConstants.userAgent},
     );
     if (response == null || response.statusCode != 200) {
       return null;
@@ -455,32 +455,12 @@ extension _CoverArtServiceApi on CoverArtService {
     }
   }
 
-  T? _readApiLru<K, T>(LinkedHashMap<K, T> cache, K key) {
-    final cached = cache.remove(key);
-    if (cached != null) {
-      cache[key] = cached;
-    }
-    return cached;
-  }
+  T? _readApiLru<K, T>(LinkedHashMap<K, T> cache, K key) => readLru(cache, key);
 
-  void _writeApiLru<K, T>(LinkedHashMap<K, T> cache, K key, T value) {
-    cache.remove(key);
-    cache[key] = value;
-    CoverArtService._trimLru(cache, _maxApiLookupCacheEntries);
-  }
+  void _writeApiLru<K, T>(LinkedHashMap<K, T> cache, K key, T value) =>
+      writeLru(cache, key, value, maxEntries: _maxApiLookupCacheEntries);
 
-  int? _readInt(Object? value) {
-    if (value is int) {
-      return value;
-    }
-    if (value is num) {
-      return value.toInt();
-    }
-    if (value is String) {
-      return int.tryParse(value);
-    }
-    return null;
-  }
+  int? _readInt(Object? value) => readJsonInt(value);
 
   List<String> _authorizationHeaderCandidates(String apiKey) {
     final normalized = apiKey.trim();

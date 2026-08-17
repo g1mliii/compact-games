@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/compression/compression_provider.dart';
 import '../../../../providers/settings/settings_provider.dart';
+import '../../../../providers/system/platform_shell_provider.dart';
 import '../../../../providers/update/update_provider.dart';
 import '../../../../providers/update/update_status_presentation.dart';
 import '../widgets/scaled_switch_row.dart';
@@ -80,6 +81,25 @@ class AboutSection extends ConsumerWidget {
             style: AppTypography.bodySmall.copyWith(
               color: AppColors.textSecondary,
             ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _linkButton(
+                ref,
+                icon: LucideIcons.globe,
+                label: l10n.settingsAboutWebsiteAction,
+                url: AppConstants.websiteUrl,
+              ),
+              _linkButton(
+                ref,
+                icon: LucideIcons.shieldCheck,
+                label: l10n.settingsAboutPrivacyPolicyAction,
+                url: AppConstants.privacyPolicyUrl,
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (!selfUpdatesEnabled) ...[
@@ -178,6 +198,20 @@ class AboutSection extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+
+  /// An external link, opened through the shared shell service.
+  Widget _linkButton(
+    WidgetRef ref, {
+    required IconData icon,
+    required String label,
+    required String url,
+  }) {
+    return TextButton.icon(
+      onPressed: () => ref.read(platformShellServiceProvider).launchUri(url),
+      icon: Icon(icon, size: 16),
+      label: Text(label),
     );
   }
 

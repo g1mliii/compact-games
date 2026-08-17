@@ -15,6 +15,12 @@ class _BaseRustBridgeService implements RustBridgeService {
   const _BaseRustBridgeService();
 
   @override
+  Future<int?> lookupSteamAppId(String gamePath) async => null;
+
+  @override
+  Future<void> clearSteamAppIdCache() async {}
+
+  @override
   String normalizeGameName(String name) => name.trim();
   @override
   void clearDiscoveryCacheEntry(String path) {}

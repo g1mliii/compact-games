@@ -270,6 +270,27 @@ class RustBridgeService {
     return rust_icon.discoverPrimaryExe(folder: folder);
   }
 
+  /// Steam app id for an installed game folder, or null when the path is not a
+  /// conventional Steam install.
+  ///
+  /// Backfill only: discovery normally puts the id on [GameInfo.steamAppId]
+  /// already. Reading it through here keeps ACF parsing in the one place that
+  /// understands the format, including the fully-installed state flag.
+  ///
+  /// Async because a cold lookup parses every manifest in the library. A path
+  /// that is not a Steam layout — blank included — resolves to null in Rust, so
+  /// there is no guard to repeat on this side.
+  Future<int?> lookupSteamAppId(String gamePath) {
+    return rust_discovery.lookupSteamAppId(gamePath: gamePath);
+  }
+
+  /// Releases the Rust-side Steam manifest index.
+  ///
+  /// Part of the visible-only cache set the tray/memory trim reclaims.
+  Future<void> clearSteamAppIdCache() {
+    return rust_discovery.clearSteamAppIdCache();
+  }
+
   /// Strip release-site, scene, version, and language tags from a game name.
   ///
   /// Shares the discovery normalizer, so a cover-art query is built from the

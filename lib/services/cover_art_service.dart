@@ -11,9 +11,12 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/config/cover_art_proxy_config.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/bounded_lru.dart';
 import '../models/app_settings.dart';
 import '../models/compression_estimate.dart';
 import '../models/game_info.dart';
+import 'bounded_json_http.dart';
+import 'game_catalog_identity_service.dart';
 import 'rust_bridge_service.dart';
 
 part 'cover_art_service_steam.dart';
@@ -60,9 +63,7 @@ class CoverArtService {
   static const int _maxCacheFiles = 600;
   static const int _maxMemoryCacheEntries = 350;
   static const int _maxEstimateHintEntries = 700;
-  static const int _maxSteamManifestCacheEntries = 8;
   static const int _maxCoverQualityCacheEntries = 1200;
-  static const Duration _steamManifestCacheTtl = Duration(minutes: 15);
   static final LinkedHashMap<String, CoverArtResult> _memoryCache =
       LinkedHashMap<String, CoverArtResult>();
   static final LinkedHashMap<String, bool> _forcedProviderRefreshCacheKeys =
@@ -77,8 +78,6 @@ class CoverArtService {
       LinkedHashMap<String, String>();
   static final LinkedHashMap<String, bool> _coverQualityPathCache =
       LinkedHashMap<String, bool>();
-  static final LinkedHashMap<String, _SteamManifestIndex> _steamManifestCache =
-      LinkedHashMap<String, _SteamManifestIndex>();
 
   void primeEstimateHints(String gamePath, CompressionEstimate estimate) {
     final exePath = estimate.executableCandidatePath;
@@ -111,13 +110,41 @@ class CoverArtService {
   }
 
   void clearLookupCaches() {
-    _steamManifestCache.clear();
     _coverQualityPathCache.clear();
     _clearCoverArtApiLookupCaches();
   }
 
   static void shutdownSharedResources() {
     shutdownCoverArtSharedResources();
+  }
+
+  /// The cover already resolved for [gamePath] this session, or null.
+  ///
+  /// Synchronous and side-effect free: it never starts a resolution, never
+  /// touches disk or the network, and deliberately does not refresh the entry's
+  /// LRU recency — a secondary surface peeking must not reorder the eviction
+  /// queue the game grid depends on.
+  ///
+  /// For surfaces that want to illustrate themselves with artwork the app
+  /// happens to have. Watching [resolveCover] there would make merely opening
+  /// the surface fetch covers, which is a very different cost.
+  CoverArtResult? peekCachedCover(
+    String gamePath, {
+    String? steamGridDbApiKey,
+    CoverArtProviderMode coverArtProviderMode =
+        CoverArtProviderMode.bundledProxy,
+    CoverArtProxyConfig coverArtProxyConfig = const CoverArtProxyConfig(),
+  }) {
+    final cached =
+        _memoryCache[_runtimeCacheKey(
+          _cacheKey(gamePath),
+          steamGridDbApiKey: steamGridDbApiKey,
+          coverArtProviderMode: coverArtProviderMode,
+          coverArtProxyConfig: coverArtProxyConfig,
+        )];
+    // A placeholder entry records "resolution ran and found nothing", which is
+    // not something to paint.
+    return cached == null || cached.uri == null ? null : cached;
   }
 
   Future<CoverArtResult> resolveCover(
@@ -314,6 +341,7 @@ class CoverArtService {
       final steamCache = await _resolveSteamLibraryCoverResult(
         game,
         cacheKey: cacheKey,
+        rustBridge: rustBridge,
       );
       if (steamCache != null) {
         return store(steamCache);
@@ -327,6 +355,7 @@ class CoverArtService {
         game,
         cacheKey: cacheKey,
         requirePreferred: true,
+        rustBridge: rustBridge,
       );
       if (steamCache != null) {
         return store(steamCache);
@@ -359,12 +388,17 @@ class CoverArtService {
   Future<CoverArtResult?> _resolveSteamLibraryCoverResult(
     GameInfo game, {
     required String cacheKey,
+    required RustBridgeService? rustBridge,
     bool requirePreferred = false,
   }) async {
     if (game.platform != Platform.steam) {
       return null;
     }
-    final steamCover = await _resolveSteamLibraryCover(game.path);
+    final steamCover = await _resolveSteamLibraryCover(
+      game.path,
+      knownSteamAppId: game.steamAppId,
+      rustBridge: rustBridge,
+    );
     if (steamCover == null) {
       return null;
     }
@@ -529,6 +563,7 @@ class CoverArtService {
         game,
         cacheKey: cacheKey,
         proxyConfig: proxyConfig,
+        rustBridge: rustBridge,
       );
       if (proxyLookup.status == _CoverProxyLookupStatus.found) {
         return _ProviderAttempt.found(
@@ -855,9 +890,8 @@ class CoverArtService {
     _trimLru(_estimateHints, _maxEstimateHintEntries);
   }
 
-  static void _trimLru<K, V>(LinkedHashMap<K, V> cache, int maxEntries) {
-    while (cache.length > maxEntries) {
-      cache.remove(cache.keys.first);
-    }
-  }
+  /// Kept as a static so the ~10 existing call sites in this part-library read
+  /// naturally; the implementation itself lives in one place.
+  static void _trimLru<K, V>(LinkedHashMap<K, V> cache, int maxEntries) =>
+      trimLru(cache, maxEntries);
 }

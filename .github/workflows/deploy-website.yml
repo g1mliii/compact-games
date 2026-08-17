@@ -29,6 +29,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Verify website metadata
+        run: python scripts/verify_website_metadata.py
+
       - name: Minify assets
         run: |
           MINIFY_VERSION=v2.24.12
@@ -50,6 +53,7 @@ jobs:
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: compact-games-site-package/website
+          include-hidden-files: true
 
       - name: Deploy to GitHub Pages
         id: deployment

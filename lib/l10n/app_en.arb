@@ -609,14 +609,6 @@
   "@homeListEmptyMessage": {
     "description": "Localized message for home list empty message."
   },
-  "homeSelectGameTitle": "Choose a game",
-  "@homeSelectGameTitle": {
-    "description": "Localized message for home select game title."
-  },
-  "homeSelectGameMessage": "Select a title to inspect its size, compression history, and next actions.",
-  "@homeSelectGameMessage": {
-    "description": "Localized message for home select game message."
-  },
   "homeStatusReadyToCompress": "Ready",
   "@homeStatusReadyToCompress": {
     "description": "Localized message for home ready status."
@@ -1439,5 +1431,73 @@
   "inventoryRescanAlreadyRunning": "A rescan is already running",
   "@inventoryRescanAlreadyRunning": {
     "description": "Localized message shown when a rescan was requested while another was already in progress."
+  },
+  "libraryHomeRowTitle": "Library Home",
+  "@libraryHomeRowTitle": {
+    "description": "Title of the persistent Library Home row above the game list."
+  },
+  "libraryHomeRowSubtitle": "Overview",
+  "@libraryHomeRowSubtitle": {
+    "description": "Secondary line of the persistent Library Home row."
+  },
+  "libraryHomeHighlightsHeading": "Library highlights",
+  "@libraryHomeHighlightsHeading": {
+    "description": "Heading above the Library Home highlight cards."
+  },
+  "libraryHomeTotalGamesLabel": "Games",
+  "@libraryHomeTotalGamesLabel": {
+    "description": "Label for the total number of discovered games."
+  },
+  "libraryHomeCompressedLabel": "Compressed",
+  "@libraryHomeCompressedLabel": {
+    "description": "Label for the number of compressed games."
+  },
+  "libraryHomeSpaceSavedLabel": "Space saved",
+  "@libraryHomeSpaceSavedLabel": {
+    "description": "Label for the measured amount of disk space reclaimed."
+  },
+  "libraryHomeLargestInstallLabel": "Largest install",
+  "@libraryHomeLargestInstallLabel": {
+    "description": "Label for the largest installed game."
+  },
+  "libraryHomeBiggestSaverLabel": "Biggest saver",
+  "@libraryHomeBiggestSaverLabel": {
+    "description": "Label for the game that reclaimed the most space."
+  },
+  "libraryHomeRecentlyCompressedLabel": "Recently compressed",
+  "@libraryHomeRecentlyCompressedLabel": {
+    "description": "Label for the most recently compressed game."
+  },
+  "libraryHomeHighlightEmpty": "Nothing yet",
+  "@libraryHomeHighlightEmpty": {
+    "description": "Shown in a Library Home highlight card when no game qualifies."
+  },
+  "libraryHomeEmptyTitle": "No games discovered yet",
+  "@libraryHomeEmptyTitle": {
+    "description": "Library Home title shown when the library is empty."
+  },
+  "libraryHomeEmptyMessage": "Add a game folder or run a rescan to build your library.",
+  "@libraryHomeEmptyMessage": {
+    "description": "Library Home message shown when the library is empty."
+  },
+  "libraryHomeNewsHeading": "What's new",
+  "@libraryHomeNewsHeading": {
+    "description": "Heading above the Library Home What's New shelf."
+  },
+  "libraryHomeNewsSourceSteam": "Steam Community",
+  "@libraryHomeNewsSourceSteam": {
+    "description": "Source label shown on every news card."
+  },
+  "libraryHomeNewsStale": "Showing saved items",
+  "@libraryHomeNewsStale": {
+    "description": "Shown when a refresh failed and cached news is displayed."
+  },
+  "settingsAboutWebsiteAction": "Website",
+  "@settingsAboutWebsiteAction": {
+    "description": "Button that opens the Compact Games website."
+  },
+  "settingsAboutPrivacyPolicyAction": "Privacy policy",
+  "@settingsAboutPrivacyPolicyAction": {
+    "description": "Button that opens the Compact Games privacy policy."
   }
 }

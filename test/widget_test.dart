@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'support/list_row_finder.dart';
 import 'package:compact_games/app.dart';
 import 'package:compact_games/core/widgets/cinematic_background.dart';
 import 'package:compact_games/core/widgets/film_grain_overlay.dart';
@@ -42,6 +43,7 @@ part 'support/rust_bridge_test_doubles.dart';
 part 'support/widget_progress_indicator_tests.dart';
 
 const int _oneGiB = 1024 * 1024 * 1024;
+
 final List<GameInfo> _sampleGames = <GameInfo>[
   GameInfo(
     name: 'Pixel Raider',
@@ -939,7 +941,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Pixel Raider'));
+    await tester.tap(listRowText('Pixel Raider'));
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Launch Game'), findsOneWidget);
@@ -1034,7 +1036,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text(game.name));
+    await tester.tap(listRowText(game.name));
     await tester.pumpAndSettle();
 
     final launchButton = tester.widget<IconButton>(

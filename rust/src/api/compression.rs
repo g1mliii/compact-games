@@ -24,7 +24,7 @@ use crate::compression::history::{persist_if_dirty, EstimateSnapshot};
 use crate::compression::managed_paths::{build_restore_plan, remove_managed_path};
 use crate::compression::record_successful_compression;
 
-use crate::compression::thread_policy::compute_thread_policy;
+use crate::compression::thread_policy::{compute_rewrite_thread_policy, compute_thread_policy};
 use crate::frb_generated::StreamSink;
 use crate::progress::tracker::CompressionProgress;
 use crate::safety::directstorage::is_directstorage_game;
@@ -266,8 +266,12 @@ pub fn decompress_game(
     sink: StreamSink<FrbCompressionProgress>,
 ) -> Result<(), FrbCompressionError> {
     let path = PathBuf::from(&game_path);
-    // User-initiated decompression: full parallelism
-    let policy = compute_thread_policy(
+    // Decompression restores every file to its full logical size, so it writes
+    // more than it reads. At normal I/O priority that saturates the disk queue
+    // and everything else on the machine — this app's own UI included — waits
+    // behind it, which is why this does not get the foreground policy that
+    // compression uses even though the user started it.
+    let policy = compute_rewrite_thread_policy(
         &path,
         false,
         current_cpu_usage_percent(),

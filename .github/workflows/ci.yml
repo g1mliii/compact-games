@@ -47,6 +47,9 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust/Cargo.toml --check
 
+      - name: Verify website metadata
+        run: python scripts/verify_website_metadata.py
+
   windows-app:
     name: Validate Windows app
     runs-on: windows-latest

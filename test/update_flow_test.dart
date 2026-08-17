@@ -13,7 +13,9 @@ import 'package:compact_games/providers/update/update_status_presentation.dart';
 import 'package:compact_games/providers/games/game_list_provider.dart';
 import 'package:compact_games/providers/settings/settings_persistence.dart';
 import 'package:compact_games/providers/settings/settings_provider.dart';
+import 'package:compact_games/providers/system/platform_shell_provider.dart';
 import 'package:compact_games/providers/update/update_provider.dart';
+import 'package:compact_games/services/platform_shell_service.dart';
 import 'package:compact_games/services/rust_bridge_service.dart';
 import 'package:compact_games/services/update_installer_cache.dart';
 import 'package:compact_games/src/rust/api/update.dart' as rust_update;
@@ -21,6 +23,34 @@ import 'package:compact_games/src/rust/api/update.dart' as rust_update;
 import 'support/noop_rust_bridge_service.dart';
 
 void main() {
+  testWidgets('About section opens the public website and privacy policy', (
+    WidgetTester tester,
+  ) async {
+    final shell = _RecordingUriShellService();
+    final persistence = _MemorySettingsPersistence(
+      const AppSettings(autoCheckUpdates: true),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsPersistenceProvider.overrideWithValue(persistence),
+          platformShellServiceProvider.overrideWithValue(shell),
+        ],
+        child: const MaterialApp(home: Scaffold(body: AboutSection())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Website'));
+    await tester.tap(find.text('Privacy policy'));
+
+    expect(shell.openedUris, <String>[
+      'https://compactgames.app/',
+      'https://compactgames.app/privacy.html',
+    ]);
+  });
+
   testWidgets(
     'Steam builds show Steam-managed updates without updater actions',
     (WidgetTester tester) async {
@@ -416,6 +446,16 @@ void main() {
       expect(lifecycle, <String>['settings', 'installer', 'exit']);
     },
   );
+}
+
+class _RecordingUriShellService extends PlatformShellService {
+  final openedUris = <String>[];
+
+  @override
+  Future<bool> launchUri(String uri) async {
+    openedUris.add(uri);
+    return true;
+  }
 }
 
 /// Container running the *real* [UpdateNotifier] against a stub bridge, so the

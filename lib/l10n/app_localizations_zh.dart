@@ -453,12 +453,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeListEmptyMessage => '清除当前搜索或筛选条件，或手动添加一个游戏文件夹。';
 
   @override
-  String get homeSelectGameTitle => '选择一个游戏';
-
-  @override
-  String get homeSelectGameMessage => '选中一个标题以查看体积、压缩历史和下一步操作。';
-
-  @override
   String get homeStatusReadyToCompress => '就绪';
 
   @override
@@ -1015,4 +1009,55 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get inventoryRescanAlreadyRunning => '已有扫描正在进行';
+
+  @override
+  String get libraryHomeRowTitle => '库主页';
+
+  @override
+  String get libraryHomeRowSubtitle => '总览';
+
+  @override
+  String get libraryHomeHighlightsHeading => '库亮点';
+
+  @override
+  String get libraryHomeTotalGamesLabel => '游戏';
+
+  @override
+  String get libraryHomeCompressedLabel => '已压缩';
+
+  @override
+  String get libraryHomeSpaceSavedLabel => '已节省空间';
+
+  @override
+  String get libraryHomeLargestInstallLabel => '最大安装';
+
+  @override
+  String get libraryHomeBiggestSaverLabel => '节省最多';
+
+  @override
+  String get libraryHomeRecentlyCompressedLabel => '最近压缩';
+
+  @override
+  String get libraryHomeHighlightEmpty => '暂无';
+
+  @override
+  String get libraryHomeEmptyTitle => '尚未发现游戏';
+
+  @override
+  String get libraryHomeEmptyMessage => '添加游戏文件夹或重新扫描以建立你的库。';
+
+  @override
+  String get libraryHomeNewsHeading => '最新动态';
+
+  @override
+  String get libraryHomeNewsSourceSteam => 'Steam 社区';
+
+  @override
+  String get libraryHomeNewsStale => '显示已保存的条目';
+
+  @override
+  String get settingsAboutWebsiteAction => '官方网站';
+
+  @override
+  String get settingsAboutPrivacyPolicyAction => '隐私政策';
 }

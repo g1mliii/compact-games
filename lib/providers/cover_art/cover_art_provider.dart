@@ -78,3 +78,29 @@ final coverArtProvider = FutureProvider.autoDispose
         rustBridge: bridge,
       );
     });
+
+/// The cover already in memory for a game, without resolving one.
+///
+/// Watch this instead of [coverArtProvider] on a surface where artwork is a
+/// nicety rather than the point. [coverArtProvider] resolves on first watch —
+/// disk probing, Steam `librarycache` scanning, and potentially SteamGridDB or
+/// Steam store requests — so a list of a dozen incidental thumbnails would turn
+/// opening that surface into a dozen cover lookups.
+///
+/// Resolves to null until the settings load, and re-reads whenever the surface
+/// remounts; it does not observe the cache filling underneath it.
+final cachedCoverArtProvider = Provider.autoDispose
+    .family<CoverArtResult?, String>((ref, gamePath) {
+      final settingsState = ref.watch(settingsProvider).value;
+      if (settingsState == null) {
+        return null;
+      }
+      return ref
+          .read(coverArtServiceProvider)
+          .peekCachedCover(
+            gamePath,
+            steamGridDbApiKey: settingsState.settings.steamGridDbApiKey,
+            coverArtProviderMode: settingsState.settings.coverArtProviderMode,
+            coverArtProxyConfig: ref.read(coverArtProxyConfigProvider),
+          );
+    });

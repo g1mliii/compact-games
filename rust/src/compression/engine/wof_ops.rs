@@ -7,16 +7,25 @@ use std::sync::Arc;
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 
-fn build_thread_pool(parallelism: usize) -> Result<rayon::ThreadPool, CompressionError> {
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(parallelism)
-        .build()
-        .map_err(|e| CompressionError::Io {
-            source: std::io::Error::other(e.to_string()),
-        })
+fn build_thread_pool(
+    parallelism: usize,
+    low_io_priority: bool,
+) -> Result<rayon::ThreadPool, CompressionError> {
+    let mut builder = rayon::ThreadPoolBuilder::new().num_threads(parallelism);
+    if low_io_priority {
+        // Background mode is per-thread, so it has to be entered on each worker
+        // rather than once here, and left again before the thread is reused.
+        builder = builder
+            .start_handler(|_| io_priority::enter_background_io())
+            .exit_handler(|_| io_priority::leave_background_io());
+    }
+    builder.build().map_err(|e| CompressionError::Io {
+        source: std::io::Error::other(e.to_string()),
+    })
 }
 
 use super::super::error::CompressionError;
+use super::super::io_priority;
 use super::super::thread_policy::ThreadPolicy;
 use super::super::wof::{self, CompressFileResult};
 use super::{CompressionEngine, CompressionStats, ManifestFile, MIN_COMPRESSIBLE_SIZE};
@@ -38,7 +47,7 @@ where
     if let Some(policy) = policy {
         // Keep compression workers scoped to the operation so they terminate
         // when the job finishes instead of retaining stacks while idle in tray.
-        let pool = build_thread_pool(policy.io_parallelism)?;
+        let pool = build_thread_pool(policy.io_parallelism, policy.low_io_priority)?;
         pool.install(|| files.par_iter().try_for_each(&operation))
     } else {
         files.par_iter().try_for_each(operation)
@@ -207,9 +216,10 @@ impl CompressionEngine {
 
         if let Some(policy) = &self.thread_policy {
             log::info!(
-                "[compression][thread_policy] io_parallelism={} background={}",
+                "[compression][thread_policy] io_parallelism={} background={} low_io_priority={}",
                 policy.io_parallelism,
                 policy.is_background,
+                policy.low_io_priority,
             );
         }
 
@@ -361,9 +371,10 @@ impl CompressionEngine {
 
         if let Some(policy) = &self.thread_policy {
             log::info!(
-                "[decompression][thread_policy] io_parallelism={} background={}",
+                "[decompression][thread_policy] io_parallelism={} background={} low_io_priority={}",
                 policy.io_parallelism,
                 policy.is_background,
+                policy.low_io_priority,
             );
         }
 
@@ -420,6 +431,7 @@ mod tests {
         let policy = ThreadPolicy {
             io_parallelism: parallelism,
             is_background: false,
+            low_io_priority: false,
         };
 
         try_for_each_file(&files, Some(&policy), |_| {

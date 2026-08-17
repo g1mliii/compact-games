@@ -19,16 +19,14 @@ extension _CoverArtServiceStore on CoverArtService {
     try {
       int? appId = game.steamAppId;
       if (appId == null && game.platform == Platform.steam) {
-        appId = int.tryParse(
-          await _resolveSteamAppIdFromGamePath(game.path) ?? '',
-        );
+        appId = await SteamAppIdLookup.resolveAppId(game.path, rustBridge);
       }
 
       if (appId == null) {
         final lookupNames = <String>[game.name, ?alternateLookupName];
         final seen = <String>{};
         for (final lookupName in lookupNames) {
-          final folded = _foldSteamStoreTitle(lookupName, rustBridge);
+          final folded = foldGameTitle(lookupName, rustBridge: rustBridge);
           if (folded.isEmpty || !seen.add(folded)) {
             continue;
           }
@@ -68,7 +66,7 @@ extension _CoverArtServiceStore on CoverArtService {
     String gameName,
     RustBridgeService? rustBridge,
   ) async {
-    final foldedName = _foldSteamStoreTitle(gameName, rustBridge);
+    final foldedName = foldGameTitle(gameName, rustBridge: rustBridge);
     if (foldedName.isEmpty) {
       return null;
     }
@@ -103,7 +101,7 @@ extension _CoverArtServiceStore on CoverArtService {
       if (name is! String || id == null) {
         continue;
       }
-      final foldedCandidate = _foldSteamStoreTitle(name, rustBridge);
+      final foldedCandidate = foldGameTitle(name, rustBridge: rustBridge);
       if (foldedCandidate == foldedName) {
         _writeApiLru(_steamStoreAppIdCache, foldedName, id);
         return id;
@@ -193,7 +191,7 @@ extension _CoverArtServiceStore on CoverArtService {
       timeout: _apiJsonRequestTimeout,
       headers: const <String, String>{
         'Accept': 'application/json',
-        'User-Agent': 'CompactGames/0.1',
+        'User-Agent': AppConstants.userAgent,
       },
     );
     if (response == null ||
@@ -207,48 +205,5 @@ extension _CoverArtServiceStore on CoverArtService {
     } catch (_) {
       return null;
     }
-  }
-
-  String _foldSteamStoreTitle(String value, RustBridgeService? rustBridge) {
-    var folded = _lookupName(value, rustBridge).toLowerCase();
-    const replacements = <String, String>{
-      '\u00e0': 'a',
-      '\u00e1': 'a',
-      '\u00e2': 'a',
-      '\u00e3': 'a',
-      '\u00e4': 'a',
-      '\u00e5': 'a',
-      '\u00e6': 'ae',
-      '\u00e7': 'c',
-      '\u00e8': 'e',
-      '\u00e9': 'e',
-      '\u00ea': 'e',
-      '\u00eb': 'e',
-      '\u00ec': 'i',
-      '\u00ed': 'i',
-      '\u00ee': 'i',
-      '\u00ef': 'i',
-      '\u00f1': 'n',
-      '\u00f2': 'o',
-      '\u00f3': 'o',
-      '\u00f4': 'o',
-      '\u00f5': 'o',
-      '\u00f6': 'o',
-      '\u00f8': 'o',
-      '\u0153': 'oe',
-      '\u00f9': 'u',
-      '\u00fa': 'u',
-      '\u00fb': 'u',
-      '\u00fc': 'u',
-      '\u00fd': 'y',
-      '\u00ff': 'y',
-    };
-    for (final entry in replacements.entries) {
-      folded = folded.replaceAll(entry.key, entry.value);
-    }
-    return folded
-        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
   }
 }

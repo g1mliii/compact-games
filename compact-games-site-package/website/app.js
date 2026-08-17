@@ -11,7 +11,7 @@ const FALLBACK_UNSUPPORTED_LIST_URL =
 const FALLBACK_UNSUPPORTED_BUNDLE_URL =
   "https://github.com/g1mliii/compact-games/releases/latest/download/unsupported_games.bundle.json";
 const FAQ_DOWNLOAD_HELP_URL = "./faq.html#download-help";
-const CONTACT_EMAIL = "info@anchored.site";
+const CONTACT_EMAIL = "support@compactgames.app";
 const RELEASE_FETCH_TIMEOUT_MS = 2500;
 const ALLOWED_CONNECT_ORIGINS = new Set([
   window.location.origin,

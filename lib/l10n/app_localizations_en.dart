@@ -479,13 +479,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Clear the current search or filters, or add a game folder manually.';
 
   @override
-  String get homeSelectGameTitle => 'Choose a game';
-
-  @override
-  String get homeSelectGameMessage =>
-      'Select a title to inspect its size, compression history, and next actions.';
-
-  @override
   String get homeStatusReadyToCompress => 'Ready';
 
   @override
@@ -1052,4 +1045,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inventoryRescanAlreadyRunning => 'A rescan is already running';
+
+  @override
+  String get libraryHomeRowTitle => 'Library Home';
+
+  @override
+  String get libraryHomeRowSubtitle => 'Overview';
+
+  @override
+  String get libraryHomeHighlightsHeading => 'Library highlights';
+
+  @override
+  String get libraryHomeTotalGamesLabel => 'Games';
+
+  @override
+  String get libraryHomeCompressedLabel => 'Compressed';
+
+  @override
+  String get libraryHomeSpaceSavedLabel => 'Space saved';
+
+  @override
+  String get libraryHomeLargestInstallLabel => 'Largest install';
+
+  @override
+  String get libraryHomeBiggestSaverLabel => 'Biggest saver';
+
+  @override
+  String get libraryHomeRecentlyCompressedLabel => 'Recently compressed';
+
+  @override
+  String get libraryHomeHighlightEmpty => 'Nothing yet';
+
+  @override
+  String get libraryHomeEmptyTitle => 'No games discovered yet';
+
+  @override
+  String get libraryHomeEmptyMessage =>
+      'Add a game folder or run a rescan to build your library.';
+
+  @override
+  String get libraryHomeNewsHeading => 'What\'s new';
+
+  @override
+  String get libraryHomeNewsSourceSteam => 'Steam Community';
+
+  @override
+  String get libraryHomeNewsStale => 'Showing saved items';
+
+  @override
+  String get settingsAboutWebsiteAction => 'Website';
+
+  @override
+  String get settingsAboutPrivacyPolicyAction => 'Privacy policy';
 }

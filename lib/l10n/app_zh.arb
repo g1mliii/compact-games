@@ -609,14 +609,6 @@
   "@homeListEmptyMessage": {
     "description": "Localized message for home list empty message."
   },
-  "homeSelectGameTitle": "选择一个游戏",
-  "@homeSelectGameTitle": {
-    "description": "Localized message for home select game title."
-  },
-  "homeSelectGameMessage": "选中一个标题以查看体积、压缩历史和下一步操作。",
-  "@homeSelectGameMessage": {
-    "description": "Localized message for home select game message."
-  },
   "homeStatusReadyToCompress": "就绪",
   "@homeStatusReadyToCompress": {
     "description": "Localized message for home ready status."
@@ -1314,5 +1306,73 @@
   "inventoryRescanAlreadyRunning": "已有扫描正在进行",
   "@inventoryRescanAlreadyRunning": {
     "description": "Localized message shown when a rescan was requested while another was already in progress."
+  },
+  "libraryHomeRowTitle": "库主页",
+  "@libraryHomeRowTitle": {
+    "description": "Title of the persistent Library Home row above the game list."
+  },
+  "libraryHomeRowSubtitle": "总览",
+  "@libraryHomeRowSubtitle": {
+    "description": "Secondary line of the persistent Library Home row."
+  },
+  "libraryHomeHighlightsHeading": "库亮点",
+  "@libraryHomeHighlightsHeading": {
+    "description": "Heading above the Library Home highlight cards."
+  },
+  "libraryHomeTotalGamesLabel": "游戏",
+  "@libraryHomeTotalGamesLabel": {
+    "description": "Label for the total number of discovered games."
+  },
+  "libraryHomeCompressedLabel": "已压缩",
+  "@libraryHomeCompressedLabel": {
+    "description": "Label for the number of compressed games."
+  },
+  "libraryHomeSpaceSavedLabel": "已节省空间",
+  "@libraryHomeSpaceSavedLabel": {
+    "description": "Label for the measured amount of disk space reclaimed."
+  },
+  "libraryHomeLargestInstallLabel": "最大安装",
+  "@libraryHomeLargestInstallLabel": {
+    "description": "Label for the largest installed game."
+  },
+  "libraryHomeBiggestSaverLabel": "节省最多",
+  "@libraryHomeBiggestSaverLabel": {
+    "description": "Label for the game that reclaimed the most space."
+  },
+  "libraryHomeRecentlyCompressedLabel": "最近压缩",
+  "@libraryHomeRecentlyCompressedLabel": {
+    "description": "Label for the most recently compressed game."
+  },
+  "libraryHomeHighlightEmpty": "暂无",
+  "@libraryHomeHighlightEmpty": {
+    "description": "Shown in a Library Home highlight card when no game qualifies."
+  },
+  "libraryHomeEmptyTitle": "尚未发现游戏",
+  "@libraryHomeEmptyTitle": {
+    "description": "Library Home title shown when the library is empty."
+  },
+  "libraryHomeEmptyMessage": "添加游戏文件夹或重新扫描以建立你的库。",
+  "@libraryHomeEmptyMessage": {
+    "description": "Library Home message shown when the library is empty."
+  },
+  "libraryHomeNewsHeading": "最新动态",
+  "@libraryHomeNewsHeading": {
+    "description": "Heading above the Library Home What's New shelf."
+  },
+  "libraryHomeNewsSourceSteam": "Steam 社区",
+  "@libraryHomeNewsSourceSteam": {
+    "description": "Source label shown on every news card."
+  },
+  "libraryHomeNewsStale": "显示已保存的条目",
+  "@libraryHomeNewsStale": {
+    "description": "Shown when a refresh failed and cached news is displayed."
+  },
+  "settingsAboutWebsiteAction": "官方网站",
+  "@settingsAboutWebsiteAction": {
+    "description": "Button that opens the Compact Games website."
+  },
+  "settingsAboutPrivacyPolicyAction": "隐私政策",
+  "@settingsAboutPrivacyPolicyAction": {
+    "description": "Button that opens the Compact Games privacy policy."
   }
 }
