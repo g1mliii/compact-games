@@ -609,14 +609,6 @@
   "@homeListEmptyMessage": {
     "description": "Localized message for home list empty message."
   },
-  "homeSelectGameTitle": "选择一个游戏",
-  "@homeSelectGameTitle": {
-    "description": "Localized message for home select game title."
-  },
-  "homeSelectGameMessage": "选中一个标题以查看体积、压缩历史和下一步操作。",
-  "@homeSelectGameMessage": {
-    "description": "Localized message for home select game message."
-  },
   "homeStatusReadyToCompress": "就绪",
   "@homeStatusReadyToCompress": {
     "description": "Localized message for home ready status."
@@ -1374,10 +1366,6 @@
   "libraryHomeNewsStale": "显示已保存的条目",
   "@libraryHomeNewsStale": {
     "description": "Shown when a refresh failed and cached news is displayed."
-  },
-  "libraryHomeNewsEmpty": "你的游戏暂无最新动态。",
-  "@libraryHomeNewsEmpty": {
-    "description": "Shown when the news shelf has nothing to display."
   },
   "settingsAboutWebsiteAction": "官方网站",
   "@settingsAboutWebsiteAction": {

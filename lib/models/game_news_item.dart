@@ -46,7 +46,7 @@ class GameNewsItem {
       return null;
     }
     final id = boundedNewsText(json['id'], maxNewsIdLength);
-    final gamePath = boundedNewsText(json['gamePath'], maxNewsGamePathLength);
+    final gamePath = boundedNewsGamePath(json['gamePath']);
     final title = boundedNewsText(json['title'], maxNewsTitleLength);
     final url = sanitizedNewsUrl(json['url']);
     final appId = json['steamAppId'];
@@ -132,6 +132,25 @@ String? boundedNewsText(Object? value, int maxLength) {
       : stripped.substring(0, maxLength).trimRight();
 }
 
+/// Bounds a local install path without stripping markup.
+///
+/// A game path is locally sourced, not remote text, and it keys the cover art
+/// and game lookups the news card renders from. Folders like
+/// `Fallout 4 [GOTY]` or names with doubled spaces are legitimate and must
+/// survive verbatim, so only control characters and length are rejected — an
+/// over-long path is dropped rather than truncated, since a truncated path is a
+/// key that matches nothing.
+String? boundedNewsGamePath(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  if (trimmed.isEmpty || trimmed.length > maxNewsGamePathLength) {
+    return null;
+  }
+  return _controlChars.hasMatch(trimmed) ? null : trimmed;
+}
+
 /// Validates a news link: https only, an allowlisted host, and length-bounded.
 String? sanitizedNewsUrl(Object? value) {
   if (value is! String || value.isEmpty || value.length > maxNewsUrlLength) {
@@ -168,12 +187,17 @@ DateTime? boundedNewsTimestampFromMilliseconds(int millisSinceEpoch) {
 /// multiplication. This avoids both out-of-range [DateTime] construction and
 /// integer overflow for malformed remote input.
 DateTime? boundedNewsTimestampFromSeconds(int secondsSinceEpoch) {
+  // Bounds checked before the multiplication, so the product cannot overflow
+  // and is by construction inside the millisecond range — no second check.
   const earliest = 946684800; // 2000-01-01
   const latest = 4102444800; // 2100-01-01
   if (secondsSinceEpoch < earliest || secondsSinceEpoch > latest) {
     return null;
   }
-  return boundedNewsTimestampFromMilliseconds(secondsSinceEpoch * 1000);
+  return DateTime.fromMillisecondsSinceEpoch(
+    secondsSinceEpoch * 1000,
+    isUtc: true,
+  );
 }
 
 final RegExp _htmlTag = RegExp(r'<[^>]*>');

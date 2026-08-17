@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/list_row_finder.dart';
 import 'support/noop_rust_bridge_service.dart';
 
 const int _oneGiB = 1024 * 1024 * 1024;
@@ -47,11 +48,6 @@ class _GamesBridgeService extends NoOpRustBridgeService {
   Future<List<GameInfo>> refreshAllGames() async => games;
 }
 
-Finder _listRowText(String text) => find.descendant(
-  of: find.byKey(homeGameListPanelListKey),
-  matching: find.text(text),
-);
-
 Future<ProviderContainer> _pumpListView(
   WidgetTester tester, {
   List<GameInfo> games = const <GameInfo>[],
@@ -86,7 +82,7 @@ void main() {
     final container = await _pumpListView(tester, games: _games);
 
     expect(container.read(selectedGameProvider), isNull);
-    expect(_listRowText('Library Home'), findsOneWidget);
+    expect(listRowText('Library Home'), findsOneWidget);
     expect(find.byKey(LibraryHomeSurface.scrollViewKey), findsOneWidget);
     expect(find.text('Library highlights'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -97,12 +93,12 @@ void main() {
   ) async {
     final container = await _pumpListView(tester, games: _games);
 
-    await tester.tap(_listRowText('Pixel Raider'));
+    await tester.tap(listRowText('Pixel Raider'));
     await tester.pumpAndSettle();
     expect(container.read(selectedGameProvider), r'C:\Games\pixel_raider');
     expect(find.byKey(LibraryHomeSurface.scrollViewKey), findsNothing);
 
-    await tester.tap(_listRowText('Library Home'));
+    await tester.tap(listRowText('Library Home'));
     await tester.pumpAndSettle();
     expect(container.read(selectedGameProvider), isNull);
     expect(find.byKey(LibraryHomeSurface.scrollViewKey), findsOneWidget);
@@ -131,6 +127,30 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.pumpAndSettle();
     expect(container.read(selectedGameProvider), isNull);
+  });
+
+  testWidgets('Up resolves a filtered-out selection to Library Home', (
+    tester,
+  ) async {
+    final container = await _pumpListView(tester, games: _games);
+
+    await tester.tap(listRowText('Pixel Raider'));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedGameProvider), r'C:\Games\pixel_raider');
+
+    // Filtering the selected game out of the list leaves the selection dangling
+    // — the details pane still shows it, but no row does.
+    container.read(gameListProvider.notifier).setSearchQuery('dustline');
+    await tester.pumpAndSettle();
+
+    // Tapping the row already focused the list, so Up goes straight to it. Both
+    // directions have to resolve the dangling selection: Up maps it to index 0,
+    // and must act on that rather than treat it as "already there".
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pumpAndSettle();
+
+    expect(container.read(selectedGameProvider), isNull);
+    expect(find.byKey(LibraryHomeSurface.scrollViewKey), findsOneWidget);
   });
 
   testWidgets('Library Home highlights point at the right games', (

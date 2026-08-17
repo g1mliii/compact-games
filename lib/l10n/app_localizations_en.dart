@@ -479,13 +479,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Clear the current search or filters, or add a game folder manually.';
 
   @override
-  String get homeSelectGameTitle => 'Choose a game';
-
-  @override
-  String get homeSelectGameMessage =>
-      'Select a title to inspect its size, compression history, and next actions.';
-
-  @override
   String get homeStatusReadyToCompress => 'Ready';
 
   @override
@@ -1098,9 +1091,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get libraryHomeNewsStale => 'Showing saved items';
-
-  @override
-  String get libraryHomeNewsEmpty => 'No recent updates for your games.';
 
   @override
   String get settingsAboutWebsiteAction => 'Website';

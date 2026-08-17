@@ -2,6 +2,12 @@
 abstract final class AppConstants {
   static const String appName = 'Compact Games';
   static const String appVersion = '0.3.0';
+
+  /// Identifies this build to every external service the app talks to.
+  ///
+  /// Derived from [appVersion] rather than written out, so a release bump
+  /// cannot leave outbound requests claiming an old version.
+  static const String userAgent = 'CompactGames/$appVersion';
   static const String websiteUrl = 'https://compactgames.app/';
   static const String privacyPolicyUrl =
       'https://compactgames.app/privacy.html';

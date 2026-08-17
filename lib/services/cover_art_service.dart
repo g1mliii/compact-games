@@ -11,9 +11,11 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/config/cover_art_proxy_config.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/bounded_lru.dart';
 import '../models/app_settings.dart';
 import '../models/compression_estimate.dart';
 import '../models/game_info.dart';
+import 'bounded_json_http.dart';
 import 'game_catalog_identity_service.dart';
 import 'rust_bridge_service.dart';
 
@@ -114,6 +116,35 @@ class CoverArtService {
 
   static void shutdownSharedResources() {
     shutdownCoverArtSharedResources();
+  }
+
+  /// The cover already resolved for [gamePath] this session, or null.
+  ///
+  /// Synchronous and side-effect free: it never starts a resolution, never
+  /// touches disk or the network, and deliberately does not refresh the entry's
+  /// LRU recency — a secondary surface peeking must not reorder the eviction
+  /// queue the game grid depends on.
+  ///
+  /// For surfaces that want to illustrate themselves with artwork the app
+  /// happens to have. Watching [resolveCover] there would make merely opening
+  /// the surface fetch covers, which is a very different cost.
+  CoverArtResult? peekCachedCover(
+    String gamePath, {
+    String? steamGridDbApiKey,
+    CoverArtProviderMode coverArtProviderMode =
+        CoverArtProviderMode.bundledProxy,
+    CoverArtProxyConfig coverArtProxyConfig = const CoverArtProxyConfig(),
+  }) {
+    final cached =
+        _memoryCache[_runtimeCacheKey(
+          _cacheKey(gamePath),
+          steamGridDbApiKey: steamGridDbApiKey,
+          coverArtProviderMode: coverArtProviderMode,
+          coverArtProxyConfig: coverArtProxyConfig,
+        )];
+    // A placeholder entry records "resolution ran and found nothing", which is
+    // not something to paint.
+    return cached == null || cached.uri == null ? null : cached;
   }
 
   Future<CoverArtResult> resolveCover(
@@ -859,9 +890,8 @@ class CoverArtService {
     _trimLru(_estimateHints, _maxEstimateHintEntries);
   }
 
-  static void _trimLru<K, V>(LinkedHashMap<K, V> cache, int maxEntries) {
-    while (cache.length > maxEntries) {
-      cache.remove(cache.keys.first);
-    }
-  }
+  /// Kept as a static so the ~10 existing call sites in this part-library read
+  /// naturally; the implementation itself lives in one place.
+  static void _trimLru<K, V>(LinkedHashMap<K, V> cache, int maxEntries) =>
+      trimLru(cache, maxEntries);
 }

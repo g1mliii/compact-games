@@ -453,12 +453,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeListEmptyMessage => '清除当前搜索或筛选条件，或手动添加一个游戏文件夹。';
 
   @override
-  String get homeSelectGameTitle => '选择一个游戏';
-
-  @override
-  String get homeSelectGameMessage => '选中一个标题以查看体积、压缩历史和下一步操作。';
-
-  @override
   String get homeStatusReadyToCompress => '就绪';
 
   @override
@@ -1060,9 +1054,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get libraryHomeNewsStale => '显示已保存的条目';
-
-  @override
-  String get libraryHomeNewsEmpty => '你的游戏暂无最新动态。';
 
   @override
   String get settingsAboutWebsiteAction => '官方网站';

@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/utils/bounded_list.dart';
 import '../models/game_info.dart';
 import '../models/game_news_item.dart';
+import 'bounded_json_http.dart';
 import 'game_catalog_identity_service.dart';
 import 'rust_bridge_service.dart';
 
@@ -26,6 +27,10 @@ class SteamNewsService {
 
   static const String _newsHost = 'api.steampowered.com';
   static const String _newsPath = '/ISteamNews/GetNewsForApp/v2/';
+
+  /// Entries requested per game. Only the first usable one is kept; the rest are
+  /// fallbacks for when the newest entries fail sanitization.
+  static const int _newsFetchCount = 5;
 
   /// Games considered per refresh, ordered by [orderNewsCandidates].
   static const int maxCandidates = 16;
@@ -47,8 +52,6 @@ class SteamNewsService {
   /// discarded rather than published, which is what makes an offline flip or a
   /// disposed provider safe mid-flight.
   int _generation = 0;
-
-  int _requestCount = 0;
 
   /// Refreshes the shelf for [games].
   ///
@@ -108,7 +111,11 @@ class SteamNewsService {
 
     final uri = Uri.https(_newsHost, _newsPath, <String, String>{
       'appid': '$appId',
-      'count': '1',
+      // More than one entry so parseFirstNewsItem's skip-and-retry loop can do
+      // its job: the newest post is often an external-RSS mirror whose URL
+      // fails the trusted-host check, and at count=1 that silently costs the
+      // game its whole news slot.
+      'count': '$_newsFetchCount',
       // Ask Steam not to send the article body at all: the shelf shows a
       // headline, so downloading contents would be paid-for and discarded.
       'maxlength': '1',
@@ -122,28 +129,15 @@ class SteamNewsService {
     return parseFirstNewsItem(json, game: game, steamAppId: appId);
   }
 
-  Future<Map<String, dynamic>?> _getJson(Uri uri) async {
-    try {
-      _requestCount += 1;
-      final response = await (_client ??= _clientFactory())
-          .get(
-            uri,
-            headers: const <String, String>{
-              'Accept': 'application/json',
-              'User-Agent': 'CompactGames/0.1',
-            },
-          )
-          .timeout(requestTimeout);
-      if (response.statusCode != 200 ||
-          response.bodyBytes.length > _maxResponseBytes) {
-        return null;
-      }
-      final decoded = jsonDecode(response.body);
-      return decoded is Map<String, dynamic> ? decoded : null;
-    } catch (_) {
-      // Timeouts, transport errors, and malformed bodies are all "no news".
-      return null;
-    }
+  /// Timeouts, transport errors, and malformed bodies all arrive here as null,
+  /// which the caller already treats as "no news".
+  Future<Map<String, dynamic>?> _getJson(Uri uri) {
+    return getBoundedJson(
+      _client ??= _clientFactory(),
+      uri,
+      timeout: requestTimeout,
+      maxResponseBytes: _maxResponseBytes,
+    );
   }
 
   /// Cancels in-flight work, drops the client, and clears the identity cache.
@@ -153,9 +147,6 @@ class SteamNewsService {
     _client = null;
     _identity.shutdown();
   }
-
-  @visibleForTesting
-  int get debugRequestCount => _requestCount;
 }
 
 /// Picks and orders the games worth asking about.
@@ -180,9 +171,7 @@ List<GameInfo> orderNewsCandidates(List<GameInfo> games) {
       return a.normalizedPath.compareTo(b.normalizedPath);
     });
 
-  return candidates.length > SteamNewsService.maxCandidates
-      ? candidates.sublist(0, SteamNewsService.maxCandidates)
-      : candidates;
+  return cappedTo(candidates, SteamNewsService.maxCandidates);
 }
 
 /// Extracts and sanitizes the first usable entry from a GetNewsForApp payload.
@@ -198,6 +187,13 @@ GameNewsItem? parseFirstNewsItem(
   }
   final newsItems = appNews['newsitems'];
   if (newsItems is! List) {
+    return null;
+  }
+
+  // Loop-invariant: the path does not depend on which entry wins, and a path
+  // this item could never be keyed by disqualifies the whole payload.
+  final gamePath = boundedNewsGamePath(game.path);
+  if (gamePath == null) {
     return null;
   }
 
@@ -217,10 +213,6 @@ GameNewsItem? parseFirstNewsItem(
     // reading the cache so malformed live data cannot throw or sort forever.
     final publishedAt = boundedNewsTimestampFromSeconds(date);
     if (publishedAt == null) {
-      continue;
-    }
-    final gamePath = boundedNewsText(game.path, maxNewsGamePathLength);
-    if (gamePath == null) {
       continue;
     }
 

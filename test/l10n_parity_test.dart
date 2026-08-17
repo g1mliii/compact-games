@@ -23,31 +23,10 @@ void main() {
   final template = _readArb('en');
   final templateKeys = _messageKeys(template);
 
-  test('the template defines the Library Home surface strings', () {
-    // Guards against a locale file being edited without the template.
-    expect(
-      templateKeys,
-      containsAll(<String>[
-        'libraryHomeRowTitle',
-        'libraryHomeRowSubtitle',
-        'libraryHomeHighlightsHeading',
-        'libraryHomeTotalGamesLabel',
-        'libraryHomeCompressedLabel',
-        'libraryHomeSpaceSavedLabel',
-        'libraryHomeLargestInstallLabel',
-        'libraryHomeBiggestSaverLabel',
-        'libraryHomeRecentlyCompressedLabel',
-        'libraryHomeHighlightEmpty',
-        'libraryHomeEmptyTitle',
-        'libraryHomeEmptyMessage',
-        'libraryHomeNewsHeading',
-        'libraryHomeNewsSourceSteam',
-        'libraryHomeNewsStale',
-        'libraryHomeNewsEmpty',
-      ]),
-    );
-  });
-
+  // Deliberately structural only. A per-feature list of expected keys has to be
+  // extended by hand for every surface, and it pins strings whether or not
+  // anything renders them — that a key exists and reaches the screen is what the
+  // widget tests prove.
   for (final locale in _translatedLocales) {
     group('app_$locale.arb', () {
       final arb = _readArb(locale);

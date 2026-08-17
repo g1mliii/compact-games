@@ -168,6 +168,20 @@ void main() {
       expect(a.mostRecentCompressedPath, r'C:\alpha');
     });
 
+    test('an unmeasured library still names a largest install', () {
+      // Before the size scan populates, every game reports zero bytes. The
+      // highlight must still point at a game, or Library Home shows the empty
+      // placeholder on a library that plainly is not empty.
+      final aggregate = buildLibraryAggregate(<GameInfo>[
+        _game(name: 'Beta', path: r'C:\beta', sizeBytes: 0),
+        _game(name: 'Alpha', path: r'C:\alpha', sizeBytes: 0),
+      ]);
+
+      expect(aggregate.totalGames, 2);
+      expect(aggregate.largestInstallPath, r'C:\alpha');
+      expect(aggregate.largestInstallBytes, 0);
+    });
+
     test('mixed-platform libraries aggregate without platform bias', () {
       final aggregate = buildLibraryAggregate(<GameInfo>[
         _game(name: 'S', path: r'C:\s', platform: Platform.steam),

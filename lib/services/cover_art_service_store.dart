@@ -19,14 +19,14 @@ extension _CoverArtServiceStore on CoverArtService {
     try {
       int? appId = game.steamAppId;
       if (appId == null && game.platform == Platform.steam) {
-        appId = SteamAppIdLookup.resolveAppId(game.path, rustBridge);
+        appId = await SteamAppIdLookup.resolveAppId(game.path, rustBridge);
       }
 
       if (appId == null) {
         final lookupNames = <String>[game.name, ?alternateLookupName];
         final seen = <String>{};
         for (final lookupName in lookupNames) {
-          final folded = _foldSteamStoreTitle(lookupName, rustBridge);
+          final folded = foldGameTitle(lookupName, rustBridge: rustBridge);
           if (folded.isEmpty || !seen.add(folded)) {
             continue;
           }
@@ -66,7 +66,7 @@ extension _CoverArtServiceStore on CoverArtService {
     String gameName,
     RustBridgeService? rustBridge,
   ) async {
-    final foldedName = _foldSteamStoreTitle(gameName, rustBridge);
+    final foldedName = foldGameTitle(gameName, rustBridge: rustBridge);
     if (foldedName.isEmpty) {
       return null;
     }
@@ -101,7 +101,7 @@ extension _CoverArtServiceStore on CoverArtService {
       if (name is! String || id == null) {
         continue;
       }
-      final foldedCandidate = _foldSteamStoreTitle(name, rustBridge);
+      final foldedCandidate = foldGameTitle(name, rustBridge: rustBridge);
       if (foldedCandidate == foldedName) {
         _writeApiLru(_steamStoreAppIdCache, foldedName, id);
         return id;
@@ -191,7 +191,7 @@ extension _CoverArtServiceStore on CoverArtService {
       timeout: _apiJsonRequestTimeout,
       headers: const <String, String>{
         'Accept': 'application/json',
-        'User-Agent': 'CompactGames/0.1',
+        'User-Agent': AppConstants.userAgent,
       },
     );
     if (response == null ||
@@ -205,11 +205,5 @@ extension _CoverArtServiceStore on CoverArtService {
     } catch (_) {
       return null;
     }
-  }
-
-  /// Delegates to the shared fold so cover art and catalog identity can never
-  /// disagree about which titles are the same.
-  String _foldSteamStoreTitle(String value, RustBridgeService? rustBridge) {
-    return foldGameTitle(value, rustBridge: rustBridge);
   }
 }

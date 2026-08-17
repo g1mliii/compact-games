@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/utils/bounded_list.dart';
 import '../models/game_news_item.dart';
 
 /// A persisted news snapshot plus how old it is.
@@ -74,15 +75,6 @@ class SteamNewsStore {
     }
   }
 
-  Future<void> clear() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(storageKey);
-    } catch (_) {
-      // Nothing to do — the next load falls back to empty.
-    }
-  }
-
   /// Encodes at most [maxPersistedItems] newest items within
   /// [maxPersistedBytes]. Returns null when nothing is worth persisting.
   ///
@@ -102,9 +94,7 @@ class SteamNewsStore {
 
     final ordered = List<GameNewsItem>.of(items)
       ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-    var kept = ordered.length > maxPersistedItems
-        ? ordered.sublist(0, maxPersistedItems)
-        : ordered;
+    var kept = cappedTo(ordered, maxPersistedItems);
 
     // Shrink from the oldest end until the encoded payload fits. Each pass
     // drops one item, so this terminates at the empty list in the worst case.

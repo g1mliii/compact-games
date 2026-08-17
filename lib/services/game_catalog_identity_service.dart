@@ -1,10 +1,11 @@
 import 'dart:collection';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/utils/bounded_lru.dart';
 import '../models/game_info.dart';
+import 'bounded_json_http.dart';
 import 'rust_bridge_service.dart';
 
 /// Folds a game title down to a comparison key.
@@ -16,8 +17,12 @@ import 'rust_bridge_service.dart';
 String foldGameTitle(String value, {RustBridgeService? rustBridge}) {
   var folded = (rustBridge?.normalizeGameName(value) ?? value.trim())
       .toLowerCase();
-  for (final entry in _diacriticFolds.entries) {
-    folded = folded.replaceAll(entry.key, entry.value);
+  // Each fold is a whole-string scan and reallocation, and almost every title
+  // is pure ASCII. One codeUnit pass decides whether any of them can match.
+  if (folded.codeUnits.any((unit) => unit > 0x7F)) {
+    for (final entry in _diacriticFolds.entries) {
+      folded = folded.replaceAll(entry.key, entry.value);
+    }
   }
   return folded
       .replaceAll(_nonAlphanumeric, ' ')
@@ -67,7 +72,9 @@ const Map<String, String> _diacriticFolds = <String, String>{
 /// `rust/src/discovery/steam.rs` already reads `installdir` and the
 /// fully-installed state flag, and a Dart copy would drift from it. There is
 /// no cache here because the call is synchronous and Rust owns the manifest
-/// caching.
+/// caching: `lookup_steam_app_id_for_path` keeps a TTL-bounded folder-to-app-id
+/// index per `steamapps` root, so resolving a whole refresh burst costs one
+/// directory read rather than one per game.
 abstract final class SteamAppIdLookup {
   /// Extracts the `steamapps` root from a game inside `steamapps\common\...`.
   ///
@@ -87,12 +94,15 @@ abstract final class SteamAppIdLookup {
   ///
   /// [rustBridge] is optional so callers without a bridge (tests, or a path
   /// that is plainly not a Steam install) degrade to null rather than throw.
-  static int? resolveAppId(String gamePath, RustBridgeService? rustBridge) {
+  static Future<int?> resolveAppId(
+    String gamePath,
+    RustBridgeService? rustBridge,
+  ) async {
     if (rustBridge == null || steamAppsPathFromGamePath(gamePath) == null) {
       return null;
     }
     try {
-      final appId = rustBridge.lookupSteamAppId(gamePath);
+      final appId = await rustBridge.lookupSteamAppId(gamePath);
       return appId != null && appId > 0 ? appId : null;
     } catch (_) {
       // The bridge is unavailable in some test and early-startup contexts;
@@ -119,21 +129,15 @@ enum GameCatalogIdentitySource {
 
 @immutable
 class GameCatalogIdentity {
-  const GameCatalogIdentity({
-    required this.steamAppId,
-    required this.foldedName,
-    required this.source,
-  });
+  const GameCatalogIdentity({required this.steamAppId, required this.source});
 
-  const GameCatalogIdentity.unknown(this.foldedName)
-    : steamAppId = null,
-      source = GameCatalogIdentitySource.none;
+  static const GameCatalogIdentity unknown = GameCatalogIdentity(
+    steamAppId: null,
+    source: GameCatalogIdentitySource.none,
+  );
 
   final int? steamAppId;
-  final String foldedName;
   final GameCatalogIdentitySource source;
-
-  bool get isResolved => steamAppId != null;
 }
 
 /// Resolves a game to a Steam app id for features that must not guess.
@@ -174,24 +178,25 @@ class GameCatalogIdentityService {
     if (nativeAppId != null && nativeAppId > 0) {
       return GameCatalogIdentity(
         steamAppId: nativeAppId,
-        foldedName: folded,
         source: GameCatalogIdentitySource.nativeAppId,
       );
     }
 
     if (game.platform == Platform.steam) {
-      final fromManifest = SteamAppIdLookup.resolveAppId(game.path, rustBridge);
+      final fromManifest = await SteamAppIdLookup.resolveAppId(
+        game.path,
+        rustBridge,
+      );
       if (fromManifest != null) {
         return GameCatalogIdentity(
           steamAppId: fromManifest,
-          foldedName: folded,
           source: GameCatalogIdentitySource.localManifest,
         );
       }
     }
 
     if (folded.isEmpty) {
-      return GameCatalogIdentity.unknown(folded);
+      return GameCatalogIdentity.unknown;
     }
 
     final cached = _readCache(folded);
@@ -201,7 +206,7 @@ class GameCatalogIdentityService {
     if (!allowNetwork) {
       // Not cached as unknown: offline is a temporary condition, and caching it
       // would suppress the lookup for the rest of the session.
-      return GameCatalogIdentity.unknown(folded);
+      return GameCatalogIdentity.unknown;
     }
 
     final identity = await _resolveFromCatalog(game.name, folded, rustBridge);
@@ -225,7 +230,7 @@ class GameCatalogIdentityService {
     final json = await _getJson(uri);
     final items = json?['items'];
     if (items is! List) {
-      return GameCatalogIdentity.unknown(folded);
+      return GameCatalogIdentity.unknown;
     }
 
     int? exactAppId;
@@ -245,66 +250,38 @@ class GameCatalogIdentityService {
         // Titles are not unique in Steam's catalog. Picking the first of two
         // exact-name results could attribute another game's patch notes to the
         // user's library, so ambiguity is an unresolved identity.
-        return GameCatalogIdentity.unknown(folded);
+        return GameCatalogIdentity.unknown;
       }
       exactAppId = id;
     }
     return exactAppId == null
-        ? GameCatalogIdentity.unknown(folded)
+        ? GameCatalogIdentity.unknown
         : GameCatalogIdentity(
             steamAppId: exactAppId,
-            foldedName: folded,
             source: GameCatalogIdentitySource.strictCatalogMatch,
           );
   }
 
-  Future<Map<String, dynamic>?> _getJson(Uri uri) async {
-    try {
-      final response = await (_client ??= _clientFactory())
-          .get(
-            uri,
-            headers: const <String, String>{
-              'Accept': 'application/json',
-              'User-Agent': 'CompactGames/0.1',
-            },
-          )
-          .timeout(_requestTimeout);
-      if (response.statusCode != 200 ||
-          response.bodyBytes.length > _maxResponseBytes) {
-        return null;
-      }
-      final decoded = jsonDecode(response.body);
-      return decoded is Map<String, dynamic> ? decoded : null;
-    } catch (_) {
-      return null;
-    }
+  Future<Map<String, dynamic>?> _getJson(Uri uri) {
+    return getBoundedJson(
+      _client ??= _clientFactory(),
+      uri,
+      timeout: _requestTimeout,
+      maxResponseBytes: _maxResponseBytes,
+    );
   }
 
+  /// A store item's id, rejecting the non-positive values Steam never uses.
   static int? _readAppId(Object? value) {
-    final id = switch (value) {
-      final int v => v,
-      final num v => v.toInt(),
-      final String v => int.tryParse(v),
-      _ => null,
-    };
+    final id = readJsonInt(value);
     return id != null && id > 0 ? id : null;
   }
 
-  GameCatalogIdentity? _readCache(String foldedName) {
-    final cached = _cache.remove(foldedName);
-    if (cached != null) {
-      _cache[foldedName] = cached;
-    }
-    return cached;
-  }
+  GameCatalogIdentity? _readCache(String foldedName) =>
+      readLru(_cache, foldedName);
 
-  void _writeCache(String foldedName, GameCatalogIdentity identity) {
-    _cache.remove(foldedName);
-    _cache[foldedName] = identity;
-    while (_cache.length > _maxCacheEntries) {
-      _cache.remove(_cache.keys.first);
-    }
-  }
+  void _writeCache(String foldedName, GameCatalogIdentity identity) =>
+      writeLru(_cache, foldedName, identity, maxEntries: _maxCacheEntries);
 
   /// Drops the lookup cache and closes the client. Safe to call repeatedly;
   /// the client is recreated lazily on the next request.

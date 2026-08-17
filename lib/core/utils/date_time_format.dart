@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+/// Formatters by locale tag.
+///
+/// Building a [DateFormat] resolves the locale and parses a pattern, which is
+/// wasted work when these are called from a list item's `build`. The app ships
+/// three locales, so the map cannot grow unbounded.
+final Map<String, DateFormat> _timestampMinutes = <String, DateFormat>{};
+final Map<String, DateFormat> _monthDay = <String, DateFormat>{};
+final Map<String, DateFormat> _hourMinute = <String, DateFormat>{};
+
 String formatLocalTimestampMinutes(
   DateTime value, {
   Locale locale = const Locale('en'),
 }) {
-  final formatter = DateFormat('yyyy-MM-dd HH:mm', locale.toLanguageTag());
+  final formatter = _timestampMinutes.putIfAbsent(
+    locale.toLanguageTag(),
+    () => DateFormat('yyyy-MM-dd HH:mm', locale.toLanguageTag()),
+  );
   return formatter.format(value.toLocal());
 }
 
@@ -25,8 +37,12 @@ String formatLocalMonthDayTime(
 }) {
   final localeTag = locale.toLanguageTag();
   final local = value.toLocal();
-  final monthDay = DateFormat.MMMd(localeTag).format(local);
-  final time = DateFormat.Hm(localeTag).format(local);
+  final monthDay = _monthDay
+      .putIfAbsent(localeTag, () => DateFormat.MMMd(localeTag))
+      .format(local);
+  final time = _hourMinute
+      .putIfAbsent(localeTag, () => DateFormat.Hm(localeTag))
+      .format(local);
   return '$monthDay, $time';
 }
 

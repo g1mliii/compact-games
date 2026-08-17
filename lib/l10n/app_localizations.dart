@@ -928,18 +928,6 @@ abstract class AppLocalizations {
   /// **'Clear the current search or filters, or add a game folder manually.'**
   String get homeListEmptyMessage;
 
-  /// Localized message for home select game title.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose a game'**
-  String get homeSelectGameTitle;
-
-  /// Localized message for home select game message.
-  ///
-  /// In en, this message translates to:
-  /// **'Select a title to inspect its size, compression history, and next actions.'**
-  String get homeSelectGameMessage;
-
   /// Localized message for home ready status.
   ///
   /// In en, this message translates to:
@@ -1969,12 +1957,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Showing saved items'**
   String get libraryHomeNewsStale;
-
-  /// Shown when the news shelf has nothing to display.
-  ///
-  /// In en, this message translates to:
-  /// **'No recent updates for your games.'**
-  String get libraryHomeNewsEmpty;
 
   /// Button that opens the Compact Games website.
   ///

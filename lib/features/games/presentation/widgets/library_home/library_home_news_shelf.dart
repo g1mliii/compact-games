@@ -15,12 +15,9 @@ import 'library_home_news_card.dart';
 class LibraryHomeNewsShelf extends ConsumerWidget {
   const LibraryHomeNewsShelf({super.key});
 
+  /// Test seam, matching [LibraryHomeSurface.scrollViewKey]: the shelf collapses
+  /// to nothing when empty, so its presence is the only way to assert on it.
   static const Key shelfKey = ValueKey<String>('libraryHomeNewsShelf');
-
-  /// Fixed extents keep the shelf off the layout critical path: it never
-  /// measures its children, so a resize cannot cascade into image work.
-  static const double cardWidth = 260;
-  static const double shelfHeight = 108;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -65,11 +62,11 @@ class LibraryHomeNewsShelf extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: shelfHeight,
+          height: _shelfHeight,
           child: RepaintBoundary(
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemExtent: cardWidth,
+              itemExtent: _cardWidth,
               addAutomaticKeepAlives: false,
               itemCount: state.items.length,
               itemBuilder: (context, index) {
@@ -89,3 +86,8 @@ class LibraryHomeNewsShelf extends ConsumerWidget {
     );
   }
 }
+
+/// Fixed extents keep the shelf off the layout critical path: it never measures
+/// its children, so a resize cannot cascade into image work.
+const double _cardWidth = 260;
+const double _shelfHeight = 108;

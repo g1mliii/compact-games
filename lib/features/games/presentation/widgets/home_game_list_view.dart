@@ -160,19 +160,23 @@ class _GameListPanelState extends ConsumerState<_GameListPanel> {
     ref.read(selectedGameProvider.notifier).state = gamePath;
   }
 
-  /// Moves the selection over the virtual row index, where 0 is the persistent
-  /// Library Home row and *i* is `gamePaths[i - 1]`.
-  void _moveSelection(int delta, List<String> gamePaths) {
+  /// Moves the selection over [rows], the list the view actually renders.
+  ///
+  /// Working in row space rather than reconstructing a `+1` offset means
+  /// `indexOf` reports `-1` for a selection the filters have hidden, which
+  /// clamps onto Library Home from either direction with no special case, and
+  /// the index handed to [_revealRow] is the ListView's own index by
+  /// construction rather than by coincidence.
+  void _moveSelection(int delta, List<String?> rows) {
     final selected = ref.read(selectedGameProvider);
-    // A selection that is no longer in the filtered list resolves to 0, which
-    // is Library Home — the same place the null selection lives.
-    final currentIndex = selected == null ? 0 : gamePaths.indexOf(selected) + 1;
-    final nextIndex = (currentIndex + delta).clamp(0, gamePaths.length);
-    if (nextIndex == currentIndex) return;
+    final nextIndex = (rows.indexOf(selected) + delta).clamp(
+      0,
+      rows.length - 1,
+    );
+    final next = rows[nextIndex];
+    if (next == selected) return;
 
-    ref.read(selectedGameProvider.notifier).state = nextIndex == 0
-        ? null
-        : gamePaths[nextIndex - 1];
+    ref.read(selectedGameProvider.notifier).state = next;
     _revealRow(nextIndex);
   }
 
@@ -211,7 +215,7 @@ class _GameListPanelState extends ConsumerState<_GameListPanel> {
         children: [
           SizedBox(
             height: _rowExtent,
-            child: _LibraryHomeRow(onSelect: _selectRow),
+            child: _LibraryHomeRow(onSelect: () => _selectRow(null)),
           ),
           Expanded(
             child: Center(
@@ -250,13 +254,18 @@ class _GameListPanelState extends ConsumerState<_GameListPanel> {
       );
     }
 
+    // The rendered rows, with Library Home as the null entry at the top. One
+    // list drives the builder, the keyboard navigation, and the scroll math, so
+    // adding a row kind later cannot leave the three disagreeing.
+    final rows = <String?>[null, ...gamePaths];
+
     return Shortcuts(
       shortcuts: _navigationShortcuts,
       child: Actions(
         actions: <Type, Action<Intent>>{
           _MoveListSelectionIntent: CallbackAction<_MoveListSelectionIntent>(
             onInvoke: (intent) {
-              _moveSelection(intent.delta, gamePaths);
+              _moveSelection(intent.delta, rows);
               return null;
             },
           ),
@@ -266,18 +275,17 @@ class _GameListPanelState extends ConsumerState<_GameListPanel> {
           child: ListView.builder(
             key: homeGameListPanelListKey,
             controller: _scrollController,
-            // Row 0 is the persistent Library Home entry. Keeping it inside the
-            // same builder at the same extent means `_revealRow`'s
-            // `index * _rowExtent` scroll math needs no special case.
-            itemCount: gamePaths.length + 1,
+            // Every row shares one extent, which is what lets `_revealRow`
+            // compute a scroll offset as `index * _rowExtent`.
+            itemCount: rows.length,
             itemExtent: _rowExtent,
             addRepaintBoundaries: true,
             addAutomaticKeepAlives: false,
             itemBuilder: (context, index) {
-              if (index == 0) {
-                return _LibraryHomeRow(onSelect: _selectRow);
+              final gamePath = rows[index];
+              if (gamePath == null) {
+                return _LibraryHomeRow(onSelect: () => _selectRow(null));
               }
-              final gamePath = gamePaths[index - 1];
               return _GameListRow(
                 key: ValueKey(gamePath),
                 gamePath: gamePath,
@@ -362,7 +370,8 @@ Widget _buildSelectableRow({
 class _LibraryHomeRow extends ConsumerWidget {
   const _LibraryHomeRow({required this.onSelect});
 
-  final ValueChanged<String?> onSelect;
+  /// Library Home is the null selection, so this row has no argument to pass.
+  final VoidCallback onSelect;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -373,7 +382,7 @@ class _LibraryHomeRow extends ConsumerWidget {
 
     return _buildSelectableRow(
       isSelected: isSelected,
-      onTap: () => onSelect(null),
+      onTap: onSelect,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         child: Row(

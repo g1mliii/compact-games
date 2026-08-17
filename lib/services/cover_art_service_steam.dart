@@ -6,7 +6,7 @@ extension _CoverArtServiceSteam on CoverArtService {
     required int? knownSteamAppId,
     required RustBridgeService? rustBridge,
   }) async {
-    final steamAppsPath = _steamAppsPathFromGamePath(gamePath);
+    final steamAppsPath = SteamAppIdLookup.steamAppsPathFromGamePath(gamePath);
     if (steamAppsPath == null) {
       return null;
     }
@@ -16,7 +16,7 @@ extension _CoverArtServiceSteam on CoverArtService {
     // backfill for a game that arrived without one.
     final appId =
         knownSteamAppId?.toString() ??
-        _resolveSteamAppIdFromGamePath(gamePath, rustBridge);
+        await _resolveSteamAppIdFromGamePath(gamePath, rustBridge);
     if (appId == null) {
       return null;
     }
@@ -121,11 +121,14 @@ extension _CoverArtServiceSteam on CoverArtService {
 
   /// Delegates to Rust's ACF parser rather than reading manifests here, so
   /// cover art and discovery can never disagree about which app owns a folder.
-  String? _resolveSteamAppIdFromGamePath(
+  Future<String?> _resolveSteamAppIdFromGamePath(
     String gamePath,
     RustBridgeService? rustBridge,
-  ) {
-    return SteamAppIdLookup.resolveAppId(gamePath, rustBridge)?.toString();
+  ) async {
+    return (await SteamAppIdLookup.resolveAppId(
+      gamePath,
+      rustBridge,
+    ))?.toString();
   }
 
   Future<String?> _resolveSteamLibraryCoverByScan(
@@ -176,9 +179,5 @@ extension _CoverArtServiceSteam on CoverArtService {
       }
     }
     return bestPath;
-  }
-
-  String? _steamAppsPathFromGamePath(String gamePath) {
-    return SteamAppIdLookup.steamAppsPathFromGamePath(gamePath);
   }
 }

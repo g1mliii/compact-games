@@ -253,12 +253,20 @@ pub fn normalize_game_name(name: String) -> String {
 ///
 /// Returns `None` when the path is not a conventional `steamapps/common`
 /// install or no manifest claims the folder.
-#[frb(sync)]
+///
+/// Deliberately async: a cold lookup enumerates and parses every manifest in the
+/// library, which must not run on the Dart UI isolate. Every caller is already
+/// inside an async path.
 pub fn lookup_steam_app_id(game_path: String) -> Option<u32> {
-    if game_path.trim().is_empty() {
-        return None;
-    }
     crate::discovery::steam::lookup_steam_app_id_for_path(Path::new(&game_path))
+}
+
+/// Drops the cached Steam manifest index.
+///
+/// Exposed so the Dart-side memory trim can reclaim it alongside the cover art
+/// runtime caches when the window is hidden to the tray.
+pub fn clear_steam_app_id_cache() {
+    crate::discovery::steam::invalidate_app_id_index_cache();
 }
 
 fn discovery_stats_path(game_path: &Path, platform: Platform) -> PathBuf {

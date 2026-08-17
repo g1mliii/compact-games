@@ -325,15 +325,18 @@ void main() {
       );
     });
 
-    test('a non-steam path never reaches the bridge', () {
+    test('a non-steam path never reaches the bridge', () async {
       // No bridge is available in a unit test; a path the wrapper can rule out
       // locally must not attempt the call at all.
-      expect(SteamAppIdLookup.resolveAppId(r'C:\Games\Foo', null), isNull);
+      expect(
+        await SteamAppIdLookup.resolveAppId(r'C:\Games\Foo', null),
+        isNull,
+      );
     });
 
-    test('a null bridge degrades to null rather than throwing', () {
+    test('a null bridge degrades to null rather than throwing', () async {
       expect(
-        SteamAppIdLookup.resolveAppId(
+        await SteamAppIdLookup.resolveAppId(
           r'D:\SteamLibrary\steamapps\common\Portal 2',
           null,
         ),

@@ -9,7 +9,7 @@ import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/utils/byte_formatting.dart';
 import '../../../../../core/utils/date_time_format.dart';
 import '../../../../../core/widgets/platform_chip.dart';
-import '../../../../../providers/games/library_home_provider.dart';
+import '../../../../../providers/games/library_aggregate_provider.dart';
 import '../../../../../providers/games/selected_game_provider.dart';
 import '../../../../../providers/games/single_game_provider.dart';
 import 'library_home_news_shelf.dart';
@@ -29,10 +29,10 @@ class LibraryHomeSurface extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final home = ref.watch(libraryHomeProvider);
+    final home = ref.watch(libraryAggregateProvider);
     final l10n = context.l10n;
 
-    if (!home.hasGames) {
+    if (home.totalGames == 0) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),

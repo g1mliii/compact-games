@@ -60,11 +60,6 @@ class _FakeStore implements SteamNewsStore {
     lastSaved = items;
     snapshot = CachedNewsSnapshot(items: items, fetchedAt: now);
   }
-
-  @override
-  Future<void> clear() async {
-    snapshot = CachedNewsSnapshot.empty;
-  }
 }
 
 /// Records refresh calls and returns a scripted result.
@@ -268,6 +263,61 @@ void main() {
     await _settle(container);
 
     expect(service.refreshCount, 0);
+    expect(
+      container.read(libraryHomeNewsProvider).value!.items.map((i) => i.id),
+      <String>['cached'],
+    );
+  });
+
+  test('restoring from the tray runs the refresh that was skipped', () async {
+    final store = _FakeStore(
+      snapshot: CachedNewsSnapshot(
+        items: <GameNewsItem>[_item('cached')],
+        fetchedAt: DateTime.utc(2026, 4, 1),
+      ),
+    );
+    final service = _FakeNewsService(result: <GameNewsItem>[_item('new')]);
+    final container = _container(store: store, service: service);
+
+    appWindowVisibilityController.markHiddenToTray();
+    await _settle(container);
+    expect(service.refreshCount, 0);
+
+    // Nothing else re-arms the deferred refresh: the widget tree stays mounted
+    // while hidden, so there is no second post-frame callback to rely on.
+    appWindowVisibilityController.markVisible();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(service.refreshCount, 1);
+    expect(
+      container.read(libraryHomeNewsProvider).value!.items.map((i) => i.id),
+      <String>['new'],
+    );
+  });
+
+  test('the shelf still loads after the provider is invalidated', () async {
+    final store = _FakeStore(
+      snapshot: CachedNewsSnapshot(
+        items: <GameNewsItem>[_item('cached')],
+        fetchedAt: DateTime.utc(2026, 5, 1, 11),
+      ),
+    );
+    final service = _FakeNewsService();
+    final container = _container(store: store, service: service);
+
+    await _settle(container);
+    expect(
+      container.read(libraryHomeNewsProvider).value!.items.map((i) => i.id),
+      <String>['cached'],
+    );
+
+    // Recomputation fires the build-scoped onDispose without destroying the
+    // notifier, so a disposal flag that is never cleared would blank the shelf
+    // from here on.
+    container.invalidate(libraryHomeNewsProvider);
+    await container.read(libraryHomeNewsProvider.future);
+
     expect(
       container.read(libraryHomeNewsProvider).value!.items.map((i) => i.id),
       <String>['cached'],

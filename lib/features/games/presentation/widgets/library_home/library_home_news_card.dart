@@ -14,9 +14,11 @@ import '../../../../../providers/games/single_game_provider.dart';
 
 /// One news headline, illustrated with the library cover art we already have.
 ///
-/// Deliberately does not download a news thumbnail: the item is attributed to
-/// a game in the user's library, and that game's cover is already cached, so
-/// the shelf costs no extra image traffic.
+/// Deliberately does not download a news thumbnail, and deliberately does not
+/// resolve one either: the shelf reads [cachedCoverArtProvider], so a game whose
+/// cover the app has not already fetched simply shows a blank tile. Library Home
+/// is the default pane, and resolving a dozen 44px thumbnails on open would make
+/// merely launching the app do cover-art work the grid has not asked for.
 class LibraryHomeNewsCard extends ConsumerWidget {
   const LibraryHomeNewsCard({required this.item, super.key});
 
@@ -113,9 +115,9 @@ class _NewsThumbnail extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cover = ref
-        .watch(coverArtProvider(gamePath))
-        .maybeWhen(data: imageProviderFromCover, orElse: () => null);
+    final cover = imageProviderFromCover(
+      ref.watch(cachedCoverArtProvider(gamePath)),
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),

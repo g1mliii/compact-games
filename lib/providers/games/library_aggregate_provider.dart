@@ -110,10 +110,13 @@ LibraryAggregate buildLibraryAggregate(List<GameInfo> games) {
   for (final game in games) {
     // Largest install is a property of the whole library, so it is measured
     // before the compressed/ready split below. Ties break on the lowered path
-    // so two same-size installs always resolve to the same winner.
-    if (game.sizeBytes > largestInstallBytes ||
+    // so two same-size installs always resolve to the same winner. Seeding on
+    // the first game matters: before the size scan populates, every entry
+    // reports zero bytes, and a bare `>` would leave the highlight empty on a
+    // library that is not.
+    if (largestInstallPath == null ||
+        game.sizeBytes > largestInstallBytes ||
         (game.sizeBytes == largestInstallBytes &&
-            largestInstallPath != null &&
             game.normalizedPath.compareTo(largestInstallKey) < 0)) {
       largestInstallBytes = game.sizeBytes;
       largestInstallPath = game.path;

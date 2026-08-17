@@ -609,14 +609,6 @@
   "@homeListEmptyMessage": {
     "description": "Localized message for home list empty message."
   },
-  "homeSelectGameTitle": "Elige un juego",
-  "@homeSelectGameTitle": {
-    "description": "Localized message for home select game title."
-  },
-  "homeSelectGameMessage": "Selecciona un título para revisar su tamaño, historial de compresión y próximas acciones.",
-  "@homeSelectGameMessage": {
-    "description": "Localized message for home select game message."
-  },
   "homeStatusReadyToCompress": "Listo",
   "@homeStatusReadyToCompress": {
     "description": "Localized message for home ready status."
@@ -1374,10 +1366,6 @@
   "libraryHomeNewsStale": "Mostrando elementos guardados",
   "@libraryHomeNewsStale": {
     "description": "Shown when a refresh failed and cached news is displayed."
-  },
-  "libraryHomeNewsEmpty": "No hay novedades recientes para tus juegos.",
-  "@libraryHomeNewsEmpty": {
-    "description": "Shown when the news shelf has nothing to display."
   },
   "settingsAboutWebsiteAction": "Sitio web",
   "@settingsAboutWebsiteAction": {

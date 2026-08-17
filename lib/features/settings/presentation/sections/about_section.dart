@@ -87,19 +87,17 @@ class AboutSection extends ConsumerWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              TextButton.icon(
-                onPressed: () => ref
-                    .read(platformShellServiceProvider)
-                    .launchUri(AppConstants.websiteUrl),
-                icon: const Icon(LucideIcons.globe, size: 16),
-                label: Text(l10n.settingsAboutWebsiteAction),
+              _linkButton(
+                ref,
+                icon: LucideIcons.globe,
+                label: l10n.settingsAboutWebsiteAction,
+                url: AppConstants.websiteUrl,
               ),
-              TextButton.icon(
-                onPressed: () => ref
-                    .read(platformShellServiceProvider)
-                    .launchUri(AppConstants.privacyPolicyUrl),
-                icon: const Icon(LucideIcons.shieldCheck, size: 16),
-                label: Text(l10n.settingsAboutPrivacyPolicyAction),
+              _linkButton(
+                ref,
+                icon: LucideIcons.shieldCheck,
+                label: l10n.settingsAboutPrivacyPolicyAction,
+                url: AppConstants.privacyPolicyUrl,
               ),
             ],
           ),
@@ -200,6 +198,20 @@ class AboutSection extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+
+  /// An external link, opened through the shared shell service.
+  Widget _linkButton(
+    WidgetRef ref, {
+    required IconData icon,
+    required String label,
+    required String url,
+  }) {
+    return TextButton.icon(
+      onPressed: () => ref.read(platformShellServiceProvider).launchUri(url),
+      icon: Icon(icon, size: 16),
+      label: Text(label),
     );
   }
 

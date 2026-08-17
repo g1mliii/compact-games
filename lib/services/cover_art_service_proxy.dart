@@ -70,7 +70,7 @@ extension _CoverArtServiceProxy on CoverArtService {
       if (game.platform == Platform.steam) {
         final steamAppId =
             game.steamAppId?.toString() ??
-            _resolveSteamAppIdFromGamePath(game.path, rustBridge);
+            await _resolveSteamAppIdFromGamePath(game.path, rustBridge);
         if (steamAppId != null && steamAppId.isNotEmpty) {
           uri = _proxyUri(proxyConfig, '/sgdb/grid', <String, String>{
             'steam_app_id': steamAppId,
@@ -93,7 +93,7 @@ extension _CoverArtServiceProxy on CoverArtService {
               uri!,
               headers: <String, String>{
                 'Accept': 'application/json',
-                'User-Agent': 'CompactGames/0.1',
+                'User-Agent': AppConstants.userAgent,
                 'X-Compact-Games-Token': proxyConfig.token.trim(),
               },
             )

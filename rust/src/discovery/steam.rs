@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex};
+use std::time::{Duration, Instant};
 
 use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
@@ -123,6 +125,11 @@ fn scan_library(
     }
 
     let manifests = parse_app_manifests(steamapps_path);
+    // A scan already holds the freshest possible view of this library, so hand
+    // it to the lookup cache instead of letting the next backfill re-read every
+    // manifest. This is also what makes a just-installed game visible to the
+    // lookup immediately after a rescan.
+    publish_app_id_index(steamapps_path, &manifests);
 
     let mut manifest_candidates = Vec::new();
     let mut heuristic_candidates = Vec::new();
@@ -230,10 +237,107 @@ fn parse_app_manifests(steamapps_path: &Path) -> HashMap<String, AppManifest> {
     manifests
 }
 
+/// Lowered `installdir` to app id for one `steamapps/` directory.
+type AppIdIndex = HashMap<String, u32>;
+
+/// Mirrors the bounds the Dart-side manifest cache used before this lookup moved
+/// into Rust: a handful of library roots, re-read on a timer so a game installed
+/// while the app is running is picked up without a restart.
+const APP_ID_INDEX_TTL: Duration = Duration::from_secs(15 * 60);
+const APP_ID_INDEX_MAX_ROOTS: usize = 8;
+
+struct AppIdIndexEntry {
+    index: Arc<AppIdIndex>,
+    read_at: Instant,
+}
+
+static APP_ID_INDEX_CACHE: LazyLock<Mutex<HashMap<PathBuf, AppIdIndexEntry>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Drops every cached index so the next lookup re-reads from disk.
+///
+/// Exposed to Dart so the app's tray/memory-pressure trim can reclaim this the
+/// same way it reclaims the visible-only cover art caches.
+pub fn invalidate_app_id_index_cache() {
+    lock_app_id_index_cache().clear();
+}
+
+/// Seeds the cache from manifests a caller has already parsed.
+///
+/// A scan reads every manifest anyway; publishing the derived index here is what
+/// keeps the first post-scan lookup from repeating that whole directory read.
+fn publish_app_id_index(steamapps_path: &Path, manifests: &HashMap<String, AppManifest>) {
+    let index: AppIdIndex = manifests
+        .iter()
+        .map(|(install_dir, manifest)| (install_dir.clone(), manifest.app_id))
+        .collect();
+    store_app_id_index(steamapps_path, Arc::new(index), Instant::now());
+}
+
+/// Inserts `index` for `steamapps_path`, evicting the least recently read root
+/// once the cache is full.
+fn store_app_id_index(steamapps_path: &Path, index: Arc<AppIdIndex>, read_at: Instant) {
+    let mut cache = lock_app_id_index_cache();
+    if cache.len() >= APP_ID_INDEX_MAX_ROOTS && !cache.contains_key(steamapps_path) {
+        if let Some(oldest) = cache
+            .iter()
+            .min_by_key(|(_, entry)| entry.read_at)
+            .map(|(path, _)| path.clone())
+        {
+            cache.remove(&oldest);
+        }
+    }
+    cache.insert(
+        steamapps_path.to_path_buf(),
+        AppIdIndexEntry { index, read_at },
+    );
+}
+
+fn lock_app_id_index_cache() -> std::sync::MutexGuard<'static, HashMap<PathBuf, AppIdIndexEntry>> {
+    // A panic in another thread must not take the lookup down with it; the map
+    // is a pure cache, so recovering the poisoned contents is always safe.
+    APP_ID_INDEX_CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Returns the folder → app id index for `steamapps_path`, reading from disk
+/// only on a cold or expired entry.
+///
+/// Callers reach this once per game, so an uncached read here would re-enumerate
+/// and re-parse every `appmanifest_*.acf` in the library for every game in a
+/// refresh burst.
+fn app_id_index(steamapps_path: &Path) -> Arc<AppIdIndex> {
+    let now = Instant::now();
+    {
+        let cache = lock_app_id_index_cache();
+        if let Some(entry) = cache.get(steamapps_path) {
+            if now.duration_since(entry.read_at) < APP_ID_INDEX_TTL {
+                return Arc::clone(&entry.index);
+            }
+        }
+    }
+
+    // Parsed outside the lock: this is directory-wide file I/O, and holding a
+    // process-global mutex across it would serialize unrelated libraries.
+    let index: Arc<AppIdIndex> = Arc::new(
+        parse_app_manifests(steamapps_path)
+            .into_iter()
+            .map(|(install_dir, manifest)| (install_dir, manifest.app_id))
+            .collect(),
+    );
+
+    store_app_id_index(steamapps_path, Arc::clone(&index), now);
+    index
+}
+
 /// Look up the Steam app ID for an installed game by walking from the game
 /// path up to the surrounding `steamapps/` directory and matching the folder
 /// name against any `appmanifest_*.acf` `installdir`. Returns `None` if the
 /// path isn't a conventional Steam install or no manifest matches.
+///
+/// Backed by [`app_id_index`], so a burst of lookups across one library costs a
+/// single directory read rather than one per game.
 pub fn lookup_steam_app_id_for_path(game_path: &Path) -> Option<u32> {
     let folder_name = game_path.file_name()?.to_str()?.to_ascii_lowercase();
     let common = game_path.parent()?;
@@ -245,8 +349,7 @@ pub fn lookup_steam_app_id_for_path(game_path: &Path) -> Option<u32> {
     {
         return None;
     }
-    let manifests = parse_app_manifests(steamapps);
-    manifests.get(&folder_name).map(|m| m.app_id)
+    app_id_index(steamapps).get(&folder_name).copied()
 }
 
 fn parse_app_id_from_manifest_filename(name: &str) -> Option<u32> {
@@ -296,6 +399,55 @@ fn is_steam_tool(folder_name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn write_manifest(steamapps: &Path, app_id: u32, install_dir: &str) {
+        std::fs::write(
+            steamapps.join(format!("appmanifest_{app_id}.acf")),
+            format!(
+                "\"AppState\"\n{{\n\t\"appid\"\t\t\"{app_id}\"\n\t\"name\"\t\t\"{install_dir}\"\n\t\"installdir\"\t\t\"{install_dir}\"\n\t\"StateFlags\"\t\t\"4\"\n}}\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn lookup_steam_app_id_reuses_the_cached_index() {
+        let root = tempfile::tempdir().unwrap();
+        let steamapps = root.path().join("steamapps");
+        let common = steamapps.join("common");
+        std::fs::create_dir_all(&common).unwrap();
+        write_manifest(&steamapps, 620, "Portal 2");
+        invalidate_app_id_index_cache();
+
+        assert_eq!(
+            lookup_steam_app_id_for_path(&common.join("Portal 2")),
+            Some(620)
+        );
+
+        // A manifest added after the index was built is not visible until the
+        // cache is dropped — that is the point of the cache, and it is what
+        // keeps a refresh burst from re-reading the whole directory per game.
+        write_manifest(&steamapps, 440, "Team Fortress 2");
+        assert_eq!(
+            lookup_steam_app_id_for_path(&common.join("Team Fortress 2")),
+            None
+        );
+
+        invalidate_app_id_index_cache();
+        assert_eq!(
+            lookup_steam_app_id_for_path(&common.join("Team Fortress 2")),
+            Some(440)
+        );
+        invalidate_app_id_index_cache();
+    }
+
+    #[test]
+    fn lookup_steam_app_id_rejects_a_non_steam_layout() {
+        let root = tempfile::tempdir().unwrap();
+        let games = root.path().join("Games");
+        std::fs::create_dir_all(games.join("Foo")).unwrap();
+        assert_eq!(lookup_steam_app_id_for_path(&games.join("Foo")), None);
+    }
 
     #[test]
     fn parse_library_paths_single_library() {

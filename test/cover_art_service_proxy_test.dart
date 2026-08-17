@@ -36,6 +36,78 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
+  test('peekCachedCover reads memory only and never resolves', () async {
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'proxy.example.test') {
+          return _jsonResponse({
+            'url': 'https://cdn2.steamgriddb.com/grid/cover.jpg',
+            'source': 'steamgriddb',
+          });
+        }
+        return http.Response.bytes(
+          <int>[1, 2, 3, 4],
+          200,
+          headers: const <String, String>{'content-type': 'image/jpeg'},
+        );
+      }),
+    );
+
+    const service = CoverArtService();
+    const proxy = CoverArtProxyConfig(
+      url: 'https://proxy.example.test',
+      token: 'proxy-token',
+    );
+    final game = GameInfo(
+      name: 'Counter-Strike 2',
+      path: r'C:\Steam\steamapps\common\Counter-Strike Global Offensive',
+      platform: Platform.steam,
+      sizeBytes: 1,
+      steamAppId: 730,
+    );
+
+    // Nothing cached yet: the peek must answer null rather than start the work
+    // the news shelf is specifically avoiding.
+    expect(
+      service.peekCachedCover(
+        game.path,
+        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+        coverArtProxyConfig: proxy,
+      ),
+      isNull,
+    );
+    expect(requests, isEmpty);
+
+    final resolved = await service.resolveCover(
+      game,
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: proxy,
+    );
+    final requestsAfterResolve = requests.length;
+
+    final peeked = service.peekCachedCover(
+      game.path,
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: proxy,
+    );
+    expect(peeked?.uri, resolved.uri);
+    expect(requests.length, requestsAfterResolve);
+
+    // The cache is keyed by provider configuration, so a peek under different
+    // settings must not hand back artwork resolved for another one.
+    expect(
+      service.peekCachedCover(
+        game.path,
+        coverArtProviderMode: CoverArtProviderMode.userKey,
+        coverArtProxyConfig: proxy,
+      ),
+      isNull,
+    );
+    expect(requests.length, requestsAfterResolve);
+  });
+
   test('bundled proxy success downloads returned SteamGridDB image', () async {
     final requests = <Uri>[];
     debugSetCoverArtApiHttpClientForTesting(

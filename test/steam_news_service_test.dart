@@ -249,6 +249,54 @@ void main() {
       }
     });
 
+    test('keeps an install path that looks like markup intact', () {
+      // The path keys the card's game and cover-art lookups, so stripping
+      // bracketed folder names or collapsing doubled spaces would leave a row
+      // with no title, no thumbnail, and no tap target.
+      for (final path in <String>[
+        r'D:\SteamLibrary\steamapps\common\Fallout 4 [GOTY]',
+        r'D:\SteamLibrary\steamapps\common\Portal  2',
+        r'D:\SteamLibrary\steamapps\common\[b]Half-Life[/b]',
+      ]) {
+        final item = parseFirstNewsItem(
+          jsonDecode(_newsBody(gid: 'g1')) as Map<String, dynamic>,
+          game: _game(name: 'G', path: path, steamAppId: 620),
+          steamAppId: 620,
+        );
+
+        expect(item?.gamePath, path, reason: path);
+        // The same value has to survive the cache round-trip, or the card goes
+        // dead on the next launch instead of the current one.
+        expect(GameNewsItem.fromJson(item!.toJson())?.gamePath, path);
+      }
+    });
+
+    test('skips an untrusted newest item and keeps the next usable one', () {
+      final payload = <String, dynamic>{
+        'appnews': <String, dynamic>{
+          'appid': 620,
+          'newsitems': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'gid': 'rss',
+              'title': 'Mirrored elsewhere',
+              'url': 'https://news.example.com/story',
+              'date': 1780000100,
+            },
+            <String, dynamic>{
+              'gid': 'announcement',
+              'title': 'Patch notes',
+              'url': 'https://steamcommunity.com/announcements/1',
+              'date': 1780000000,
+            },
+          ],
+        },
+      };
+
+      final item = parseFirstNewsItem(payload, game: game, steamAppId: 620);
+
+      expect(item?.id, 'announcement');
+    });
+
     test('malformed payload shapes return null rather than throwing', () {
       for (final raw in <String>[
         '{}',
@@ -273,7 +321,7 @@ void main() {
   });
 
   group('SteamNewsService.refresh', () {
-    test('asks for one item per game and returns them newest first', () async {
+    test('makes one request per game and returns them newest first', () async {
       final client = _FakeNewsClient(
         bodyForAppId: (appId) => _newsBody(
           gid: 'gid$appId',
@@ -290,8 +338,13 @@ void main() {
 
       expect(items.length, 2);
       expect(items.first.id, 'gid2');
+      expect(client.requests.length, 2);
       for (final uri in client.requests) {
-        expect(uri.queryParameters['count'], '1');
+        // More than one entry is requested so a newest post that fails the
+        // trusted-host check can fall through to the next one, but only the
+        // first usable item per game is ever kept.
+        final count = int.parse(uri.queryParameters['count']!);
+        expect(count, greaterThan(1));
         expect(uri.host, 'api.steampowered.com');
       }
     });

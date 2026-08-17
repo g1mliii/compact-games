@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/painting.dart';
 
 import '../../services/cover_art_service.dart';
+import '../../services/rust_bridge_service.dart';
 import '../widgets/film_grain_overlay.dart';
 import 'windows_working_set.dart';
 
@@ -51,6 +54,7 @@ abstract final class UiMemoryLifecycle {
         imageCache.clear();
         imageCache.clearLiveImages();
         releaseCoverArtRuntimeCaches();
+        _releaseRustVisibleOnlyCaches();
         FilmGrainOverlay.clearNoiseCache();
         WindowsWorkingSet.trimCurrentProcess();
         break;
@@ -61,14 +65,34 @@ abstract final class UiMemoryLifecycle {
         imageCache.clear();
         imageCache.clearLiveImages();
         trimCoverArtRuntimeCaches(aggressive: true);
+        _releaseRustVisibleOnlyCaches();
         FilmGrainOverlay.clearNoiseCache();
         break;
       case UiMemoryTrimLevel.shutdown:
         imageCache.clear();
         imageCache.clearLiveImages();
         shutdownCoverArtSharedResources();
+        _releaseRustVisibleOnlyCaches();
         FilmGrainOverlay.clearNoiseCache();
         break;
+    }
+  }
+
+  /// Drops Rust-side caches that only earn their memory while the window is on
+  /// screen — currently the Steam manifest index behind cover art and news.
+  ///
+  /// Fire-and-forget and failure-tolerant on purpose: trimming must never block
+  /// a lifecycle callback, and the bridge is not loaded in tests or before
+  /// startup finishes.
+  static void _releaseRustVisibleOnlyCaches() {
+    try {
+      // An uninitialized bridge throws synchronously, so the try has to wrap the
+      // call itself rather than only the returned future.
+      unawaited(
+        RustBridgeService.instance.clearSteamAppIdCache().catchError((_) {}),
+      );
+    } catch (_) {
+      // Nothing to reclaim when the library was never loaded.
     }
   }
 }
