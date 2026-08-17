@@ -38,6 +38,7 @@ Thumbs.db
 *.md
 PORTING_PLAN.md
 !README.md
+!SECURITY.md
 !LICENSE.md
 !SPEC.md
 !AGENTS.md

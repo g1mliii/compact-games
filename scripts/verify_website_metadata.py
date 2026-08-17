@@ -57,6 +57,15 @@ expected_sitemap = f"Sitemap: {BASE_URL}/sitemap.xml"
 if expected_sitemap not in robots:
     fail(f"robots.txt must include {expected_sitemap!r}")
 
+security_txt = (WEBSITE / ".well-known" / "security.txt").read_text(
+    encoding="utf-8"
+)
+expected_security_canonical = f"Canonical: {BASE_URL}/.well-known/security.txt"
+if expected_security_canonical not in security_txt:
+    fail(f"security.txt must include {expected_security_canonical!r}")
+if "security/advisories/new" not in security_txt:
+    fail("security.txt must point to private vulnerability reporting")
+
 reference_files = [
     ROOT / "README.md",
     ROOT / "installer" / "compact_games.iss",

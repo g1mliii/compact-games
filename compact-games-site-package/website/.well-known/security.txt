@@ -1,0 +1,5 @@
+Contact: https://github.com/g1mliii/compact-games/security/advisories/new
+Expires: 2027-08-16T00:00:00Z
+Preferred-Languages: en
+Canonical: https://compactgames.app/.well-known/security.txt
+Policy: https://github.com/g1mliii/compact-games/security/policy
