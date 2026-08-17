@@ -33,6 +33,16 @@ for filename, expected_url in PAGES.items():
         fail(f"{filename} canonical is {canonicals!r}; expected {expected_url!r}")
     if OLD_SITE_URL in html:
         fail(f"{filename} still references the legacy GitHub Pages URL")
+    local_assets = re.findall(
+        r'(?:src|href)="(\./(?:app\.js|styles\.css|site\.webmanifest|assets/[^"?]+)(?:\?[^\"]*)?)"',
+        html,
+    )
+    unversioned_assets = [asset for asset in local_assets if "?v=" not in asset]
+    if unversioned_assets:
+        fail(
+            f"{filename} has unversioned cacheable assets: "
+            f"{unversioned_assets!r}"
+        )
 
 tree = ET.parse(WEBSITE / "sitemap.xml")
 namespace = {"sitemap": "http://www.sitemaps.org/schemas/sitemap/0.9"}
