@@ -1,0 +1,11 @@
+[1:v]scale=1150:-1,format=rgba,split=2[logo_intro_src][logo_outro_src];
+[logo_intro_src]trim=duration=3,setpts=PTS-STARTPTS[logo_intro];
+[logo_outro_src]trim=duration=4,setpts=PTS-STARTPTS[logo_outro];
+color=c=0x101923:s=1920x1080:d=3:r=30[intro_bg];
+[intro_bg][logo_intro]overlay=(W-w)/2:(H-h)/2-90:format=auto:shortest=1,drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Free up SSD space without deleting your games':fontcolor=0xE8EEF5:fontsize=44:x=(w-text_w)/2:y=700,fade=t=in:st=0:d=0.5,fade=t=out:st=2.5:d=0.5[intro];
+[0:v]trim=start=0.5:end=11.5,setpts=PTS-STARTPTS,scale=1920:1080,drawbox=x=80:y=ih-190:w=iw-160:h=135:color=0x0B121CEB:t=fill,drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='FIND YOUR GAMES':fontcolor=0xD6B75E:fontsize=42:x=115:y=h-170,drawtext=fontfile='C\:/Windows/Fonts/segoeui.ttf':text='Browse your library, compare sizes, and see the space already saved.':fontcolor=white:fontsize=30:x=115:y=h-105[grid];
+[0:v]trim=start=16.5:end=29.5,setpts=PTS-STARTPTS,scale=1920:1080,drawbox=x=80:y=ih-190:w=iw-160:h=135:color=0x0B121CEB:t=fill,drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='CHECK THE DETAILS':fontcolor=0xD6B75E:fontsize=42:x=115:y=h-170,drawtext=fontfile='C\:/Windows/Fonts/segoeui.ttf':text='Review original size, current size, and savings before you recompress or restore.':fontcolor=white:fontsize=30:x=115:y=h-105[details];
+[0:v]trim=start=31:end=35.8,setpts=PTS-STARTPTS,scale=1920:1080,drawbox=x=80:y=ih-190:w=iw-160:h=135:color=0x0B121CEB:t=fill,drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='TRACK EVERY RESULT':fontcolor=0xD6B75E:fontsize=42:x=115:y=h-170,drawtext=fontfile='C\:/Windows/Fonts/segoeui.ttf':text='Sort compressed games by savings and confirm the background watcher is active.':fontcolor=white:fontsize=30:x=115:y=h-105[inventory];
+color=c=0x101923:s=1920x1080:d=4:r=30[outro_bg];
+[outro_bg][logo_outro]overlay=(W-w)/2:(H-h)/2-110:format=auto:shortest=1,drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Save space. Keep your games installed.':fontcolor=0xE8EEF5:fontsize=46:x=(w-text_w)/2:y=690,drawtext=fontfile='C\:/Windows/Fonts/segoeui.ttf':text='Safe. Measured. Reversible.':fontcolor=0xD6B75E:fontsize=34:x=(w-text_w)/2:y=755,fade=t=in:st=0:d=0.5,fade=t=out:st=3.5:d=0.5[outro];
+[intro][grid][details][inventory][outro]concat=n=5:v=1:a=0,format=yuv420p[video]
