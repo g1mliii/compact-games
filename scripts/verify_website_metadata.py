@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WEBSITE = ROOT / "compact-games-site-package" / "website"
 BASE_URL = "https://compactgames.app"
 OLD_SITE_URL = "g1mliii.github.io/compact-games"
+SUPPORT_EMAIL = "support@compactgames.app"
+LEGACY_SUPPORT_EMAIL = "info@anchored.site"
 PAGES = {
     "index.html": f"{BASE_URL}/",
     "faq.html": f"{BASE_URL}/faq.html",
@@ -92,5 +94,14 @@ reference_files = [
 for path in reference_files:
     if OLD_SITE_URL in path.read_text(encoding="utf-8"):
         fail(f"{path.relative_to(ROOT)} still references the legacy GitHub Pages URL")
+
+support_files = [WEBSITE / filename for filename in PAGES]
+support_files.append(WEBSITE / "app.js")
+for path in support_files:
+    content = path.read_text(encoding="utf-8")
+    if LEGACY_SUPPORT_EMAIL in content:
+        fail(f"{path.relative_to(ROOT)} still references the legacy support email")
+    if SUPPORT_EMAIL not in content:
+        fail(f"{path.relative_to(ROOT)} must reference {SUPPORT_EMAIL}")
 
 print(f"Website metadata verified for {BASE_URL}.")
