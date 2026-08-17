@@ -51,8 +51,8 @@ Set these values after the app credit is activated:
 - Store languages: English, Spanish, and Simplified Chinese for interface; no full audio.
 - Categories/features: Software and Utilities only. Do not claim achievements, controller support, Steam Cloud, multiplayer, Workshop, or other unimplemented Steam features.
 - Support URL: `https://github.com/g1mliii/compact-games/issues`
-- Website: `https://g1mliii.github.io/compact-games/`
-- Privacy policy: `https://g1mliii.github.io/compact-games/privacy.html`
+- Website: `https://compactgames.app/`
+- Privacy policy: `https://compactgames.app/privacy.html`
 - Executable working directory: depot root.
 
 ## Test through Steam

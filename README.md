@@ -25,7 +25,7 @@ With Compact Games, you can:
 
 Download the latest Windows release from:
 
-[**Download Compact Games**](https://g1mliii.github.io/compact-games/)
+[**Download Compact Games**](https://compactgames.app/)
 
 After downloading, run the installer or `.exe` file and follow the on-screen steps.
 

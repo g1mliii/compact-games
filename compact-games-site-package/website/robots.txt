@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://g1mliii.github.io/compact-games/sitemap.xml
+Sitemap: https://compactgames.app/sitemap.xml
