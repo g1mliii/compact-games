@@ -4,11 +4,20 @@ use crate::discovery::storage::{storage_class_for_path, StorageClass};
 
 const EXPERT_OVERRIDE_MAX_THREADS: usize = 16;
 
-/// Controls how many parallel I/O threads the compression engine uses.
+/// Controls how the compression engine competes for the disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ThreadPolicy {
     pub io_parallelism: usize,
     pub is_background: bool,
+    /// Run the worker threads at Windows background I/O priority.
+    ///
+    /// Separate from [`is_background`] because the two answer different
+    /// questions: that one is "should this job be quiet about CPU and thread
+    /// count", this one is "may this job outrank foreground processes at the
+    /// disk". Thread count alone does not bound disk queue depth — a few
+    /// threads issuing large writes will still starve the machine — so any job
+    /// that rewrites whole files needs this regardless of who started it.
+    pub low_io_priority: bool,
 }
 
 /// Compute the optimal thread policy for a game path.
@@ -32,6 +41,41 @@ pub fn compute_thread_policy(
         io_parallelism_override,
     )
 }
+
+/// Like [`compute_thread_policy`], but for work that rewrites whole files.
+///
+/// Decompression restores every file to its full logical size, so it writes
+/// more than it reads and does so across every worker at once. Left at normal
+/// priority that saturates the disk queue and the whole machine stalls behind
+/// it, so it always runs at background I/O priority even when the user started
+/// it, and gets a lower thread ceiling on top.
+pub fn compute_rewrite_thread_policy(
+    game_path: &Path,
+    is_background: bool,
+    cpu_usage_percent: Option<f32>,
+    io_parallelism_override: Option<usize>,
+) -> ThreadPolicy {
+    let base = compute_thread_policy(
+        game_path,
+        is_background,
+        cpu_usage_percent,
+        io_parallelism_override,
+    );
+    ThreadPolicy {
+        // An explicit override is the user telling us they know better.
+        io_parallelism: match io_parallelism_override {
+            Some(_) => base.io_parallelism,
+            None => base.io_parallelism.min(MAX_REWRITE_PARALLELISM),
+        },
+        low_io_priority: true,
+        ..base
+    }
+}
+
+/// Ceiling for write-amplifying work. Past a small number of concurrent write
+/// streams the disk is the bottleneck anyway, so extra threads buy queue depth
+/// rather than throughput.
+const MAX_REWRITE_PARALLELISM: usize = 4;
 
 fn compute_thread_policy_for_storage(
     storage: StorageClass,
@@ -82,6 +126,8 @@ fn compute_thread_policy_for_storage_and_cpu_count(
     ThreadPolicy {
         io_parallelism,
         is_background,
+        // Background jobs must never outrank whatever the user is doing.
+        low_io_priority: is_background,
     }
 }
 
@@ -158,6 +204,52 @@ mod tests {
         );
 
         assert_eq!(policy.io_parallelism, 1);
+    }
+
+    #[test]
+    fn foreground_work_keeps_normal_io_priority() {
+        let policy = policy_for_storage(StorageClass::Ssd, false, None, None);
+        assert!(!policy.low_io_priority);
+    }
+
+    #[test]
+    fn background_work_drops_to_low_io_priority() {
+        // Thread count alone does not bound disk queue depth, so a background
+        // job must also yield the disk to whatever the user is doing.
+        let policy = policy_for_storage(StorageClass::Ssd, true, None, None);
+        assert!(policy.low_io_priority);
+    }
+
+    #[test]
+    fn rewrite_work_yields_the_disk_even_in_the_foreground() {
+        let path = Path::new(r"C:\Games\example");
+        let policy = compute_rewrite_thread_policy(path, false, None, None);
+        assert!(policy.low_io_priority);
+        assert!(!policy.is_background);
+    }
+
+    #[test]
+    fn rewrite_work_caps_concurrent_write_streams() {
+        let path = Path::new(r"C:\Games\example");
+        let foreground = compute_thread_policy(path, false, None, None);
+        let rewrite = compute_rewrite_thread_policy(path, false, None, None);
+
+        assert!(rewrite.io_parallelism <= MAX_REWRITE_PARALLELISM);
+        assert!(rewrite.io_parallelism <= foreground.io_parallelism);
+        assert!(rewrite.io_parallelism >= 1);
+    }
+
+    #[test]
+    fn rewrite_work_still_honours_an_explicit_override() {
+        // The cap is a default, not a ceiling the user cannot raise.
+        let policy = compute_rewrite_thread_policy(
+            Path::new(r"C:\Games\example"),
+            false,
+            None,
+            Some(MAX_REWRITE_PARALLELISM + 4),
+        );
+        assert_eq!(policy.io_parallelism, MAX_REWRITE_PARALLELISM + 4);
+        assert!(policy.low_io_priority);
     }
 
     #[test]

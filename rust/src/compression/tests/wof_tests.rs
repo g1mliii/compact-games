@@ -126,6 +126,7 @@ fn four_worker_policy_roundtrip_preserves_all_files() {
     let policy = ThreadPolicy {
         io_parallelism: 4,
         is_background: false,
+        low_io_priority: false,
     };
 
     let compression =
