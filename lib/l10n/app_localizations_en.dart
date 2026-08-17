@@ -1101,4 +1101,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get libraryHomeNewsEmpty => 'No recent updates for your games.';
+
+  @override
+  String get settingsAboutWebsiteAction => 'Website';
+
+  @override
+  String get settingsAboutPrivacyPolicyAction => 'Privacy policy';
 }

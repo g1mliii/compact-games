@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../providers/compression/compression_provider.dart';
 import '../../../../providers/settings/settings_provider.dart';
+import '../../../../providers/system/platform_shell_provider.dart';
 import '../../../../providers/update/update_provider.dart';
 import '../../../../providers/update/update_status_presentation.dart';
 import '../widgets/scaled_switch_row.dart';
@@ -80,6 +81,27 @@ class AboutSection extends ConsumerWidget {
             style: AppTypography.bodySmall.copyWith(
               color: AppColors.textSecondary,
             ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: () => ref
+                    .read(platformShellServiceProvider)
+                    .launchUri(AppConstants.websiteUrl),
+                icon: const Icon(LucideIcons.globe, size: 16),
+                label: Text(l10n.settingsAboutWebsiteAction),
+              ),
+              TextButton.icon(
+                onPressed: () => ref
+                    .read(platformShellServiceProvider)
+                    .launchUri(AppConstants.privacyPolicyUrl),
+                icon: const Icon(LucideIcons.shieldCheck, size: 16),
+                label: Text(l10n.settingsAboutPrivacyPolicyAction),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (!selfUpdatesEnabled) ...[

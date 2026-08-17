@@ -1063,4 +1063,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get libraryHomeNewsEmpty => '你的游戏暂无最新动态。';
+
+  @override
+  String get settingsAboutWebsiteAction => '官方网站';
+
+  @override
+  String get settingsAboutPrivacyPolicyAction => '隐私政策';
 }

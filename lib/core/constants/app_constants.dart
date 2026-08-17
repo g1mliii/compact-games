@@ -2,6 +2,9 @@
 abstract final class AppConstants {
   static const String appName = 'Compact Games';
   static const String appVersion = '0.3.0';
+  static const String websiteUrl = 'https://compactgames.app/';
+  static const String privacyPolicyUrl =
+      'https://compactgames.app/privacy.html';
 
   /// Identifies who owns delivery of application updates for this build.
   ///

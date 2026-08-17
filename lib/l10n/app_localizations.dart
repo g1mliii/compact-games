@@ -1975,6 +1975,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No recent updates for your games.'**
   String get libraryHomeNewsEmpty;
+
+  /// Button that opens the Compact Games website.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get settingsAboutWebsiteAction;
+
+  /// Button that opens the Compact Games privacy policy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get settingsAboutPrivacyPolicyAction;
 }
 
 class _AppLocalizationsDelegate

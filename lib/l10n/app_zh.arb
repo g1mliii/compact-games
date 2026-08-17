@@ -1378,5 +1378,13 @@
   "libraryHomeNewsEmpty": "你的游戏暂无最新动态。",
   "@libraryHomeNewsEmpty": {
     "description": "Shown when the news shelf has nothing to display."
+  },
+  "settingsAboutWebsiteAction": "官方网站",
+  "@settingsAboutWebsiteAction": {
+    "description": "Button that opens the Compact Games website."
+  },
+  "settingsAboutPrivacyPolicyAction": "隐私政策",
+  "@settingsAboutPrivacyPolicyAction": {
+    "description": "Button that opens the Compact Games privacy policy."
   }
 }

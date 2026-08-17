@@ -1378,5 +1378,13 @@
   "libraryHomeNewsEmpty": "No hay novedades recientes para tus juegos.",
   "@libraryHomeNewsEmpty": {
     "description": "Shown when the news shelf has nothing to display."
+  },
+  "settingsAboutWebsiteAction": "Sitio web",
+  "@settingsAboutWebsiteAction": {
+    "description": "Button that opens the Compact Games website."
+  },
+  "settingsAboutPrivacyPolicyAction": "Política de privacidad",
+  "@settingsAboutPrivacyPolicyAction": {
+    "description": "Button that opens the Compact Games privacy policy."
   }
 }
