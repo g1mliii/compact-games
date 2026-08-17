@@ -501,79 +501,87 @@ void runPhase6OversizeSplitTests() {
     },
   );
 
-  testWidgets(
-    'Home list details expand cover and card within tall wide bounds',
-    (WidgetTester tester) async {
-      await tester.binding.setSurfaceSize(const Size(1500, 900));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('Home list details fill tall bounds and center cover with card', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1500, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final container = ProviderContainer(
-        overrides: [
-          rustBridgeServiceProvider.overrideWithValue(
-            _TestRustBridgeService(games: _sampleGames),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: buildAppTheme(),
-            home: const Scaffold(body: HomeGameListView()),
-          ),
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
         ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(_listRowText('Pixel Raider'));
-      await tester.pumpAndSettle();
+      ],
+    );
+    addTearDown(container.dispose);
 
-      final coverRect = tester.getRect(find.byType(GameDetailsCover));
-      final infoCardRect = tester.getRect(
-        find.byKey(const ValueKey<String>('detailsInfoCard')),
-      );
-
-      expect(coverRect.width, closeTo(380, 0.01));
-      expect(coverRect.height, closeTo(570, 0.01));
-      expect(infoCardRect.width, greaterThanOrEqualTo(560));
-      expect(infoCardRect.height, greaterThanOrEqualTo(coverRect.height));
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'Home list details preserve base cover size when the panel is short',
-    (WidgetTester tester) async {
-      await tester.binding.setSurfaceSize(const Size(1500, 620));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      final container = ProviderContainer(
-        overrides: [
-          rustBridgeServiceProvider.overrideWithValue(
-            _TestRustBridgeService(games: _sampleGames),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: buildAppTheme(),
-            home: const Scaffold(body: HomeGameListView()),
-          ),
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeGameListView()),
         ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(_listRowText('Pixel Raider'));
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_listRowText('Pixel Raider'));
+    await tester.pumpAndSettle();
 
-      expect(tester.getSize(find.byType(GameDetailsCover)).width, 300);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    final coverRect = tester.getRect(find.byType(GameDetailsCover));
+    final infoCardRect = tester.getRect(
+      find.byKey(const ValueKey<String>('detailsInfoCard')),
+    );
+
+    expect(coverRect.width, closeTo(544, 0.01));
+    expect(coverRect.height, closeTo(816, 0.01));
+    expect(infoCardRect.width, greaterThanOrEqualTo(560));
+    expect(coverRect.center.dy, closeTo(infoCardRect.center.dy, 0.01));
+    expect(coverRect.top, lessThanOrEqualTo(50));
+    expect(900 - coverRect.bottom, lessThan(50));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home list details expand below the old height cutoff', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1500, 620));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(
+      overrides: [
+        rustBridgeServiceProvider.overrideWithValue(
+          _TestRustBridgeService(games: _sampleGames),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(body: HomeGameListView()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_listRowText('Pixel Raider'));
+    await tester.pumpAndSettle();
+
+    final coverRect = tester.getRect(find.byType(GameDetailsCover));
+    final infoCardRect = tester.getRect(
+      find.byKey(const ValueKey<String>('detailsInfoCard')),
+    );
+
+    expect(coverRect.width, closeTo(394.67, 0.01));
+    expect(coverRect.height, closeTo(592, 0.01));
+    expect(coverRect.center.dy, closeTo(infoCardRect.center.dy, 0.01));
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'Standalone details retain the existing cover size in a tall viewport',
@@ -602,7 +610,13 @@ void runPhase6OversizeSplitTests() {
       );
       await tester.pumpAndSettle();
 
-      expect(tester.getSize(find.byType(GameDetailsCover)).width, 300);
+      final coverRect = tester.getRect(find.byType(GameDetailsCover));
+      final infoCardRect = tester.getRect(
+        find.byKey(const ValueKey<String>('detailsInfoCard')),
+      );
+
+      expect(coverRect.width, 300);
+      expect(coverRect.top, closeTo(infoCardRect.top, 0.01));
       expect(tester.takeException(), isNull);
     },
   );

@@ -1,7 +1,7 @@
 name: compact_games
 description: "High-performance game compressor with intelligent automation"
 publish_to: 'none'
-version: 0.2.8+28
+version: 0.2.9+29
 
 environment:
   # flutter_riverpod 3.4 requires Dart 3.12 or newer.
@@ -30,7 +30,7 @@ dependencies:
 
   # Local storage
   shared_preferences: ^2.5.5
-  flutter_secure_storage: ^10.3.1
+  flutter_secure_storage: ^11.0.0
 
   # Path utilities
   path_provider: ^2.1.6
