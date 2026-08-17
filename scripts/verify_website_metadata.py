@@ -52,6 +52,24 @@ sitemap_urls = {
 if sitemap_urls != set(PAGES.values()):
     fail(f"sitemap URLs are {sorted(sitemap_urls)!r}; expected {sorted(PAGES.values())!r}")
 
+image_namespace = {
+    **namespace,
+    "image": "http://www.google.com/schemas/sitemap-image/1.1",
+}
+image_urls = {
+    element.text
+    for element in tree.findall(
+        "sitemap:url/image:image/image:loc",
+        image_namespace,
+    )
+}
+expected_image_urls = {f"{BASE_URL}/assets/hero-app-deadlock.png"}
+if image_urls != expected_image_urls:
+    fail(
+        f"sitemap image URLs are {sorted(image_urls)!r}; "
+        f"expected {sorted(expected_image_urls)!r}"
+    )
+
 robots = (WEBSITE / "robots.txt").read_text(encoding="utf-8")
 expected_sitemap = f"Sitemap: {BASE_URL}/sitemap.xml"
 if expected_sitemap not in robots:
