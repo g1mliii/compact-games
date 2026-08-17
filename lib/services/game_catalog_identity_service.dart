@@ -228,6 +228,7 @@ class GameCatalogIdentityService {
       return GameCatalogIdentity.unknown(folded);
     }
 
+    int? exactAppId;
     for (final item in items) {
       if (item is! Map) {
         continue;
@@ -240,13 +241,21 @@ class GameCatalogIdentityService {
       if (foldGameTitle(name, rustBridge: rustBridge) != folded) {
         continue;
       }
-      return GameCatalogIdentity(
-        steamAppId: id,
-        foldedName: folded,
-        source: GameCatalogIdentitySource.strictCatalogMatch,
-      );
+      if (exactAppId != null && exactAppId != id) {
+        // Titles are not unique in Steam's catalog. Picking the first of two
+        // exact-name results could attribute another game's patch notes to the
+        // user's library, so ambiguity is an unresolved identity.
+        return GameCatalogIdentity.unknown(folded);
+      }
+      exactAppId = id;
     }
-    return GameCatalogIdentity.unknown(folded);
+    return exactAppId == null
+        ? GameCatalogIdentity.unknown(folded)
+        : GameCatalogIdentity(
+            steamAppId: exactAppId,
+            foldedName: folded,
+            source: GameCatalogIdentitySource.strictCatalogMatch,
+          );
   }
 
   Future<Map<String, dynamic>?> _getJson(Uri uri) async {

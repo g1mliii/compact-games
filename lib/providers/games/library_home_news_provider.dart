@@ -22,7 +22,7 @@ final steamNewsStoreProvider = Provider<SteamNewsStore>(
   (ref) => const SteamNewsStore(),
 );
 
-final steamNewsServiceProvider = Provider<SteamNewsService>((ref) {
+final steamNewsServiceProvider = Provider.autoDispose<SteamNewsService>((ref) {
   final service = SteamNewsService();
   ref.onDispose(service.shutdown);
   return service;
@@ -82,10 +82,15 @@ final libraryHomeNewsProvider =
 
 class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState> {
   var _disposed = false;
+  late SteamNewsService _service;
 
   @override
   Future<LibraryHomeNewsState> build() async {
     ref.onDispose(() => _disposed = true);
+    // Watching the auto-disposed service ties its request queue to this
+    // surface. Leaving Library Home therefore calls shutdown and cancels any
+    // candidates that have not started yet.
+    _service = ref.watch(steamNewsServiceProvider);
 
     final store = ref.read(steamNewsStoreProvider);
     final cached = await store.load();
@@ -151,12 +156,11 @@ class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState> {
 
     state = AsyncValue.data(current.copyWith(isRefreshing: true));
 
-    final service = ref.read(steamNewsServiceProvider);
     final bridge = ref.read(rustBridgeServiceProvider);
 
     List<GameNewsItem> fetched;
     try {
-      fetched = await service.refresh(games, rustBridge: bridge);
+      fetched = await _service.refresh(games, rustBridge: bridge);
     } catch (_) {
       fetched = const <GameNewsItem>[];
     }

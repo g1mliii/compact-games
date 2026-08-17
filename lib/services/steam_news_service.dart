@@ -213,11 +213,12 @@ GameNewsItem? parseFirstNewsItem(
       continue;
     }
 
-    // Steam reports seconds since epoch.
-    final publishedAt = DateTime.fromMillisecondsSinceEpoch(
-      date * 1000,
-      isUtc: true,
-    );
+    // Steam reports seconds since epoch. Apply the same bounds used when
+    // reading the cache so malformed live data cannot throw or sort forever.
+    final publishedAt = boundedNewsTimestampFromSeconds(date);
+    if (publishedAt == null) {
+      continue;
+    }
     final gamePath = boundedNewsText(game.path, maxNewsGamePathLength);
     if (gamePath == null) {
       continue;

@@ -62,7 +62,7 @@ class GameNewsItem {
       return null;
     }
 
-    final publishedAt = _boundedTimestamp(millis);
+    final publishedAt = boundedNewsTimestampFromMilliseconds(millis);
     if (publishedAt == null) {
       return null;
     }
@@ -153,15 +153,27 @@ String? sanitizedNewsUrl(Object? value) {
   return allowed ? uri.toString() : null;
 }
 
-/// Rejects timestamps far outside the plausible range so a bogus value cannot
-/// pin an item to the top of the shelf forever.
-DateTime? _boundedTimestamp(int millisSinceEpoch) {
+/// Rejects millisecond timestamps far outside the plausible range so a bogus
+/// value cannot pin an item to the top of the shelf forever.
+DateTime? boundedNewsTimestampFromMilliseconds(int millisSinceEpoch) {
   const earliest = 946684800000; // 2000-01-01
   const latest = 4102444800000; // 2100-01-01
   if (millisSinceEpoch < earliest || millisSinceEpoch > latest) {
     return null;
   }
   return DateTime.fromMillisecondsSinceEpoch(millisSinceEpoch, isUtc: true);
+}
+
+/// Converts Steam's seconds-since-epoch value after validating it before the
+/// multiplication. This avoids both out-of-range [DateTime] construction and
+/// integer overflow for malformed remote input.
+DateTime? boundedNewsTimestampFromSeconds(int secondsSinceEpoch) {
+  const earliest = 946684800; // 2000-01-01
+  const latest = 4102444800; // 2100-01-01
+  if (secondsSinceEpoch < earliest || secondsSinceEpoch > latest) {
+    return null;
+  }
+  return boundedNewsTimestampFromMilliseconds(secondsSinceEpoch * 1000);
 }
 
 final RegExp _htmlTag = RegExp(r'<[^>]*>');

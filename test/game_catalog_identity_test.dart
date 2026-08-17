@@ -188,6 +188,19 @@ void main() {
       expect(identity.steamAppId, 12);
     });
 
+    test('multiple exact titles with different app ids are rejected', () async {
+      final client = _FakeStoreClient(
+        items: const <Map<String, Object?>>[
+          <String, Object?>{'id': 100, 'name': 'The Game'},
+          <String, Object?>{'id': 200, 'name': 'The Game'},
+        ],
+      );
+      final identity = await _resolveAgainst(client, _game(name: 'The Game'));
+
+      expect(identity.steamAppId, isNull);
+      expect(identity.source, GameCatalogIdentitySource.none);
+    });
+
     test('malformed payloads resolve to unknown instead of throwing', () async {
       for (final body in <String>['not json', '[]', '{"items": {}}', '']) {
         final client = _FakeStoreClient(rawBody: body);

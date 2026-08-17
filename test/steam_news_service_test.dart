@@ -237,6 +237,18 @@ void main() {
       expect(item, isNull);
     });
 
+    test('rejects live timestamps outside the persisted-data bounds', () {
+      for (final date in <int>[946684799, 4102444801, 8640000000001]) {
+        final item = parseFirstNewsItem(
+          jsonDecode(_newsBody(gid: 'g1', date: date)) as Map<String, dynamic>,
+          game: game,
+          steamAppId: 620,
+        );
+
+        expect(item, isNull, reason: '$date');
+      }
+    });
+
     test('malformed payload shapes return null rather than throwing', () {
       for (final raw in <String>[
         '{}',
@@ -403,6 +415,23 @@ void main() {
         ).refresh(<GameInfo>[_game(name: 'A', path: r'C:\a', steamAppId: 1)]),
         isEmpty,
       );
+    });
+
+    test('one invalid timestamp does not discard other games', () async {
+      final client = _FakeNewsClient(
+        bodyForAppId: (appId) => _newsBody(
+          gid: 'gid$appId',
+          date: appId == '1' ? 8640000000001 : 1780000000,
+        ),
+      );
+      final service = _service(client);
+
+      final items = await service.refresh(<GameInfo>[
+        _game(name: 'Invalid', path: r'C:\invalid', steamAppId: 1),
+        _game(name: 'Valid', path: r'C:\valid', steamAppId: 2),
+      ]);
+
+      expect(items.map((item) => item.id), <String>['gid2']);
     });
 
     test('an empty library performs no work', () async {

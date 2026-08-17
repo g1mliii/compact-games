@@ -73,6 +73,7 @@ class _FakeNewsService implements SteamNewsService {
 
   List<GameNewsItem> result;
   int refreshCount = 0;
+  int shutdownCount = 0;
 
   @override
   Future<List<GameNewsItem>> refresh(
@@ -84,7 +85,9 @@ class _FakeNewsService implements SteamNewsService {
   }
 
   @override
-  void shutdown() {}
+  void shutdown() {
+    shutdownCount += 1;
+  }
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -100,7 +103,10 @@ ProviderContainer _container({
     overrides: [
       rustBridgeServiceProvider.overrideWithValue(const _GamesBridgeService()),
       steamNewsStoreProvider.overrideWithValue(store),
-      steamNewsServiceProvider.overrideWithValue(service),
+      steamNewsServiceProvider.overrideWith((ref) {
+        ref.onDispose(service.shutdown);
+        return service;
+      }),
       newsNetworkAllowedProvider.overrideWithValue(networkAllowed),
       newsClockProvider.overrideWithValue(
         () => now ?? DateTime.utc(2026, 5, 1, 12),
@@ -153,6 +159,32 @@ void main() {
     expect(state.items.map((i) => i.id), <String>['a']);
     expect(state.isStale, isFalse);
     expect(service.refreshCount, 0);
+  });
+
+  test('leaving Library Home shuts down the news request service', () async {
+    final store = _FakeStore(
+      snapshot: CachedNewsSnapshot(
+        items: <GameNewsItem>[_item('cached')],
+        fetchedAt: DateTime.utc(2026, 5, 1, 11),
+      ),
+    );
+    final service = _FakeNewsService();
+    final container = _container(store: store, service: service);
+    await container.read(gameListProvider.future);
+
+    final subscription = container.listen(
+      libraryHomeNewsProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    await container.read(libraryHomeNewsProvider.future);
+    expect(service.shutdownCount, 0);
+
+    subscription.close();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(service.shutdownCount, 1);
   });
 
   test(
