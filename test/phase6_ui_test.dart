@@ -444,7 +444,6 @@ void main() {
         filesTotal: 100,
         bytesOriginal: 256 * 1024 * 1024,
         bytesCompressed: 192 * 1024 * 1024,
-        estimatedTimeRemaining: const Duration(seconds: 40),
       );
       await tester.pump();
 
@@ -644,7 +643,6 @@ void main() {
       filesTotal: 100,
       bytesOriginal: 8 * 1024 * 1024,
       bytesCompressed: 6 * 1024 * 1024,
-      estimatedTimeRemaining: const Duration(seconds: 12),
     );
     await tester.pump();
 
@@ -654,7 +652,6 @@ void main() {
       filesTotal: 100,
       bytesOriginal: 16 * 1024 * 1024,
       bytesCompressed: 11 * 1024 * 1024,
-      estimatedTimeRemaining: const Duration(seconds: 10),
     );
     await tester.pump();
 

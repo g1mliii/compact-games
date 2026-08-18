@@ -44,9 +44,6 @@ CompressionProgress _mapFrbProgress(rust_types.FrbCompressionProgress frb) {
     bytesOriginal: frb.bytesOriginal.toInt(),
     bytesCompressed: frb.bytesCompressed.toInt(),
     bytesSaved: frb.bytesSaved.toInt(),
-    estimatedTimeRemaining: frb.estimatedTimeRemainingMs != null
-        ? Duration(milliseconds: frb.estimatedTimeRemainingMs!.toInt())
-        : null,
     isComplete: frb.isComplete,
   );
 }

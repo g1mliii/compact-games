@@ -124,7 +124,6 @@ class _ComponentTestHarness extends StatelessWidget {
                 hasKnownFileTotal: true,
                 isFileCountApproximate: false,
                 canCancel: true,
-                etaSeconds: 190,
               ),
             ),
           ),

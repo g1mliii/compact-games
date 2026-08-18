@@ -402,7 +402,6 @@ class CompressionNotifier extends Notifier<CompressionState> {
       bytesOriginal: progress.bytesOriginal,
       bytesCompressed: progress.bytesCompressed,
       bytesSaved: progress.bytesSaved,
-      estimatedTimeRemaining: progress.estimatedTimeRemaining,
       isComplete: progress.isComplete,
     );
   }
@@ -420,7 +419,6 @@ class CompressionNotifier extends Notifier<CompressionState> {
       bytesOriginal: 0,
       bytesCompressed: 0,
       bytesSaved: 0,
-      estimatedTimeRemaining: null,
       isComplete: false,
     );
   }

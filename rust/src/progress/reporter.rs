@@ -1,10 +1,9 @@
 //! Progress reporter that polls atomic counters on a dedicated thread
 //! and sends `CompressionProgress` snapshots over a bounded channel.
 
-use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crossbeam_channel::{bounded, Receiver, Sender, TryRecvError, TrySendError};
 
@@ -94,10 +93,6 @@ fn reporter_loop(
     done: Arc<AtomicBool>,
     emit_baseline_first: bool,
 ) {
-    let mut speed_samples: VecDeque<f64> = VecDeque::with_capacity(10);
-    let mut speed_sum = 0.0;
-    let mut last_files: u64 = 0;
-    let mut last_tick = Instant::now();
     let mut last_emitted: Option<(u64, u64, u64, u64, bool)> = None;
     let mut baseline_pending = emit_baseline_first;
 
@@ -122,33 +117,6 @@ fn reporter_loop(
         let files_processed = files_processed_raw.min(files_total);
         let bytes_original = counters.bytes_original.load(Ordering::Relaxed);
         let bytes_compressed = counters.bytes_compressed.load(Ordering::Relaxed);
-        let now = Instant::now();
-        let dt = now.duration_since(last_tick).as_secs_f64();
-        if dt > 0.0 {
-            let files_delta = files_processed.saturating_sub(last_files);
-            let speed = files_delta as f64 / dt;
-            if speed_samples.len() >= 10 {
-                if let Some(oldest) = speed_samples.pop_front() {
-                    speed_sum -= oldest;
-                }
-            }
-            speed_samples.push_back(speed);
-            speed_sum += speed;
-        }
-        last_files = files_processed;
-        last_tick = now;
-
-        let avg_speed = if speed_samples.is_empty() {
-            0.0
-        } else {
-            speed_sum / speed_samples.len() as f64
-        };
-        let remaining = files_total.saturating_sub(files_processed);
-        let eta = if avg_speed > 0.1 {
-            Some(Duration::from_secs_f64(remaining as f64 / avg_speed))
-        } else {
-            None
-        };
 
         if baseline_pending {
             if files_total == 0 && !done_now && !stopping {
@@ -163,7 +131,6 @@ fn reporter_loop(
                 bytes_original: 0,
                 bytes_compressed: 0,
                 bytes_saved: 0,
-                estimated_time_remaining: None,
                 is_complete: baseline_is_complete,
             };
             if !send_latest(&tx, &latest_rx, baseline) {
@@ -195,7 +162,6 @@ fn reporter_loop(
                 bytes_original,
                 bytes_compressed,
                 bytes_saved: bytes_original.saturating_sub(bytes_compressed),
-                estimated_time_remaining: eta,
                 is_complete,
             };
 

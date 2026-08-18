@@ -481,7 +481,6 @@ void main() {
                       hasKnownFileTotal: true,
                       isFileCountApproximate: false,
                       canCancel: true,
-                      etaSeconds: 240,
                     ),
                   ),
                   Expanded(
@@ -504,7 +503,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Comprimiendo'), findsOneWidget);
-      expect(find.text('Quedan 4 min'), findsOneWidget);
       expect(find.text('Ahorra 2.0 GB'), findsOneWidget);
       expect(find.text('Plataforma'), findsOneWidget);
       expect(find.text('Ruta de instalación'), findsOneWidget);

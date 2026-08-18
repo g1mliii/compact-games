@@ -280,6 +280,12 @@ impl CompressionEngine {
             }
 
             let path = manifest_file.path.as_path();
+            // Measured before the file is opened. Opening a WOF-backed file for
+            // write releases its backing, so a physical size read after
+            // open_verified_file always equals the logical size: every file
+            // then looks uncompressed, the explicit decompress call is skipped,
+            // and the restored total reported to the UI is always zero.
+            let physical_before_open = wof::get_physical_size(path).ok();
             let file = match wof::open_verified_file(path, &canonical_root) {
                 Ok(file) => file,
                 Err(error) if Self::is_recoverable_file_error(&error) => {
@@ -317,7 +323,7 @@ impl CompressionEngine {
                 return Ok(());
             }
 
-            let physical_size = wof::get_physical_size(path).unwrap_or(file_size);
+            let physical_size = physical_before_open.unwrap_or(file_size);
             if physical_size >= file_size {
                 self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
                 self.bytes_compressed

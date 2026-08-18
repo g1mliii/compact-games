@@ -163,7 +163,6 @@ void _registerProgressIndicatorWidgetTests() {
                 hasKnownFileTotal: true,
                 isFileCountApproximate: true,
                 canCancel: true,
-                etaSeconds: 60,
               ),
             ),
           ),
@@ -197,7 +196,6 @@ void _registerProgressIndicatorWidgetTests() {
                 hasKnownFileTotal: true,
                 isFileCountApproximate: true,
                 canCancel: true,
-                etaSeconds: 60,
               ),
             ),
           ),
@@ -224,7 +222,7 @@ void _registerProgressIndicatorWidgetTests() {
   });
 
   test(
-    'Active compression UI model buckets large-job progress and ETA updates',
+    'Active compression UI model buckets large-job progress updates',
     () async {
       final bridge = _DelayedActivityRustBridgeService(games: _sampleGames);
       final container = ProviderContainer(
@@ -257,7 +255,6 @@ void _registerProgressIndicatorWidgetTests() {
         filesTotal: 1000,
         bytesOriginal: 400 * 1024 * 1024,
         bytesCompressed: 200 * 1024 * 1024,
-        estimatedTimeRemaining: const Duration(seconds: 62),
       );
       await Future<void>.delayed(Duration.zero);
 
@@ -267,7 +264,6 @@ void _registerProgressIndicatorWidgetTests() {
       expect(firstBucketed.isFileCountApproximate, isTrue);
       expect(firstBucketed.percent, 10);
       expect(firstBucketed.bytesDelta, 192 * 1024 * 1024);
-      expect(firstBucketed.etaSeconds, 60);
 
       final snapshotCountAfterFirstBucket = snapshots.length;
 
@@ -277,7 +273,6 @@ void _registerProgressIndicatorWidgetTests() {
         filesTotal: 1000,
         bytesOriginal: 406 * 1024 * 1024,
         bytesCompressed: 200 * 1024 * 1024,
-        estimatedTimeRemaining: const Duration(seconds: 61),
       );
       await Future<void>.delayed(Duration.zero);
 
@@ -289,7 +284,6 @@ void _registerProgressIndicatorWidgetTests() {
         filesTotal: 1000,
         bytesOriginal: 450 * 1024 * 1024,
         bytesCompressed: 224 * 1024 * 1024,
-        estimatedTimeRemaining: const Duration(seconds: 54),
       );
       await Future<void>.delayed(Duration.zero);
 
@@ -299,7 +293,6 @@ void _registerProgressIndicatorWidgetTests() {
       expect(secondBucketed.isFileCountApproximate, isTrue);
       expect(secondBucketed.percent, 13);
       expect(secondBucketed.bytesDelta, 224 * 1024 * 1024);
-      expect(secondBucketed.etaSeconds, 50);
       expect(snapshots.length, greaterThan(snapshotCountAfterFirstBucket));
     },
   );
@@ -368,7 +361,6 @@ void _registerProgressIndicatorWidgetTests() {
                     hasKnownFileTotal: true,
                     isFileCountApproximate: false,
                     canCancel: true,
-                    etaSeconds: 18,
                   ),
                 ),
               ),

@@ -151,6 +151,26 @@ String? boundedNewsGamePath(Object? value) {
   return _controlChars.hasMatch(trimmed) ? null : trimmed;
 }
 
+/// Steam's own hosted page for a news entry.
+///
+/// `GetNewsForApp` almost never reports a link on an allowlisted host: even
+/// plain Community Announcements arrive as a `steamstore-a.akamaihd.net`
+/// redirector, and the rest point at third-party outlets. Rejecting those is
+/// right — the shelf must not vouch for `Gamemag.ru` — but rejecting them
+/// leaves no link at all, and a link is a required field, so every item was
+/// being dropped and the shelf rendered empty.
+///
+/// The store's news viewer is the stable Steam-hosted page for the same
+/// `gid`, on a host already in [trustedNewsHosts], so it is what the item
+/// carries. Returns null for a `gid` that is not a bare id, since anything
+/// else has no business being interpolated into a URL.
+String? steamNewsPermalink(int steamAppId, String gid) {
+  if (steamAppId <= 0 || !_newsGid.hasMatch(gid)) {
+    return null;
+  }
+  return 'https://store.steampowered.com/news/app/$steamAppId/view/$gid';
+}
+
 /// Validates a news link: https only, an allowlisted host, and length-bounded.
 String? sanitizedNewsUrl(Object? value) {
   if (value is! String || value.isEmpty || value.length > maxNewsUrlLength) {
@@ -200,6 +220,7 @@ DateTime? boundedNewsTimestampFromSeconds(int secondsSinceEpoch) {
   );
 }
 
+final RegExp _newsGid = RegExp(r'^[0-9a-fA-F]{1,32}$');
 final RegExp _htmlTag = RegExp(r'<[^>]*>');
 final RegExp _bbCodeTag = RegExp(
   r'\[/?[a-zA-Z0-9*=\s"'

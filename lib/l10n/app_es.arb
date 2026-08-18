@@ -925,36 +925,6 @@
       }
     }
   },
-  "activitySecondsRemaining": "Quedan {seconds}s",
-  "@activitySecondsRemaining": {
-    "description": "Localized message for activity seconds remaining.",
-    "placeholders": {
-      "seconds": {
-        "type": "int"
-      }
-    }
-  },
-  "activityMinutesRemaining": "Quedan {minutes} min",
-  "@activityMinutesRemaining": {
-    "description": "Localized message for activity minutes remaining.",
-    "placeholders": {
-      "minutes": {
-        "type": "int"
-      }
-    }
-  },
-  "activityHoursMinutesRemaining": "Quedan {hours} h {minutes} min",
-  "@activityHoursMinutesRemaining": {
-    "description": "Localized message for activity hours minutes remaining.",
-    "placeholders": {
-      "hours": {
-        "type": "int"
-      },
-      "minutes": {
-        "type": "int"
-      }
-    }
-  },
   "gameStatusDirectStorage": "DirectStorage",
   "@gameStatusDirectStorage": {
     "description": "Localized message for game status direct storage."

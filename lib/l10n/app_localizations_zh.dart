@@ -662,21 +662,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String activitySecondsRemaining(int seconds) {
-    return '剩余 $seconds 秒';
-  }
-
-  @override
-  String activityMinutesRemaining(int minutes) {
-    return '剩余 $minutes 分钟';
-  }
-
-  @override
-  String activityHoursMinutesRemaining(int hours, int minutes) {
-    return '剩余 $hours 小时 $minutes 分钟';
-  }
-
-  @override
   String get gameStatusDirectStorage => 'DirectStorage';
 
   @override

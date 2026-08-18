@@ -925,36 +925,6 @@
       }
     }
   },
-  "activitySecondsRemaining": "剩余 {seconds} 秒",
-  "@activitySecondsRemaining": {
-    "description": "Localized message for activity seconds remaining.",
-    "placeholders": {
-      "seconds": {
-        "type": "int"
-      }
-    }
-  },
-  "activityMinutesRemaining": "剩余 {minutes} 分钟",
-  "@activityMinutesRemaining": {
-    "description": "Localized message for activity minutes remaining.",
-    "placeholders": {
-      "minutes": {
-        "type": "int"
-      }
-    }
-  },
-  "activityHoursMinutesRemaining": "剩余 {hours} 小时 {minutes} 分钟",
-  "@activityHoursMinutesRemaining": {
-    "description": "Localized message for activity hours minutes remaining.",
-    "placeholders": {
-      "hours": {
-        "type": "int"
-      },
-      "minutes": {
-        "type": "int"
-      }
-    }
-  },
   "gameStatusDirectStorage": "DirectStorage",
   "@gameStatusDirectStorage": {
     "description": "Localized message for game status direct storage."

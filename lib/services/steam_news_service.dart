@@ -29,7 +29,8 @@ class SteamNewsService {
   static const String _newsPath = '/ISteamNews/GetNewsForApp/v2/';
 
   /// Entries requested per game. Only the first usable one is kept; the rest are
-  /// fallbacks for when the newest entries fail sanitization.
+  /// fallbacks for when the newest entries fail sanitization (a missing title
+  /// or an out-of-range date).
   static const int _newsFetchCount = 5;
 
   /// Games considered per refresh, ordered by [orderNewsCandidates].
@@ -111,9 +112,8 @@ class SteamNewsService {
 
     final uri = Uri.https(_newsHost, _newsPath, <String, String>{
       'appid': '$appId',
-      // More than one entry so parseFirstNewsItem's skip-and-retry loop can do
-      // its job: the newest post is often an external-RSS mirror whose URL
-      // fails the trusted-host check, and at count=1 that silently costs the
+      // More than one entry so parseFirstNewsItem's skip-and-retry loop can
+      // do its job: at count=1, a single malformed entry silently costs the
       // game its whole news slot.
       'count': '$_newsFetchCount',
       // Ask Steam not to send the article body at all: the shelf shows a
@@ -203,9 +203,18 @@ GameNewsItem? parseFirstNewsItem(
     }
     final id = boundedNewsText(entry['gid'], maxNewsIdLength);
     final title = boundedNewsText(entry['title'], maxNewsTitleLength);
-    final url = sanitizedNewsUrl(entry['url']);
     final date = entry['date'];
-    if (id == null || title == null || url == null || date is! int) {
+    if (id == null || title == null || date is! int) {
+      continue;
+    }
+
+    // Steam's own `url` is a redirector on an untrusted host for practically
+    // every entry, so the permalink built from the app id and gid is the
+    // normal outcome, not the fallback. The reported link is still preferred
+    // when it happens to be trusted, since that is the more specific page.
+    final url = sanitizedNewsUrl(entry['url']) ??
+        steamNewsPermalink(steamAppId, id);
+    if (url == null) {
       continue;
     }
 

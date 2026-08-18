@@ -1288,24 +1288,6 @@ abstract class AppLocalizations {
   /// **'{processed}/{total} files'**
   String activityFileProgress(int processed, int total);
 
-  /// Localized message for activity seconds remaining.
-  ///
-  /// In en, this message translates to:
-  /// **'{seconds}s left'**
-  String activitySecondsRemaining(int seconds);
-
-  /// Localized message for activity minutes remaining.
-  ///
-  /// In en, this message translates to:
-  /// **'{minutes}m left'**
-  String activityMinutesRemaining(int minutes);
-
-  /// Localized message for activity hours minutes remaining.
-  ///
-  /// In en, this message translates to:
-  /// **'{hours}h {minutes}m left'**
-  String activityHoursMinutesRemaining(int hours, int minutes);
-
   /// Localized message for game status direct storage.
   ///
   /// In en, this message translates to:

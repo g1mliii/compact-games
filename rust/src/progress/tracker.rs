@@ -16,7 +16,6 @@ pub struct CompressionProgress {
     pub bytes_original: u64,
     pub bytes_compressed: u64,
     pub bytes_saved: u64,
-    pub estimated_time_remaining: Option<Duration>,
     pub is_complete: bool,
 }
 
@@ -56,7 +55,6 @@ mod tests {
             bytes_original: 0,
             bytes_compressed: 0,
             bytes_saved: 0,
-            estimated_time_remaining: None,
             is_complete: false,
         };
         assert_eq!(p.fraction(), 0.0);
@@ -72,7 +70,6 @@ mod tests {
             bytes_original: 1000,
             bytes_compressed: 600,
             bytes_saved: 400,
-            estimated_time_remaining: Some(Duration::from_secs(30)),
             is_complete: false,
         };
         assert!((p.fraction() - 0.5).abs() < f64::EPSILON);

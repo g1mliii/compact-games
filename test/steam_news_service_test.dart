@@ -226,9 +226,56 @@ void main() {
       expect(item!.title, 'Big news');
     });
 
-    test('rejects an item whose url is not an allowlisted Steam host', () {
+    test('never carries an off-Steam url through to the item', () {
+      // Steam reports a redirector or an outlet's own link for practically
+      // every entry, so an untrusted url is the common case, not an attack.
+      // The item must still not point off Steam.
+      for (final url in <String>[
+        'https://steamstore-a.akamaihd.net/news/externalpost/'
+            'steam_community_announcements/1840944183775194',
+        'https://evil.example.com/x',
+        'javascript:alert(1)',
+      ]) {
+        final item = parseFirstNewsItem(
+          jsonDecode(_newsBody(gid: '1840944183775194', url: url))
+              as Map<String, dynamic>,
+          game: game,
+          steamAppId: 620,
+        );
+
+        expect(
+          item?.url,
+          'https://store.steampowered.com/news/app/620/view/1840944183775194',
+          reason: url,
+        );
+      }
+    });
+
+    test('prefers the reported url when it is already on a Steam host', () {
       final item = parseFirstNewsItem(
-        jsonDecode(_newsBody(gid: 'g1', url: 'https://evil.example.com/x'))
+        jsonDecode(
+              _newsBody(
+                gid: '1840944183775194',
+                url: 'https://steamcommunity.com/games/620/announcements/'
+                    'detail/1840944183775194',
+              ),
+            )
+            as Map<String, dynamic>,
+        game: game,
+        steamAppId: 620,
+      );
+
+      expect(
+        item?.url,
+        'https://steamcommunity.com/games/620/announcements/detail/'
+        '1840944183775194',
+      );
+    });
+
+    test('drops an entry with an untrusted url and an unusable gid', () {
+      // Nothing to build a permalink from, so there is no link at all.
+      final item = parseFirstNewsItem(
+        jsonDecode(_newsBody(gid: 'not a gid', url: 'https://evil.test/x'))
             as Map<String, dynamic>,
         game: game,
         steamAppId: 620,
@@ -271,7 +318,7 @@ void main() {
       }
     });
 
-    test('skips an untrusted newest item and keeps the next usable one', () {
+    test('skips an unusable newest item and keeps the next one', () {
       final payload = <String, dynamic>{
         'appnews': <String, dynamic>{
           'appid': 620,
@@ -280,7 +327,7 @@ void main() {
               'gid': 'rss',
               'title': 'Mirrored elsewhere',
               'url': 'https://news.example.com/story',
-              'date': 1780000100,
+              'date': 'not a date',
             },
             <String, dynamic>{
               'gid': 'announcement',
@@ -295,6 +342,35 @@ void main() {
       final item = parseFirstNewsItem(payload, game: game, steamAppId: 620);
 
       expect(item?.id, 'announcement');
+    });
+
+    test('reads a verbatim GetNewsForApp response', () {
+      // Captured from api.steampowered.com for appid 730. Every entry the live
+      // endpoint returns — Community Announcements included — links to an
+      // akamaihd redirector, so a fixture with a steamcommunity.com url does
+      // not exercise the path the app actually takes.
+      // Raw so the fixture stays byte-for-byte what the endpoint returned.
+      const body = r'''
+{"appnews":{"appid":730,"newsitems":[
+  {"gid":"1840944183775194","title":"Counter-Strike 2 Update",
+   "url":"https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1840944183775194",
+   "is_external_url":true,"author":"tomd","contents":"\\...",
+   "feedlabel":"Community Announcements","date":1786575047,
+   "feedname":"steam_community_announcements","feed_type":1,"appid":730}
+],"count":1753}}''';
+
+      final item = parseFirstNewsItem(
+        jsonDecode(body) as Map<String, dynamic>,
+        game: game,
+        steamAppId: 730,
+      );
+
+      expect(item, isNotNull);
+      expect(item!.title, 'Counter-Strike 2 Update');
+      expect(
+        item.url,
+        'https://store.steampowered.com/news/app/730/view/1840944183775194',
+      );
     });
 
     test('malformed payload shapes return null rather than throwing', () {

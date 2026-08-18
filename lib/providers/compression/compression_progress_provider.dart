@@ -26,7 +26,6 @@ class CompressionActivityUiModel {
     required this.hasKnownFileTotal,
     required this.isFileCountApproximate,
     required this.canCancel,
-    this.etaSeconds,
   });
 
   final CompressionJobType type;
@@ -38,7 +37,6 @@ class CompressionActivityUiModel {
   final bool hasKnownFileTotal;
   final bool isFileCountApproximate;
   final bool canCancel;
-  final int? etaSeconds;
 
   bool get isCompression => type == CompressionJobType.compression;
 
@@ -57,8 +55,7 @@ class CompressionActivityUiModel {
           bytesDelta == other.bytesDelta &&
           hasKnownFileTotal == other.hasKnownFileTotal &&
           isFileCountApproximate == other.isFileCountApproximate &&
-          canCancel == other.canCancel &&
-          etaSeconds == other.etaSeconds;
+          canCancel == other.canCancel;
 
   @override
   int get hashCode => Object.hash(
@@ -71,7 +68,6 @@ class CompressionActivityUiModel {
     hasKnownFileTotal,
     isFileCountApproximate,
     canCancel,
-    etaSeconds,
   );
 }
 
@@ -250,10 +246,6 @@ final activeCompressionUiModelProvider = Provider<CompressionActivityUiModel?>((
         hasKnownFileTotal: hasKnownFileTotal,
         isComplete: progress?.isComplete ?? false,
       );
-      final etaSeconds = _bucketEtaSeconds(
-        progress?.estimatedTimeRemaining?.inSeconds,
-      );
-
       return CompressionActivityUiModel(
         type: job.type,
         gameName: job.gameName,
@@ -264,7 +256,6 @@ final activeCompressionUiModelProvider = Provider<CompressionActivityUiModel?>((
         hasKnownFileTotal: hasKnownFileTotal,
         isFileCountApproximate: bucketedFileProgress.isApproximate,
         canCancel: job.isActive,
-        etaSeconds: etaSeconds,
       );
     }),
   );
@@ -353,26 +344,4 @@ int _bucketDisplayPercent({
     return 100;
   }
   return ((filesProcessed / filesTotal) * 100).round().clamp(0, 100);
-}
-
-int? _bucketEtaSeconds(int? seconds) {
-  if (seconds == null || seconds <= 0) {
-    return seconds;
-  }
-
-  if (seconds <= 15) {
-    return seconds;
-  }
-  if (seconds < 120) {
-    return _roundToNearest(seconds, 10);
-  }
-  if (seconds < 600) {
-    return _roundToNearest(seconds, 30);
-  }
-
-  return _roundToNearest(seconds, 60);
-}
-
-int _roundToNearest(int value, int bucket) {
-  return ((value / bucket).round()) * bucket;
 }

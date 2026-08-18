@@ -6,7 +6,6 @@ class CompressionProgress {
   final int bytesOriginal;
   final int bytesCompressed;
   final int bytesSaved;
-  final Duration? estimatedTimeRemaining;
   final bool isComplete;
 
   const CompressionProgress({
@@ -16,7 +15,6 @@ class CompressionProgress {
     required this.bytesOriginal,
     required this.bytesCompressed,
     required this.bytesSaved,
-    this.estimatedTimeRemaining,
     this.isComplete = false,
   });
 
@@ -39,7 +37,6 @@ class CompressionProgress {
           bytesOriginal == other.bytesOriginal &&
           bytesCompressed == other.bytesCompressed &&
           bytesSaved == other.bytesSaved &&
-          estimatedTimeRemaining == other.estimatedTimeRemaining &&
           isComplete == other.isComplete;
 
   @override
@@ -50,7 +47,6 @@ class CompressionProgress {
     bytesOriginal,
     bytesCompressed,
     bytesSaved,
-    estimatedTimeRemaining,
     isComplete,
   );
 }

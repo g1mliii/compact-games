@@ -518,3 +518,56 @@ fn wof_get_compression_uncompressed_returns_none() {
     let result = wof::wof_get_compression(&path).unwrap();
     assert_eq!(result, None);
 }
+
+#[test]
+fn decompress_progress_reports_restored_bytes() {
+    // Opening a WOF-backed file for write releases its backing, so measuring
+    // the physical size after the open reports the logical size and the shelf
+    // shows "Restoring 0 MB" for every job. Guard the measurement order.
+    let dir = TempDir::new().unwrap();
+    for i in 0..8 {
+        create_compressible_file(dir.path(), &format!("restored_{i}.dat"), 1_048_576);
+    }
+
+    let compress_engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+    let compressed = compress_engine.compress_folder(dir.path()).unwrap();
+    assert!(compressed.compressed_bytes < compressed.original_bytes);
+
+    let decompress_engine = CompressionEngine::new(CompressionAlgorithm::Xpress4K);
+    let streams = decompress_engine
+        .decompress_folder_with_progress(dir.path(), Arc::from("RestoredBytes"))
+        .unwrap();
+
+    let mut final_snapshot = None;
+    while let Ok(snapshot) = streams.progress.recv_timeout(Duration::from_secs(10)) {
+        let is_complete = snapshot.is_complete;
+        final_snapshot = Some(snapshot);
+        if is_complete {
+            break;
+        }
+    }
+
+    let stats = streams
+        .result
+        .recv_timeout(Duration::from_secs(60))
+        .unwrap()
+        .expect("decompression should succeed");
+
+    let snapshot = final_snapshot.expect("decompression should publish progress");
+    assert!(
+        snapshot.bytes_saved > 0,
+        "restored bytes reported as {} (original {}, compressed {})",
+        snapshot.bytes_saved,
+        snapshot.bytes_original,
+        snapshot.bytes_compressed,
+    );
+    assert_eq!(
+        snapshot.bytes_saved,
+        snapshot.bytes_original - snapshot.bytes_compressed,
+    );
+    // The restore gives back exactly what the compression pass saved.
+    assert_eq!(
+        stats.original_bytes - stats.compressed_bytes,
+        compressed.original_bytes - compressed.compressed_bytes,
+    );
+}

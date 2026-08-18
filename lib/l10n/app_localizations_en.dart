@@ -688,21 +688,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String activitySecondsRemaining(int seconds) {
-    return '${seconds}s left';
-  }
-
-  @override
-  String activityMinutesRemaining(int minutes) {
-    return '${minutes}m left';
-  }
-
-  @override
-  String activityHoursMinutesRemaining(int hours, int minutes) {
-    return '${hours}h ${minutes}m left';
-  }
-
-  @override
   String get gameStatusDirectStorage => 'DirectStorage';
 
   @override

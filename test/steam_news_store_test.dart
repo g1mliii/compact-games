@@ -57,6 +57,30 @@ void main() {
     });
   });
 
+  group('steamNewsPermalink', () {
+    test('builds a store news link that survives its own sanitizer', () {
+      final url = steamNewsPermalink(620, '1840944183775194');
+
+      expect(
+        url,
+        'https://store.steampowered.com/news/app/620/view/1840944183775194',
+      );
+      // The value is persisted and re-validated on the next launch, so a
+      // permalink the sanitizer would reject is a card that dies overnight.
+      expect(sanitizedNewsUrl(url), url);
+    });
+
+    test('refuses ids and app ids it cannot vouch for', () {
+      expect(steamNewsPermalink(0, '184094418'), isNull);
+      expect(steamNewsPermalink(-1, '184094418'), isNull);
+      expect(steamNewsPermalink(620, ''), isNull);
+      // Anything that is not a bare id could steer the path elsewhere.
+      expect(steamNewsPermalink(620, '../../evil'), isNull);
+      expect(steamNewsPermalink(620, '1 2'), isNull);
+      expect(steamNewsPermalink(620, 'a' * 33), isNull);
+    });
+  });
+
   group('boundedNewsText', () {
     test('strips html and bbcode markup', () {
       expect(

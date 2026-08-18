@@ -701,21 +701,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String activitySecondsRemaining(int seconds) {
-    return 'Quedan ${seconds}s';
-  }
-
-  @override
-  String activityMinutesRemaining(int minutes) {
-    return 'Quedan $minutes min';
-  }
-
-  @override
-  String activityHoursMinutesRemaining(int hours, int minutes) {
-    return 'Quedan $hours h $minutes min';
-  }
-
-  @override
   String get gameStatusDirectStorage => 'DirectStorage';
 
   @override

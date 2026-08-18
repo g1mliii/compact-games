@@ -1989,7 +1989,6 @@ impl SseDecode for crate::api::types::FrbCompressionProgress {
         let mut var_bytesOriginal = <u64>::sse_decode(deserializer);
         let mut var_bytesCompressed = <u64>::sse_decode(deserializer);
         let mut var_bytesSaved = <u64>::sse_decode(deserializer);
-        let mut var_estimatedTimeRemainingMs = <Option<i64>>::sse_decode(deserializer);
         let mut var_isComplete = <bool>::sse_decode(deserializer);
         return crate::api::types::FrbCompressionProgress {
             game_name: var_gameName,
@@ -1998,7 +1997,6 @@ impl SseDecode for crate::api::types::FrbCompressionProgress {
             bytes_original: var_bytesOriginal,
             bytes_compressed: var_bytesCompressed,
             bytes_saved: var_bytesSaved,
-            estimated_time_remaining_ms: var_estimatedTimeRemainingMs,
             is_complete: var_isComplete,
         };
     }
@@ -2948,9 +2946,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::types::FrbCompressionProgress
             self.bytes_original.into_into_dart().into_dart(),
             self.bytes_compressed.into_into_dart().into_dart(),
             self.bytes_saved.into_into_dart().into_dart(),
-            self.estimated_time_remaining_ms
-                .into_into_dart()
-                .into_dart(),
             self.is_complete.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -3629,7 +3624,6 @@ impl SseEncode for crate::api::types::FrbCompressionProgress {
         <u64>::sse_encode(self.bytes_original, serializer);
         <u64>::sse_encode(self.bytes_compressed, serializer);
         <u64>::sse_encode(self.bytes_saved, serializer);
-        <Option<i64>>::sse_encode(self.estimated_time_remaining_ms, serializer);
         <bool>::sse_encode(self.is_complete, serializer);
     }
 }

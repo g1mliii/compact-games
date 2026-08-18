@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:compact_games/l10n/app_localizations.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/localization/app_localization.dart';
@@ -99,8 +98,6 @@ class CompressionProgressIndicator extends StatelessWidget {
                       ? _compressionGradient
                       : _decompressionGradient,
                   preparingLabel: l10n.activityPreparing,
-                  timeRemainingBuilder: (seconds) =>
-                      _formatTimeRemaining(l10n, seconds),
                 ),
                 SizedBox(height: compact ? 10 : 12),
                 _ActivityStats(
@@ -484,7 +481,6 @@ class _ActivityProgressBar extends StatelessWidget {
     required this.accentColor,
     required this.gradient,
     required this.preparingLabel,
-    required this.timeRemainingBuilder,
   });
 
   final CompressionActivityUiModel activity;
@@ -493,32 +489,16 @@ class _ActivityProgressBar extends StatelessWidget {
   final Color accentColor;
   final Gradient gradient;
   final String preparingLabel;
-  final String Function(int seconds) timeRemainingBuilder;
 
   @override
   Widget build(BuildContext context) {
-    final trailingText =
-        activity.hasKnownFileTotal && activity.etaSeconds != null
-        ? timeRemainingBuilder(activity.etaSeconds!)
-        : null;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                activity.hasKnownFileTotal
-                    ? '${activity.percent}%'
-                    : preparingLabel,
-                style: AppTypography.monoMedium.copyWith(color: accentColor),
-              ),
-            ),
-            if (trailingText != null)
-              Text(trailingText, style: AppTypography.bodySmall),
-          ],
+        Text(
+          activity.hasKnownFileTotal ? '${activity.percent}%' : preparingLabel,
+          style: AppTypography.monoMedium.copyWith(color: accentColor),
         ),
         SizedBox(height: compact ? 6 : 8),
         RepaintBoundary(
@@ -647,18 +627,4 @@ class _StatChip extends StatelessWidget {
       ],
     );
   }
-}
-
-String _formatTimeRemaining(AppLocalizations l10n, int seconds) {
-  if (seconds < 60) {
-    return l10n.activitySecondsRemaining(seconds);
-  }
-  if (seconds < 3600) {
-    final minutes = seconds ~/ 60;
-    return l10n.activityMinutesRemaining(minutes);
-  }
-
-  final hours = seconds ~/ 3600;
-  final minutes = (seconds % 3600) ~/ 60;
-  return l10n.activityHoursMinutesRemaining(hours, minutes);
 }

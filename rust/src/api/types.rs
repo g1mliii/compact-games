@@ -145,7 +145,6 @@ pub struct FrbCompressionProgress {
     pub bytes_original: u64,
     pub bytes_compressed: u64,
     pub bytes_saved: u64,
-    pub estimated_time_remaining_ms: Option<i64>,
     pub is_complete: bool,
 }
 
@@ -158,7 +157,6 @@ impl From<CompressionProgress> for FrbCompressionProgress {
             bytes_original: p.bytes_original,
             bytes_compressed: p.bytes_compressed,
             bytes_saved: p.bytes_saved,
-            estimated_time_remaining_ms: p.estimated_time_remaining.map(|d| d.as_millis() as i64),
             is_complete: p.is_complete,
         }
     }

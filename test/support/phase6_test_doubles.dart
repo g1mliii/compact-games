@@ -350,7 +350,6 @@ class _DelayedActivityRustBridgeService extends _TestRustBridgeService {
     required int filesTotal,
     required int bytesOriginal,
     required int bytesCompressed,
-    Duration? estimatedTimeRemaining,
   }) {
     if (_compressionController.isClosed) {
       return;
@@ -363,7 +362,6 @@ class _DelayedActivityRustBridgeService extends _TestRustBridgeService {
         bytesOriginal: bytesOriginal,
         bytesCompressed: bytesCompressed,
         bytesSaved: bytesOriginal - bytesCompressed,
-        estimatedTimeRemaining: estimatedTimeRemaining,
         isComplete: filesTotal > 0 && filesProcessed >= filesTotal,
       ),
     );
