@@ -256,7 +256,8 @@ void main() {
         jsonDecode(
               _newsBody(
                 gid: '1840944183775194',
-                url: 'https://steamcommunity.com/games/620/announcements/'
+                url:
+                    'https://steamcommunity.com/games/620/announcements/'
                     'detail/1840944183775194',
               ),
             )

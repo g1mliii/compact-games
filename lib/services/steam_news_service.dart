@@ -212,8 +212,8 @@ GameNewsItem? parseFirstNewsItem(
     // every entry, so the permalink built from the app id and gid is the
     // normal outcome, not the fallback. The reported link is still preferred
     // when it happens to be trusted, since that is the more specific page.
-    final url = sanitizedNewsUrl(entry['url']) ??
-        steamNewsPermalink(steamAppId, id);
+    final url =
+        sanitizedNewsUrl(entry['url']) ?? steamNewsPermalink(steamAppId, id);
     if (url == null) {
       continue;
     }
