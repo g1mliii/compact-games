@@ -41,7 +41,7 @@ dependencies:
 
   # Code generation (FRB needs freezed_annotation at runtime)
   freezed_annotation: ^3.1.0
-  intl: ^0.20.2
+  intl: ^0.20.3
 
   # SVG rendering (platform chips)
   flutter_svg: ^2.3.0
