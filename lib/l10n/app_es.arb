@@ -1285,38 +1285,6 @@
   "@libraryHomeRowSubtitle": {
     "description": "Secondary line of the persistent Library Home row."
   },
-  "libraryHomeHighlightsHeading": "Destacados de la biblioteca",
-  "@libraryHomeHighlightsHeading": {
-    "description": "Heading above the Library Home highlight cards."
-  },
-  "libraryHomeTotalGamesLabel": "Juegos",
-  "@libraryHomeTotalGamesLabel": {
-    "description": "Label for the total number of discovered games."
-  },
-  "libraryHomeCompressedLabel": "Comprimidos",
-  "@libraryHomeCompressedLabel": {
-    "description": "Label for the number of compressed games."
-  },
-  "libraryHomeSpaceSavedLabel": "Espacio ahorrado",
-  "@libraryHomeSpaceSavedLabel": {
-    "description": "Label for the measured amount of disk space reclaimed."
-  },
-  "libraryHomeLargestInstallLabel": "Instalación más grande",
-  "@libraryHomeLargestInstallLabel": {
-    "description": "Label for the largest installed game."
-  },
-  "libraryHomeBiggestSaverLabel": "Mayor ahorro",
-  "@libraryHomeBiggestSaverLabel": {
-    "description": "Label for the game that reclaimed the most space."
-  },
-  "libraryHomeRecentlyCompressedLabel": "Comprimido recientemente",
-  "@libraryHomeRecentlyCompressedLabel": {
-    "description": "Label for the most recently compressed game."
-  },
-  "libraryHomeHighlightEmpty": "Nada todavía",
-  "@libraryHomeHighlightEmpty": {
-    "description": "Shown in a Library Home highlight card when no game qualifies."
-  },
   "libraryHomeEmptyTitle": "Aún no se han detectado juegos",
   "@libraryHomeEmptyTitle": {
     "description": "Library Home title shown when the library is empty."
@@ -1329,6 +1297,23 @@
   "@libraryHomeNewsHeading": {
     "description": "Heading above the Library Home What's New shelf."
   },
+  "libraryHomePlayersHeading": "Jugando ahora",
+  "@libraryHomePlayersHeading": {
+    "description": "Heading above the Library Home live player-count panel."
+  },
+  "libraryHomePlayersCount": "{count} jugando",
+  "@libraryHomePlayersCount": {
+    "description": "Live player count for one game. {count} is already formatted for the locale.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryHomePlayersStale": "Mostrando los últimos recuentos conocidos",
+  "@libraryHomePlayersStale": {
+    "description": "Shown when a player-count refresh failed and earlier numbers are displayed."
+  },
   "libraryHomeNewsSourceSteam": "Comunidad de Steam",
   "@libraryHomeNewsSourceSteam": {
     "description": "Source label shown on every news card."
@@ -1336,6 +1321,30 @@
   "libraryHomeNewsStale": "Mostrando elementos guardados",
   "@libraryHomeNewsStale": {
     "description": "Shown when a refresh failed and cached news is displayed."
+  },
+  "libraryHomeNewsOpenAction": "Abrir en el navegador",
+  "@libraryHomeNewsOpenAction": {
+    "description": "Tooltip on a news card, which opens the article in the default browser."
+  },
+  "libraryHomeNewsReadAction": "Leer el anuncio",
+  "@libraryHomeNewsReadAction": {
+    "description": "Tooltip on a news tile, which opens the announcement in the in-app reader."
+  },
+  "libraryHomeNewsCloseAction": "Cerrar",
+  "@libraryHomeNewsCloseAction": {
+    "description": "Label of the button that closes the in-app news reader."
+  },
+  "libraryHomeNewsBodyUnavailable": "Steam no envió texto para este anuncio. Ábrelo en Steam para leer la publicación completa.",
+  "@libraryHomeNewsBodyUnavailable": {
+    "description": "Shown in the reader when the announcement carries no body text."
+  },
+  "libraryHomeNewsScrollBack": "Noticias anteriores",
+  "@libraryHomeNewsScrollBack": {
+    "description": "Tooltip on the button that scrolls the news shelf back."
+  },
+  "libraryHomeNewsScrollForward": "Más noticias",
+  "@libraryHomeNewsScrollForward": {
+    "description": "Tooltip on the button that scrolls the news shelf forward."
   },
   "settingsAboutWebsiteAction": "Sitio web",
   "@settingsAboutWebsiteAction": {

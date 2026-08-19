@@ -38,6 +38,7 @@ import 'package:compact_games/models/game_info.dart';
 import 'package:compact_games/models/watcher_event.dart';
 import 'package:compact_games/providers/cover_art/cover_art_provider.dart';
 import 'package:compact_games/providers/compression/compression_provider.dart';
+import 'package:compact_games/features/games/presentation/widgets/library_home/library_home_surface.dart';
 import 'package:compact_games/providers/games/game_list_provider.dart';
 import 'package:compact_games/providers/games/selected_game_provider.dart';
 import 'package:compact_games/providers/settings/settings_persistence.dart';
@@ -46,6 +47,8 @@ import 'package:compact_games/providers/system/route_state_provider.dart';
 import 'package:compact_games/services/cover_art_service.dart';
 import 'package:compact_games/services/rust_bridge_service.dart';
 import 'package:compact_games/src/rust/api/update.dart' as rust_update;
+
+import 'support/library_home_offline.dart';
 
 part 'support/phase6_test_doubles.dart';
 part 'support/phase6_ui_split_tests.dart';

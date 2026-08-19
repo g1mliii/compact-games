@@ -799,3 +799,100 @@ fn known_directstorage_game_refreshes_false_index_hit() {
         "known-game database should override stale false DirectStorage index metadata",
     );
 }
+
+/// A full walk that runs out of budget is inconclusive, not a verdict that the
+/// candidate is not a game. Before this, the limit branch called
+/// `evict_candidate`, so a game that grew past the ceiling lost the
+/// authoritative measurement taken when it was still small and vanished from
+/// the library — and, because nothing was persisted, every later scan repeated
+/// the same capped walk to reach the same answer.
+#[test]
+fn full_scan_at_file_limit_keeps_authoritative_cache_instead_of_evicting() {
+    let _guard = lock_discovery_test();
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("EngineSizedInstall");
+    let deep_content = game_dir
+        .join("content")
+        .join("packs")
+        .join("nested")
+        .join("data");
+    fs::create_dir_all(&deep_content).unwrap();
+
+    File::create(game_dir.join("game.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
+    File::create(deep_content.join("bulk.pak"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
+
+    let full = build_game_info_with_mode_and_stats_path(
+        "Engine Sized Install".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    )
+    .expect("full scan should measure the install while it fits the ceiling");
+    let authoritative_size = full.size_bytes;
+    assert!(authoritative_size >= 700 * 1024 * 1024);
+
+    // Grow it past the ceiling. The extra file also drifts the change token, so
+    // the cache and index lookups miss and the walk actually runs.
+    File::create(game_dir.join("bulk.pak"))
+        .unwrap()
+        .set_len(8 * 1024 * 1024)
+        .unwrap();
+    let _limit = crate::discovery::utils::stats::test_support::FullScanLimitGuard::set(1);
+
+    let capped = build_game_info_with_mode_and_stats_path(
+        "Engine Sized Install".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    )
+    .expect("a capped walk must not drop a game that was already measured");
+
+    assert_eq!(
+        capped.size_bytes, authoritative_size,
+        "the partial walk is a lower bound and must not overwrite the authoritative size",
+    );
+    assert!(
+        cache::lookup_stale(&game_dir).is_some(),
+        "an inconclusive measurement must not evict the cache entry",
+    );
+}
+
+/// The other half of the same rule: with nothing cached there is genuinely
+/// nothing to report, but the branch must still not reach for `evict_candidate`.
+#[test]
+fn full_scan_at_file_limit_skips_quietly_when_nothing_was_ever_cached() {
+    let _guard = lock_discovery_test();
+    let temp = tempfile::TempDir::new().unwrap();
+    let game_dir = temp.path().join("NeverMeasured");
+    let deep_content = game_dir.join("content").join("data");
+    fs::create_dir_all(&deep_content).unwrap();
+    File::create(game_dir.join("game.exe"))
+        .unwrap()
+        .set_len(3 * 1024 * 1024)
+        .unwrap();
+    File::create(deep_content.join("bulk.pak"))
+        .unwrap()
+        .set_len(700 * 1024 * 1024)
+        .unwrap();
+
+    let _limit = crate::discovery::utils::stats::test_support::FullScanLimitGuard::set(0);
+
+    let capped = build_game_info_with_mode_and_stats_path(
+        "Never Measured".to_owned(),
+        game_dir.clone(),
+        game_dir.clone(),
+        Platform::Steam,
+        DiscoveryScanMode::Full,
+    );
+
+    assert!(capped.is_none());
+    assert!(cache::lookup_stale(&game_dir).is_none());
+}

@@ -40,7 +40,10 @@ class GameDetailsCover extends StatelessWidget {
                 coverProvider == null
                     ? _CoverFallback(platform: platform)
                     : coverArtType == CoverArtType.icon
-                    ? _IconCoverLayout(coverProvider: coverProvider!)
+                    ? _IconCoverLayout(
+                        coverProvider: coverProvider!,
+                        platform: platform,
+                      )
                     : _CachedResizeImage(
                         provider: coverProvider!,
                         decodeWidth: decodeWidth,
@@ -64,9 +67,13 @@ class GameDetailsCover extends StatelessWidget {
 }
 
 class _IconCoverLayout extends StatelessWidget {
-  const _IconCoverLayout({required this.coverProvider});
+  const _IconCoverLayout({required this.coverProvider, required this.platform});
 
   final ImageProvider<Object> coverProvider;
+
+  /// Carried so a failed decode can fall back to the same plate every other
+  /// artless game shows, rather than to an empty rectangle.
+  final Platform platform;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +89,7 @@ class _IconCoverLayout extends StatelessWidget {
               image: coverProvider,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.medium,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              errorBuilder: (_, _, _) => _CoverFallback(platform: platform),
             ),
           ),
         ),

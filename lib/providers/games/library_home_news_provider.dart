@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/lifecycle/app_window_visibility.dart';
@@ -10,7 +9,9 @@ import '../../models/game_info.dart';
 import '../../models/game_news_item.dart';
 import '../../services/steam_news_service.dart';
 import '../../services/steam_news_store.dart';
+import 'game_catalog_identity_provider.dart';
 import 'game_list_provider.dart';
+import 'library_home_section_lifecycle.dart';
 
 /// Whether the news shelf may reach the network.
 ///
@@ -24,7 +25,9 @@ final steamNewsStoreProvider = Provider<SteamNewsStore>(
 );
 
 final steamNewsServiceProvider = Provider.autoDispose<SteamNewsService>((ref) {
-  final service = SteamNewsService();
+  final service = SteamNewsService(
+    identityService: ref.watch(gameCatalogIdentityServiceProvider),
+  );
   ref.onDispose(service.shutdown);
   return service;
 });
@@ -66,26 +69,13 @@ final libraryHomeNewsProvider =
       LibraryHomeNewsState
     >(LibraryHomeNewsNotifier.new);
 
-class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState> {
-  var _disposed = false;
-
-  /// Re-entrancy guard for [refresh]. Private because nothing renders it — a
-  /// spinner on the shelf would fight the cached items it is drawn over.
-  var _refreshing = false;
-  VoidCallback? _visibilityListener;
+class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState>
+    with LibraryHomeSectionLifecycle<LibraryHomeNewsState> {
   late SteamNewsService _service;
 
   @override
   Future<LibraryHomeNewsState> build() async {
-    // Riverpod runs build-scoped onDispose callbacks on recomputation, not only
-    // on destruction, so the flags have to be cleared here. Otherwise the first
-    // rebuild latches them permanently and every later load and refresh bails.
-    _disposed = false;
-    _refreshing = false;
-    ref.onDispose(() {
-      _disposed = true;
-      _detachVisibilityListener();
-    });
+    armSectionLifecycle();
     // Watching the auto-disposed service ties its request queue to this
     // surface. Leaving Library Home therefore calls shutdown and cancels any
     // candidates that have not started yet.
@@ -93,7 +83,7 @@ class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState> {
 
     final store = ref.read(steamNewsStoreProvider);
     final cached = await store.load();
-    if (_disposed) {
+    if (isDisposed) {
       return LibraryHomeNewsState.empty;
     }
 
@@ -104,7 +94,7 @@ class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState> {
     if (!isFresh) {
       // Paint the cache first, then refresh after the frame so the surface's
       // first appearance is never blocked on the network.
-      _scheduleRefreshAfterFirstPaint();
+      scheduleRefreshAfterFirstPaint();
     }
     return LibraryHomeNewsState(
       items: visible,
@@ -112,44 +102,9 @@ class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState> {
     );
   }
 
-  void _scheduleRefreshAfterFirstPaint() {
-    final binding = SchedulerBinding.instance;
-    binding.addPostFrameCallback((_) {
-      if (_disposed) return;
-      unawaited(refresh());
-    });
-    // A post-frame callback only fires if another frame is scheduled; ask for
-    // one so a static surface still triggers the refresh.
-    binding.scheduleFrame();
-  }
-
-  /// Retries the skipped refresh the next time the window leaves the tray.
-  ///
-  /// One-shot and idempotent: the listener detaches itself as soon as it fires,
-  /// so repeated [refresh] calls while hidden cannot stack subscriptions.
-  void _refreshWhenVisible() {
-    if (_visibilityListener != null) return;
-    void listener() {
-      if (appWindowVisibilityController.isHiddenToTray) return;
-      _detachVisibilityListener();
-      if (_disposed) return;
-      unawaited(refresh());
-    }
-
-    _visibilityListener = listener;
-    appWindowVisibilityController.addListener(listener);
-  }
-
-  void _detachVisibilityListener() {
-    final listener = _visibilityListener;
-    if (listener == null) return;
-    _visibilityListener = null;
-    appWindowVisibilityController.removeListener(listener);
-  }
-
-  /// Refreshes from the network when allowed. Safe to call redundantly.
+  @override
   Future<void> refresh() async {
-    if (_disposed || _refreshing) return;
+    if (shouldSkipRefresh) return;
     final current = state.value ?? LibraryHomeNewsState.empty;
 
     // A window hidden to the tray is not "visible Library Home" no matter what
@@ -157,7 +112,7 @@ class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState> {
     // the window to come back rather than leaving the shelf stale until the user
     // navigates away and returns.
     if (appWindowVisibilityController.isHiddenToTray) {
-      _refreshWhenVisible();
+      refreshWhenVisible();
       return;
     }
 
@@ -172,16 +127,11 @@ class LibraryHomeNewsNotifier extends AsyncNotifier<LibraryHomeNewsState> {
 
     final bridge = ref.read(rustBridgeServiceProvider);
 
-    List<GameNewsItem> fetched;
-    _refreshing = true;
-    try {
-      fetched = await _service.refresh(games, rustBridge: bridge);
-    } catch (_) {
-      fetched = const <GameNewsItem>[];
-    } finally {
-      _refreshing = false;
-    }
-    if (_disposed) return;
+    final fetched = await guardedFetch(
+      () => _service.refresh(games, rustBridge: bridge),
+      fallback: const <GameNewsItem>[],
+    );
+    if (isDisposed) return;
 
     if (fetched.isEmpty) {
       // Keep whatever the cache gave us and mark it stale rather than blanking

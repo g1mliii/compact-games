@@ -9,7 +9,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/noop_rust_bridge_service.dart';
+import 'support/library_home_offline.dart';
 
 const int _oneGiB = 1024 * 1024 * 1024;
 
@@ -22,17 +22,6 @@ final List<GameInfo> _games = <GameInfo>[
     steamAppId: 620,
   ),
 ];
-
-class _GamesBridgeService extends NoOpRustBridgeService {
-  const _GamesBridgeService();
-
-  @override
-  Future<List<GameInfo>> getAllGames() async => _games;
-  @override
-  Future<List<GameInfo>> getAllGamesQuick() async => _games;
-  @override
-  Future<List<GameInfo>> refreshAllGames() async => _games;
-}
 
 GameNewsItem _item(String id, {DateTime? at}) => GameNewsItem(
   id: id,
@@ -96,7 +85,7 @@ ProviderContainer _container({
 }) {
   final container = ProviderContainer(
     overrides: [
-      rustBridgeServiceProvider.overrideWithValue(const _GamesBridgeService()),
+      rustBridgeServiceProvider.overrideWithValue(GamesBridgeService(_games)),
       steamNewsStoreProvider.overrideWithValue(store),
       steamNewsServiceProvider.overrideWith((ref) {
         ref.onDispose(service.shutdown);

@@ -25,13 +25,140 @@ String foldGameTitle(String value, {RustBridgeService? rustBridge}) {
     }
   }
   return folded
+      // Apostrophes close up rather than splitting the word. Steam writes
+      // "Rina's Undercover" where the folder on disk says "Rinas Undercover";
+      // turning the apostrophe into a space made those two fold to "rina s
+      // undercover" and "rinas undercover", which match nothing in common.
+      .replaceAll(_apostrophes, '')
       .replaceAll(_nonAlphanumeric, ' ')
       .replaceAll(_repeatedWhitespace, ' ')
       .trim();
 }
 
+/// The straight, curly, and modifier-letter apostrophes titles are written with.
+final RegExp _apostrophes = RegExp("['’ʼ‘`]");
 final RegExp _nonAlphanumeric = RegExp(r'[^a-z0-9]+');
 final RegExp _repeatedWhitespace = RegExp(r'\s+');
+
+/// Words that mark a store entry as something sold *alongside* a game rather
+/// than the game itself.
+///
+/// Steam's search returns a game's artbook, soundtrack, demo, and DLC beside
+/// it, and those names are often *shorter* than the game's own — "Succubus
+/// Successor - Digital Artbook" against "Succubus Successor: Delilah's Juicy
+/// Journey". Any rule that prefers the closest name therefore lands on the
+/// artbook, whose app id has no library capsule and no players.
+const Set<String> _ancillaryStoreWords = <String>{
+  'artbook',
+  'soundtrack',
+  'ost',
+  'demo',
+  'dlc',
+  'wallpaper',
+  'wallpapers',
+  'bundle',
+  'sdk',
+  'trailer',
+  'pass',
+  'pack',
+  'server',
+  'beta',
+  'playtest',
+};
+
+/// Whether [foldedCandidate] looks like an add-on for [foldedQuery] rather than
+/// the game itself. Only the text beyond the query is examined, so a game
+/// genuinely called "Pack" or "Beta" is unaffected.
+///
+/// Shared with cover art so the two lookups cannot disagree about which store
+/// entry is the game.
+bool isAncillaryStoreItem(String foldedCandidate, String foldedQuery) {
+  if (!foldedCandidate.startsWith(foldedQuery)) {
+    return false;
+  }
+  final extra = foldedCandidate.substring(foldedQuery.length);
+  return extra
+      .split(' ')
+      .where((word) => word.isNotEmpty)
+      .any(_ancillaryStoreWords.contains);
+}
+
+/// Words that make the text after a title another *release* of it, or another
+/// game in the series — never a subtitle of the same thing.
+const Set<String> _sequelOrEditionWords = <String>{
+  'edition',
+  'goty',
+  'remaster',
+  'remastered',
+  'remake',
+  'definitive',
+  'complete',
+  'deluxe',
+  'ultimate',
+  'collection',
+  'anniversary',
+  'enhanced',
+  'redux',
+  'classic',
+  'hd',
+  'vr',
+  'reloaded',
+};
+
+/// Roman numerals a sequel is numbered with, up to the point sequels stop.
+const Set<String> _romanNumerals = <String>{
+  'ii',
+  'iii',
+  'iv',
+  'v',
+  'vi',
+  'vii',
+  'viii',
+  'ix',
+  'x',
+};
+
+/// Whether [foldedCandidate] is [foldedQuery] plus a subtitle — the same game
+/// under the fuller name the store gives it.
+///
+/// Four things it must not accept, each of which is a different game or a
+/// different SKU with its own app id, its own news, and its own population:
+///
+/// * a title that merely runs on from the query — "Portal" against
+///   "PortalKnights", which the trailing space rules out;
+/// * a sequel — "Portal" against "Portal 2", so a numbered continuation is out;
+/// * another release of the same game — "The Witcher 3: Wild Hunt" against its
+///   "Game of the Year Edition";
+/// * the *next* game in a series, which is how series are usually named: one
+///   word appended, no number in sight. "Portal Knights", "Half-Life Alyx",
+///   and "Fallout Shelter" all fold to their predecessor plus a single word
+///   and would otherwise sail through, handing a folder called "Portal" or
+///   "Half Life" another game's app id.
+///
+/// That last one is why a subtitle has to be at least two words here. It costs
+/// the odd real one-word subtitle, which leaves that game with no identity —
+/// the outcome this file's header asks for over a confident wrong answer.
+bool isSubtitledMatch(String foldedCandidate, String foldedQuery) {
+  if (!foldedCandidate.startsWith('$foldedQuery ')) {
+    return false;
+  }
+
+  final extra = foldedCandidate
+      .substring(foldedQuery.length)
+      .split(' ')
+      .where((word) => word.isNotEmpty)
+      .toList();
+  if (extra.length < 2) {
+    return false;
+  }
+  // A number or numeral immediately after the title is a sequel, not a
+  // subtitle. Deeper in, it is ordinary title text ("Train Operation 2000").
+  final first = extra.first;
+  if (int.tryParse(first) != null || _romanNumerals.contains(first)) {
+    return false;
+  }
+  return !extra.any(_sequelOrEditionWords.contains);
+}
 
 const Map<String, String> _diacriticFolds = <String, String>{
   'à': 'a',
@@ -143,10 +270,20 @@ class GameCatalogIdentity {
 /// Resolves a game to a Steam app id for features that must not guess.
 ///
 /// Cover art can afford a near-miss — a slightly wrong capsule is a cosmetic
-/// bug. News cannot: attributing another game's patch notes to your library is
-/// wrong information, so the catalog step here accepts an **exact** folded
-/// title match and nothing else. No prefix, contains, or closest-length
-/// fallback.
+/// bug. News and player counts cannot: attributing another game's patch notes
+/// or population to your library is wrong information. So the catalog step
+/// accepts exactly two shapes and nothing looser — no contains, no
+/// closest-length fallback:
+///
+/// * an exact folded title match, when only one entry has it; or
+/// * a single entry that is the folded title plus a subtitle, once artbooks,
+///   soundtracks, demos, and DLC are set aside.
+///
+/// The second exists because a folder is named more tersely than the store is
+/// — "Rinas Undercover" on disk against "Rina's Undercover Train Operation" —
+/// and a game whose folder disagrees with the store that way is not a game
+/// this app should silently know nothing about. Two survivors is still an
+/// unresolved identity: the folder name does not say which one it is.
 ///
 /// Requests are deliberately independent of [CoverArtService]'s HTTP client so
 /// a feature that is disabled or offline performs no work in the cover path.
@@ -234,6 +371,11 @@ class GameCatalogIdentityService {
     }
 
     int? exactAppId;
+    // Candidates whose name is the folder's name plus a subtitle. Steam titles
+    // an installed folder's game more fully than the folder does — "Rina's
+    // Undercover Train Operation" lives in "Rinas Undercover" — so an
+    // exact-only rule leaves those games with no identity at all.
+    final subtitled = <int>{};
     for (final item in items) {
       if (item is! Map) {
         continue;
@@ -243,7 +385,12 @@ class GameCatalogIdentityService {
       if (name is! String || id == null) {
         continue;
       }
-      if (foldGameTitle(name, rustBridge: rustBridge) != folded) {
+      final candidate = foldGameTitle(name, rustBridge: rustBridge);
+      if (candidate != folded) {
+        if (isSubtitledMatch(candidate, folded) &&
+            !isAncillaryStoreItem(candidate, folded)) {
+          subtitled.add(id);
+        }
         continue;
       }
       if (exactAppId != null && exactAppId != id) {
@@ -254,12 +401,22 @@ class GameCatalogIdentityService {
       }
       exactAppId = id;
     }
-    return exactAppId == null
-        ? GameCatalogIdentity.unknown
-        : GameCatalogIdentity(
-            steamAppId: exactAppId,
-            source: GameCatalogIdentitySource.strictCatalogMatch,
-          );
+    if (exactAppId != null) {
+      return GameCatalogIdentity(
+        steamAppId: exactAppId,
+        source: GameCatalogIdentitySource.strictCatalogMatch,
+      );
+    }
+    // One survivor is an answer; several means the folder name does not say
+    // which game it is, and guessing would put another game's news and player
+    // count on this one.
+    if (subtitled.length == 1) {
+      return GameCatalogIdentity(
+        steamAppId: subtitled.first,
+        source: GameCatalogIdentitySource.strictCatalogMatch,
+      );
+    }
+    return GameCatalogIdentity.unknown;
   }
 
   Future<Map<String, dynamic>?> _getJson(Uri uri) {

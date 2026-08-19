@@ -86,9 +86,12 @@ void main() {
     });
 
     test('is stable across the separators launchers actually emit', () {
-      const expected = 'marvel s spider man remastered';
+      // The apostrophe closes up rather than splitting the word, so a folder
+      // written without one still folds to the store's spelling.
+      const expected = 'marvels spider man remastered';
       expect(foldGameTitle("Marvel's Spider-Man Remastered"), expected);
       expect(foldGameTitle('Marvel’s Spider‑Man Remastered'), expected);
+      expect(foldGameTitle('Marvels Spider Man Remastered'), expected);
     });
   });
 

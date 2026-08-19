@@ -1,5 +1,7 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use super::cache::normalize_path_key;
 use super::platform::{DiscoveryScanMode, GameInfo, Platform, PlatformScanner};
 use super::scan_error::ScanError;
 use super::utils;
@@ -110,23 +112,64 @@ fn scan_manifest_files(dir: &Path, mode: DiscoveryScanMode) -> Vec<GameInfo> {
         return Vec::new();
     };
 
+    // Several manifests routinely name the same directory — an Unreal Engine
+    // install is listed again by every plugin and tool that ships inside it.
+    // Measuring a directory is the expensive part of a scan, so the manifests
+    // are collapsed by install location first: without this, one 250k-file
+    // engine folder was walked once per manifest that mentioned it.
+    let mut seen_locations = HashSet::new();
     entries
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "item"))
-        .filter_map(|e| {
-            let content = std::fs::read_to_string(e.path()).ok()?;
-            parse_epic_manifest_item(&content, mode)
+        .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+        .filter_map(|content| {
+            let json = parse_epic_manifest_json(&content)?;
+            let location = normalize_path_key(Path::new(epic_install_location(&json)?));
+            if seen_locations.contains(&location) {
+                return None;
+            }
+            // Claimed only once a manifest actually yields a game. Claiming it
+            // up front let a manifest that produces nothing — no `DisplayName`,
+            // a directory the install probe rejects — swallow the sibling
+            // manifest that would have produced the game, and `read_dir` order
+            // decides which one goes first, so an Unreal plugin entry could
+            // shadow the game's own. The repeated measurement this risks is
+            // bounded by how many manifests fail, which is the rarer case.
+            let info = parse_epic_manifest_value(&json, mode)?;
+            seen_locations.insert(location);
+            Some(info)
         })
         .collect()
 }
 
-fn parse_epic_manifest_item(content: &str, mode: DiscoveryScanMode) -> Option<GameInfo> {
-    let json: serde_json::Value = serde_json::from_str(content)
+fn parse_epic_manifest_json(content: &str) -> Option<serde_json::Value> {
+    serde_json::from_str(content)
         .inspect_err(|e| log::debug!("Failed to parse Epic manifest: {e}"))
-        .ok()?;
+        .ok()
+}
 
+/// Where the manifest says the game is installed.
+///
+/// The one definition of it: the dedupe below and the `GameInfo` built from the
+/// same manifest have to agree about which directory an entry names, or the
+/// dedupe collapses on a different key than the one it is protecting.
+fn epic_install_location(json: &serde_json::Value) -> Option<&str> {
+    json.get("InstallLocation").and_then(|v| v.as_str())
+}
+
+/// Parses one manifest's text. Only the tests still start from a string; the
+/// scan parses once and works from the [`serde_json::Value`].
+#[cfg(test)]
+fn parse_epic_manifest_item(content: &str, mode: DiscoveryScanMode) -> Option<GameInfo> {
+    parse_epic_manifest_value(&parse_epic_manifest_json(content)?, mode)
+}
+
+fn parse_epic_manifest_value(
+    json: &serde_json::Value,
+    mode: DiscoveryScanMode,
+) -> Option<GameInfo> {
     let name = json.get("DisplayName").and_then(|v| v.as_str())?.to_owned();
-    let install_location = json.get("InstallLocation").and_then(|v| v.as_str())?;
+    let install_location = epic_install_location(json)?;
 
     let game_path = PathBuf::from(install_location);
     if !game_path.is_dir() {

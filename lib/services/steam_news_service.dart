@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -7,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../core/utils/bounded_list.dart';
 import '../models/game_info.dart';
 import '../models/game_news_item.dart';
+import 'bounded_fanout.dart';
 import 'bounded_json_http.dart';
 import 'game_catalog_identity_service.dart';
 import 'rust_bridge_service.dart';
@@ -23,6 +23,10 @@ class SteamNewsService {
     GameCatalogIdentityService? identityService,
     http.Client Function()? clientFactory,
   }) : _identity = identityService ?? GameCatalogIdentityService(),
+       // A caller-supplied identity service is shared with the app's other
+       // catalog consumers, so tearing this service down must not clear a
+       // lookup cache it does not own.
+       _ownsIdentity = identityService == null,
        _clientFactory = clientFactory ?? http.Client.new;
 
   static const String _newsHost = 'api.steampowered.com';
@@ -46,6 +50,7 @@ class SteamNewsService {
   static const int _maxResponseBytes = 256 * 1024;
 
   final GameCatalogIdentityService _identity;
+  final bool _ownsIdentity;
   final http.Client Function() _clientFactory;
   http.Client? _client;
 
@@ -69,27 +74,15 @@ class SteamNewsService {
       return const <GameNewsItem>[];
     }
 
-    final collected = <GameNewsItem>[];
-    final queue = Queue<GameInfo>.of(candidates);
+    bool isCurrent() => _generation == generation;
+    final collected = await collectBounded<GameInfo, GameNewsItem>(
+      candidates,
+      concurrency: maxConcurrency,
+      isCurrent: isCurrent,
+      fetch: (game) => _fetchOne(game, generation, rustBridge),
+    );
 
-    Future<void> worker() async {
-      while (queue.isNotEmpty) {
-        if (_generation != generation) {
-          return;
-        }
-        final game = queue.removeFirst();
-        final item = await _fetchOne(game, generation, rustBridge);
-        if (item != null && _generation == generation) {
-          collected.add(item);
-        }
-      }
-    }
-
-    await Future.wait(<Future<void>>[
-      for (var i = 0; i < maxConcurrency; i++) worker(),
-    ]);
-
-    if (_generation != generation) {
+    if (!isCurrent()) {
       return const <GameNewsItem>[];
     }
     return dedupeAndTrimNews(collected);
@@ -116,9 +109,12 @@ class SteamNewsService {
       // do its job: at count=1, a single malformed entry silently costs the
       // game its whole news slot.
       'count': '$_newsFetchCount',
-      // Ask Steam not to send the article body at all: the shelf shows a
-      // headline, so downloading contents would be paid-for and discarded.
-      'maxlength': '1',
+      // No `maxlength`: asking Steam to shorten the body makes it strip the
+      // markup itself and drop every line break with it, which arrives as one
+      // unreadable run-on paragraph. The full contents keep their structure,
+      // and boundedNewsBody does the shortening where the paragraphs are still
+      // visible. Five full posts measure in the tens of kilobytes, well inside
+      // [_maxResponseBytes].
       'format': 'json',
     });
 
@@ -145,7 +141,9 @@ class SteamNewsService {
     _generation += 1;
     _client?.close();
     _client = null;
-    _identity.shutdown();
+    if (_ownsIdentity) {
+      _identity.shutdown();
+    }
   }
 }
 
@@ -232,6 +230,9 @@ GameNewsItem? parseFirstNewsItem(
       title: title,
       url: url,
       publishedAt: publishedAt,
+      // Optional: an entry Steam sends with no contents is still a headline
+      // worth showing, and the reader falls back to its link.
+      body: boundedNewsBody(entry['contents']),
     );
   }
   return null;

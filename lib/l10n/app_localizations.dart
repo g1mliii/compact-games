@@ -1862,54 +1862,6 @@ abstract class AppLocalizations {
   /// **'Overview'**
   String get libraryHomeRowSubtitle;
 
-  /// Heading above the Library Home highlight cards.
-  ///
-  /// In en, this message translates to:
-  /// **'Library highlights'**
-  String get libraryHomeHighlightsHeading;
-
-  /// Label for the total number of discovered games.
-  ///
-  /// In en, this message translates to:
-  /// **'Games'**
-  String get libraryHomeTotalGamesLabel;
-
-  /// Label for the number of compressed games.
-  ///
-  /// In en, this message translates to:
-  /// **'Compressed'**
-  String get libraryHomeCompressedLabel;
-
-  /// Label for the measured amount of disk space reclaimed.
-  ///
-  /// In en, this message translates to:
-  /// **'Space saved'**
-  String get libraryHomeSpaceSavedLabel;
-
-  /// Label for the largest installed game.
-  ///
-  /// In en, this message translates to:
-  /// **'Largest install'**
-  String get libraryHomeLargestInstallLabel;
-
-  /// Label for the game that reclaimed the most space.
-  ///
-  /// In en, this message translates to:
-  /// **'Biggest saver'**
-  String get libraryHomeBiggestSaverLabel;
-
-  /// Label for the most recently compressed game.
-  ///
-  /// In en, this message translates to:
-  /// **'Recently compressed'**
-  String get libraryHomeRecentlyCompressedLabel;
-
-  /// Shown in a Library Home highlight card when no game qualifies.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing yet'**
-  String get libraryHomeHighlightEmpty;
-
   /// Library Home title shown when the library is empty.
   ///
   /// In en, this message translates to:
@@ -1928,6 +1880,24 @@ abstract class AppLocalizations {
   /// **'What\'s new'**
   String get libraryHomeNewsHeading;
 
+  /// Heading above the Library Home live player-count panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing now'**
+  String get libraryHomePlayersHeading;
+
+  /// Live player count for one game. {count} is already formatted for the locale.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} playing'**
+  String libraryHomePlayersCount(String count);
+
+  /// Shown when a player-count refresh failed and earlier numbers are displayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing last known counts'**
+  String get libraryHomePlayersStale;
+
   /// Source label shown on every news card.
   ///
   /// In en, this message translates to:
@@ -1939,6 +1909,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Showing saved items'**
   String get libraryHomeNewsStale;
+
+  /// Tooltip on a news card, which opens the article in the default browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get libraryHomeNewsOpenAction;
+
+  /// Tooltip on a news tile, which opens the announcement in the in-app reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Read announcement'**
+  String get libraryHomeNewsReadAction;
+
+  /// Label of the button that closes the in-app news reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get libraryHomeNewsCloseAction;
+
+  /// Shown in the reader when the announcement carries no body text.
+  ///
+  /// In en, this message translates to:
+  /// **'Steam sent no text for this announcement. Open it on Steam to read the full post.'**
+  String get libraryHomeNewsBodyUnavailable;
+
+  /// Tooltip on the button that scrolls the news shelf back.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous news'**
+  String get libraryHomeNewsScrollBack;
+
+  /// Tooltip on the button that scrolls the news shelf forward.
+  ///
+  /// In en, this message translates to:
+  /// **'More news'**
+  String get libraryHomeNewsScrollForward;
 
   /// Button that opens the Compact Games website.
   ///

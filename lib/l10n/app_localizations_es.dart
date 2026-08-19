@@ -1053,30 +1053,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get libraryHomeRowSubtitle => 'Resumen';
 
   @override
-  String get libraryHomeHighlightsHeading => 'Destacados de la biblioteca';
-
-  @override
-  String get libraryHomeTotalGamesLabel => 'Juegos';
-
-  @override
-  String get libraryHomeCompressedLabel => 'Comprimidos';
-
-  @override
-  String get libraryHomeSpaceSavedLabel => 'Espacio ahorrado';
-
-  @override
-  String get libraryHomeLargestInstallLabel => 'Instalación más grande';
-
-  @override
-  String get libraryHomeBiggestSaverLabel => 'Mayor ahorro';
-
-  @override
-  String get libraryHomeRecentlyCompressedLabel => 'Comprimido recientemente';
-
-  @override
-  String get libraryHomeHighlightEmpty => 'Nada todavía';
-
-  @override
   String get libraryHomeEmptyTitle => 'Aún no se han detectado juegos';
 
   @override
@@ -1087,10 +1063,41 @@ class AppLocalizationsEs extends AppLocalizations {
   String get libraryHomeNewsHeading => 'Novedades';
 
   @override
+  String get libraryHomePlayersHeading => 'Jugando ahora';
+
+  @override
+  String libraryHomePlayersCount(String count) {
+    return '$count jugando';
+  }
+
+  @override
+  String get libraryHomePlayersStale =>
+      'Mostrando los últimos recuentos conocidos';
+
+  @override
   String get libraryHomeNewsSourceSteam => 'Comunidad de Steam';
 
   @override
   String get libraryHomeNewsStale => 'Mostrando elementos guardados';
+
+  @override
+  String get libraryHomeNewsOpenAction => 'Abrir en el navegador';
+
+  @override
+  String get libraryHomeNewsReadAction => 'Leer el anuncio';
+
+  @override
+  String get libraryHomeNewsCloseAction => 'Cerrar';
+
+  @override
+  String get libraryHomeNewsBodyUnavailable =>
+      'Steam no envió texto para este anuncio. Ábrelo en Steam para leer la publicación completa.';
+
+  @override
+  String get libraryHomeNewsScrollBack => 'Noticias anteriores';
+
+  @override
+  String get libraryHomeNewsScrollForward => 'Más noticias';
 
   @override
   String get settingsAboutWebsiteAction => 'Sitio web';

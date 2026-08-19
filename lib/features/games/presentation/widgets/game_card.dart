@@ -209,7 +209,9 @@ class GameCard extends StatelessWidget {
               image: provider,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.medium,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              // An icon that will not decode leaves the tile empty otherwise,
+              // which reads as a broken card rather than a game without art.
+              errorBuilder: (_, _, _) => _buildPlaceholderCover(),
             ),
           ),
         ),

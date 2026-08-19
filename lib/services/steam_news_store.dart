@@ -39,7 +39,13 @@ class CachedNewsSnapshot {
 class SteamNewsStore {
   const SteamNewsStore();
 
-  static const String storageKey = 'compact_games_steam_news_v1';
+  static const String storageKey = 'compact_games_steam_news_v2';
+
+  /// The v1 payload, whose bodies Steam had already flattened into a single
+  /// run-on paragraph before we stored them. Nothing can un-flatten those, so
+  /// the version bump drops them and the next refresh fetches structured text
+  /// instead of leaving the reader unreadable until the cache aged out.
+  static const String legacyStorageKey = 'compact_games_steam_news_v1';
 
   /// Refresh window. A snapshot older than this is shown but re-fetched.
   static const Duration freshness = Duration(hours: 6);
@@ -47,12 +53,20 @@ class SteamNewsStore {
   /// Upper bound on persisted items.
   static const int maxPersistedItems = 24;
 
-  /// Upper bound on the encoded payload.
-  static const int maxPersistedBytes = 128 * 1024;
+  /// Upper bound on the encoded payload. Raised when items started carrying
+  /// their announcement text: 24 bodies at [maxNewsBodyLength] can approach the
+  /// old ceiling on their own, and hitting it drops the oldest items rather
+  /// than the text they carry.
+  static const int maxPersistedBytes = 256 * 1024;
 
   Future<CachedNewsSnapshot> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey(legacyStorageKey)) {
+        // Reclaimed on the first read after the upgrade, so the superseded
+        // payload does not sit in preferences forever.
+        await prefs.remove(legacyStorageKey);
+      }
       return decode(prefs.getString(storageKey));
     } catch (_) {
       // A corrupt or unavailable cache is not an error worth surfacing; the
@@ -78,10 +92,10 @@ class SteamNewsStore {
   /// Encodes at most [maxPersistedItems] newest items within
   /// [maxPersistedBytes]. Returns null when nothing is worth persisting.
   ///
-  /// At the current field caps 24 items encode to roughly 30 KiB, so the byte
-  /// budget never binds in practice — it is a guard against a future cap
-  /// increase silently growing the payload. [maxBytes] exists so tests can
-  /// still drive the shrink path.
+  /// At the current field caps 24 items encode to well under 100 KiB even with
+  /// every body at its cap, so the byte budget still does not bind in practice
+  /// — it is a guard against a future cap increase silently growing the
+  /// payload. [maxBytes] exists so tests can still drive the shrink path.
   @visibleForTesting
   static String? encode(
     List<GameNewsItem> items, {

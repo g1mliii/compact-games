@@ -1038,30 +1038,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libraryHomeRowSubtitle => 'Overview';
 
   @override
-  String get libraryHomeHighlightsHeading => 'Library highlights';
-
-  @override
-  String get libraryHomeTotalGamesLabel => 'Games';
-
-  @override
-  String get libraryHomeCompressedLabel => 'Compressed';
-
-  @override
-  String get libraryHomeSpaceSavedLabel => 'Space saved';
-
-  @override
-  String get libraryHomeLargestInstallLabel => 'Largest install';
-
-  @override
-  String get libraryHomeBiggestSaverLabel => 'Biggest saver';
-
-  @override
-  String get libraryHomeRecentlyCompressedLabel => 'Recently compressed';
-
-  @override
-  String get libraryHomeHighlightEmpty => 'Nothing yet';
-
-  @override
   String get libraryHomeEmptyTitle => 'No games discovered yet';
 
   @override
@@ -1072,10 +1048,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libraryHomeNewsHeading => 'What\'s new';
 
   @override
+  String get libraryHomePlayersHeading => 'Playing now';
+
+  @override
+  String libraryHomePlayersCount(String count) {
+    return '$count playing';
+  }
+
+  @override
+  String get libraryHomePlayersStale => 'Showing last known counts';
+
+  @override
   String get libraryHomeNewsSourceSteam => 'Steam Community';
 
   @override
   String get libraryHomeNewsStale => 'Showing saved items';
+
+  @override
+  String get libraryHomeNewsOpenAction => 'Open in browser';
+
+  @override
+  String get libraryHomeNewsReadAction => 'Read announcement';
+
+  @override
+  String get libraryHomeNewsCloseAction => 'Close';
+
+  @override
+  String get libraryHomeNewsBodyUnavailable =>
+      'Steam sent no text for this announcement. Open it on Steam to read the full post.';
+
+  @override
+  String get libraryHomeNewsScrollBack => 'Previous news';
+
+  @override
+  String get libraryHomeNewsScrollForward => 'More news';
 
   @override
   String get settingsAboutWebsiteAction => 'Website';

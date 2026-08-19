@@ -6,7 +6,65 @@ use crate::compression::error::CompressionError;
 
 const QUICK_SCAN_MAX_DEPTH: usize = 3;
 const QUICK_SCAN_MAX_FILES: usize = 256;
-const FULL_SCAN_MAX_FILES: usize = 250_000;
+
+/// Ceiling on files examined in one authoritative walk.
+///
+/// Deliberately far above any real install, because hitting it is not a saving.
+/// A stopped walk produces no measurement worth keeping, so nothing new is
+/// written to the index or the stats cache and the next scan pays the identical
+/// walk to reach the identical non-answer. At 250k this fired on real installs:
+/// a 251k-file Unreal Engine folder cost about eighteen seconds every scan, and
+/// its size showed as the quick scan's partial sample.
+///
+/// The cap therefore exists only to stop a pathological tree (a filesystem
+/// loop, a mount that never ends) from running forever, not to shed work on
+/// merely large ones. Reaching it is reported as `scan_limit_reached` and the
+/// caller treats that as *inconclusive*: it keeps whatever authoritative
+/// measurement it already had rather than concluding the candidate is not a
+/// game.
+const FULL_SCAN_MAX_FILES: usize = 5_000_000;
+
+/// The ceiling in force for this walk.
+///
+/// Reads a per-thread override under `cfg(test)` so the limit branch can be
+/// exercised without building a five-million-file tree; in a real build this
+/// compiles down to the constant.
+fn full_scan_max_files() -> usize {
+    #[cfg(test)]
+    if let Some(limit) = test_support::current_override() {
+        return limit;
+    }
+    FULL_SCAN_MAX_FILES
+}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::cell::Cell;
+
+    thread_local! {
+        static OVERRIDE: Cell<Option<usize>> = const { Cell::new(None) };
+    }
+
+    pub(crate) fn current_override() -> Option<usize> {
+        OVERRIDE.with(Cell::get)
+    }
+
+    /// Lowers the full-scan ceiling for the current thread until dropped.
+    pub(crate) struct FullScanLimitGuard;
+
+    impl FullScanLimitGuard {
+        pub(crate) fn set(limit: usize) -> Self {
+            OVERRIDE.with(|cell| cell.set(Some(limit)));
+            Self
+        }
+    }
+
+    impl Drop for FullScanLimitGuard {
+        fn drop(&mut self) {
+            OVERRIDE.with(|cell| cell.set(None));
+        }
+    }
+}
 
 /// Directory size statistics collected in a single walk.
 pub struct DirStats {
@@ -40,7 +98,7 @@ pub fn dir_stats(path: &Path) -> DirStats {
         if !metadata.is_file() {
             continue;
         }
-        if files_seen >= FULL_SCAN_MAX_FILES {
+        if files_seen >= full_scan_max_files() {
             scan_limit_reached = true;
             break;
         }
@@ -117,7 +175,7 @@ pub fn dir_stats(path: &Path) -> DirStats {
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.file_type().is_file())
     {
-        if files_seen >= FULL_SCAN_MAX_FILES {
+        if files_seen >= full_scan_max_files() {
             scan_limit_reached = true;
             break;
         }

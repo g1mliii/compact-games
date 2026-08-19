@@ -1002,30 +1002,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get libraryHomeRowSubtitle => '总览';
 
   @override
-  String get libraryHomeHighlightsHeading => '库亮点';
-
-  @override
-  String get libraryHomeTotalGamesLabel => '游戏';
-
-  @override
-  String get libraryHomeCompressedLabel => '已压缩';
-
-  @override
-  String get libraryHomeSpaceSavedLabel => '已节省空间';
-
-  @override
-  String get libraryHomeLargestInstallLabel => '最大安装';
-
-  @override
-  String get libraryHomeBiggestSaverLabel => '节省最多';
-
-  @override
-  String get libraryHomeRecentlyCompressedLabel => '最近压缩';
-
-  @override
-  String get libraryHomeHighlightEmpty => '暂无';
-
-  @override
   String get libraryHomeEmptyTitle => '尚未发现游戏';
 
   @override
@@ -1035,10 +1011,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String get libraryHomeNewsHeading => '最新动态';
 
   @override
+  String get libraryHomePlayersHeading => '正在游玩';
+
+  @override
+  String libraryHomePlayersCount(String count) {
+    return '$count 人在玩';
+  }
+
+  @override
+  String get libraryHomePlayersStale => '显示上次获取的人数';
+
+  @override
   String get libraryHomeNewsSourceSteam => 'Steam 社区';
 
   @override
   String get libraryHomeNewsStale => '显示已保存的条目';
+
+  @override
+  String get libraryHomeNewsOpenAction => '在浏览器中打开';
+
+  @override
+  String get libraryHomeNewsReadAction => '阅读公告';
+
+  @override
+  String get libraryHomeNewsCloseAction => '关闭';
+
+  @override
+  String get libraryHomeNewsBodyUnavailable =>
+      'Steam 未提供该公告的正文。请在 Steam 中打开以阅读全文。';
+
+  @override
+  String get libraryHomeNewsScrollBack => '更早的动态';
+
+  @override
+  String get libraryHomeNewsScrollForward => '更多动态';
 
   @override
   String get settingsAboutWebsiteAction => '官方网站';

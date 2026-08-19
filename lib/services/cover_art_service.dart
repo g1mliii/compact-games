@@ -12,10 +12,12 @@ import 'package:path_provider/path_provider.dart';
 import '../core/config/cover_art_proxy_config.dart';
 import '../core/constants/app_constants.dart';
 import '../core/utils/bounded_lru.dart';
+import '../core/utils/cover_art_utils.dart';
 import '../models/app_settings.dart';
 import '../models/compression_estimate.dart';
 import '../models/game_info.dart';
 import 'bounded_json_http.dart';
+import 'packaged_app_logo.dart';
 import 'game_catalog_identity_service.dart';
 import 'rust_bridge_service.dart';
 
@@ -35,10 +37,25 @@ enum CoverArtSource {
   steamGridDbApi,
   steamStoreApi,
   exeIcon,
+  packagedAppLogo,
   none,
 }
 
 enum CoverArtType { poster, icon }
+
+/// What the `.source` sidecar beside a cached cover remembers about it.
+class _CachedCoverRecord {
+  const _CachedCoverRecord({required this.source, required this.probedVisible});
+
+  final CoverArtSource source;
+
+  /// Whether these bytes have already been confirmed to paint something. Only
+  /// locally-derived art is ever probed, and only once.
+  final bool probedVisible;
+}
+
+const String _sidecarSeparator = '\n';
+const String _visibleMarker = 'visible';
 
 class CoverArtResult {
   const CoverArtResult({
@@ -373,6 +390,19 @@ class CoverArtService {
       return store(cached);
     }
 
+    // A packaged app carries its own artwork, which is the only art some games
+    // have anywhere: Minecraft is on Game Pass and not on Steam, so no catalog
+    // above could ever answer for it. Tried before the EXE icon because a
+    // manifest logo is the game's own tile, while an extracted icon is
+    // whatever the launcher executable happens to embed.
+    final packageLogo = await _resolvePackagedAppLogoCover(
+      game,
+      cacheKey: cacheKey,
+    );
+    if (packageLogo != null) {
+      return store(packageLogo);
+    }
+
     final iconResult = await _resolveExeIconCover(
       cacheKey: cacheKey,
       executablePath: await resolvePrimaryExe(),
@@ -383,6 +413,30 @@ class CoverArtService {
     }
 
     return store(const CoverArtResult.none());
+  }
+
+  /// The logo an MSIX/Xbox package declares in its own manifest.
+  ///
+  /// These are 150px tiles rather than capsules, so
+  /// [coverArtTypeFromSource] draws them centred on a plate rather than
+  /// stretched across the cover.
+  Future<CoverArtResult?> _resolvePackagedAppLogoCover(
+    GameInfo game, {
+    required String cacheKey,
+  }) async {
+    try {
+      final logo = await findPackagedAppLogo(game.path);
+      if (logo == null) {
+        return null;
+      }
+      return await _writeBytesIntoCache(
+        cacheKey,
+        await logo.readAsBytes(),
+        source: CoverArtSource.packagedAppLogo,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<CoverArtResult?> _resolveSteamLibraryCoverResult(
@@ -441,20 +495,18 @@ class CoverArtService {
       if (pngBytes == null || pngBytes.isEmpty) {
         return null;
       }
-      final cacheDir = await _ensureCacheDir();
-      final file = File(p.join(cacheDir.path, '$cacheKey.img'));
-      await file.writeAsBytes(pngBytes);
-      await _writeCachedCoverSource(cacheDir, cacheKey, CoverArtSource.exeIcon);
-      _scheduleCacheEviction(cacheDir);
-      final revision = _bumpCoverRevision(cacheKey);
+      final result = await _writeBytesIntoCache(
+        cacheKey,
+        pngBytes,
+        source: CoverArtSource.exeIcon,
+      );
+      if (result == null) {
+        return null;
+      }
       // Prime the in-memory hint so subsequent re-resolutions (e.g. after a
       // refresh) skip the folder walk.
       _writeEstimateHint(cacheKey, executablePath);
-      return CoverArtResult(
-        uri: file.uri.toString(),
-        source: CoverArtSource.exeIcon,
-        revision: revision,
-      );
+      return result;
     } catch (_) {
       return null;
     }
@@ -483,6 +535,17 @@ class CoverArtService {
       return null;
     }
     return spaced;
+  }
+
+  /// Whether the image in [file] has any pixel the user would actually see.
+  Future<bool> _hasVisiblePixels(File file) async {
+    try {
+      return await imageHasVisiblePixels(await file.readAsBytes());
+    } catch (_) {
+      // Unreadable is not "blank": leave that to the image widget, which falls
+      // back to the placeholder on a decode error.
+      return true;
+    }
   }
 
   Future<CoverArtResult?> _readCachedCover(String cacheKey) async {
@@ -518,6 +581,35 @@ class CoverArtService {
       return null;
     }
 
+    final cachedSource = await _readCachedCoverRecord(cacheDir, cacheKey);
+    final source = cachedSource.source;
+    // An extracted icon can be a perfectly valid PNG with nothing in it — an
+    // executable that carries no icon resource yields a fully transparent
+    // image. It passes the size check above, decodes without error, and paints
+    // absolutely nothing, which is the one outcome the placeholder exists to
+    // prevent. Only locally-derived art is checked: a store or library capsule
+    // is a photograph, and decoding every one of those to count pixels would
+    // cost real time on every resolve.
+    if (isLocallyDerivedCoverSource(source) && !cachedSource.probedVisible) {
+      if (!await _hasVisiblePixels(file)) {
+        try {
+          await file.delete();
+          await _clearCachedCoverSource(cacheDir, cacheKey);
+        } catch (_) {}
+        return null;
+      }
+      // Record the verdict this probe just reached. Without the write-back,
+      // every sidecar written before the field existed re-reads the whole
+      // image and decodes it on each resolve, forever — which is the cost the
+      // field was added to stop paying.
+      await _writeCachedCoverSource(
+        cacheDir,
+        cacheKey,
+        source,
+        probedVisible: true,
+      );
+    }
+
     try {
       await file.setLastModified(now);
     } catch (_) {}
@@ -525,7 +617,6 @@ class CoverArtService {
       cacheKey,
       fallbackModified: stat.modified,
     );
-    final source = await _readCachedCoverSource(cacheDir, cacheKey);
     return CoverArtResult(
       uri: file.uri.toString(),
       source: source,
@@ -641,6 +732,39 @@ class CoverArtService {
         : const _CoverArtProviderLookup.unavailable();
   }
 
+  /// Stores [bytes] as the cover for [cacheKey], or returns null when they
+  /// carry nothing the user would see.
+  ///
+  /// The blank-image guard lives here rather than at each writer so the
+  /// invariant is "the cache never holds an invisible cover" instead of
+  /// "every caller remembers to check".
+  Future<CoverArtResult?> _writeBytesIntoCache(
+    String cacheKey,
+    Uint8List bytes, {
+    required CoverArtSource source,
+  }) async {
+    if (bytes.isEmpty || !await imageHasVisiblePixels(bytes)) {
+      return null;
+    }
+    final cacheDir = await _ensureCacheDir();
+    final file = File(p.join(cacheDir.path, '$cacheKey.img'));
+    await file.writeAsBytes(bytes);
+    // The guard above already answered this for these exact bytes; record it so
+    // the read path never decodes them again.
+    await _writeCachedCoverSource(
+      cacheDir,
+      cacheKey,
+      source,
+      probedVisible: true,
+    );
+    _scheduleCacheEviction(cacheDir);
+    return CoverArtResult(
+      uri: file.uri.toString(),
+      source: source,
+      revision: _bumpCoverRevision(cacheKey),
+    );
+  }
+
   Future<String> _copyIntoCache(
     String cacheKey,
     String sourcePath, {
@@ -661,32 +785,52 @@ class CoverArtService {
     return target.path;
   }
 
-  Future<CoverArtSource> _readCachedCoverSource(
+  /// Reads the sidecar: where a cached cover came from, and whether it has
+  /// already been confirmed to have pixels the user can see.
+  ///
+  /// A sidecar written before the verdict was recorded simply reports
+  /// [_CachedCoverRecord.probedVisible] as false, which costs one probe; the
+  /// read path then writes the verdict back, so it is paid once and not again.
+  Future<_CachedCoverRecord> _readCachedCoverRecord(
     Directory cacheDir,
     String cacheKey,
   ) async {
     final sourceFile = _cachedCoverSourceFile(cacheDir, cacheKey);
     try {
-      final value = (await sourceFile.readAsString()).trim();
+      final fields = (await sourceFile.readAsString()).trim().split(
+        _sidecarSeparator,
+      );
+      final value = fields.first.trim();
       for (final source in CoverArtSource.values) {
         if (source != CoverArtSource.none && value == source.name) {
-          return source;
+          return _CachedCoverRecord(
+            source: source,
+            probedVisible:
+                fields.length > 1 && fields[1].trim() == _visibleMarker,
+          );
         }
       }
     } catch (_) {}
-    return CoverArtSource.cache;
+    return const _CachedCoverRecord(
+      source: CoverArtSource.cache,
+      probedVisible: false,
+    );
   }
 
   Future<void> _writeCachedCoverSource(
     Directory cacheDir,
     String cacheKey,
-    CoverArtSource source,
-  ) async {
+    CoverArtSource source, {
+    bool probedVisible = false,
+  }) async {
+    final payload = probedVisible
+        ? '${source.name}$_sidecarSeparator$_visibleMarker'
+        : source.name;
     try {
       await _cachedCoverSourceFile(
         cacheDir,
         cacheKey,
-      ).writeAsString(source.name, flush: true);
+      ).writeAsString(payload, flush: true);
     } catch (_) {}
   }
 

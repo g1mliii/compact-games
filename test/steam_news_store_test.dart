@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:compact_games/models/game_news_item.dart';
 import 'package:compact_games/services/steam_news_store.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 GameNewsItem _item({
   required String id,
@@ -274,6 +275,27 @@ void main() {
 
     test('a snapshot with no timestamp is never fresh', () {
       expect(CachedNewsSnapshot.empty.isFreshAt(now), isFalse);
+    });
+  });
+
+  group('the v1 cache', () {
+    setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
+
+    test('is ignored and cleared rather than shown', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        SteamNewsStore.legacyStorageKey: jsonEncode(<String, dynamic>{
+          'fetchedAt': now.millisecondsSinceEpoch,
+          'items': <Map<String, dynamic>>[_item(id: 'old').toJson()],
+        }),
+      });
+
+      final snapshot = await const SteamNewsStore().load();
+
+      // Its bodies were flattened by Steam before they were ever stored, so
+      // the upgrade drops them and refetches instead of showing them again.
+      expect(snapshot.items, isEmpty);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey(SteamNewsStore.legacyStorageKey), isFalse);
     });
   });
 }

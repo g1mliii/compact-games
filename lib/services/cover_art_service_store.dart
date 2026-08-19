@@ -92,6 +92,8 @@ extension _CoverArtServiceStore on CoverArtService {
         .length;
     int? closestId;
     var closestExtraLength = 1 << 30;
+    int? closestAncillaryId;
+    var closestAncillaryExtraLength = 1 << 30;
     for (final item in items) {
       if (item is! Map) {
         continue;
@@ -115,15 +117,30 @@ extension _CoverArtServiceStore on CoverArtService {
         continue;
       }
       final extraLength = foldedCandidate.length - foldedName.length;
-      if (extraLength >= 0 && extraLength < closestExtraLength) {
+      if (extraLength < 0) {
+        continue;
+      }
+      // An add-on is only a fallback. Steam names them tersely enough that the
+      // shortest match for "Succubus Successor" was its Digital Artbook, whose
+      // app id carries no library capsule — so the game ended up with no cover
+      // at all rather than the wrong one.
+      if (isAncillaryStoreItem(foldedCandidate, foldedName)) {
+        if (extraLength < closestAncillaryExtraLength) {
+          closestAncillaryId = id;
+          closestAncillaryExtraLength = extraLength;
+        }
+        continue;
+      }
+      if (extraLength < closestExtraLength) {
         closestId = id;
         closestExtraLength = extraLength;
       }
     }
-    if (closestId != null) {
-      _writeApiLru(_steamStoreAppIdCache, foldedName, closestId);
+    final resolved = closestId ?? closestAncillaryId;
+    if (resolved != null) {
+      _writeApiLru(_steamStoreAppIdCache, foldedName, resolved);
     }
-    return closestId;
+    return resolved;
   }
 
   Future<String?> _findSteamStoreCoverUrl(int appId) async {

@@ -9,8 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/library_home_offline.dart';
 import 'support/list_row_finder.dart';
-import 'support/noop_rust_bridge_service.dart';
 
 const int _oneGiB = 1024 * 1024 * 1024;
 
@@ -33,21 +33,6 @@ final List<GameInfo> _games = <GameInfo>[
   ),
 ];
 
-class _GamesBridgeService extends NoOpRustBridgeService {
-  const _GamesBridgeService(this.games);
-
-  final List<GameInfo> games;
-
-  @override
-  Future<List<GameInfo>> getAllGames() async => games;
-
-  @override
-  Future<List<GameInfo>> getAllGamesQuick() async => games;
-
-  @override
-  Future<List<GameInfo>> refreshAllGames() async => games;
-}
-
 Future<ProviderContainer> _pumpListView(
   WidgetTester tester, {
   List<GameInfo> games = const <GameInfo>[],
@@ -57,7 +42,9 @@ Future<ProviderContainer> _pumpListView(
 
   final container = ProviderContainer(
     overrides: [
-      rustBridgeServiceProvider.overrideWithValue(_GamesBridgeService(games)),
+      rustBridgeServiceProvider.overrideWithValue(GamesBridgeService(games)),
+      // Library Home fetches news and player counts the moment it mounts.
+      ...libraryHomeOfflineOverrides(),
     ],
   );
   addTearDown(container.dispose);
@@ -84,7 +71,6 @@ void main() {
     expect(container.read(selectedGameProvider), isNull);
     expect(listRowText('Library Home'), findsOneWidget);
     expect(find.byKey(LibraryHomeSurface.scrollViewKey), findsOneWidget);
-    expect(find.text('Library highlights'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -151,53 +137,6 @@ void main() {
 
     expect(container.read(selectedGameProvider), isNull);
     expect(find.byKey(LibraryHomeSurface.scrollViewKey), findsOneWidget);
-  });
-
-  testWidgets('Library Home highlights point at the right games', (
-    tester,
-  ) async {
-    await _pumpListView(tester, games: _games);
-
-    final surface = find.byKey(LibraryHomeSurface.scrollViewKey);
-    expect(
-      find.descendant(of: surface, matching: find.text('Largest install')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: surface, matching: find.text('Biggest saver')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: surface, matching: find.text('Recently compressed')),
-      findsOneWidget,
-    );
-    // Pixel Raider is the largest install, the biggest saver, and the only
-    // compressed game, so it names all three cards.
-    expect(
-      find.descendant(of: surface, matching: find.text('Pixel Raider')),
-      findsNWidgets(3),
-    );
-    // Totals come from the shared aggregate, not a second scan.
-    expect(
-      find.descendant(of: surface, matching: find.text('2')),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('Tapping a highlight card selects that game', (tester) async {
-    final container = await _pumpListView(tester, games: _games);
-
-    await tester.tap(
-      find
-          .descendant(
-            of: find.byKey(LibraryHomeSurface.scrollViewKey),
-            matching: find.text('Pixel Raider'),
-          )
-          .first,
-    );
-    await tester.pumpAndSettle();
-
-    expect(container.read(selectedGameProvider), r'C:\Games\pixel_raider');
   });
 
   testWidgets('Library Home stays reachable with an empty library', (

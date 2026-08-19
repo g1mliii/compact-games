@@ -365,14 +365,60 @@ fn build_game_info_with_mode_and_stats_path_evidence(
 
     let stats = dir_stats(&stats_path);
     if stats.scan_limit_reached {
-        evict_candidate(&stats_path);
+        // A walk that ran out of budget is inconclusive, not a verdict: it says
+        // nothing about whether this is a game, so it must not evict. The
+        // partial numbers are dropped too — the size is only a lower bound and
+        // the compression flag only describes the files that were reached.
+        //
+        // Same rule the quick path follows when a shallow sample undercounts:
+        // the last authoritative measurement beats no measurement.
+        if let Some(stale) = cache::lookup_stale(&stats_path) {
+            // Held to the same probe as every other cache-hit path: the walk
+            // being inconclusive is no reason to admit a directory that has
+            // since stopped looking like an install. The size handed to it is
+            // the authoritative one, not the partial walk's.
+            if !is_admitted_install(
+                &stats_path,
+                stale.logical_size,
+                platform,
+                launcher_metadata_verified,
+            ) {
+                // Skipped but deliberately not evicted, unlike the probe
+                // failures elsewhere: this branch never lets an inconclusive
+                // walk throw away a measurement a later, complete one can use.
+                log_candidate_decision(
+                    "skip",
+                    platform,
+                    &name,
+                    &stats_path,
+                    mode,
+                    "full discovery file limit reached, cached candidate failed install probe",
+                );
+                return None;
+            }
+            log_candidate_decision(
+                "accept",
+                platform,
+                &name,
+                &stats_path,
+                mode,
+                "full discovery file limit reached, authoritative cache retained",
+            );
+            install_history::record_authoritative_size(&stats_path, stale.logical_size);
+            // No `index::upsert` here, unlike the accept paths above: the
+            // upsert stamps the *current* token onto these numbers, and these
+            // numbers are stale by definition — recording them would make an
+            // unmeasured directory look freshly measured and suppress the next
+            // real walk.
+            return game_info_from_cached(name, game_path, platform, stale);
+        }
         log_candidate_decision(
             "skip",
             platform,
             &name,
             &stats_path,
             mode,
-            "full discovery file limit reached",
+            "full discovery file limit reached, nothing cached",
         );
         return None;
     }

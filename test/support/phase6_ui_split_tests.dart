@@ -290,6 +290,7 @@ void runPhase6OversizeSplitTests() {
           _TestRustBridgeService(games: _sampleGames),
         ),
         settingsPersistenceProvider.overrideWithValue(persistence),
+        ...libraryHomeOfflineOverrides(),
       ],
     );
     addTearDown(container.dispose);
@@ -420,6 +421,8 @@ void runPhase6OversizeSplitTests() {
         rustBridgeServiceProvider.overrideWithValue(
           _TestRustBridgeService(games: _sampleGames),
         ),
+        // Library Home fetches news and player counts as soon as it mounts.
+        ...libraryHomeOfflineOverrides(),
       ],
     );
     addTearDown(container.dispose);
@@ -438,7 +441,11 @@ void runPhase6OversizeSplitTests() {
     expect(tester.takeException(), isNull);
 
     final listRowRect = tester.getRect(listRowText('Pixel Raider'));
-    final detailHintRect = tester.getRect(find.text('Library highlights'));
+    // The surface itself is the anchor: it is the pane under test, and it no
+    // longer carries any one line of text certain to be on screen.
+    final detailHintRect = tester.getRect(
+      find.byKey(LibraryHomeSurface.scrollViewKey),
+    );
     expect(detailHintRect.top, greaterThan(listRowRect.bottom));
 
     await tester.tap(listRowText('Pixel Raider'));
@@ -1319,7 +1326,7 @@ void runPhase6OversizeSplitTests() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Go to Settings'), findsNothing);
-    expect(find.text('Library highlights'), findsOneWidget);
+    expect(find.byKey(LibraryHomeSurface.scrollViewKey), findsOneWidget);
 
     // The persistent Library Home row pushes the last game past the short
     // panel's cache extent at this width, so scroll it in rather than assuming

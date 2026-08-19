@@ -1285,38 +1285,6 @@
   "@libraryHomeRowSubtitle": {
     "description": "Secondary line of the persistent Library Home row."
   },
-  "libraryHomeHighlightsHeading": "库亮点",
-  "@libraryHomeHighlightsHeading": {
-    "description": "Heading above the Library Home highlight cards."
-  },
-  "libraryHomeTotalGamesLabel": "游戏",
-  "@libraryHomeTotalGamesLabel": {
-    "description": "Label for the total number of discovered games."
-  },
-  "libraryHomeCompressedLabel": "已压缩",
-  "@libraryHomeCompressedLabel": {
-    "description": "Label for the number of compressed games."
-  },
-  "libraryHomeSpaceSavedLabel": "已节省空间",
-  "@libraryHomeSpaceSavedLabel": {
-    "description": "Label for the measured amount of disk space reclaimed."
-  },
-  "libraryHomeLargestInstallLabel": "最大安装",
-  "@libraryHomeLargestInstallLabel": {
-    "description": "Label for the largest installed game."
-  },
-  "libraryHomeBiggestSaverLabel": "节省最多",
-  "@libraryHomeBiggestSaverLabel": {
-    "description": "Label for the game that reclaimed the most space."
-  },
-  "libraryHomeRecentlyCompressedLabel": "最近压缩",
-  "@libraryHomeRecentlyCompressedLabel": {
-    "description": "Label for the most recently compressed game."
-  },
-  "libraryHomeHighlightEmpty": "暂无",
-  "@libraryHomeHighlightEmpty": {
-    "description": "Shown in a Library Home highlight card when no game qualifies."
-  },
   "libraryHomeEmptyTitle": "尚未发现游戏",
   "@libraryHomeEmptyTitle": {
     "description": "Library Home title shown when the library is empty."
@@ -1329,6 +1297,23 @@
   "@libraryHomeNewsHeading": {
     "description": "Heading above the Library Home What's New shelf."
   },
+  "libraryHomePlayersHeading": "正在游玩",
+  "@libraryHomePlayersHeading": {
+    "description": "Heading above the Library Home live player-count panel."
+  },
+  "libraryHomePlayersCount": "{count} 人在玩",
+  "@libraryHomePlayersCount": {
+    "description": "Live player count for one game. {count} is already formatted for the locale.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryHomePlayersStale": "显示上次获取的人数",
+  "@libraryHomePlayersStale": {
+    "description": "Shown when a player-count refresh failed and earlier numbers are displayed."
+  },
   "libraryHomeNewsSourceSteam": "Steam 社区",
   "@libraryHomeNewsSourceSteam": {
     "description": "Source label shown on every news card."
@@ -1336,6 +1321,30 @@
   "libraryHomeNewsStale": "显示已保存的条目",
   "@libraryHomeNewsStale": {
     "description": "Shown when a refresh failed and cached news is displayed."
+  },
+  "libraryHomeNewsOpenAction": "在浏览器中打开",
+  "@libraryHomeNewsOpenAction": {
+    "description": "Tooltip on a news card, which opens the article in the default browser."
+  },
+  "libraryHomeNewsReadAction": "阅读公告",
+  "@libraryHomeNewsReadAction": {
+    "description": "Tooltip on a news tile, which opens the announcement in the in-app reader."
+  },
+  "libraryHomeNewsCloseAction": "关闭",
+  "@libraryHomeNewsCloseAction": {
+    "description": "Label of the button that closes the in-app news reader."
+  },
+  "libraryHomeNewsBodyUnavailable": "Steam 未提供该公告的正文。请在 Steam 中打开以阅读全文。",
+  "@libraryHomeNewsBodyUnavailable": {
+    "description": "Shown in the reader when the announcement carries no body text."
+  },
+  "libraryHomeNewsScrollBack": "更早的动态",
+  "@libraryHomeNewsScrollBack": {
+    "description": "Tooltip on the button that scrolls the news shelf back."
+  },
+  "libraryHomeNewsScrollForward": "更多动态",
+  "@libraryHomeNewsScrollForward": {
+    "description": "Tooltip on the button that scrolls the news shelf forward."
   },
   "settingsAboutWebsiteAction": "官方网站",
   "@settingsAboutWebsiteAction": {

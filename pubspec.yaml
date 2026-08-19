@@ -36,6 +36,10 @@ dependencies:
   path_provider: ^2.1.6
   path: ^1.9.1
 
+  # Reading an installed MSIX/Xbox package manifest for its own artwork.
+  # Already in the tree via vector_graphics; named here because we use it.
+  xml: ^6.6.1
+
   # Flutter Rust Bridge
   flutter_rust_bridge: 2.12.0
 
