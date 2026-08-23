@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -21,6 +22,8 @@ PAGES = {
     "privacy.html": f"{BASE_URL}/privacy.html",
     "tos.html": f"{BASE_URL}/tos.html",
 }
+REQUIRED_INTERNAL_LINKS = {"./", "./faq.html", "./privacy.html", "./tos.html"}
+STRUCTURED_DATA_PAGES = {"index.html", "faq.html"}
 
 
 def fail(message: str) -> None:
@@ -33,6 +36,43 @@ for filename, expected_url in PAGES.items():
     canonicals = re.findall(r'<link\s+rel="canonical"\s+href="([^"]+)"', html)
     if canonicals != [expected_url]:
         fail(f"{filename} canonical is {canonicals!r}; expected {expected_url!r}")
+    open_graph_urls = re.findall(
+        r'<meta\s+property="og:url"\s+content="([^"]+)"', html
+    )
+    if open_graph_urls != [expected_url]:
+        fail(
+            f"{filename} og:url is {open_graph_urls!r}; expected {expected_url!r}"
+        )
+    robots_directives = re.findall(
+        r'<meta\s+name="robots"\s+content="([^"]+)"', html
+    )
+    if len(robots_directives) != 1:
+        fail(f"{filename} must have exactly one robots meta tag")
+    robots_tokens = {
+        token.strip().lower()
+        for token in robots_directives[0].split(",")
+    }
+    if not {"index", "follow"}.issubset(robots_tokens):
+        fail(f"{filename} robots directives must include index,follow")
+    hrefs = set(re.findall(r'href="([^"]+)"', html))
+    missing_internal_links = REQUIRED_INTERNAL_LINKS - hrefs
+    if missing_internal_links:
+        fail(
+            f"{filename} is missing crawlable links to "
+            f"{sorted(missing_internal_links)!r}"
+        )
+    structured_data_blocks = re.findall(
+        r'<script\s+type="application/ld\+json">\s*(.*?)\s*</script>',
+        html,
+        flags=re.DOTALL,
+    )
+    if filename in STRUCTURED_DATA_PAGES and not structured_data_blocks:
+        fail(f"{filename} must include JSON-LD structured data")
+    for block in structured_data_blocks:
+        try:
+            json.loads(block)
+        except json.JSONDecodeError as error:
+            fail(f"{filename} has invalid JSON-LD: {error}")
     if OLD_SITE_URL in html:
         fail(f"{filename} still references the legacy GitHub Pages URL")
     local_assets = re.findall(
