@@ -29,7 +29,9 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist
 OutputBaseFilename=CompactGames-Setup-{#AppVersion}
-SetupIconFile=..\assets\icons\app_icon.ico
+; Keep the installer artwork sourced from the same ICO embedded in the
+; Windows runner executable so the setup EXE and app EXE cannot drift.
+SetupIconFile=..\windows\runner\resources\app_icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/ultra
 SolidCompression=yes
@@ -55,12 +57,12 @@ Name: "autostart"; Description: "Start {#AppName} when Windows starts"; GroupDes
 Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppExeName}"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 ; `Check: not IsUpgrade` keeps the desktop icon a first-install-only
 ; action. Without it, every silent /SILENT upgrade would recreate the
 ; shortcut even after the user manually deleted it.
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon; Check: not IsUpgrade
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon; Check: not IsUpgrade
 
 [Registry]
 ; Autostart entry — first install only. The in-app Settings toggle is

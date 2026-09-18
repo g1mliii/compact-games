@@ -29,6 +29,19 @@ Download the latest Windows release from:
 
 After downloading, run the installer or `.exe` file and follow the on-screen steps.
 
+### Privacy-friendly download counts
+
+GitHub counts downloads of files published as Release assets without requiring
+Compact Games to collect user data. Open the [release API](https://api.github.com/repos/g1mliii/compact-games/releases?per_page=100)
+and look for `download_count` on each `CompactGames-Setup-*.exe` asset. Follow
+API pagination if there are more than 100 releases. Sum only installer assets
+to exclude metadata and database downloads.
+
+The website links to these same GitHub assets, so website and GitHub downloads
+contribute to the same counts. These counts do not distinguish the referring
+site or unique users and can include repeat downloads and updates. They measure
+downloads, not confirmed installs; no first-run install counter is implemented.
+
 ---
 
 ## Requirements
