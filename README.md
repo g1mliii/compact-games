@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/g1mliii/compact-games/releases"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fg1mliii%2Fcompact-games%2Fbadges%2Fdownloads.json&style=flat-square" alt="Installer downloads" /></a>
+  <a href="https://github.com/g1mliii/compact-games/releases"><img src="https://img.shields.io/github/downloads/g1mliii/compact-games/total?style=flat-square&label=downloads&color=0078D4" alt="Downloads" /></a>
   <a href="https://github.com/g1mliii/compact-games/releases/latest"><img src="https://img.shields.io/github/v/release/g1mliii/compact-games?style=flat-square&label=latest&color=0078D4" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-2E2E36?style=flat-square" alt="Windows 10 and 11" />
   <a href="LICENSE"><img src="https://img.shields.io/github/license/g1mliii/compact-games?style=flat-square&color=2E2E36" alt="Licence" /></a>
