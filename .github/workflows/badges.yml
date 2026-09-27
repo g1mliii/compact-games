@@ -1,0 +1,47 @@
+# README badge: installer downloads.
+#
+# GitHub's own "total downloads" counts every release asset, and the app
+# fetches latest.json and its compression databases from releases on every
+# update check - so that number climbed with checks, not installs (about 525
+# against 47 installers when this was added). This counts only
+# CompactGames-Setup-*.exe, across every release, and writes shields.io
+# endpoint JSON to the orphan `badges` branch that the README reads.
+name: Badges
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: badges
+  cancel-in-progress: true
+
+jobs:
+  badges:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Count and write
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          downloads=$(gh api --paginate "repos/$REPO/releases?per_page=100" \
+            --jq '.[].assets[] | select(.name | test("^CompactGames-Setup-.*\\.exe$")) | .download_count' \
+            | awk '{ s += $1 } END { print s + 0 }')
+          echo "downloads=$downloads"
+          mkdir out && cd out
+          printf '{"schemaVersion":1,"label":"installer downloads","message":"%s","color":"0078D4"}\n' \
+            "$downloads" > downloads.json
+          git init -q -b badges
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add downloads.json
+          git commit -q -m "badges: $downloads installer downloads"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" badges
