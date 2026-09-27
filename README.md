@@ -1,6 +1,24 @@
-# Compact Games
+<p align="center">
+  <a href="https://compactgames.app/"><img src="compact-games-site-package/website/assets/icon-512.png" width="112" height="112" alt="Compact Games" /></a>
+</p>
 
-**Free up storage by compressing games safely on Windows.**
+<h1 align="center">Compact Games</h1>
+
+<p align="center">
+  <b>Free up storage by compressing games safely on Windows.</b>
+</p>
+
+<p align="center">
+  <a href="https://github.com/g1mliii/compact-games/releases/latest"><img src="https://img.shields.io/badge/Download_for_Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" /></a>
+  <a href="https://compactgames.app/"><img src="https://img.shields.io/badge/Website-compactgames.app-2E2E36?style=for-the-badge&logo=googlechrome&logoColor=white" alt="compactgames.app" /></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/g1mliii/compact-games/releases"><img src="https://img.shields.io/github/downloads/g1mliii/compact-games/total?style=flat-square&label=downloads&color=0078D4" alt="Downloads" /></a>
+  <a href="https://github.com/g1mliii/compact-games/releases/latest"><img src="https://img.shields.io/github/v/release/g1mliii/compact-games?style=flat-square&label=latest&color=0078D4" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-2E2E36?style=flat-square" alt="Windows 10 and 11" />
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/g1mliii/compact-games?style=flat-square&color=2E2E36" alt="Licence" /></a>
+</p>
 
 Compact Games helps you reclaim disk space from large game libraries using Windows NTFS compression. It finds your installed games, shows how much space you may be able to save, and lets you compress or decompress games with simple controls.
 
@@ -28,8 +46,6 @@ Download the latest Windows release from:
 [**Download Compact Games**](https://compactgames.app/)
 
 After downloading, run the installer or `.exe` file and follow the on-screen steps.
-
-[![Release downloads](https://img.shields.io/github/downloads/g1mliii/compact-games/total?label=release%20downloads)](https://github.com/g1mliii/compact-games/releases)
 
 ---
 
