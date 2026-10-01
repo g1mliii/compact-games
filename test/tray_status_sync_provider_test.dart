@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:compact_games/providers/compression/compression_state.dart';
 import 'package:compact_games/providers/system/auto_compression_status_provider.dart';
@@ -64,38 +64,35 @@ void main() {
     },
   );
 
-  test(
-    'trayStatusSyncProvider registers and unregisters tray toggle with container lifecycle',
-    () async {
-      final fakeTray = _FakeTrayPlatformAdapter();
-      final fakeWindow = _FakeWindowPlatformAdapter();
-      final service = TrayService.instance;
-      service.configureForTest(
-        trayPlatform: fakeTray,
-        windowPlatform: fakeWindow,
-        debounceDuration: const Duration(milliseconds: 5),
-        iconPathOverride: r'C:\test\compact_games_tray.ico',
-      );
-      await service.init();
-      expect(fakeTray.menuItemForKey('toggle_auto')?.disabled, isTrue);
+  test('trayStatusSyncProvider registers and unregisters tray toggle with container lifecycle', () async {
+    final fakeTray = _FakeTrayPlatformAdapter();
+    final fakeWindow = _FakeWindowPlatformAdapter();
+    final service = TrayService.instance;
+    service.configureForTest(
+      trayPlatform: fakeTray,
+      windowPlatform: fakeWindow,
+      debounceDuration: const Duration(milliseconds: 5),
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
+    );
+    await service.init();
+    expect(fakeTray.menuItemForKey('toggle_auto')?.disabled, isTrue);
 
-      final container = ProviderContainer(
-        overrides: [
-          autoCompressionRunningProvider.overrideWith(
-            (ref) => Stream<bool>.value(false),
-          ),
-        ],
-      );
+    final container = ProviderContainer(
+      overrides: [
+        autoCompressionRunningProvider.overrideWith(
+          (ref) => Stream<bool>.value(false),
+        ),
+      ],
+    );
 
-      container.read(trayStatusSyncProvider);
-      await service.flushPendingUpdateForTest();
-      expect(fakeTray.menuItemForKey('toggle_auto')?.disabled, isFalse);
+    container.read(trayStatusSyncProvider);
+    await service.flushPendingUpdateForTest();
+    expect(fakeTray.menuItemForKey('toggle_auto')?.disabled, isFalse);
 
-      container.dispose();
-      await service.flushPendingUpdateForTest();
-      expect(fakeTray.menuItemForKey('toggle_auto')?.disabled, isTrue);
-    },
-  );
+    container.dispose();
+    await service.flushPendingUpdateForTest();
+    expect(fakeTray.menuItemForKey('toggle_auto')?.disabled, isTrue);
+  });
 }
 
 class _FakeTrayPlatformAdapter implements TrayPlatformAdapter {

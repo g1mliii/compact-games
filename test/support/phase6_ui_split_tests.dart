@@ -719,8 +719,7 @@ void runPhase6OversizeSplitTests() {
 
     final game = GameInfo(
       name: 'A deliberately long localized-style game title that wraps safely',
-      path:
-          r'C:\Games\A deliberately long install path used to verify that expanded details remain scrollable\Content\Game',
+      path: r'C:\Games\A deliberately long install path used to verify that expanded details remain scrollable\Content\Game',
       platform: Platform.epicGames,
       sizeBytes: 96 * _oneGiB,
       compressedSize: 72 * _oneGiB,

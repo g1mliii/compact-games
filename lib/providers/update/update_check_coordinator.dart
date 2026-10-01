@@ -7,8 +7,10 @@ import '../settings/settings_provider.dart';
 import 'update_provider.dart';
 
 typedef UpdateCheckClock = DateTime Function();
-typedef UpdateCheckTimerFactory =
-    Timer Function(Duration delay, void Function() callback);
+typedef UpdateCheckTimerFactory = Timer Function(
+  Duration delay,
+  void Function() callback,
+);
 
 /// Owns the single automatic-update timer for the process.
 ///

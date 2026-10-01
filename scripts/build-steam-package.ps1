@@ -31,7 +31,7 @@ if (-not $contentDirFull.StartsWith($repoRootFull, [System.StringComparison]::Or
   throw "Refusing to stage Steam content outside the repository: $contentDirFull"
 }
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-$requiredFlutterVersion = '3.44.8'
+$requiredFlutterVersion = '3.47.6'
 # Single source of truth for the channel: the dart-define below and the
 # provenance marker are both derived from it, so the marker cannot claim a
 # channel the compiler was never told about.

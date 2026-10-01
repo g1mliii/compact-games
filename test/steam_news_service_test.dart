@@ -254,14 +254,13 @@ void main() {
     test('prefers the reported url when it is already on a Steam host', () {
       final item = parseFirstNewsItem(
         jsonDecode(
-              _newsBody(
-                gid: '1840944183775194',
-                url:
-                    'https://steamcommunity.com/games/620/announcements/'
-                    'detail/1840944183775194',
-              ),
-            )
-            as Map<String, dynamic>,
+          _newsBody(
+            gid: '1840944183775194',
+            url:
+                'https://steamcommunity.com/games/620/announcements/'
+                'detail/1840944183775194',
+          ),
+        ) as Map<String, dynamic>,
         game: game,
         steamAppId: 620,
       );
