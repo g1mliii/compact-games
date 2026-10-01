@@ -1,9 +1,9 @@
 Reviewed Rust license overrides used by scripts/generate-rust-notices.py
 
-flutter-rust-bridge-2.12.0-LICENSE.txt
-  Packages: flutter_rust_bridge 2.12.0, flutter_rust_bridge_macros 2.12.0
-  Upstream commit: 62b9330ed2f900535e34d8443ff82dc54070579a
-  Source: https://github.com/fzyzcjy/flutter_rust_bridge/blob/62b9330ed2f900535e34d8443ff82dc54070579a/LICENSE
+flutter-rust-bridge-2.13.0-LICENSE.txt
+  Packages: flutter_rust_bridge 2.13.0, flutter_rust_bridge_macros 2.13.0
+  Upstream commit: 8631db91a90c699439c9ce2a1fb4164ae8661da9 (tag v2.13.0)
+  Source: https://github.com/fzyzcjy/flutter_rust_bridge/blob/8631db91a90c699439c9ce2a1fb4164ae8661da9/LICENSE
 
 dart-sys-4.1.5-LICENSE-MIT.txt
   Package: dart-sys 4.1.5
