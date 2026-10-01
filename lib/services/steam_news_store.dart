@@ -39,13 +39,19 @@ class CachedNewsSnapshot {
 class SteamNewsStore {
   const SteamNewsStore();
 
-  static const String storageKey = 'compact_games_steam_news_v2';
+  static const String storageKey = 'compact_games_steam_news_v3';
 
-  /// The v1 payload, whose bodies Steam had already flattened into a single
-  /// run-on paragraph before we stored them. Nothing can un-flatten those, so
-  /// the version bump drops them and the next refresh fetches structured text
-  /// instead of leaving the reader unreadable until the cache aged out.
-  static const String legacyStorageKey = 'compact_games_steam_news_v1';
+  /// Superseded payloads, dropped on the first read after an upgrade so the
+  /// next refresh replaces them instead of the shelf showing them until the
+  /// cache ages out.
+  ///
+  /// - v1: bodies Steam had already flattened into one run-on paragraph.
+  /// - v2: fetched without a feed filter, so it can hold syndicated press
+  ///   posts in other languages alongside the game's own announcements.
+  static const List<String> legacyStorageKeys = <String>[
+    'compact_games_steam_news_v1',
+    'compact_games_steam_news_v2',
+  ];
 
   /// Refresh window. A snapshot older than this is shown but re-fetched.
   static const Duration freshness = Duration(hours: 6);
@@ -62,10 +68,12 @@ class SteamNewsStore {
   Future<CachedNewsSnapshot> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (prefs.containsKey(legacyStorageKey)) {
-        // Reclaimed on the first read after the upgrade, so the superseded
-        // payload does not sit in preferences forever.
-        await prefs.remove(legacyStorageKey);
+      for (final key in legacyStorageKeys) {
+        if (prefs.containsKey(key)) {
+          // Reclaimed on the first read after the upgrade, so the superseded
+          // payload does not sit in preferences forever.
+          await prefs.remove(key);
+        }
       }
       return decode(prefs.getString(storageKey));
     } catch (_) {
