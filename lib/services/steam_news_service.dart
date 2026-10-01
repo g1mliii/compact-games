@@ -109,6 +109,11 @@ class SteamNewsService {
       // do its job: at count=1, a single malformed entry silently costs the
       // game its whole news slot.
       'count': '$_newsFetchCount',
+      // Official developer posts only. Unfiltered, Steam mixes in syndicated
+      // press feeds (PC Gamer, PlayGround.ru, SteamDB, ...) that arrive in
+      // whatever language the outlet writes in, under a "Steam Community"
+      // label they do not belong to.
+      'feeds': steamAnnouncementsFeed,
       // No `maxlength`: asking Steam to shorten the body makes it strip the
       // markup itself and drop every line break with it, which arrives as one
       // unreadable run-on paragraph. The full contents keep their structure,
@@ -146,6 +151,10 @@ class SteamNewsService {
     }
   }
 }
+
+/// The GetNewsForApp feed name for a game's own Steam Community announcements.
+@visibleForTesting
+const String steamAnnouncementsFeed = 'steam_community_announcements';
 
 /// Picks and orders the games worth asking about.
 ///
@@ -197,6 +206,12 @@ GameNewsItem? parseFirstNewsItem(
 
   for (final entry in newsItems) {
     if (entry is! Map) {
+      continue;
+    }
+    // The request already asks for announcements only; this holds the line if
+    // Steam ever ignores the filter. An entry that names no feed is kept.
+    final feedName = entry['feedname'];
+    if (feedName is String && feedName != steamAnnouncementsFeed) {
       continue;
     }
     final id = boundedNewsText(entry['gid'], maxNewsIdLength);

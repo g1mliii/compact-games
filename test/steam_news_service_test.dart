@@ -215,6 +215,37 @@ void main() {
       );
     });
 
+    test('skips syndicated press posts for the game announcement', () {
+      final item = parseFirstNewsItem(
+        <String, dynamic>{
+          'appnews': <String, dynamic>{
+            'newsitems': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'gid': 'press',
+                'title': 'В Нидерландах задержали участника ShinyHunters',
+                'url': 'https://www.playground.ru/news/1',
+                'date': 1780000100,
+                'feedname': 'PlayGround.ru',
+                'feed_type': 0,
+              },
+              <String, dynamic>{
+                'gid': 'dev',
+                'title': 'Patch notes',
+                'url': 'https://steamcommunity.com/games/620/announcements/',
+                'date': 1780000000,
+                'feedname': steamAnnouncementsFeed,
+                'feed_type': 1,
+              },
+            ],
+          },
+        },
+        game: game,
+        steamAppId: 620,
+      );
+
+      expect(item?.id, 'dev');
+    });
+
     test('sanitizes markup out of the headline', () {
       final item = parseFirstNewsItem(
         jsonDecode(_newsBody(gid: 'g1', title: '[b]Big[/b] <i>news</i>'))
@@ -423,6 +454,8 @@ void main() {
         final count = int.parse(uri.queryParameters['count']!);
         expect(count, greaterThan(1));
         expect(uri.host, 'api.steampowered.com');
+        // Syndicated press feeds arrive in the outlet's own language.
+        expect(uri.queryParameters['feeds'], steamAnnouncementsFeed);
       }
     });
 
