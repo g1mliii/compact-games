@@ -62,7 +62,7 @@ version = "0.4"
 version = "0.11"
 
 [dependencies.dirs]
-version = "6"
+version = "7"
 
 [dependencies.ureq]
 version = "3"
