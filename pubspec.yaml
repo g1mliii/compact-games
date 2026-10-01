@@ -38,7 +38,7 @@ dependencies:
 
   # Reading an installed MSIX/Xbox package manifest for its own artwork.
   # Already in the tree via vector_graphics; named here because we use it.
-  xml: ^6.6.1
+  xml: ^7.0.1
 
   # Flutter Rust Bridge
   flutter_rust_bridge: 2.12.0
