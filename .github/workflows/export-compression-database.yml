@@ -46,7 +46,7 @@ jobs:
       - name: Export compression database bundle
         env:
           COMPACT_GAMES_COMPRESSION_DB_INPUT: compactgui-database/database.json
-          COMPACT_GAMES_COMPRESSION_DB_MIN_SAMPLES: ${{ inputs.min_samples || vars.COMPACT_GAMES_COMPRESSION_DB_MIN_SAMPLES || '3' }}
+          COMPACT_GAMES_COMPRESSION_DB_MIN_SAMPLES: ${{ inputs.min_samples || '3' }}
         run: |
           SOURCE_SHA="$(git -C compactgui-database rev-parse HEAD)"
           node ./scripts/normalize-compression-database.mjs --source="IridiumIO/CompactGUI@${SOURCE_SHA}"
