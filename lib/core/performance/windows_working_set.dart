@@ -3,10 +3,16 @@ import 'dart:io';
 
 typedef _GetCurrentProcessNative = IntPtr Function();
 typedef _GetCurrentProcessDart = int Function();
-typedef _SetProcessWorkingSetSizeNative =
-    Int32 Function(IntPtr process, IntPtr minimumSize, IntPtr maximumSize);
-typedef _SetProcessWorkingSetSizeDart =
-    int Function(int process, int minimumSize, int maximumSize);
+typedef _SetProcessWorkingSetSizeNative = Int32 Function(
+  IntPtr process,
+  IntPtr minimumSize,
+  IntPtr maximumSize,
+);
+typedef _SetProcessWorkingSetSizeDart = int Function(
+  int process,
+  int minimumSize,
+  int maximumSize,
+);
 
 /// Best-effort resident-memory trim for Windows tray mode.
 abstract final class WindowsWorkingSet {

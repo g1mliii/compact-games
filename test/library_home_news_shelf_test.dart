@@ -290,57 +290,55 @@ void main() {
     );
   });
 
-  testWidgets(
-    'dragging the scrollbar scrolls a long announcement',
-    (tester) async {
-      await _pumpSurface(
-        tester,
-        itemCount: 1,
-        // Long enough that the reader has somewhere to scroll to.
-        bodyText: List<String>.generate(
-          60,
-          (i) => 'Paragraph $i of the announcement.',
-        ).join('\n\n'),
-      );
+  testWidgets('dragging the scrollbar scrolls a long announcement', (
+    tester,
+  ) async {
+    await _pumpSurface(
+      tester,
+      itemCount: 1,
+      // Long enough that the reader has somewhere to scroll to.
+      bodyText: List<String>.generate(
+        60,
+        (i) => 'Paragraph $i of the announcement.',
+      ).join('\n\n'),
+    );
 
-      await tester.tap(find.byType(LibraryHomeNewsCard).first);
-      await tester.pumpAndSettle();
+    await tester.tap(find.byType(LibraryHomeNewsCard).first);
+    await tester.pumpAndSettle();
 
-      // Keyed off the reader: on desktop the Material scroll behavior wraps the
-      // view in a scrollbar of its own, so "inside a Scrollbar" matches twice.
-      final scrollable = find
-          .descendant(
-            of: find.byKey(_readerKey),
-            matching: find.byType(Scrollable),
-          )
-          .first;
-      final position = tester.state<ScrollableState>(scrollable).position;
-      expect(position.maxScrollExtent, greaterThan(0));
-      expect(position.pixels, 0);
+    // Keyed off the reader: on desktop the Material scroll behavior wraps the
+    // view in a scrollbar of its own, so "inside a Scrollbar" matches twice.
+    final scrollable = find
+        .descendant(
+          of: find.byKey(_readerKey),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final position = tester.state<ScrollableState>(scrollable).position;
+    expect(position.maxScrollExtent, greaterThan(0));
+    expect(position.pixels, 0);
 
-      // A mouse drag on purpose: a scroll view does not follow a mouse drag on
-      // the content, so anything that moves here moved because the thumb was
-      // grabbed — which is exactly what a scrollbar with no controller cannot do.
-      final box = tester.getRect(scrollable);
-      final gesture = await tester.startGesture(
-        Offset(box.right - 4, box.top + 20),
-        kind: PointerDeviceKind.mouse,
-      );
-      addTearDown(() => gesture.removePointer());
-      await tester.pump();
-      await gesture.moveBy(const Offset(0, 120));
-      await tester.pump();
-      await gesture.up();
-      await tester.pumpAndSettle();
+    // A mouse drag on purpose: a scroll view does not follow a mouse drag on
+    // the content, so anything that moves here moved because the thumb was
+    // grabbed — which is exactly what a scrollbar with no controller cannot do.
+    final box = tester.getRect(scrollable);
+    final gesture = await tester.startGesture(
+      Offset(box.right - 4, box.top + 20),
+      kind: PointerDeviceKind.mouse,
+    );
+    addTearDown(() => gesture.removePointer());
+    await tester.pump();
+    await gesture.moveBy(const Offset(0, 120));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
 
-      expect(position.pixels, greaterThan(0));
-      // Pinned to Windows because the platform is the whole point: it does not
-      // hand out the primary scroll controller, which is what left the bar
-      // undraggable. Under the test default (Android) it is handed out and the
-      // bug cannot reproduce.
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.windows),
-  );
+    expect(position.pixels, greaterThan(0));
+    // Pinned to Windows because the platform is the whole point: it does not
+    // hand out the primary scroll controller, which is what left the bar
+    // undraggable. Under the test default (Android) it is handed out and the
+    // bug cannot reproduce.
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 
   testWidgets('a Steam link in the article opens on click', (tester) async {
     const link = 'https://store.steampowered.com/app/2807960/Battlefield_6/';

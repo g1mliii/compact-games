@@ -395,9 +395,8 @@ class _GameDetailsStatusOverlayHost extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final statusKind = ref.watch(
-      singleGameProvider(
-        gamePath,
-      ).select((game) => game == null ? null : detailsStatusKind(game)),
+      singleGameProvider(gamePath)
+          .select((game) => game == null ? null : detailsStatusKind(game)),
     );
     final activityLabel = ref.watch(
       activeCompressionJobProvider.select((job) {

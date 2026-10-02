@@ -68,12 +68,10 @@ void main() {
 
       final appDir = io.Directory('${temp.path}\\Toolbox');
       await appDir.create(recursive: true);
-      await io.File(
-        '${appDir.path}\\toolbox.exe',
-      ).writeAsBytes(List<int>.filled(64 * 1024, 7));
-      await io.File(
-        '${appDir.path}\\payload.bin',
-      ).writeAsBytes(List<int>.filled(512 * 1024, 3));
+      await io.File('${appDir.path}\\toolbox.exe')
+          .writeAsBytes(List<int>.filled(64 * 1024, 7));
+      await io.File('${appDir.path}\\payload.bin')
+          .writeAsBytes(List<int>.filled(512 * 1024, 3));
 
       final app = await RustBridgeService.instance.addApplicationFolder(
         '${appDir.path}\\toolbox.exe',
