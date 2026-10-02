@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$expectedVersion = "2.12.0"
+$expectedVersion = "2.13.0"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 

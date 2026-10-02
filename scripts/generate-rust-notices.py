@@ -19,8 +19,8 @@ NOTICE_DIRS = ("licenses", "licences")
 PACKAGE_LINE = re.compile(r"^(?P<name>\S+) v(?P<version>\S+)")
 LICENSE_OVERRIDES = {
     ("dart-sys", "4.1.5"): "dart-sys-4.1.5-LICENSE-MIT.txt",
-    ("flutter_rust_bridge", "2.12.0"): "flutter-rust-bridge-2.12.0-LICENSE.txt",
-    ("flutter_rust_bridge_macros", "2.12.0"): "flutter-rust-bridge-2.12.0-LICENSE.txt",
+    ("flutter_rust_bridge", "2.13.0"): "flutter-rust-bridge-2.13.0-LICENSE.txt",
+    ("flutter_rust_bridge_macros", "2.13.0"): "flutter-rust-bridge-2.13.0-LICENSE.txt",
 }
 
 
