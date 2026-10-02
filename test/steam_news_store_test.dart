@@ -278,24 +278,26 @@ void main() {
     });
   });
 
-  group('the v1 cache', () {
+  group('legacy caches', () {
     setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
-    test('is ignored and cleared rather than shown', () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        SteamNewsStore.legacyStorageKey: jsonEncode(<String, dynamic>{
-          'fetchedAt': now.millisecondsSinceEpoch,
-          'items': <Map<String, dynamic>>[_item(id: 'old').toJson()],
-        }),
+    for (final key in SteamNewsStore.legacyStorageKeys) {
+      test('$key is ignored and cleared rather than shown', () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          key: jsonEncode(<String, dynamic>{
+            'fetchedAt': now.millisecondsSinceEpoch,
+            'items': <Map<String, dynamic>>[_item(id: 'old').toJson()],
+          }),
+        });
+
+        final snapshot = await const SteamNewsStore().load();
+
+        // Superseded payloads (flattened bodies, unfiltered press feeds) are
+        // dropped and refetched instead of being shown again.
+        expect(snapshot.items, isEmpty);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.containsKey(key), isFalse);
       });
-
-      final snapshot = await const SteamNewsStore().load();
-
-      // Its bodies were flattened by Steam before they were ever stored, so
-      // the upgrade drops them and refetches instead of showing them again.
-      expect(snapshot.items, isEmpty);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.containsKey(SteamNewsStore.legacyStorageKey), isFalse);
-    });
+    }
   });
 }
