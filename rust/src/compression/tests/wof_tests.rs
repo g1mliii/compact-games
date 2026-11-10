@@ -97,6 +97,31 @@ fn roundtrip_preserves_file_content() {
 }
 
 #[test]
+fn repeat_compression_keeps_existing_backing_without_write_access() {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows::Win32::Storage::FileSystem::FILE_SHARE_READ;
+
+    let dir = TempDir::new().unwrap();
+    let path = create_compressible_file(dir.path(), "payload.bin", 1_048_576);
+    let algorithm = CompressionAlgorithm::Xpress16K;
+    let engine = CompressionEngine::new(algorithm);
+    let first = engine.compress_folder(dir.path()).unwrap();
+    assert_eq!(wof::wof_get_compression(&path).unwrap(), Some(algorithm));
+
+    let reader = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(FILE_SHARE_READ.0)
+        .open(&path)
+        .unwrap();
+    let repeat = engine.compress_folder(dir.path()).unwrap();
+    assert_eq!(repeat.files_skipped, 0);
+    assert_eq!(repeat.original_bytes, first.original_bytes);
+    assert_eq!(repeat.compressed_bytes, first.compressed_bytes);
+    assert_eq!(wof::wof_get_compression(&path).unwrap(), Some(algorithm));
+    drop(reader);
+}
+
+#[test]
 fn decompression_restores_logical_size() {
     let dir = TempDir::new().unwrap();
     let path = create_compressible_file(dir.path(), "data.dat", 1_048_576);

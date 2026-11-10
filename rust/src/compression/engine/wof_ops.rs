@@ -98,7 +98,7 @@ impl CompressionEngine {
                 return Err(CompressionError::DiskFull);
             }
 
-            let file = match wof::open_verified_file(path, &canonical_root) {
+            let file = match wof::open_verified_read_only(path, &canonical_root) {
                 Ok(file) => file,
                 Err(error) if Self::is_recoverable_file_error(&error) => {
                     skipped.fetch_add(1, Ordering::Relaxed);
@@ -130,12 +130,50 @@ impl CompressionEngine {
                 .metadata()
                 .map(|metadata| metadata.len())
                 .unwrap_or_default();
-            if file_size == 0 {
+            if file_size < MIN_COMPRESSIBLE_SIZE {
                 skipped.fetch_add(1, Ordering::Relaxed);
                 self.files_processed.fetch_add(1, Ordering::Relaxed);
                 return Ok(());
             }
 
+            // Windows can remove WOF backing on a write open alone. Query
+            // through a read-only handle so a same-algorithm pass leaves the
+            // file intact and does not generate another watcher event.
+            if matches!(wof::wof_get_compression_open_file(&file, path), Ok(Some(current)) if current == algorithm)
+            {
+                let physical = wof::get_physical_size(path).unwrap_or(file_size);
+                self.bytes_original.fetch_add(file_size, Ordering::Relaxed);
+                self.bytes_compressed.fetch_add(physical, Ordering::Relaxed);
+                self.files_processed.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
+            drop(file);
+
+            let file = match wof::open_verified_file(path, &canonical_root) {
+                Ok(file) if wof::link_count(&file).is_none_or(|count| count <= 1) => file,
+                Ok(_) => {
+                    log::warn!(
+                        "Skipping multi-linked file during compression: {}",
+                        path.display()
+                    );
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
+                Err(error) => {
+                    log::debug!(
+                        "Skipping file during compression write open {}: {error}",
+                        path.display()
+                    );
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                    self.files_processed.fetch_add(1, Ordering::Relaxed);
+                    return Ok(());
+                }
+            };
+            let file_size = file
+                .metadata()
+                .map(|metadata| metadata.len())
+                .unwrap_or_default();
             if file_size < MIN_COMPRESSIBLE_SIZE {
                 skipped.fetch_add(1, Ordering::Relaxed);
                 self.files_processed.fetch_add(1, Ordering::Relaxed);
