@@ -129,14 +129,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.2"
+  cnativeapi:
+    dependency: transitive
+    description:
+      name: cnativeapi
+      sha256: c43703998995e132b0656d2b8a95ed2bedc6b22ccee2c827bcdc075e0330e319
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.10"
   code_assets:
     dependency: transitive
     description:
       name: code_assets
-      sha256: "83ccdaa064c980b5596c35dd64a8d3ecc68620174ab9b90b6343b753aa721687"
+      sha256: "1ef22a0be3af9370bd9481ac76db114db92bfe75d5ca2b2d7bc911764478a4d9"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.0"
+    version: "2.2.0"
   collection:
     dependency: transitive
     description:
@@ -345,10 +353,10 @@ packages:
     dependency: transitive
     description:
       name: hooks
-      sha256: "7a08a0d684cb3b8fb604b78455d5d352f502b68079f7b80b831c62220ab0a4f6"
+      sha256: eaac480a35ec0814146c2c48d96aaa829e0e44a7662c88ae84c9edf4bc35651f
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.1"
+    version: "2.2.0"
   http:
     dependency: "direct main"
     description:
@@ -469,14 +477,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
-  menu_base:
-    dependency: transitive
-    description:
-      name: menu_base
-      sha256: "820368014a171bd1241030278e6c2617354f492f5c703d7b7d4570a6b8b84405"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.1"
   meta:
     dependency: transitive
     description:
@@ -497,18 +497,34 @@ packages:
     dependency: transitive
     description:
       name: native_toolchain_c
-      sha256: "89e83885ba09da5fdf2cdacc8002a712ca238c28b7f717910b34bcd27b0d03ac"
+      sha256: "120b6fc66acd8a5ddeaeb1e59b78836bb3ec9919bd9d9dfb1e2401985710c2c0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.17.4"
+    version: "0.19.6"
+  nativeapi:
+    dependency: transitive
+    description:
+      name: nativeapi
+      sha256: "118045bb549cb6fabad472a3a22a537e7310bbf20097350f5027808b4a5853ce"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.10"
+  nativeapi_flutter:
+    dependency: transitive
+    description:
+      name: nativeapi_flutter
+      sha256: "357a405c69212f5157da1bd3be183a53c2b841d0de0eb51f4a3947913712aec4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.10"
   objective_c:
     dependency: transitive
     description:
       name: objective_c
-      sha256: "100a1c87616ab6ed41ec263b083c0ef3261ee6cd1dc3b0f35f8ddfa4f996fe52"
+      sha256: "322d5f1f0680534acaf557c5d68e97b40c3800ee5e15b63dcacc3c31504674c2"
       url: "https://pub.dev"
     source: hosted
-    version: "9.3.0"
+    version: "9.6.3"
   package_config:
     dependency: transitive
     description:
@@ -613,6 +629,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.2"
+  process:
+    dependency: transitive
+    description:
+      name: process
+      sha256: "4242ba3508d37e01808bdf71ad1d5bb93a8d671bf2e7450e6b1b353fb0808891"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.6"
   pub_semver:
     dependency: transitive
     description:
@@ -629,6 +653,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
+  record_use:
+    dependency: transitive
+    description:
+      name: record_use
+      sha256: "1cb8564af8d43b464294411db9217f5ec04891c6f22ee2c32d73ae05e88a6bd2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
   riverpod:
     dependency: transitive
     description:
@@ -749,14 +781,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"
-  shortid:
-    dependency: transitive
-    description:
-      name: shortid
-      sha256: d0b40e3dbb50497dad107e19c54ca7de0d1a274eb9b4404991e443dadb9ebedb
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.2"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -838,10 +862,10 @@ packages:
     dependency: "direct main"
     description:
       name: tray_manager
-      sha256: "1a659b08baa6e9b91ef8ce16eda37740de398be1c4cf322b8a1ddfef25c68c5a"
+      sha256: "30c67f4f27a9b2ad56606b369b75256fd9ef25851b66788597d4df3fbbfa536a"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.3"
+    version: "0.8.3"
   typed_data:
     dependency: transitive
     description:
