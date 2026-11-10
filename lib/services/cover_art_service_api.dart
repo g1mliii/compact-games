@@ -84,7 +84,7 @@ extension _CoverArtServiceApi on CoverArtService {
         return null;
       }
 
-      return _downloadRemoteImageIntoCache(cacheKey, imageUrl);
+      return await _downloadRemoteImageIntoCache(cacheKey, imageUrl);
     } catch (_) {
       return null;
     }

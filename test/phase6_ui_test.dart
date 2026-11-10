@@ -1,10 +1,13 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+
 import 'support/list_row_finder.dart';
+
 import 'package:compact_games/core/navigation/app_routes.dart';
 import 'package:compact_games/core/config/cover_art_proxy_config.dart';
 import 'package:compact_games/core/theme/app_colors.dart';
@@ -941,8 +944,7 @@ void main() {
 
     final game = GameInfo(
       name: 'Details Narrow Path',
-      path:
-          r'C:\Program Files\Epic Games\rocketleague\Very\Long\Nested\Folder\Path\To\Game',
+      path: r'C:\Program Files\Epic Games\rocketleague\Very\Long\Nested\Folder\Path\To\Game',
       platform: Platform.epicGames,
       sizeBytes: 96 * _oneGiB,
       compressedSize: 70 * _oneGiB,
@@ -1029,8 +1031,7 @@ void main() {
   ) async {
     final game = GameInfo(
       name: 'Details Path Breathing Room',
-      path:
-          r'C:\Program Files\Epic Games\rocketleague\Very\Long\Nested\Folder\Path\To\Game',
+      path: r'C:\Program Files\Epic Games\rocketleague\Very\Long\Nested\Folder\Path\To\Game',
       platform: Platform.epicGames,
       sizeBytes: 96 * _oneGiB,
       compressedSize: 70 * _oneGiB,

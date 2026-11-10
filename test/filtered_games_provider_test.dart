@@ -11,6 +11,7 @@ import 'package:compact_games/models/compression_progress.dart';
 import 'package:compact_games/models/watcher_event.dart';
 import 'package:compact_games/services/rust_bridge_service.dart';
 import 'package:compact_games/src/rust/api/update.dart' as rust_update;
+
 import 'dart:typed_data';
 
 const int _gib = 1024 * 1024 * 1024;
@@ -180,33 +181,30 @@ void main() {
       );
     });
 
-    test(
-      'filteredGamePathsProvider reuses the same path list when order is unchanged',
-      () async {
-        await waitForLoad();
-        final initialPaths = container.read(filteredGamePathsProvider);
+    test('filteredGamePathsProvider reuses the same path list when order is unchanged', () async {
+      await waitForLoad();
+      final initialPaths = container.read(filteredGamePathsProvider);
 
-        container
-            .read(gameListProvider.notifier)
-            .updateGame(
-              _games.first.copyWith(
-                isCompressed: true,
-                compressedSize: () => 8 * _gib,
-              ),
-            );
+      container
+          .read(gameListProvider.notifier)
+          .updateGame(
+            _games.first.copyWith(
+              isCompressed: true,
+              compressedSize: () => 8 * _gib,
+            ),
+          );
 
-        final updatedPaths = container.read(filteredGamePathsProvider);
-        expect(identical(updatedPaths, initialPaths), isTrue);
-        expect(
-          updatedPaths,
-          equals(<String>[
-            r'C:\Games\alpha',
-            r'C:\Games\beta',
-            r'C:\Games\gamma',
-          ]),
-        );
-      },
-    );
+      final updatedPaths = container.read(filteredGamePathsProvider);
+      expect(identical(updatedPaths, initialPaths), isTrue);
+      expect(
+        updatedPaths,
+        equals(<String>[
+          r'C:\Games\alpha',
+          r'C:\Games\beta',
+          r'C:\Games\gamma',
+        ]),
+      );
+    });
   });
 
   group('GameInfo.normalizedName', () {

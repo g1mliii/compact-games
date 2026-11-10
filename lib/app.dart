@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:compact_games/l10n/app_localizations.dart';
+
 import 'core/lifecycle/app_window_visibility.dart';
 import 'core/localization/app_locale.dart';
 import 'core/navigation/app_routes.dart';

@@ -180,7 +180,7 @@ Future<String?> _readExistingToken(File tokenFile) async {
     if (!await tokenFile.exists()) {
       return null;
     }
-    return tokenFile.readAsString();
+    return await tokenFile.readAsString();
   } catch (_) {
     return null;
   }

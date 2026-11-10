@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:window_manager/window_manager.dart';
+
 import 'app.dart';
 import 'core/constants/app_constants.dart';
 import 'core/lifecycle/app_window_visibility.dart';

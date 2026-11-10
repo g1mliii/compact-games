@@ -33,9 +33,9 @@ void main() {
       const persistence = SettingsPersistence();
       final loaded = await persistence.load();
       final prefs = await SharedPreferences.getInstance();
-      final persisted =
-          jsonDecode(prefs.getString('compact_games_settings')!)
-              as Map<String, dynamic>;
+      final persisted = jsonDecode(
+        prefs.getString('compact_games_settings')!,
+      ) as Map<String, dynamic>;
 
       expect(loaded.steamGridDbApiKey, 'secure-demo-key');
       expect(loaded.coverArtProviderMode, CoverArtProviderMode.userKey);
@@ -85,9 +85,8 @@ void main() {
 
     expect(persistence.savedSettings?.shareUnsupportedReports, isTrue);
     expect(
-      AppSettings.fromJson(
-        persistence.savedSettings!.toJson(),
-      ).shareUnsupportedReports,
+      AppSettings.fromJson(persistence.savedSettings!.toJson())
+          .shareUnsupportedReports,
       isTrue,
     );
   });

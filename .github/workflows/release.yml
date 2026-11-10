@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Flutter 3.44 provides the Dart 3.12 SDK required by flutter_riverpod 3.4.
-  FLUTTER_VERSION: "3.44.8"
+  # Flutter 3.47 provides the Dart 3.13 SDK required by freezed 4.
+  FLUTTER_VERSION: "3.47.6"
   RUST_TOOLCHAIN: "stable"
 
 jobs:

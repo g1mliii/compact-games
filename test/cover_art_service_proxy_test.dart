@@ -289,29 +289,26 @@ void main() {
     },
   );
 
-  test(
-    'Steam library fallback scans nested appid assets before tiny root thumbnail',
-    () async {
-      final fixture = await _writeSteamLibraryFixture(tempDir);
+  test('Steam library fallback scans nested appid assets before tiny root thumbnail', () async {
+    final fixture = await _writeSteamLibraryFixture(tempDir);
 
-      final result = await const CoverArtService().resolveCover(
-        GameInfo(
-          name: 'Battlefield 6',
-          path: fixture.gamePath,
-          platform: Platform.steam,
-          sizeBytes: 1,
-          // Discovery fills this in from the manifest before the UI ever asks
-          // for a cover, so the fixture carries it too.
-          steamAppId: fixture.steamAppId,
-        ),
-        coverArtProviderMode: CoverArtProviderMode.userKey,
-      );
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Battlefield 6',
+        path: fixture.gamePath,
+        platform: Platform.steam,
+        sizeBytes: 1,
+        // Discovery fills this in from the manifest before the UI ever asks
+        // for a cover, so the fixture carries it too.
+        steamAppId: fixture.steamAppId,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.userKey,
+    );
 
-      final cacheFile = _cachedCoverFile(tempDir, fixture.gamePath);
-      expect(result.source, CoverArtSource.steamLibraryCache);
-      expect(await cacheFile.readAsBytes(), fixture.preferredBytes);
-    },
-  );
+    final cacheFile = _cachedCoverFile(tempDir, fixture.gamePath);
+    expect(result.source, CoverArtSource.steamLibraryCache);
+    expect(await cacheFile.readAsBytes(), fixture.preferredBytes);
+  });
 
   test('configured proxy replaces a preferred Steam library cover', () async {
     final fixture = await _writeSteamLibraryFixture(tempDir);
@@ -659,81 +656,77 @@ void main() {
     );
   });
 
-  test(
-    'bundled proxy miss falls back to an official Steam portrait for a safe title prefix',
-    () async {
-      final requests = <Uri>[];
-      debugSetCoverArtApiHttpClientForTesting(
-        MockClient((request) async {
-          requests.add(request.url);
-          if (request.url.host == 'proxy.example.test') {
-            expect(request.url.path, '/sgdb/by-name');
-            expect(request.url.queryParameters['name'], 'Restory');
-            return _jsonResponse({'error': 'Not found'}, 404);
-          }
-          if (request.url.host == 'store.steampowered.com') {
-            expect(request.url.path, '/api/storesearch/');
-            expect(request.url.queryParameters['term'], 'Restory');
-            return _jsonResponse({
-              'items': [
-                {'id': 3812600, 'name': 'ReStory: Chill Electronics Repairs'},
-              ],
-            });
-          }
-          if (request.url.host == 'api.steampowered.com') {
-            return _jsonResponse({
-              'response': {
-                'store_items': [
-                  {
-                    'appid': 3812600,
-                    'assets': {
-                      'asset_url_format':
-                          r'steam/apps/3812600/${FILENAME}?t=123',
-                      'library_capsule_2x': 'portrait/library_capsule_2x.jpg',
-                    },
+  test('bundled proxy miss falls back to an official Steam portrait for a safe title prefix', () async {
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'proxy.example.test') {
+          expect(request.url.path, '/sgdb/by-name');
+          expect(request.url.queryParameters['name'], 'Restory');
+          return _jsonResponse({'error': 'Not found'}, 404);
+        }
+        if (request.url.host == 'store.steampowered.com') {
+          expect(request.url.path, '/api/storesearch/');
+          expect(request.url.queryParameters['term'], 'Restory');
+          return _jsonResponse({
+            'items': [
+              {'id': 3812600, 'name': 'ReStory: Chill Electronics Repairs'},
+            ],
+          });
+        }
+        if (request.url.host == 'api.steampowered.com') {
+          return _jsonResponse({
+            'response': {
+              'store_items': [
+                {
+                  'appid': 3812600,
+                  'assets': {
+                    'asset_url_format': r'steam/apps/3812600/${FILENAME}?t=123',
+                    'library_capsule_2x': 'portrait/library_capsule_2x.jpg',
                   },
-                ],
-              },
-            });
-          }
-          if (request.url.host == 'shared.akamai.steamstatic.com') {
-            return http.Response.bytes(
-              <int>[51, 52, 53, 54],
-              200,
-              headers: const <String, String>{'content-type': 'image/jpeg'},
-            );
-          }
-          throw StateError('Unexpected request to ${request.url}');
-        }),
-      );
+                },
+              ],
+            },
+          });
+        }
+        if (request.url.host == 'shared.akamai.steamstatic.com') {
+          return http.Response.bytes(
+            <int>[51, 52, 53, 54],
+            200,
+            headers: const <String, String>{'content-type': 'image/jpeg'},
+          );
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
 
-      final result = await const CoverArtService().resolveCover(
-        GameInfo(
-          name: 'Restory',
-          path: r'C:\Games\Restory',
-          platform: Platform.custom,
-          sizeBytes: 1,
-        ),
-        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
-        coverArtProxyConfig: const CoverArtProxyConfig(
-          url: 'https://proxy.example.test',
-          token: 'proxy-token',
-        ),
-      );
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Restory',
+        path: r'C:\Games\Restory',
+        platform: Platform.custom,
+        sizeBytes: 1,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
 
-      expect(result.source, CoverArtSource.steamStoreApi);
-      expect(result.uri, startsWith('file:'));
-      expect(
-        requests.map((uri) => uri.host),
-        containsAll(<String>[
-          'proxy.example.test',
-          'store.steampowered.com',
-          'api.steampowered.com',
-          'shared.akamai.steamstatic.com',
-        ]),
-      );
-    },
-  );
+    expect(result.source, CoverArtSource.steamStoreApi);
+    expect(result.uri, startsWith('file:'));
+    expect(
+      requests.map((uri) => uri.host),
+      containsAll(<String>[
+        'proxy.example.test',
+        'store.steampowered.com',
+        'api.steampowered.com',
+        'shared.akamai.steamstatic.com',
+      ]),
+    );
+  });
 
   test(
     'Steam store fallback accepts the closest multiword catalog title',
@@ -835,48 +828,45 @@ void main() {
     ]);
   });
 
-  test(
-    'bad cached cover falls back to preferred nested Steam asset when proxy is unavailable',
-    () async {
-      final fixture = await _writeSteamLibraryFixture(tempDir);
-      final cacheFile = await _writeCachedCover(
-        tempDir,
-        fixture.gamePath,
-        _fakePngHeader(width: 32, height: 32),
-      );
-      final requests = <Uri>[];
-      debugSetCoverArtApiHttpClientForTesting(
-        MockClient((request) async {
-          requests.add(request.url);
-          if (request.url.host == 'proxy.example.test') {
-            return _jsonResponse({'error': 'unavailable'}, 503);
-          }
-          throw StateError('Unexpected request to ${request.url}');
-        }),
-      );
+  test('bad cached cover falls back to preferred nested Steam asset when proxy is unavailable', () async {
+    final fixture = await _writeSteamLibraryFixture(tempDir);
+    final cacheFile = await _writeCachedCover(
+      tempDir,
+      fixture.gamePath,
+      _fakePngHeader(width: 32, height: 32),
+    );
+    final requests = <Uri>[];
+    debugSetCoverArtApiHttpClientForTesting(
+      MockClient((request) async {
+        requests.add(request.url);
+        if (request.url.host == 'proxy.example.test') {
+          return _jsonResponse({'error': 'unavailable'}, 503);
+        }
+        throw StateError('Unexpected request to ${request.url}');
+      }),
+    );
 
-      final result = await const CoverArtService().resolveCover(
-        GameInfo(
-          name: 'Battlefield 6',
-          path: fixture.gamePath,
-          platform: Platform.steam,
-          sizeBytes: 1,
-          // Discovery fills this in from the manifest before the UI ever asks
-          // for a cover, so the fixture carries it too.
-          steamAppId: fixture.steamAppId,
-        ),
-        coverArtProviderMode: CoverArtProviderMode.bundledProxy,
-        coverArtProxyConfig: const CoverArtProxyConfig(
-          url: 'https://proxy.example.test',
-          token: 'proxy-token',
-        ),
-      );
+    final result = await const CoverArtService().resolveCover(
+      GameInfo(
+        name: 'Battlefield 6',
+        path: fixture.gamePath,
+        platform: Platform.steam,
+        sizeBytes: 1,
+        // Discovery fills this in from the manifest before the UI ever asks
+        // for a cover, so the fixture carries it too.
+        steamAppId: fixture.steamAppId,
+      ),
+      coverArtProviderMode: CoverArtProviderMode.bundledProxy,
+      coverArtProxyConfig: const CoverArtProxyConfig(
+        url: 'https://proxy.example.test',
+        token: 'proxy-token',
+      ),
+    );
 
-      expect(requests.single.host, 'proxy.example.test');
-      expect(result.source, CoverArtSource.steamLibraryCache);
-      expect(await cacheFile.readAsBytes(), fixture.preferredBytes);
-    },
-  );
+    expect(requests.single.host, 'proxy.example.test');
+    expect(result.source, CoverArtSource.steamLibraryCache);
+    expect(await cacheFile.readAsBytes(), fixture.preferredBytes);
+  });
 
   test('application entries use bundled proxy by name', () async {
     final requests = <Uri>[];
@@ -1753,9 +1743,8 @@ Future<_SteamLibraryFixture> _writeSteamLibraryFixture(
     p.join(libraryCache.path, '64fffd4bdc67e07b180cc695edcbcb8d1e96f1a6'),
   );
   await capsuleDir.create(recursive: true);
-  await File(
-    p.join(capsuleDir.path, 'library_capsule.jpg'),
-  ).writeAsBytes(preferredBytes);
+  await File(p.join(capsuleDir.path, 'library_capsule.jpg'))
+      .writeAsBytes(preferredBytes);
 
   return _SteamLibraryFixture(
     gamePath: gameDir.path,

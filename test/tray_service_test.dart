@@ -246,36 +246,33 @@ void main() {
     expect(fakeTray.setContextMenuCalls, menuCallsBefore);
   });
 
-  test(
-    'debounce coalescing keeps latest queued status when updates revert quickly',
-    () async {
-      final fakeTray = _FakeTrayPlatformAdapter();
-      final fakeWindow = _FakeWindowPlatformAdapter();
-      final service = TrayService.instance;
-      service.configureForTest(
-        trayPlatform: fakeTray,
-        windowPlatform: fakeWindow,
-        debounceDuration: const Duration(milliseconds: 50),
-        iconPathOverride: r'C:\test\compact_games_tray.ico',
-      );
+  test('debounce coalescing keeps latest queued status when updates revert quickly', () async {
+    final fakeTray = _FakeTrayPlatformAdapter();
+    final fakeWindow = _FakeWindowPlatformAdapter();
+    final service = TrayService.instance;
+    service.configureForTest(
+      trayPlatform: fakeTray,
+      windowPlatform: fakeWindow,
+      debounceDuration: const Duration(milliseconds: 50),
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
+    );
 
-      await service.init();
-      final menuCallsBefore = fakeTray.setContextMenuCalls;
+    await service.init();
+    final menuCallsBefore = fakeTray.setContextMenuCalls;
 
-      service.update(
-        const TrayStatus(
-          mode: TrayStatusMode.compressing,
-          activeGameName: 'Race Game',
-          progressPercent: 8,
-        ),
-      );
-      service.update(const TrayStatus(mode: TrayStatusMode.idle));
-      await service.flushPendingUpdateForTest();
+    service.update(
+      const TrayStatus(
+        mode: TrayStatusMode.compressing,
+        activeGameName: 'Race Game',
+        progressPercent: 8,
+      ),
+    );
+    service.update(const TrayStatus(mode: TrayStatusMode.idle));
+    await service.flushPendingUpdateForTest();
 
-      expect(fakeTray.setContextMenuCalls, menuCallsBefore);
-      expect(fakeTray.lastTooltip, 'Compact Games');
-    },
-  );
+    expect(fakeTray.setContextMenuCalls, menuCallsBefore);
+    expect(fakeTray.lastTooltip, 'Compact Games');
+  });
 
   test('status queued before init is applied during init', () async {
     final fakeTray = _FakeTrayPlatformAdapter();
@@ -345,48 +342,45 @@ void main() {
     },
   );
 
-  test(
-    'localized menu label changes rebuild the tray menu even when status mode is unchanged',
-    () async {
-      final fakeTray = _FakeTrayPlatformAdapter();
-      final fakeWindow = _FakeWindowPlatformAdapter();
-      final service = TrayService.instance;
-      service.configureForTest(
-        trayPlatform: fakeTray,
-        windowPlatform: fakeWindow,
-        debounceDuration: const Duration(milliseconds: 5),
-        iconPathOverride: r'C:\test\compact_games_tray.ico',
-      );
+  test('localized menu label changes rebuild the tray menu even when status mode is unchanged', () async {
+    final fakeTray = _FakeTrayPlatformAdapter();
+    final fakeWindow = _FakeWindowPlatformAdapter();
+    final service = TrayService.instance;
+    service.configureForTest(
+      trayPlatform: fakeTray,
+      windowPlatform: fakeWindow,
+      debounceDuration: const Duration(milliseconds: 5),
+      iconPathOverride: r'C:\test\compact_games_tray.ico',
+    );
 
-      await service.init();
-      final menuCallsBefore = fakeTray.setContextMenuCalls;
-      final tooltipCallsBefore = fakeTray.setToolTipCalls;
+    await service.init();
+    final menuCallsBefore = fakeTray.setContextMenuCalls;
+    final tooltipCallsBefore = fakeTray.setToolTipCalls;
 
-      service.update(
-        const TrayStatus(
-          mode: TrayStatusMode.idle,
-          autoCompressionEnabled: true,
-          strings: TrayStrings(
-            openAppLabel: 'Abrir Compact Games',
-            pauseAutoCompressionLabel: 'Pausar compresion automatica',
-            resumeAutoCompressionLabel: 'Reanudar compresion automatica',
-            quitLabel: 'Salir',
-          ),
+    service.update(
+      const TrayStatus(
+        mode: TrayStatusMode.idle,
+        autoCompressionEnabled: true,
+        strings: TrayStrings(
+          openAppLabel: 'Abrir Compact Games',
+          pauseAutoCompressionLabel: 'Pausar compresion automatica',
+          resumeAutoCompressionLabel: 'Reanudar compresion automatica',
+          quitLabel: 'Salir',
         ),
-      );
-      await service.flushPendingUpdateForTest();
+      ),
+    );
+    await service.flushPendingUpdateForTest();
 
-      expect(fakeTray.setContextMenuCalls, menuCallsBefore + 1);
-      expect(fakeTray.setToolTipCalls, tooltipCallsBefore);
-      expect(fakeTray.menuLabelForKey('show'), 'Abrir Compact Games');
-      expect(
-        fakeTray.menuLabelForKey('toggle_auto'),
-        'Pausar compresion automatica',
-      );
-      expect(fakeTray.menuLabelForKey('quit'), 'Salir');
-      expect(fakeTray.lastTooltip, 'Compact Games');
-    },
-  );
+    expect(fakeTray.setContextMenuCalls, menuCallsBefore + 1);
+    expect(fakeTray.setToolTipCalls, tooltipCallsBefore);
+    expect(fakeTray.menuLabelForKey('show'), 'Abrir Compact Games');
+    expect(
+      fakeTray.menuLabelForKey('toggle_auto'),
+      'Pausar compresion automatica',
+    );
+    expect(fakeTray.menuLabelForKey('quit'), 'Salir');
+    expect(fakeTray.lastTooltip, 'Compact Games');
+  });
 
   test(
     'toggle auto-compression tray action is debounced while in flight',

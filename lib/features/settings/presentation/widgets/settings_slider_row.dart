@@ -4,13 +4,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 
-typedef SliderDirectEntryRequest =
-    Future<double?> Function(
-      BuildContext context,
-      double currentValue,
-      double min,
-      double max,
-    );
+typedef SliderDirectEntryRequest = Future<double?> Function(
+  BuildContext context,
+  double currentValue,
+  double min,
+  double max,
+);
 
 class SettingsSliderRow extends StatefulWidget {
   const SettingsSliderRow({
