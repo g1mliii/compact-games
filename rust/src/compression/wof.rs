@@ -13,8 +13,8 @@ use windows::core::PCWSTR;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Storage::FileSystem::{
     GetCompressedFileSizeW, GetFileInformationByHandle, GetFinalPathNameByHandleW,
-    BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT, FILE_NAME_NORMALIZED,
-    FILE_SHARE_DELETE, FILE_SHARE_READ,
+    BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT, FILE_NAME_NORMALIZED, FILE_READ_DATA,
+    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_WRITE_DATA,
 };
 use windows::Win32::System::Ioctl::{
     FSCTL_DELETE_EXTERNAL_BACKING, FSCTL_GET_EXTERNAL_BACKING, FSCTL_SET_EXTERNAL_BACKING,
@@ -234,8 +234,12 @@ pub fn get_physical_size(path: &Path) -> Result<u64, CompressionError> {
 }
 
 fn open_for_wof(path: &Path) -> Result<File, CompressionError> {
+    open_with_access(path, (FILE_READ_DATA | FILE_WRITE_DATA).0)
+}
+
+fn open_with_access(path: &Path, access_mode: u32) -> Result<File, CompressionError> {
     OpenOptions::new()
-        .access_mode(0x0001 | 0x0002)
+        .access_mode(access_mode)
         .share_mode((FILE_SHARE_READ | FILE_SHARE_DELETE).0)
         .open(path)
         .map_err(|e| map_io(e, path))
@@ -245,13 +249,28 @@ pub(crate) fn open_verified_file(
     path: &Path,
     canonical_root: &Path,
 ) -> Result<File, CompressionError> {
+    open_verified(path, canonical_root, (FILE_READ_DATA | FILE_WRITE_DATA).0)
+}
+
+pub(crate) fn open_verified_read_only(
+    path: &Path,
+    canonical_root: &Path,
+) -> Result<File, CompressionError> {
+    open_verified(path, canonical_root, FILE_READ_DATA.0)
+}
+
+fn open_verified(
+    path: &Path,
+    canonical_root: &Path,
+    access_mode: u32,
+) -> Result<File, CompressionError> {
     let metadata = std::fs::symlink_metadata(path).map_err(|error| map_io(error, path))?;
     if !metadata.is_file() || metadata.file_type().is_symlink() {
         return Err(CompressionError::WofApiError {
             message: format!("reparse point rejected: {}", path.display()),
         });
     }
-    let file = open_for_wof(path)?;
+    let file = open_with_access(path, access_mode)?;
     let mut info = BY_HANDLE_FILE_INFORMATION::default();
     unsafe {
         GetFileInformationByHandle(file_handle(&file), &mut info)
