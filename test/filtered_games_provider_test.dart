@@ -317,6 +317,13 @@ class _MinimalBridgeService implements RustBridgeService {
   @override
   void persistCompressionHistory() {}
   @override
+  Future<List<GameInfo>> scanCustomLibraryFolders(
+    List<String> paths, {
+    bool quick = false,
+    bool refresh = false,
+  }) async => const <GameInfo>[];
+
+  @override
   Future<List<GameInfo>> scanCustomFolder(String path) async => const [];
   @override
   Future<GameInfo> addApplicationFolder(String path, {String? name}) async =>

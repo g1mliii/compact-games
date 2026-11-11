@@ -104,6 +104,19 @@ class RustBridgeService {
     return frbGames.map(_mapFrbGameInfo).toList();
   }
 
+  Future<List<GameInfo>> scanCustomLibraryFolders(
+    List<String> paths, {
+    bool quick = false,
+    bool refresh = false,
+  }) async {
+    final games = await rust_discovery.scanCustomLibraryFolders(
+      paths: paths,
+      quick: quick,
+      refresh: refresh,
+    );
+    return games.map(_mapFrbGameInfo).toList();
+  }
+
   Future<GameInfo> addApplicationFolder(String path, {String? name}) async {
     final frbGame = await rust_discovery.addApplicationFolder(
       path: path,

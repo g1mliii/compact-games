@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/game_info.dart';
 import '../../services/rust_bridge_service.dart';
+import '../settings/settings_provider.dart';
 import 'game_list_dedupe.dart';
 import 'game_list_state.dart';
 import 'manual_game_import.dart';
@@ -64,6 +65,16 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
       _hydrationFlushTimer = null;
     });
 
+    ref.listen(settingsProvider, (previous, next) {
+      final before = previous?.value?.settings.customFolders;
+      final after = next.value?.settings.customFolders;
+      if (after != null && !listEquals(before ?? const <String>[], after)) {
+        // An in-progress load reads the latest roots before publishing. Otherwise
+        // rescan now so adding/removing a Settings path immediately updates cards.
+        unawaited(refresh());
+      }
+    });
+
     final requestId = ++_requestGeneration;
     final quickState = await _loadGames(
       requestId,
@@ -88,8 +99,33 @@ class GameListNotifier extends AsyncNotifier<GameListState> {
         _DiscoveryLoadMode.full => await bridge.getAllGames(),
         _DiscoveryLoadMode.refresh => await bridge.refreshAllGames(),
       };
-      final games = dedupeDiscoveredGames(fetchedGames);
-      _logDiscoveryBatch(fetchedGames, games, mode);
+      if (_isStaleRequest(requestId)) {
+        return state.value ?? const GameListState();
+      }
+      var customGames = <GameInfo>[];
+      while (!_isStaleRequest(requestId)) {
+        final folders = List<String>.of(
+          ref.read(settingsProvider).value?.settings.customFolders ?? const [],
+        );
+        customGames = folders.isEmpty
+            ? <GameInfo>[]
+            : await bridge.scanCustomLibraryFolders(
+                folders,
+                quick: mode == _DiscoveryLoadMode.quick,
+                refresh: mode == _DiscoveryLoadMode.refresh,
+              );
+        if (_isStaleRequest(requestId) ||
+            listEquals(
+              folders,
+              ref.read(settingsProvider).value?.settings.customFolders ??
+                  const [],
+            )) {
+          break;
+        }
+      }
+      final allGames = [...fetchedGames, ...customGames];
+      final games = dedupeDiscoveredGames(allGames);
+      _logDiscoveryBatch(allGames, games, mode);
       if (_isStaleRequest(requestId)) {
         return state.value ?? const GameListState();
       }

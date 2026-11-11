@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1440575063;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 645192484;
 
 // Section: executor
 
@@ -1256,6 +1256,46 @@ fn wire__crate__api__discovery__scan_custom_folder_impl(
             move |context| {
                 transform_result_sse::<_, crate::api::types::FrbDiscoveryError>((move || {
                     let output_ok = crate::api::discovery::scan_custom_folder(api_path)?;
+                    std::result::Result::Ok(output_ok)
+                })(
+                ))
+            }
+        },
+    )
+}
+fn wire__crate__api__discovery__scan_custom_library_folders_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "scan_custom_library_folders",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_paths = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_quick = <bool>::sse_decode(&mut deserializer);
+            let api_refresh = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::FrbDiscoveryError>((move || {
+                    let output_ok = crate::api::discovery::scan_custom_library_folders(
+                        api_paths,
+                        api_quick,
+                        api_refresh,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })(
                 ))
@@ -2563,49 +2603,55 @@ fn pde_ffi_dispatcher_primary_impl(
         36 => {
             wire__crate__api__discovery__scan_custom_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        37 => wire__crate__api__automation__shared_auto_state_default_impl(
+        37 => wire__crate__api__discovery__scan_custom_library_folders_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__automation__start_auto_compression_impl(
+        38 => wire__crate__api__automation__shared_auto_state_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
+        39 => wire__crate__api__automation__start_auto_compression_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__automation__update_automation_config_impl(
+        41 => wire__crate__api__unsupported__sync_unsupported_report_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__automation__watch_auto_compression_status_impl(
+        43 => wire__crate__api__automation__update_automation_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__automation__watch_automation_queue_impl(
+        45 => wire__crate__api__automation__watch_auto_compression_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        46 => wire__crate__api__automation__watch_scheduler_state_impl(
+        46 => wire__crate__api__automation__watch_automation_queue_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__automation__watch_watcher_events_impl(
+        47 => wire__crate__api__automation__watch_scheduler_state_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        48 => wire__crate__api__automation__watch_watcher_events_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2658,13 +2704,13 @@ fn pde_ffi_dispatcher_sync_impl(
         34 => {
             wire__crate__api__unsupported__report_unsupported_game_impl(ptr, rust_vec_len, data_len)
         }
-        39 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
+        40 => wire__crate__api__automation__stop_auto_compression_impl(ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__unsupported__unreport_unsupported_game_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__update__update_check_interval_ms_impl(ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__update__update_check_interval_ms_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

@@ -143,6 +143,13 @@ class NoOpRustBridgeService implements RustBridgeService {
   }) async => destPath;
 
   @override
+  Future<List<GameInfo>> scanCustomLibraryFolders(
+    List<String> paths, {
+    bool quick = false,
+    bool refresh = false,
+  }) async => const <GameInfo>[];
+
+  @override
   Future<List<GameInfo>> scanCustomFolder(String path) async =>
       const <GameInfo>[];
 

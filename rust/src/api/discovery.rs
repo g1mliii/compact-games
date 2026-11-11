@@ -79,7 +79,34 @@ pub async fn remove_game_from_discovery(path: String, platform: FrbPlatform) {
     log::info!("Game removed from discovery: {}", path);
 }
 
-/// Scan a single custom folder for games.
+/// Settings paths are library containers; use the same scanner as common Games roots.
+pub fn scan_custom_library_folders(
+    paths: Vec<String>,
+    quick: bool,
+    refresh: bool,
+) -> Result<Vec<FrbGameInfo>, FrbDiscoveryError> {
+    use crate::discovery::custom::CustomScanner;
+    use crate::discovery::platform::PlatformScanner;
+
+    let mode = if refresh {
+        DiscoveryScanMode::Refresh
+    } else if quick {
+        DiscoveryScanMode::Quick
+    } else {
+        DiscoveryScanMode::Full
+    };
+    let scanner = CustomScanner::new_library_roots(paths.into_iter().map(PathBuf::from).collect());
+    let games = scanner
+        .scan(mode)
+        .map_err(|error| FrbDiscoveryError::CustomScanFailed {
+            path: "custom libraries".to_owned(),
+            message: error.to_string(),
+        })?;
+    persist_discovery_metadata_if_dirty();
+    Ok(games.into_iter().map(FrbGameInfo::from).collect())
+}
+
+/// Scan a single game folder, including the selected directory itself.
 pub fn scan_custom_folder(path: String) -> Result<Vec<FrbGameInfo>, FrbDiscoveryError> {
     if path.trim().is_empty() {
         return Err(FrbDiscoveryError::InvalidPath {
@@ -373,6 +400,60 @@ mod tests {
         let hidden_token = cache::compute_change_token(&content_dir, false);
         assert!(!hidden_paths::should_hide(&content_dir, &hidden_token));
         assert!(install_history::max_observed_size(&content_dir).is_none());
+    }
+
+    #[test]
+    fn settings_library_scan_matches_common_roots_and_releases_directories() {
+        use crate::discovery::custom::CustomScanner;
+        use crate::discovery::platform::PlatformScanner;
+
+        let _guard = lock_discovery_test();
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path().join("Custom Library");
+        for name in ["Game One", "Game Two"] {
+            let game = root.join(name);
+            fs::create_dir_all(game.join(format!("{name}_Data"))).unwrap();
+            File::create(game.join(format!("{name}.exe")))
+                .unwrap()
+                .set_len(512 * 1024)
+                .unwrap();
+        }
+        let scanner = CustomScanner::new_library_roots(vec![root.clone()]);
+        for (quick, refresh, mode) in [
+            (true, false, DiscoveryScanMode::Quick),
+            (false, false, DiscoveryScanMode::Full),
+            (false, true, DiscoveryScanMode::Refresh),
+        ] {
+            let games = scan_custom_library_folders(
+                vec![root.to_string_lossy().into_owned()],
+                quick,
+                refresh,
+            )
+            .unwrap();
+            let common_games = scanner.scan(mode).unwrap();
+            assert_eq!(games.len(), 2);
+            assert_eq!(games.len(), common_games.len());
+            for game in &games {
+                assert!(common_games
+                    .iter()
+                    .any(|common| common.path == Path::new(&game.path)));
+                assert_ne!(PathBuf::from(&game.path), root);
+            }
+        }
+        fs::rename(root.join("Game One"), root.join("Renamed Game")).unwrap();
+        let renamed_root = temp.path().join("Renamed Library");
+        fs::rename(&root, &renamed_root).unwrap();
+        let games = scan_custom_library_folders(
+            vec![renamed_root.to_string_lossy().into_owned()],
+            false,
+            true,
+        )
+        .unwrap();
+        assert_eq!(games.len(), 2);
+        assert!(games.iter().any(|game| game.name == "Renamed Game"));
+        assert!(games
+            .iter()
+            .all(|game| Path::new(&game.path).starts_with(&renamed_root)));
     }
 
     #[test]

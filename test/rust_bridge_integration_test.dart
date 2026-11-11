@@ -87,6 +87,39 @@ void main() {
   );
 
   test(
+    'real bridge scans settings libraries in quick, full and refresh modes',
+    () async {
+      final temp = await io.Directory.systemTemp.createTemp(
+        'compact-games-bridge-library-',
+      );
+      addTearDown(() => temp.delete(recursive: true));
+      final expectedPaths = <String>[];
+      for (final name in ['Game One', 'Game Two']) {
+        final game = io.Directory('${temp.path}\\$name');
+        await io.Directory('${game.path}\\${name}_Data')
+            .create(recursive: true);
+        await io.File('${game.path}\\$name.exe')
+            .writeAsBytes(List<int>.filled(512 * 1024, 0));
+        expectedPaths.add(game.path);
+      }
+      for (final mode in [
+        (quick: true, refresh: false),
+        (quick: false, refresh: false),
+        (quick: false, refresh: true),
+      ]) {
+        final games = await RustBridgeService.instance.scanCustomLibraryFolders(
+          [temp.path],
+          quick: mode.quick,
+          refresh: mode.refresh,
+        );
+        expect(games.map((game) => game.path), unorderedEquals(expectedPaths));
+        expect(games.every((game) => game.platform == Platform.custom), isTrue);
+      }
+    },
+    skip: skipReason,
+  );
+
+  test(
     'real bridge stream returns completion snapshot for empty folder compression',
     () async {
       final temp = await io.Directory.systemTemp.createTemp(

@@ -134,7 +134,10 @@ impl GameWatcher {
         self.event_rx = Some(event_rx);
 
         if let Some(ref mut w) = self.watcher {
-            for path in &self.config.watch_paths {
+            // Recursive watches already cover descendants. Opening handles for
+            // both a library and its games prevents renaming the library on
+            // Windows, even though each handle allows FILE_SHARE_DELETE.
+            for path in non_overlapping_watch_paths(&self.config.watch_paths) {
                 if path.exists() {
                     match w.watch(path, RecursiveMode::Recursive) {
                         Ok(()) => log::info!("Watching: {}", path.display()),
@@ -202,6 +205,22 @@ impl GameWatcher {
             log::error!("Failed to {action} watcher with new config: {e}");
         }
     }
+}
+
+fn non_overlapping_watch_paths(paths: &[PathBuf]) -> Vec<&PathBuf> {
+    let mut sorted: Vec<_> = paths.iter().collect();
+    sorted.sort_by_key(|path| path.components().count());
+    let mut roots: Vec<&PathBuf> = Vec::new();
+    for path in sorted {
+        let key = PathBuf::from(crate::utils::normalize_path_key(path));
+        if !roots
+            .iter()
+            .any(|root| key.starts_with(PathBuf::from(crate::utils::normalize_path_key(root))))
+        {
+            roots.push(path);
+        }
+    }
+    roots
 }
 
 impl Drop for GameWatcher {

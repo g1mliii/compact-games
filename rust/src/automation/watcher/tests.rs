@@ -441,6 +441,70 @@ fn update_config_keeps_running_watcher_when_config_is_unchanged() {
     watcher.stop();
 }
 
+#[cfg(windows)]
+#[test]
+fn watched_library_and_game_can_be_renamed_while_running() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let library = temp.path().join("Library");
+    let game = library.join("Game");
+    std::fs::create_dir_all(&game).unwrap();
+    let mut watcher = GameWatcher::new(WatcherConfig {
+        watch_paths: vec![game.clone(), library.clone()],
+        cooldown: Duration::from_millis(10),
+    });
+    watcher.start().unwrap();
+    std::fs::rename(&game, library.join("Renamed Game")).expect("rename watched game");
+    std::fs::rename(&library, temp.path().join("Renamed Library")).expect("rename watched library");
+    watcher.stop();
+}
+
+#[test]
+fn recursive_watch_roots_keep_siblings_and_drop_only_descendants() {
+    let library = PathBuf::from("/Library");
+    let sibling = PathBuf::from("/Library Extra");
+    let paths = vec![
+        library.join("Game"),
+        sibling.clone(),
+        library.clone(),
+        library.clone(),
+    ];
+    let roots = non_overlapping_watch_paths(&paths);
+    assert_eq!(roots.len(), 2);
+    assert!(roots.contains(&&library));
+    assert!(roots.contains(&&sibling));
+}
+
+#[cfg(windows)]
+#[test]
+fn recursive_watch_roots_dedupe_case_and_separator_equivalents() {
+    let paths = vec![
+        PathBuf::from(r"C:\LIBRARY\Game"),
+        PathBuf::from("c:/library/"),
+        PathBuf::from(r"C:\Library"),
+    ];
+    assert_eq!(non_overlapping_watch_paths(&paths).len(), 1);
+}
+
+#[test]
+fn recursive_watch_still_delivers_nested_changes() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let game = temp.path().join("Game");
+    std::fs::create_dir_all(game.join("Content")).unwrap();
+    let mut watcher = GameWatcher::new(WatcherConfig {
+        watch_paths: vec![temp.path().to_path_buf(), game.clone()],
+        cooldown: Duration::from_millis(10),
+    });
+    watcher.start().unwrap();
+    std::fs::write(game.join("Content").join("patch.bin"), b"patch").unwrap();
+    let event = watcher
+        .event_channel()
+        .unwrap()
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(event.path(), &game);
+    watcher.stop();
+}
+
 #[cfg(test)]
 mod property_tests {
     use super::super::coalescer::*;

@@ -177,6 +177,13 @@ class _BaseRustBridgeService implements RustBridgeService {
   }
 
   @override
+  Future<List<GameInfo>> scanCustomLibraryFolders(
+    List<String> paths, {
+    bool quick = false,
+    bool refresh = false,
+  }) async => const <GameInfo>[];
+
+  @override
   Future<List<GameInfo>> scanCustomFolder(String path) async {
     return const <GameInfo>[];
   }
